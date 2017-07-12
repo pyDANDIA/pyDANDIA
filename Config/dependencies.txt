@@ -1,0 +1,6 @@
+# http://photutils.readthedocs.io/en/stable/photutils/install.html
+pip install --no-deps photutils
+
+# http://scikits.appspot.com/scikit-image
+pip install scikit-image
+pip install scikit-learn
