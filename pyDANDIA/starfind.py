@@ -35,7 +35,7 @@ def starfind(path_to_image, plot_it=False):
     # Get size of image
     ymax, xmax = scidata.shape
     # Read configuration file and get saturation limit
-    config = read_config('config.json')
+    config = read_config('../Config/config.json')
     # If it is a large image, consider 250x250 pixel subregions and
     # choose the one with the fewest saturated pixels to evaluate stats
     saturation = config['maxval']['value']
@@ -117,7 +117,7 @@ def starfind(path_to_image, plot_it=False):
 	x, y = np.mgrid[:20, :20]
 	g_init = models.Gaussian2D(amplitude=10, x_mean=xc, y_mean=yc, x_stddev=1.0, y_stddev=1.0)
 	fit_g = fitting.LevMarLSQFitter()
-	g = fit_g(g_init,(x,y)(*np.indices(cutout.shape)),cutout(*np.indices(cutout.shape)))
+	g = fit_g(g_init,x,y,cutout)
 	norm = ImageNormalize(interval=AsymmetricPercentileInterval(1,5), stretch=SqrtStretch())
 	plt.figure(figsize=(8,2.5))
 	plt.subplot(1,3,1)
