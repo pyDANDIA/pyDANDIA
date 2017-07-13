@@ -15,6 +15,7 @@ from astropy.io import fits
 import sys
 
 import config
+from astropy.table import Table
 
 PIPELINE_CONFIGURATION = config.read_config('../Config/config.json')
 
@@ -159,6 +160,13 @@ def construct_the_bad_pixel_mask(open_image, image_bad_pixel_mask_layer = 2):
 	
 		bad_pixel_mask = open_image[image_bad_pixel_mask_layer].data
 
+		#BANZAI definition of bp == 1 or bp == 3		
+		index_saturation = np.where((bad_pixel_mask==2))
+		bad_pixel_mask[index_saturation] = 0
+
+		index_saturation = np.where((bad_pixel_mask==3))
+		bad_pixel_mask[index_saturation] = 1
+ 
 	except:
 		
 		bad_pixel_mask = np.zeros(open_image[0].data.shape, int)
@@ -171,13 +179,19 @@ def construct_the_bad_pixel_mask(open_image, image_bad_pixel_mask_layer = 2):
 def construct_the_variables_star_mask():
 	pass
 
-def construct_the_saturated_pixel_mask(open_image, saturation_level = 65535):
+def construct_the_saturated_pixel_mask(open_image, saturation_level = None):
 	
 	try:
 		data = open_image[0].data
 		
-		mask = data >= saturation_level
+		if saturation_level:
 
+			pass
+		else:
+
+			saturation_level = open_image[0].header['SATURATE']
+		
+		mask = 	open_image[0].data >= saturation_level
 		saturated_pixel_mask = mask.astype(int)
 
 	except:
@@ -204,6 +218,7 @@ def construct_the_low_level_pixel_mask(open_image, low_level = 0):
 	return low_level_pixel_mask
 
 def construct_the_pixel_mask(open_image):
+
 	try:
 		bad_pixel_mask = construct_the_bad_pixel_mask(open_image)
 	
@@ -285,5 +300,40 @@ def construct_the_stamps(open_image, arcseconds_stamp_size=60, number_of_overlap
 
 	return np.array(stamps_list)
 
+def add_table_to_the_metadata(table_name, table_data, table_columns_names, table_format, open_metadata, 
+			      output_metadata_directory, metadata_name='pyDANDIA_metadata.fits', verbose=False):
+
+	columns = []
+
+	for i in xrange(len(table_data[0])):
+
+		column = fits.Column(name = table_columns_names[i], format = table_format[i], array=table_data[:,i])
+		columns.append(column)
+
+	tbhdu = fits.BinTableHDU.from_columns(columns)
+	tbhdu.name = table_name
+	
+	if table_name in [i.name for i in open_metadata]:
+		
+		open_metadata[table_name] = tbhdu
+	else:
+	
+		open_metadata.append(tbhdu)
+
+	open_metadata.writeto(output_metadata_directory+metadata_name,clobber=True)
+
+def add_image_to_the_metadata(image_name, image_data, open_metadata, 
+			      output_metadata_directory, metadata_name='pyDANDIA_metadata.fits', verbose=False):
+
+	new_hdu = fits.ImageHDU(image_data, name = image_name)
+
+	if image_name in [i.name for i in open_metadata]:
+		
+		open_metadata[image_name] = new_hdu
+	else:
+	
+		open_metadata.append(new_hdu)
+
+	open_metadata.writeto(output_metadata_directory+metadata_name,clobber=True)
 
 
