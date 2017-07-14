@@ -1,5 +1,6 @@
 import sys
 import matplotlib.pyplot as plt
+import numpy as np
 
 sys.path.append('../pyDANDIA/')
 import stage0
@@ -19,9 +20,14 @@ for data in new_data:
 	master_mask = stage0.construct_the_pixel_mask(open_image)
 	stamps = stage0.construct_the_stamps(open_image)
 
+images = np.c_[new_data,np.arange(0,len(new_data))]
 
+stage0.add_table_to_the_metadata('IMAGES', images, ['NAMES','ID'], ['100A','I'],reduction_metadata, 
+			      './', metadata_name='pyDANDIA_metadata.fits')
 stage0.add_table_to_the_metadata('STAMPS', stamps, ['id','y_min','y_max','x_min','x_max'], ['I','I','I','I','I'],reduction_metadata, 
 			      './', metadata_name='pyDANDIA_metadata.fits')
 stage0.add_image_to_the_metadata('MASTER_MASK', master_mask, reduction_metadata, 
 			      './', metadata_name='pyDANDIA_metadata.fits')
+
+stage0.save_the_metadata(reduction_metadata, './', metadata_name='pyDANDIA_metadata.fits')
 import pdb; pdb.set_trace()

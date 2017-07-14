@@ -93,7 +93,7 @@ def find_images_already_process(reduction_metadata, verbose=False):
 
 	try:
 
-		images_already_treated = reduction_metadata['images']['names']
+		images_already_treated = reduction_metadata['IMAGES']['NAMES']
 
 		if verbose == True:
 
@@ -320,7 +320,29 @@ def add_table_to_the_metadata(table_name, table_data, table_columns_names, table
 	
 		open_metadata.append(tbhdu)
 
-	open_metadata.writeto(output_metadata_directory+metadata_name,clobber=True)
+
+
+def add_column_to_a_table_in_the_metadata(table_name, table_data, table_columns_names, table_format, open_metadata, 
+			      output_metadata_directory, metadata_name='pyDANDIA_metadata.fits', verbose=False):
+
+	columns = []
+
+	for i in xrange(len(table_data[0])):
+
+		column = fits.Column(name = table_columns_names[i], format = table_format[i], array=table_data[:,i])
+		columns.append(column)
+
+	tbhdu = fits.BinTableHDU.from_columns(columns)
+	tbhdu.name = table_name
+	
+	if table_name in [i.name for i in open_metadata]:
+		
+		open_metadata[table_name] = tbhdu
+	else:
+	
+		open_metadata.append(tbhdu)
+
+
 
 def add_image_to_the_metadata(image_name, image_data, open_metadata, 
 			      output_metadata_directory, metadata_name='pyDANDIA_metadata.fits', verbose=False):
@@ -334,6 +356,8 @@ def add_image_to_the_metadata(image_name, image_data, open_metadata,
 	
 		open_metadata.append(new_hdu)
 
-	open_metadata.writeto(output_metadata_directory+metadata_name,clobber=True)
+def save_the_metadata(open_metadata, output_metadata_directory, metadata_name='pyDANDIA_metadata.fits', verbose=False):
+
+	open_metadata.writeto(output_metadata_directory+metadata_name, overwrite=True)
 
 

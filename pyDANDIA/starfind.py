@@ -98,7 +98,7 @@ def starfind(path_to_image, plot_it=False):
     sources = sources[0:30]
     # Uncomment to display source list in browser window
     #sources.show_in_browser()
-    
+    return sources
     fwhm_arr = []
     fwhm_a_arr = []
     fwhm_b_arr = []
