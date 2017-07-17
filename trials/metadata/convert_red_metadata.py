@@ -29,11 +29,10 @@ def convert_red_metadata():
     
     meta.inventory = read_data_inventory(config)
     
-    trends = ['imred', 'gimred', 'dimred']
-    for t in trends:
-        (header, data) = read_trendlog(config[t])
-        setattr(meta,t,[ header, data ])
-
+    meta.imred = read_imred_trendlog(config['imred'])
+    
+    meta.gimred = read_gimred_trendlog(config['gimred'])
+    
     meta.write()
         
 def get_config():
@@ -175,7 +174,36 @@ def read_data_inventory(config):
     
     return inventory
 
-def read_trendlog(trend_file):
+def read_imred_trendlog(trend_file):
+    """Function to read a generic-format trendlog from DanDIA in the old format"""
+    
+    header = ''
+    data = {}
+
+    if path.isfile(trend_file) == False:
+        print('Error: Cannot find trendlog file '+trend_file)
+        exit()
+    
+    file_lines = open(trend_file,'r').readlines()
+
+    for line in file_lines:
+        if len(line.replace('\n','')) > 0:
+            if line[0:1] == '#':
+                header = line.replace('\n','').split()
+            else:
+                entries = line.replace('\n','').split()
+                tlist = [   float(entries[2]),\
+                            float(entries[9]),\
+                            float(entries[10]),\
+                            float(entries[11]),\
+                            float(entries[12]),\
+                            int(entries[17]),\
+                        ]
+                data[path.basename(entries[0])] = tlist
+
+    return data
+
+def read_gimred_trendlog(trend_file):
     """Function to read a generic-format trendlog from DanDIA in the old format"""
     
     header = ''
@@ -193,12 +221,20 @@ def read_trendlog(trend_file):
                 header = line.replace('\n','').split()
             else:
                 entries = line.replace('\n','').split()
-                tlist = []
-                for item in entries[1:]:
-                    tlist.append(float(item))
+                tlist = [   path.basename(entries[0]),
+                            float(entries[3]),\
+                            float(entries[4]),\
+                            float(entries[5]),\
+                            float(entries[6]),\
+                            float(entries[7]),\
+                            float(entries[8]),\
+                            int(entries[10]),\
+                            float(entries[11]),\
+                            float(entries[12])
+                        ]
                 data[path.basename(entries[0])] = tlist
 
-    return header, data
+    return data
 
 
 if __name__ == '__main__':

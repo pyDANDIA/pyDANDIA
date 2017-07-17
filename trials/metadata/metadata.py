@@ -67,6 +67,12 @@ class MetaData:
         level2 = self.get_level2()
         hdulist.append(level2)
         
+        level3 = self.get_level3()
+        hdulist.append(level3)
+        
+        level4 = self.get_level4()
+        hdulist.append(level4)
+        
         hdulist.writeto(self.metadata_file,clobber=True)
         print('Output metadata to '+self.metadata_file)
 
@@ -92,7 +98,9 @@ class MetaData:
 
     def get_level0(self):
         """Method that defines the FITS header keywords and comments for 
-        Level 0 of the pyDANDIA metadata file"""
+        Level 0 of the pyDANDIA metadata file:
+        Dataset description parameters
+        """
         
         data = [['field','FIELD', 'string', 'Name of target field'],
                   ['site', 'SITE', '5A', 'Site code'],
@@ -112,7 +120,9 @@ class MetaData:
 
     def get_level1(self):
         """Method that defines the FITS header keywords and comments for 
-        Level 1 of the pyDANDIA metadata file"""
+        Level 1 of the pyDANDIA metadata file:
+        Reduction configuration parameters
+        """
         
         data = [[ 'year', 'YEAR', 'int', 'Year of observations'],
                 [ 'back_var', 'BACKVAR', 'int', 'Switch for a spatially variable differential background'],
@@ -165,9 +175,11 @@ class MetaData:
 
     def get_level2(self):
         """Method that defines the FITS header keywords and comments for 
-        Level 2 of the pyDANDIA metadata file"""
+        Level 2 of the pyDANDIA metadata file
+        Data inventory
+        """
         
-        level1 = [[0,'IMAGE', '100A', ''],
+        level2 = [[0,'IMAGE', '100A', ''],
                   [1, 'FIELD', '100A', ''],
                     [2, 'DATE', '10A', 'UTC'],
                     [3,'TIME', '12A', 'UTC'],
@@ -176,11 +188,96 @@ class MetaData:
         
         data = np.array(self.inventory)
         table = []
-        for col, key, fstr, unit in level1:
+        for col, key, fstr, unit in level2:
             table.append( fits.Column(name=key, format=fstr, 
-                                         array=data[col,:], 
+                                         array=data[:,col], 
                                             unit=unit) )
         
         tbhdu = fits.BinTableHDU.from_columns(table)
 
         return tbhdu
+
+    def get_level3(self):
+        """Method that defines the FITS header keywords and comments for 
+        Level 2 of the pyDANDIA metadata file
+        Image data parameters (~old trendlog.imred)
+        """
+        
+        level3 = [['image','IMAGE', '100A', ''],
+                  [0, 'HJD', 'E', ''],
+                    [1, 'EXPTIME', 'E', 's'],
+                    [2, 'SKYBKGD', 'E', 'counts'],
+                    [3, 'SKYSIG', 'E', 'counts'],
+                    [4, 'FWHM', 'E', 'pix'],
+                    [5, 'NSTARS', 'I', ''],
+                    [None, 'AIRMASS', 'E', ''],
+                    [None, 'MOONSEP', 'E', 'degrees'],
+                    [None, 'MOONFRAC', 'E', '%'],
+                    ]
+        image_list = list(self.imred.keys())
+        image_list.sort
+        data = []
+        for image in image_list:
+            data.append( self.imred[image] )
+        data = np.array(data)
+        table = []
+        for col, key, fstr, unit in level3:
+            if col == 'image':
+                table.append( fits.Column(name=key, format=fstr, 
+                                         array=np.array(image_list),
+                                            unit=unit) )
+            elif col != None and col > 0:
+                table.append( fits.Column(name=key, format=fstr, 
+                                         array=data[:,col],
+                                            unit=unit) )
+            else:
+                table.append( fits.Column(name=key, format=fstr, 
+                                         array=np.zeros(len(data[:,0])),
+                                            unit=unit) )
+        tbhdu = fits.BinTableHDU.from_columns(table)
+
+        return tbhdu
+        
+    def get_level4(self):
+        """Method that defines the FITS header keywords and comments for 
+        Level 2 of the pyDANDIA metadata file
+        Geometric alignment parameters (~trendlog.gimred)
+        """
+        
+        level1 = [['image','IMAGE', '100A', ''],
+                  [0, 'A0', 'E', ''],
+                    [1, 'A1', 'E', 's'],
+                    [2, 'A2', 'E', 'counts'],
+                    [3, 'A3', 'E', 'counts'],
+                    [4, 'A4', 'E', 'pix'],
+                    [5, 'A5', 'E', ''],
+                    [6, 'A6', 'E', ''],
+                    [7, 'NSMATCH', 'I', 'degrees'],
+                    [8, 'RMSX', 'E', '%'],
+                    [9, 'RMSY', 'E', '%'],
+                    ]
+        
+        image_list = list(self.gimred.keys())
+        image_list.sort
+        data = []
+        for image in image_list:
+            data.append( self.gimred[image] )
+        data = np.array(data)
+        table = []
+        for col, key, fstr, unit in level1:
+            if col == 'image':
+                table.append( fits.Column(name=key, format=fstr, 
+                                         array=np.array(image_list),
+                                            unit=unit) )
+            elif col != None and col > 0:
+                table.append( fits.Column(name=key, format=fstr, 
+                                         array=data[:,col],
+                                            unit=unit) )
+            else:
+                table.append( fits.Column(name=key, format=fstr, 
+                                         array=np.zeros(len(data[:,0])),
+                                            unit=unit) )
+        tbhdu = fits.BinTableHDU.from_columns(table)
+
+        return tbhdu
+
