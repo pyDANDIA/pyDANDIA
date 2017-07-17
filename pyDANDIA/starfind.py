@@ -10,24 +10,41 @@
 #      scikit-learn 0.18+
 #      matplotlib 1.3+
 #      photutils 0.3.2+
+#
+# Developed by the Yiannis Tsapras
+# as part of the ROME/REA LCO Key Project.
+#
+# version 0.1a (development)
+#
+# Last update: 17 Jul 2017
 ######################################################################
 
+import numpy as np
 from astropy.io import fits
 from astropy.stats import sigma_clipped_stats
 from astropy.visualization import SqrtStretch, AsymmetricPercentileInterval
 from astropy.visualization.mpl_normalize import ImageNormalize
 from astropy.modeling import models, fitting
+from astropy.nddata import Cutout2D
+from astropy import units as u
 from photutils import background, detection, DAOStarFinder
 from photutils import CircularAperture
 import matplotlib.pyplot as plt
+
+import time
+from datetime import datetime
+from sys import exit
 import os
-import numpy as np
 
 from config import read_config
-import time
-from sys import exit
 
-def starfind(path_to_image, plot_it=False):
+def starfind(path_to_image, plot_it=False, write_log=True):
+    '''
+    The routine will quickly identify stars in a given image and return 
+    a star list and image quality parameters. The output is to be used 
+    to select suitable candidate images for constructing a template 
+    reference image.
+    '''
     t0 = time.time()
     im = fits.open(path_to_image)
     header = im[0].header
@@ -62,28 +79,33 @@ def starfind(path_to_image, plot_it=False):
 	       besty2 = y2
     
     #mean, median, std = sigma_clipped_stats(scidata[1:ymax, 1:xmax], sigma=3.0, iters=5)
+    # Evaluate mean, median and standard deviation for the selected subregion
     mean, median, std = sigma_clipped_stats(scidata[besty1:besty2,bestx1:bestx2], sigma=3.0, iters=5)
+    # Identify stars
     daofind = DAOStarFinder(fwhm=3.0, threshold=5.*std)
     sources = daofind(scidata[besty1:besty2,bestx1:bestx2] - median)
-    logfile = open('starfind.log','a')
-    logfile.write("Identifying sources on image %s ...\n" % path_to_image.split('/')[-1])
-    logfile.write("Found %s sources.\n" % str(len(sources)))
-    if len(sources) == 0:
-        logfile.write("Insufficient number of sources found. Stopping execution.")
-	exit('Could not detect enough sources on image.')
-    elif (len(sources) > 0 and len(sources) <= 5):
-        logfile.write("WARNING: Too few sources detected on image.")
-    else:
-        logfile.write("Using up to 30 best sources to determine FWHM.")
+    # Write steps to a log file
+    if (write_log == True):
+        logfile = open('starfind.log','a')
+	logfile.write("Current system time: "+datetime.now().strftime("%Y:%m:%dT%H:%M:%S")+"\n")
+        logfile.write("Identifying sources on image %s ...\n" % path_to_image.split('/')[-1])
+        logfile.write("Found %s sources.\n" % str(len(sources)))
+        if len(sources) == 0:
+            logfile.write("Insufficient number of sources found. Stopping execution.\n")
+	    exit('Could not detect enough sources on image.')
+        elif (len(sources) > 0 and len(sources) <= 5):
+            logfile.write("WARNING: Too few sources detected on image.\n")
+        else:
+            logfile.write("Using up to 30 best sources to determine FWHM.\n")
     
-    # Discount sources which are saturated
+    # Discount saturated stars
     sources = sources[np.where(sources['peak'] < saturation)]
     sources.sort('peak')
     sources.reverse()
     # Keep only up to 100 stars
     sources = sources[0:100]
     sources_with_close_stars_ids = []
-    # Discount sources with close neighbours (within r=5 pix)
+    # Discount stars with close neighbours (within r=5 pix)
     for i in np.arange(len(sources)):
 	source_i = sources[i]
 	for other_source in sources[i+1:]:
@@ -93,12 +115,13 @@ def starfind(path_to_image, plot_it=False):
                 #print source_i, other_source
 		continue
     
-    # Keep up to 30 isolated sources only
+    # Keep up to 30 isolated sources only (may be fewer)
     sources.remove_rows(sources_with_close_stars_ids)
     sources = sources[0:30]
-    # Uncomment to display source list in browser window
+    # Uncomment the following line to display source list in browser window:
     #sources.show_in_browser()
-    return sources
+    
+    # Fit a model to identified sources and estimate PSF shape parameters
     fwhm_arr = []
     fwhm_a_arr = []
     fwhm_b_arr = []
@@ -107,28 +130,28 @@ def starfind(path_to_image, plot_it=False):
     i = 0
     while (i <= len(sources)):
         i_peak = sources[i]['peak']
-	i_x_lo = int(sources[i]['xcentroid']) - 10
-	i_x_hi = int(sources[i]['xcentroid']) + 10
-	i_y_lo = int(sources[i]['ycentroid']) - 10
-	i_y_hi = int(sources[i]['ycentroid']) + 10
-	cutout = scidata[i_y_lo:i_y_hi,i_x_lo:i_x_hi]
-	xc = 10.0 + sources[i]['xcentroid'] - int(sources[i]['xcentroid'])
-	yc = 10.0 + sources[i]['ycentroid'] - int(sources[i]['ycentroid'])
-	x, y = np.mgrid[:20, :20]
-	g_init = models.Gaussian2D(amplitude=10, x_mean=xc, y_mean=yc, x_stddev=1.0, y_stddev=1.0)
-	fit_g = fitting.LevMarLSQFitter()
-	g = fit_g(g_init,x,y,cutout)
-	norm = ImageNormalize(interval=AsymmetricPercentileInterval(1,5), stretch=SqrtStretch())
-	plt.figure(figsize=(8,2.5))
-	plt.subplot(1,3,1)
-	plt.imshow(cutout,cmap='gray', origin='lower', norm=norm)
+	position = [sources[i]['xcentroid'], sources[i]['ycentroid']]
+	stamp_size = (20,20) # in pixels
+	cutout = Cutout2D(scidata, position, stamp_size)
+	yc, xc = cutout.position_cutout
+	y, x = np.mgrid[:20, :20]
+	yy,xx = np.indices(cutout.data.shape)
+	m_init = models.Moffat2D(amplitude=1, x_0=xc, y_0=yc)
+	fit_m = fitting.LevMarLSQFitter()
+	g = fit_m(m_init,xx,yy,cutout.data)
+	plt.figure(figsize=(3,8))
+	plt.subplot(3,1,1)
+	plt.imshow(cutout.data, cmap='gray', origin='lower')
+	plt.colorbar()
 	plt.title("Data")
-	plt.subplot(1,3,2)
-	plt.imshow(g(x,y), interpolation='nearest',cmap='gray', origin='lower', norm=norm)
+	plt.subplot(3,1,2)
+	plt.imshow(g(xx,yy), cmap='gray', origin='lower')
+	plt.colorbar()
 	plt.title("Model")
-	plt.subplot(1,3,3)
-	plt.imshow(cutout-g(x,y), interpolation='nearest',cmap='gray', origin='lower', norm=norm)
+	plt.subplot(3,1,3)
+	plt.imshow(cutout.data-g(xx,yy), cmap='gray', origin='lower')
 	plt.title("Residual")
+	plt.colorbar()
         plt.show()
 	i = i + 1
     
@@ -162,5 +185,5 @@ def write_trendlog(path_to_trendlog_file, sources):
 #################################
 # Command line section
 if __name__ == '__main__':
-    path_to_image = '/home/Tux/ytsapras/Programs/Workspace/development/pipeline_200x200_testdata/lsc1m005-fl15-20170418-0131-e91_cropped.fits'
+    path_to_image = '/home/Tux/ytsapras/Programs/Workspace/development/pipeline_200x200_testdata/lsc1m005-fl15-20170614-0130-e91_cropped.fits'
     starfind(path_to_image, plot_it=True)
