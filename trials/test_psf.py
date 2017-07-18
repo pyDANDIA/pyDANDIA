@@ -30,7 +30,7 @@ for star in stars:
 	
 	stamp = image[star_y-LIMIT_PSF_PIXEL:star_y+LIMIT_PSF_PIXEL,star_x-LIMIT_PSF_PIXEL:star_x+LIMIT_PSF_PIXEL]
 
-	plt.subplot(321)
+	plt.subplot(331)
 	plt.imshow(stamp)	
 	plt.colorbar()
 
@@ -45,8 +45,18 @@ for star in stars:
 	
 	fit_params = fit[0]
 	fit_errors = fit[1].diagonal()**0.5
+
+	
+
+
 	gaussian = psf.Gaussian2D()
+	PSF = gaussian.get_FWHM(fit_params[-3], fit_params[-2],0.389)
+
+
+	plt.title('Gaussian2D \n PSF = '+str(PSF)+' BACK = '+str(fit_params[-1]))
+	
 	fit_residuals = psf.error_function(fit_params, stamp,gaussian,y,x)
+
 	fit_residuals = fit_residuals.reshape(stamp.shape)
 	cov = fit[1]*np.sum(fit_residuals**2)/((LIMIT_PSF_PIXEL*2)**2-6)
 	fit_errors = cov.diagonal()**0.5	
@@ -54,18 +64,61 @@ for star in stars:
 
 
 	model = gaussian.psf_model(y,x, *fit_params)
-	plt.subplot(323)
+	plt.subplot(334)
 	plt.imshow(model)
 	plt.colorbar()
 
 	
-	plt.subplot(325)	 
+	plt.subplot(337)	 
 	plt.imshow(fit_residuals,interpolation='None')
 	plt.colorbar()
 
 
 
-	plt.subplot(322)
+
+	plt.subplot(332)
+	plt.imshow(stamp)	
+	plt.colorbar()
+
+	X=np.arange(-LIMIT_PSF_PIXEL,LIMIT_PSF_PIXEL)
+	Y=np.arange(-LIMIT_PSF_PIXEL,LIMIT_PSF_PIXEL)
+	x,y = np.meshgrid(X,Y)
+
+
+
+	
+	fit = psf.fit_psf(stamp,y,x, 'Lorentzian2D')
+	
+	fit_params = fit[0]
+	fit_errors = fit[1].diagonal()**0.5
+	lorentz = psf.Lorentzian2D()
+
+	PSF = lorentz.get_FWHM(fit_params[-2],0.389)
+
+
+	plt.title('Lorentzian2D \n PSF = '+str(PSF)+' BACK = '+str(fit_params[-1]))
+	
+	fit_residuals = psf.error_function(fit_params, stamp,lorentz,y,x)
+
+	fit_residuals = fit_residuals.reshape(stamp.shape)
+	cov = fit[1]*np.sum(fit_residuals**2)/((LIMIT_PSF_PIXEL*2)**2-6)
+	fit_errors = cov.diagonal()**0.5	
+	print fit_params,fit_errors
+
+
+	model = lorentz.psf_model(y,x, *fit_params)
+	plt.subplot(335)
+	plt.imshow(model)
+	plt.colorbar()
+
+	
+	plt.subplot(338)	 
+	plt.imshow(fit_residuals,interpolation='None')
+	plt.colorbar()
+
+
+
+	plt.subplot(333)
 	plt.imshow(stamp)	
 	plt.colorbar()
 
@@ -79,20 +132,28 @@ for star in stars:
 	fit_params = fit[0]
 	 
 	moffat = psf.Moffat2D()
+
+	PSF = moffat.get_FWHM(fit_params[-3], fit_params[-2],0.389)
+
+
+	plt.title('Moffat2D \n PSF = '+str(PSF)+' BACK = '+str(fit_params[-1]))
+	
 	fit_residuals = psf.error_function(fit_params, stamp,moffat,y,x)
 	fit_residuals = fit_residuals.reshape(stamp.shape)
+
+	
 	cov = fit[1]*np.sum(fit_residuals**2)/((LIMIT_PSF_PIXEL*2)**2-6)
 	fit_errors = cov.diagonal()**0.5	
 	print fit_params,fit_errors
 
 
 	model = moffat.psf_model(y,x, *fit_params)
-	plt.subplot(324)
+	plt.subplot(336)
 	plt.imshow(model)
 	plt.colorbar()
 
 	
-	plt.subplot(326)	 
+	plt.subplot(339)	 
 	plt.imshow(fit_residuals,interpolation='None')
 	plt.colorbar()
 	plt.show()

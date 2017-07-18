@@ -119,7 +119,7 @@ def starfind(path_to_image, plot_it=False, write_log=True):
     # Keep up to 30 isolated sources only (may be fewer)
     sources.remove_rows(sources_with_close_stars_ids)
     sources = sources[0:30]
-    #return sources
+    return sources
     # Uncomment the following line to display source list in browser window:
     #sources.show_in_browser()
     

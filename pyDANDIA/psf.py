@@ -30,7 +30,16 @@ class PSFModel(object):
 	def psf_model(self, star_data, parameters):
 
 		pass
-	
+	@abc.abstractproperty
+	def psf_guess(self):
+		
+		pass
+
+	@abc.abstractproperty
+	def get_FWHM(self):
+
+		pass
+
 class Moffat2D(PSFModel):
 	
 	def psf_type():
@@ -51,6 +60,10 @@ class Moffat2D(PSFModel):
 		#gamma, alpha
 		return [2.0,2.0]
 
+	def get_FWHM(self,gamma, alpha, pix_scale):
+		
+		fwhm = gamma*2*(2**(1/alpha)-1)**0.5*pix_scale 
+		return fwhm
 
 class Gaussian2D(PSFModel):
 	
@@ -72,6 +85,12 @@ class Gaussian2D(PSFModel):
 		#width_x,with_x
 		return [1.0,1.0]
 
+	def get_FWHM(self,width_x, width_y, pixel_scale):
+		
+		fwhm = (width_x+width_y)/2*2*(2*np.log(2))**0.5*pixel_scale
+
+		return fwhm
+
 class Lorentzian2D(PSFModel):
 
         def psf_type():
@@ -82,7 +101,19 @@ class Lorentzian2D(PSFModel):
 	def psf_model(self, Y_star, X_star, intensity, y_center, x_center, gamma, local_back):
 	        
 		 model = intensity * (gamma/((X_star-x_center)**2 + (Y_star-y_center)**2 + gamma**2 )**(1.5)) + local_back
+		 return model
+
+	def psf_guess(self):
 		
+		#width_x
+		return [1.0]
+	
+	def get_FWHM(self, gamma, pixel_scale):
+		
+		fwhm = 2*gamma*pixel_scale
+
+		return fwhm
+
 class Image(object):
 
 	def __init__(self, full_data, psf_model):
@@ -103,6 +134,11 @@ class Image(object):
 		if psf_model == 'Gaussian2D':
 
 			self.psf_model = Gaussian2D()
+
+		if psf_model == 'Lorentzian2D':
+
+			self.psf_model = Gaussian2D()
+
 
 	def inject_psf_in_stars(self, model, parameters):
 
