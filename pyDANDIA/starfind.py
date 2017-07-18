@@ -130,17 +130,16 @@ def starfind(path_to_image, plot_it=False, write_log=True):
     ell_arr = []
     weights_arr = []
     i = 0
-    while (i <= len(sources)):
+    while (i <= len(sources)-1):
         i_peak = sources[i]['peak']
 	position = [sources[i]['xcentroid'], sources[i]['ycentroid']]
 	stamp_size = (20,20) # in pixels
 	cutout = Cutout2D(scidata, position, stamp_size)
 	yc, xc = cutout.position_cutout
-	y, x = np.mgrid[:20, :20]
-	yy,xx = np.indices(cutout.data.shape)
+	yy, xx = np.indices(cutout.data.shape)
 	m_init = models.Moffat2D(amplitude=1, x_0=xc, y_0=yc)
 	fit_m = fitting.LevMarLSQFitter()
-	g = fit_m(m_init,xx,yy,cutout.data)
+	g = fit_m(m_init,yy,xx,cutout.data)
 	plt.figure(figsize=(3,8))
 	plt.subplot(3,1,1)
 	plt.imshow(cutout.data, cmap='gray', origin='lower')

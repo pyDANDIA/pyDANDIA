@@ -14,18 +14,17 @@ import abc
 import collections
 from scipy import optimize
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+from matplotlib import cm
 
 class PSFModel(object):
 	   
-
 	__metaclass__ = abc.ABCMeta
-	
 
 	def __init__(self):
 
 		self.name = None
 		
-	
 	
 	@abc.abstractproperty
 	def psf_model(self, star_data, parameters):
@@ -42,7 +41,7 @@ class Moffat2D(PSFModel):
 
 	def psf_model(self, Y_star, X_star, intensity, y_center, x_center, gamma, alpha, local_back):
 
-		model = intensity*(1+((X_star-x_center)**2+(Y_star-y_center)**2)/gamma**2)**(-alpha)+local_back
+		model = intensity * (1+((X_star-x_center)**2+(Y_star-y_center)**2)/gamma**2)**(-alpha) + local_back
 
 
 		return model
@@ -63,7 +62,7 @@ class Gaussian2D(PSFModel):
 
 	def psf_model(self, Y_star, X_star, intensity, y_center, x_center, width_y, width_x, local_back):
 
-		model = intensity*np.exp(-(((X_star-x_center)/width_x)**2+((Y_star-y_center)/width_y)**2)/2)+local_back
+		model = intensity * np.exp(-(((X_star-x_center)/width_x)**2+((Y_star-y_center)/width_y)**2)/2) + local_back
 
 
 		return model
@@ -73,6 +72,17 @@ class Gaussian2D(PSFModel):
 		#width_x,with_x
 		return [1.0,1.0]
 
+class Lorentzian2D(PSFModel):
+
+        def psf_type():
+	
+	        return 'Lorentzian2D'
+	
+	
+	def psf_model(self, Y_star, X_star, intensity, y_center, x_center, gamma, local_back):
+	        
+		 model = intensity * (gamma/((X_star-x_center)**2 + (Y_star-y_center)**2 + gamma**2 )**(1.5)) + local_back
+		
 class Image(object):
 
 	def __init__(self, full_data, psf_model):
@@ -166,6 +176,9 @@ def fit_psf(data, Y_data,X_data, psf_model = 'Moffat2D'):
 
 		psf_model = Gaussian2D()
 
+	if psf_model == 'Lorentzian2D':
+
+		psf_model = Lorentzian2D()
 
 
 	guess = [data.max(), Y_data[len(Y_data[:,0])/2,0], X_data[0,len(Y_data[0,:])/2]] + psf_model.psf_guess()+[0]
@@ -188,3 +201,18 @@ def error_function( psf_params, data, psf, Y_data, X_data):
 	
 
 
+def plot3d(x, y, z):
+    '''
+    Plots 3D data.
+    '''
+    fig = plt.figure()
+    ax = Axes3D(fig)
+    ax.plot_wireframe(x, y, z, alpha=0.5)
+    ax.plot_surface(x, y, z, alpha=0.2)
+    cset = ax.contourf(x, y, z, zdir='z', offset=min(z.flatten()), cmap=cm.coolwarm, alpha=0.2)
+    cset = ax.contourf(x, y, z, zdir='x', offset=min(x[0]), cmap=cm.coolwarm, alpha=0.3)
+    cset = ax.contourf(x, y, z, zdir='y', offset=max(y[-1]), cmap=cm.coolwarm, alpha=0.3)
+    ax.set_xlabel('x')
+    ax.set_ylabel('y')
+    ax.set_zlabel('z')
+    plt.show()
