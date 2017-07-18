@@ -24,12 +24,25 @@ class PSFModel(object):
 	def __init__(self):
 
 		self.name = None
-		
-	
+		self.model = None
+		self.psf_parameters = None
+		self.define_psf_parameters()
+
+
+	@abc.abstractproperty
+	def define_psf_parameters(self):
+		pass
+
 	@abc.abstractproperty
 	def psf_model(self, star_data, parameters):
 
 		pass
+
+	@abc.abstractproperty
+	def update_psf_parameters(self):
+		
+		pass
+
 	@abc.abstractproperty
 	def psf_guess(self):
 		
@@ -42,15 +55,36 @@ class PSFModel(object):
 
 class Moffat2D(PSFModel):
 	
-	def psf_type():
+	def psf_type(self):
 
 		return 'Moffat2D'
+	
+
+	def define_psf_parameters(self):
+
+		self.model = ['intensity' , 'y_center' , 'x_center' , 'gamma' , 'alpha']
+	
+		self.psf_parameters = collections.namedtuple('parameters', self.model)
 		
+		for index, key in enumerate(self.model) :
+
+			setattr(self.psf_parameters, key, None)
+
+
+	def update_psf_parameters(self, parameters):
+
+		for index, key in enumerate(self.model) :
+
+			setattr(self.psf_parameters, key, parameters[index])
+
 		
 
-	def psf_model(self, Y_star, X_star, intensity, y_center, x_center, gamma, alpha, local_back):
+	def psf_model(self, Y_star, X_star, parameters):
 
-		model = intensity * (1+((X_star-x_center)**2+(Y_star-y_center)**2)/gamma**2)**(-alpha) + local_back
+		self.update_psf_parameters( parameters)
+
+		model = self.psf_parameters.intensity * (1+((X_star-self.psf_parameters.x_center)**2+
+			(Y_star-self.psf_parameters.y_center)**2)/self.psf_parameters.gamma**2)**(-self.psf_parameters.alpha)
 
 
 		return model
@@ -67,15 +101,33 @@ class Moffat2D(PSFModel):
 
 class Gaussian2D(PSFModel):
 	
-	def psf_type():
+	def psf_type(self):
 
 		return 'Gaussian2D'
-		
-		
+	
+	def define_psf_parameters(self):
 
-	def psf_model(self, Y_star, X_star, intensity, y_center, x_center, width_y, width_x, local_back):
+		self.model = ['intensity' , 'y_center' , 'x_center' , 'width_y' , 'width_x']
+		
+		self.psf_parameters = collections.namedtuple('parameters', self.model)
 
-		model = intensity * np.exp(-(((X_star-x_center)/width_x)**2+((Y_star-y_center)/width_y)**2)/2) + local_back
+		for index, key in enumerate(self.model) :
+
+			setattr(self.psf_parameters, key, None)
+
+	def update_psf_parameters(self, parameters):
+
+		for index, key in enumerate(self.model) :
+
+			setattr(self.psf_parameters, key, parameters[index])
+
+
+	def psf_model(self, Y_star, X_star, parameters):
+
+		self.update_psf_parameters( parameters)
+
+		model = self.psf_parameters.intensity * np.exp(-(((X_star-self.psf_parameters.x_center)/self.psf_parameters.width_x)**2
+			+((Y_star-self.psf_parameters.y_center)/self.psf_parameters.width_y)**2)/2) 
 
 
 		return model
@@ -97,10 +149,28 @@ class Lorentzian2D(PSFModel):
 	
 	        return 'Lorentzian2D'
 	
-	
-	def psf_model(self, Y_star, X_star, intensity, y_center, x_center, gamma, local_back):
+
+	def define_psf_parameters(self):
+
+		self.model = ['intensity' , 'y_center' , 'x_center' , 'gamma']
+		self.psf_parameters = collections.namedtuple('parameters', self.model)
+
+		for index, key in enumerate(self.model) :
+
+			setattr(self.psf_parameters, key, None)
+
+	def update_psf_parameters(self, parameters):
+
+		for index, key in enumerate(self.model) :
+
+			setattr(self.psf_parameters, key, parameters[index])
+
+	def psf_model(self, Y_star, X_star, parameters):
 	        
-		 model = intensity * (gamma/((X_star-x_center)**2 + (Y_star-y_center)**2 + gamma**2 )**(1.5)) + local_back
+		 self.update_psf_parameters( parameters)
+		
+		 model = self.psf_parameters.intensity * (self.psf_parameters.gamma/((X_star-self.psf_parameters.x_center)**2 + 
+			 (Y_star-self.psf_parameters.y_center)**2 + self.psf_parameters.gamma**2 )**(1.5)) 
 		 return model
 
 	def psf_guess(self):
@@ -113,6 +183,81 @@ class Lorentzian2D(PSFModel):
 		fwhm = 2*gamma*pixel_scale
 
 		return fwhm
+
+
+
+
+
+class BackgroundModel(object):
+	   
+	__metaclass__ = abc.ABCMeta
+
+	def __init__(self):
+
+		self.name = None
+		self.model = None
+		self.background_parameters = None
+		self.define_background_parameters()
+	@abc.abstractproperty
+	def define_background_parameters(self, background_data, parameters):
+
+		pass
+
+	@abc.abstractproperty
+	def update_background_parameters(self, background_data, parameters):
+
+		pass
+	@abc.abstractproperty
+	def background_model(self, background_data, parameters):
+
+		pass
+
+	@abc.abstractproperty
+	def update_background_parameters(self):
+		
+		pass
+
+	@abc.abstractproperty
+	def background_guess(self):
+		
+		pass
+
+
+class ConstantBackground(BackgroundModel):
+
+        def background_type(self):
+	
+	        return 'Constant'
+
+	def define_background_parameters(self):
+
+		self.model =  ['constant']
+		self.background_parameters = collections.namedtuple('parameters', self.model)
+
+		for index, key in enumerate(self.model) :
+
+			setattr(self.background_parameters, key, None)
+
+	def update_background_parameters(self, parameters):
+
+		self.background_parameters = collections.namedtuple('parameters', self.model)
+		
+		for index, key in enumerate(self.model) :
+
+			setattr(self.background_parameters, key, parameters[index])
+
+	def background_model(self, Y_background, X_background, parameters):
+	        
+		 self.update_background_parameters( parameters)
+		
+		 model =  np.ones(Y_background.shape)*self.background_parameters.constant
+		 return model
+
+	def background_guess(self):
+		
+		#background constant
+		return [0]
+	
 
 class Image(object):
 
@@ -202,8 +347,8 @@ class Image(object):
 		return [np.array(intensities), np.array(y_centers), np.array(x_centers)]
 
 	
-def fit_psf(data, Y_data,X_data, psf_model = 'Moffat2D'):
-	
+def fit_star(data, Y_data,X_data, psf_model = 'Moffat2D', background_model = 'Constant' ):
+
 	if psf_model == 'Moffat2D':
 
 		psf_model = Moffat2D()
@@ -216,24 +361,46 @@ def fit_psf(data, Y_data,X_data, psf_model = 'Moffat2D'):
 
 		psf_model = Lorentzian2D()
 
+	if background_model == 'Constant':
 
-	guess = [data.max(), Y_data[len(Y_data[:,0])/2,0], X_data[0,len(Y_data[0,:])/2]] + psf_model.psf_guess()+[0]
-	
-	fit = optimize.leastsq(error_function, guess, args=(data, psf_model, Y_data, X_data), full_output=1)
+		back_model = ConstantBackground()
+
+	guess_psf = [data.max(), Y_data[len(Y_data[:,0])/2,0], X_data[0,len(Y_data[0,:])/2]] + psf_model.psf_guess()
+	guess_back = back_model.background_guess()
+
+	guess = guess_psf+guess_back
+
+	fit = optimize.leastsq(error_star_fit_function, guess, args=(data, psf_model, back_model, Y_data, X_data), full_output=1)
 	
 
 
 	return fit
 
+def error_star_fit_function( params, data, psf, background, Y_data, X_data):
 
-def error_function( psf_params, data, psf, Y_data, X_data):
 
+	psf_params = params[:len( psf.psf_parameters._fields)]
+	back_params = 	params[len( psf.psf_parameters._fields):]
 
-	model = psf.psf_model(Y_data,X_data, *psf_params)
+	psf_model = psf.psf_model(Y_data,X_data, psf_params)
+	back_model = background.background_model(Y_data,X_data, back_params)
 
-	residuals = np.ravel(data-model)
+	residuals = np.ravel(data-psf_model-back_model)
 
 	return residuals
+
+def fit_multiple_stars(data_stamps, Y_data, X_data, psf_model = 'Moffat2D',background_model = 'Constant'):
+
+	
+	fits = []
+	for stamp in data_stamps :
+		
+
+		fits.append(fit_star(stamp, Y_data, X_data, psf_model, background_model ))
+
+	
+	return fits	
+
 	
 
 
