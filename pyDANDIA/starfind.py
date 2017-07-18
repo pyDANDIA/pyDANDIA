@@ -104,6 +104,7 @@ def starfind(path_to_image, plot_it=False, write_log=True):
     sources.reverse()
     # Keep only up to 100 stars
     sources = sources[0:100]
+    
     sources_with_close_stars_ids = []
     # Discount stars with close neighbours (within r=5 pix)
     for i in np.arange(len(sources)):
@@ -118,6 +119,7 @@ def starfind(path_to_image, plot_it=False, write_log=True):
     # Keep up to 30 isolated sources only (may be fewer)
     sources.remove_rows(sources_with_close_stars_ids)
     sources = sources[0:30]
+    #return sources
     # Uncomment the following line to display source list in browser window:
     #sources.show_in_browser()
     

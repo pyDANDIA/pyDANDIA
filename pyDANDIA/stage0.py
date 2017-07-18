@@ -13,9 +13,11 @@ import numpy as np
 import os
 from astropy.io import fits
 import sys
-
+sys.path.append('../trials/metadata/')
 import config
 from astropy.table import Table
+
+import metadata
 
 PIPELINE_CONFIGURATION = config.read_config('../Config/config.json')
 
@@ -31,15 +33,15 @@ def create_or_load_the_reduction_metadata(output_metadata_directory, metadata_na
 		if meta_data_exist == [] :
 
 			
-			reduction_metadata = fits.HDUList()
+				reduction_metadata = metadata.MetaData()
 
-			if verbose == True:
+				if verbose == True:
 
-				print('Successfully create the reduction metadata')
+					print('Successfully create the reduction metadata')
 
 		else :
 
-			reduction_metadata = fits.open(output_metadata_directory + metadata_name)
+			reduction_metadata = metadata.open(output_metadata_directory + metadata_name)
 			if verbose == True:
 
 				print('Successfully found the reduction metadata')
@@ -97,7 +99,7 @@ def find_images_already_process(reduction_metadata, verbose=False):
 
 		if verbose == True:
 
-			print('Find '+str(len(images_already_treated))+' images to treat.')
+			print('Find '+str(len(images_already_treated))+' images already process.')
 
 		return images_already_treated
 
@@ -105,7 +107,7 @@ def find_images_already_process(reduction_metadata, verbose=False):
 		
 		if verbose == True:
 
-			print('Could not find any images already treated!')
+			print('Could not find any images already process!')
 
 		return []
 
@@ -124,7 +126,7 @@ def remove_images_already_process(list_of_images, list_of_already_process_image,
 	except:
 		if verbose == True:
 
-			print('Something went wrong on removing images already treated !')
+			print('Something went wrong on removing images already process !')
 
 		pass
 
