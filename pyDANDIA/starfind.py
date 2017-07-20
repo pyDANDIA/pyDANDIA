@@ -16,7 +16,7 @@
 #
 # version 0.1a (development)
 #
-# Last update: 17 Jul 2017
+# Last update: 19 Jul 2017
 ######################################################################
 
 import numpy as np
@@ -24,7 +24,6 @@ from astropy.io import fits
 from astropy.stats import sigma_clipped_stats
 from astropy.visualization import SqrtStretch, AsymmetricPercentileInterval
 from astropy.visualization.mpl_normalize import ImageNormalize
-from astropy.modeling import models, fitting
 from astropy.nddata import Cutout2D
 from astropy import units as u
 from photutils import background, detection, DAOStarFinder
@@ -37,6 +36,7 @@ from sys import exit
 import os
 
 from config import read_config
+import psf
 
 def starfind(path_to_image, plot_it=False, write_log=True):
     '''
@@ -45,6 +45,10 @@ def starfind(path_to_image, plot_it=False, write_log=True):
     to select suitable candidate images for constructing a template 
     reference image.
     '''
+    if (write_log == True):
+        logfile = open('starfind.log','a')
+	logfile.write("Current system time: "+datetime.now().strftime("%Y:%m:%dT%H:%M:%S")+"\n")
+    
     t0 = time.time()
     im = fits.open(path_to_image)
     header = im[0].header
@@ -55,7 +59,15 @@ def starfind(path_to_image, plot_it=False, write_log=True):
     config = read_config('../Config/config.json')
     # If it is a large image, consider 250x250 pixel subregions and
     # choose the one with the fewest saturated pixels to evaluate stats
-    saturation = config['maxval']['value']
+    try:
+        saturation = config['maxval']['value']
+    except:
+        if (write_log == True):
+	    logfile.write("Could not extract the saturation parameter from the configuration file.")
+	    logfile.close()
+	
+        exit('Could not extract the saturation parameter from the configuration file.')
+	
     nr_sat_pix = 100000
     bestx1 = -1
     bestx2 = -1
@@ -86,8 +98,6 @@ def starfind(path_to_image, plot_it=False, write_log=True):
     sources = daofind(scidata[besty1:besty2,bestx1:bestx2] - median)
     # Write steps to a log file
     if (write_log == True):
-        logfile = open('starfind.log','a')
-	logfile.write("Current system time: "+datetime.now().strftime("%Y:%m:%dT%H:%M:%S")+"\n")
         logfile.write("Identifying sources on image %s ...\n" % path_to_image.split('/')[-1])
         logfile.write("Found %s sources.\n" % str(len(sources)))
         if len(sources) == 0:
@@ -102,6 +112,11 @@ def starfind(path_to_image, plot_it=False, write_log=True):
     sources = sources[np.where(sources['peak'] < saturation)]
     sources.sort('peak')
     sources.reverse()
+    # Discount stars too close to the edges of the image
+    sources = sources[np.where((sources['xcentroid'] > 10) & 
+                               (sources['xcentroid'] < 240) &  
+			       (sources['ycentroid'] < 240) & 
+			       (sources['ycentroid'] > 30))]
     # Keep only up to 100 stars
     sources = sources[0:100]
     
@@ -119,56 +134,72 @@ def starfind(path_to_image, plot_it=False, write_log=True):
     # Keep up to 30 isolated sources only (may be fewer)
     sources.remove_rows(sources_with_close_stars_ids)
     sources = sources[0:30]
-    return sources
+    if (write_log == True):
+        logfile.write("Kept %s sources.\n" % str(len(sources)))
+	
+    #return sources
     # Uncomment the following line to display source list in browser window:
     #sources.show_in_browser()
     
     # Fit a model to identified sources and estimate PSF shape parameters
     fwhm_arr = []
-    fwhm_a_arr = []
-    fwhm_b_arr = []
-    ell_arr = []
-    weights_arr = []
     i = 0
     while (i <= len(sources)-1):
         i_peak = sources[i]['peak']
 	position = [sources[i]['xcentroid'], sources[i]['ycentroid']]
-	stamp_size = (20,20) # in pixels
-	cutout = Cutout2D(scidata, position, stamp_size)
+	print position
+	stamp_size = (20,20)
+	cutout = Cutout2D(scidata, position, stamp_size) # in pixels
 	yc, xc = cutout.position_cutout
 	yy, xx = np.indices(cutout.data.shape)
-	m_init = models.Moffat2D(amplitude=1, x_0=xc, y_0=yc)
-	fit_m = fitting.LevMarLSQFitter()
-	g = fit_m(m_init,yy,xx,cutout.data)
-	plt.figure(figsize=(3,8))
-	plt.subplot(3,1,1)
-	plt.imshow(cutout.data, cmap='gray', origin='lower')
-	plt.colorbar()
-	plt.title("Data")
-	plt.subplot(3,1,2)
-	plt.imshow(g(xx,yy), cmap='gray', origin='lower')
-	plt.colorbar()
-	plt.title("Model")
-	plt.subplot(3,1,3)
-	plt.imshow(cutout.data-g(xx,yy), cmap='gray', origin='lower')
-	plt.title("Residual")
-	plt.colorbar()
-        plt.show()
+	fit = psf.fit_psf(cutout.data, yy, xx, 'Gaussian2D')
+	fit_params = fit[0]
+	fit_errors = fit[1].diagonal()**0.5
+	gaussian = psf.Gaussian2D()
+	fit_residuals = psf.error_function(fit_params, cutout.data, gaussian, yy, xx)
+	fit_residuals = fit_residuals.reshape(cutout.data.shape)
+	cov = fit[1]*np.sum(fit_residuals**2)/((stamp_size[0])**2-6)
+	fit_errors = cov.diagonal()**0.5	
+	print fit_params, fit_errors
+	model = gaussian.psf_model(yy, xx, *fit_params)
+	if plot_it == True:
+	    plt.figure(figsize=(3,8))
+	    plt.subplot(3,1,1)
+	    plt.imshow(cutout.data, cmap='gray', origin='lower')
+	    plt.colorbar()
+	    plt.title("Data")
+	    plt.subplot(3,1,2)
+	    plt.imshow(model, cmap='gray', origin='lower')
+	    plt.colorbar()
+	    plt.title("Model")
+	    plt.subplot(3,1,3)
+	    plt.imshow(fit_residuals, cmap='gray', origin='lower')
+	    plt.title("Residual")
+	    plt.colorbar()
+            plt.show()
+	
 	i = i + 1
     
     # If plot_it is True, plot the sources found
     if plot_it == True:
+        temp = np.copy(scidata[besty1:besty2,bestx1:bestx2])
+	temp[np.where(temp < median)] = median
+	temp[np.where(temp > 25000)] = 25000
         positions = (sources['xcentroid'], sources['ycentroid'])
 	apertures = CircularAperture(positions, r=4.)	
-	norm = ImageNormalize(interval=AsymmetricPercentileInterval(1,5), stretch=SqrtStretch())
-	plt.imshow(scidata[besty1:besty2,bestx1:bestx2], cmap='gray', origin='lower', norm=norm)
+	norm = ImageNormalize(interval=AsymmetricPercentileInterval(10,40), stretch=SqrtStretch())
+	plt.imshow(temp, cmap='gray', origin='lower', norm=norm)
 	plt.title("Data")
 	#plt.colorbar()
-	apertures.plot(color='yellow', lw=1.2, alpha=0.5)
+	apertures.plot(color='red', lw=1.2, alpha=0.5)
 	plt.show()
 	#plt.savefig('stars250x250.png')
     im.close()
     print "%.3f" % (time.time()-t0)
+    # Close the log file
+    if (write_log == True):
+        logfile.close()
+    
     return sources
     
 def write_trendlog(path_to_trendlog_file, sources):
@@ -186,5 +217,6 @@ def write_trendlog(path_to_trendlog_file, sources):
 #################################
 # Command line section
 if __name__ == '__main__':
-    path_to_image = '/home/Tux/ytsapras/Programs/Workspace/development/pipeline_200x200_testdata/lsc1m005-fl15-20170614-0130-e91_cropped.fits'
+    path_to_image = '../trials/data/lsc1m005-fl15-20170614-0130-e91.fits'
+    #path_to_image = '/home/Tux/ytsapras/Programs/Workspace/development/pipeline_200x200_testdata/lsc1m005-fl15-20170614-0130-e91_cropped.fits'
     starfind(path_to_image, plot_it=True)
