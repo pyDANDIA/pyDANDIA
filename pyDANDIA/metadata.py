@@ -7,7 +7,30 @@ Created on Sat Jul 15 14:08:54 2017
 from os import path
 from astropy.io import fits
 from astropy.table import Table
+from astropy.table import Column
+
 import numpy as np
+import collections
+
+def update_a_dictionnary(dictionnary, new_key, new_value):
+
+	new_keys = dictionnary._fields + (new_key,)
+	new_dictionnary = collections.namedtuple(dictionnary.__name__, new_keys)
+	
+
+
+	for index,key in enumerate(dictionnary._fields):
+
+		value = getattr(dictionnary, key)
+			
+		setattr(new_dictionnary, key, value)
+
+	
+	setattr(new_dictionnary, new_key, new_value)	
+	
+	return new_dictionnary
+
+
 
 class MetaData:
     """Class defining the data structure produced by the pyDANDIA pipeline
@@ -17,23 +40,125 @@ class MetaData:
     """
     
     def __init__(self):
-        self.field = None
-        self.site = None
-        self.enclosure = None
-        self.telescope = None
-        self.instrument = None
-        self.filter = None
-        self.binx = None
-        self.biny = None
-        self.pixel_scale = None
-        self.red_dir = None
-        self.red_code = None
-        self.inventory = {}
-        self.imred = []
-        self.gimred= []
-        self.dimred = []
-        self.metadata_file = None
-        
+       
+	# attributes = [astropy.header,astropy.Table]
+			
+        self.data_architecture = [None,None]
+        self.reduction_parameters = [None,None]
+        self.headers_summary = [None,None]
+        self.data_inventory = [None,None]
+
+
+    
+	
+    def create_metadata_file(self, metadata_directory, metadata_name):
+	
+        metadata = fits.HDUList()
+
+	data_architecture_header = fits.Header()
+	data_architecture_header.update({'NAME':'DATA_ARCHITECTURE'})
+
+	
+
+	metadata_informations = ['output_directory', 'name']
+	metadata_values = [metadata_directory, metadata_name]
+
+	names = fits.Column(name = 'keys', format = '20A', array=metadata_informations)
+	values = fits.Column(name = 'values', format = '20A', array=metadata_values)	
+	
+	data_architecture_columns = fits.ColDefs([names, values])
+	tbhdu = fits.BinTableHDU.from_columns(data_architecture_columns, header = data_architecture_header )
+	
+
+
+	tbhdu.name = 'DATA_ARCHITECTURE'
+
+	metadata.append(tbhdu)
+
+        metadata.writeto(metadata_directory+metadata_name, overwrite=True)
+
+   	
+	
+    def load_a_layer_from_file(self, metadata_directory, metadata_name, key_layer):
+	
+        metadata = fits.open(metadata_directory + metadata_name, mmap=True)
+
+        layer = metadata[key_layer]
+	
+	header = layer.header
+	table = Table(layer.data)
+	
+        setattr(self, key_layer, [header, table])
+
+    def save_a_layer_to_file(self, metadata_directory, metadata_name, key_layer):
+
+	layer = getattr(self, key_layer)
+
+	update_layer = fits.BinTableHDU(layer[1], header = layer[0] )
+	
+        metadata = fits.open(metadata_directory + metadata_name, mmap=True)	
+
+	metadata[key_layer] = update_layer
+
+	metadata.writeto(metadata_directory+metadata_name, overwrite=True)
+    
+    def transform_2D_table_to_dictionary(self, key_layer):
+	
+	layer = getattr(self, key_layer)
+
+	column_names = layer[1].keys()
+
+	keys = column_names[0]
+		
+	
+	dictionary = collections.namedtuple(key_layer+'_dictionnary', layer[1][keys].data.tolist())
+	
+	for index,key in enumerate(dictionary._fields):
+
+		setattr(dictionary, key, layer[1][index][1])
+		
+	return dictionary
+
+
+    def update_2D_table_with_dictionary(self, key_layer, dictionary):
+
+	layer = getattr(self, key_layer)
+
+	column_names = layer[1].keys()
+	keys = column_names[0]
+
+	existing_rows = layer[1][keys].data.tolist()
+
+	for index,key in enumerate(dictionary._fields):
+	
+		value = getattr(dictionary, key)
+
+		if key in existing_rows:
+			
+			layer[1][index][1] = value
+
+		else :
+
+			
+			layer[1].add_row([key,value])
+	
+	
+    	
+    def add_row_to_layer(self, key_layer, new_row):
+
+	layer = getattr(self, key_layer)
+	layer[1].add_row(new_row)
+
+    
+
+    def add_column_to_layer(self, key_layer, new_column_name, new_column_data, new_column_format):
+	
+	layer = getattr(self, key_layer)
+	new_column = Column(new_column_data, name = new_column_name, dtype = new_column_format)
+	layer[1].add_column(new_column)
+
+	
+
     def set_pars(self,par_dict):
         
         for key, value in par_dict.items():
@@ -281,3 +406,5 @@ class MetaData:
 
         return tbhdu
 
+    
+	

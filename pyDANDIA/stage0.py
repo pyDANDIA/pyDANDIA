@@ -16,13 +16,25 @@ import sys
 sys.path.append('../trials/metadata/')
 import config
 from astropy.table import Table
+from astropy.nddata import Cutout2D
 
 import metadata
 
-PIPELINE_CONFIGURATION = config.read_config('../Config/config.json')
+
+def open_the_variables_catalog(variables_catalog_directory, variables_catalog_name):
 
 
+	variable_catalog = None
+	pass
 
+def read_the_config_file(config_directory, config_file_name = 'config.json'):
+
+	
+
+
+	pipeline_configuration = config.read_config(config_directory+config_file_name)
+	
+	return pipeline_configuration
 
 def create_or_load_the_reduction_metadata(output_metadata_directory, metadata_name='pyDANDIA_metadata.fits', verbose=False):
 
@@ -178,7 +190,24 @@ def construct_the_bad_pixel_mask(open_image, image_bad_pixel_mask_layer = 2):
 	return bad_pixel_mask
 	
 
-def construct_the_variables_star_mask():
+def construct_the_variables_star_mask(open_image, variable_star_pixels = 10):
+
+	try:
+
+		RA_range = [265, 285]
+		DEC_range = [-35,-25]
+
+
+		data = open_image[0].data
+		
+		if saturation_level:
+
+			pass
+	
+	except:
+		
+		saturated_pixel_mask = np.zeros(open_image[0].data.shape,int)
+
 	pass
 
 def construct_the_saturated_pixel_mask(open_image, saturation_level = None):
@@ -246,53 +275,58 @@ def construct_the_pixel_mask(open_image):
 
 	return master_mask	
 	
-def construct_the_stamps(open_image, arcseconds_stamp_size=60, number_of_overlaping_pixels=25,
-				 number_of_image_division=None, verbose=False):
+def construct_the_stamps(open_image, stamp_size = None, arcseconds_stamp_size=(60,60), pixel_scale = None, 
+			 number_of_overlaping_pixels=25, verbose=False):
 
 	image = open_image[0].data
 
 	full_image_y_size, full_image_x_size = image.shape
 
-	if number_of_image_division:	
+	if stamp_size:	
 
-		pass	
+		y_stamp_size = stamp_size[0]
+		x_stamp_size = stamp_size[1]
 	
 	else:
-		try :
+		try:
 
-			header = open_image[0].header
-			pixel_scale = float(header['PIXSCALE'])
-	
+			y_stamp_size = int(arcseconds_stamp_size[0]/pixel_scale)
+			x_stamp_size = int(arcseconds_stamp_size[1]/pixel_scale)
+		
 		except:
-
-			try:
-
-				pixel_scale = PIPELINE_CONFIGURATION['pixel_scale'] 
-		
-			except:
-				print('No pixel scale found!')
-				sys.exit(1)
+			print('No pixel scale found!')
+			sys.exit(1)
 
 		
 		
-	y_stamp_size = int(arcseconds_stamp_size/pixel_scale)
-	x_stamp_size = int(arcseconds_stamp_size/pixel_scale)
+	
 
 	y_stamps_center = np.arange(x_stamp_size/2,full_image_x_size, x_stamp_size)
 	x_stamps_center = np.arange(y_stamp_size/2,full_image_y_size, y_stamp_size)
 
-
+	import pdb; pdb.set_trace()
 	stamps_center_y, stamps_center_x = np.meshgrid(y_stamps_center, x_stamps_center)
 
 	stamps_y_min = stamps_center_y - y_stamp_size/2-number_of_overlaping_pixels
+	mask = 	stamps_y_min < 0
+	stamps_y_min[mask] = 0
+
 	stamps_y_max = stamps_center_y + y_stamp_size/2+number_of_overlaping_pixels
+	mask = 	stamps_y_max > full_image_y_size
+	stamps_y_min[mask] = full_image_y_size
 
 	stamps_x_min = stamps_center_x - x_stamp_size/2-number_of_overlaping_pixels
+	mask = 	stamps_x_min < 0
+	stamps_x_min[mask] = 0
+
 	stamps_x_max = stamps_center_x + x_stamp_size/2+number_of_overlaping_pixels
+	mask = 	stamps_x_max > full_image_x_size
+	stamps_x_min[mask] = full_image_x_size
 
 	stamps_coordinates=np.zeros(stamps_x_min.shape)
 	stamps_list = []
 	count = 0
+	import pdb; pdb.set_trace()
 	for i in xrange(len(stamps_coordinates)):
 
 			for j in xrange(len(stamps_coordinates[0])):
