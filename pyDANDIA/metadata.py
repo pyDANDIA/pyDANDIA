@@ -47,6 +47,7 @@ class MetaData:
         self.reduction_parameters = [None,None]
         self.headers_summary = [None,None]
         self.data_inventory = [None,None]
+	self.reduction_status = [None,None]
 
 
     
@@ -55,30 +56,133 @@ class MetaData:
 	
         metadata = fits.HDUList()
 
-	data_architecture_header = fits.Header()
-	data_architecture_header.update({'NAME':'DATA_ARCHITECTURE'})
-
+	self.create_data_architecture_layer(metadata_directory, metadata_name)
 	
-
-	metadata_informations = ['output_directory', 'name']
-	metadata_values = [metadata_directory, metadata_name]
-
-	names = fits.Column(name = 'keys', format = '20A', array=metadata_informations)
-	values = fits.Column(name = 'values', format = '20A', array=metadata_values)	
+	self.create_reduction_parameters_layer()
 	
-	data_architecture_columns = fits.ColDefs([names, values])
-	tbhdu = fits.BinTableHDU.from_columns(data_architecture_columns, header = data_architecture_header )
-	
+	tbhdu1 = fits.BinTableHDU(self.data_architecture[1], header = self.data_architecture[0] )
 
+	tbhdu1.name = tbhdu1.header['name']
 
-	tbhdu.name = 'DATA_ARCHITECTURE'
+	tbhdu2 = fits.BinTableHDU(self.reduction_parameters[1], header = self.reduction_parameters[0] )
+	tbhdu2.name = tbhdu2.header['name']
 
-	metadata.append(tbhdu)
-
+	metadata.append(tbhdu1)
+	metadata.append(tbhdu2)
         metadata.writeto(metadata_directory+metadata_name, overwrite=True)
 
-   	
+    def create_a_new_layer(self, layer_name, data_structure, data_columns = None):
 	
+	layer_header = fits.Header()
+	layer_header.update({'NAME':layer_name})
+	
+
+	names = data_structure[0]
+
+	try :	
+		
+		data_format = data_structure[1]
+	except:
+
+		data_format = None
+
+	     
+
+
+	if data_columns :
+		
+		data = data_columns
+
+	else:
+
+		data = None
+
+        layer_table = Table(data, names = names, dtype=data_format)
+
+	try:
+
+		for index, key_column in enumerate(layer_table.keys()):
+
+			layer_table[key_column].unit = units[index]
+
+	except:
+
+		pass
+
+	
+
+        layer = [layer_header, layer_table]
+
+	setattr(self, layer_name, layer) 
+
+    def create_data_architecture_layer(self, metadata_directory, metadata_name):
+	
+	layer_name = 'data_architecture'
+	data_structure = [['metadata_name','output_directory'],
+			 ]
+        data = [[metadata_name],[metadata_directory]]
+	self.create_a_new_layer(layer_name, data_structure, data)
+
+    def create_reduction_parameters_layer(self):
+
+	name = 'reduction_parameters'
+	
+
+	data = [[ 'year', 'YEAR', 'int', 'Year of observations'],
+                [ 'back_var', 'BACKVAR', 'int', 'Switch for a spatially variable differential background'],
+                [ 'coeff2', 'COEFF2', 'float', '' ],
+                [ 'coeff3', 'COEFF3', 'float', '' ],
+                [ 'datekey', 'DATE-KEY', 'string', 'Name of date keyword in image headers'],
+                [ 'deckey', 'DEC-KEY', 'string', 'Name of Declination keyword in image headers'],
+                [ 'det_thresh', 'DETTHRS', 'float', 'Detection threshold [image sky sigma]'],
+                [ 'diffpro', 'DIFFPRO', 'int', 'Switch for the method of difference image creation'],
+                [ 'expfrac', 'EXPFRAC', 'float', 'Fraction of the exposure time to be added to the UTC'],
+                [ 'expkey', 'EXP-KEY', 'string', 'Name of exposure time keyword in image header'],
+                [ 'filtkey', 'FILT-KEY', 'string', 'Name of filter keyword in image header'],
+                [ 'growsatx', 'GROWSATX', 'float', 'Half saturated pixel box size in the x direction [pix]'],
+                [ 'growsaty', 'GROWSATY', 'float', 'Half saturated pixel box size in the y direction [pix]'],
+                [ 'imagedx', 'IMAGE-DX', 'float', 'Width of image subframe [pix]'],
+                [ 'imagedy', 'IMAGE-DY', 'float', 'Height of image subframe [pix]'],
+                [ 'imagex1', 'IMAGEX1', 'int', 'Subframe starting pixel in x-axis [pix]'],
+                [ 'imagex2', 'IMAGEX2', 'int', 'Subframe end pixel in x-axis [pix]'],
+                [ 'imagexmax', 'IMGXMAX', 'int', 'Last pixel of image area in x-axis [pix]'],
+                [ 'imagexmin', 'IMGXMIN', 'int', 'First pixel of image area in x-axis [pix]'],
+                [ 'imagey1', 'IMAGEY1', 'int', 'Subframe starting pixel in y-axis [pix]'],
+                [ 'imagey2', 'IMAGEY2', 'int', 'Subframe end pixel in y-axis [pix]'],
+                [ 'imageymax', 'IMGYMAX', 'int', 'Last pixel of image area in y-axis [pix]'],
+                [ 'imageymin', 'IMGYMIN', 'int', 'First pixel of image area in y-axis [pix]'],
+                [ 'ker_rad', 'KERRAD', 'float', 'Radius of the kernel pixel array [FWHM]'],
+                [ 'max_nim', 'MAX-NIM', 'int', 'Maximum number of images to combine for the reference image'],
+                [ 'max_sky', 'MAX-SKY', 'float', 'Maximum allowed sky background [counts] for reference image'],
+                [ 'min_ell', 'MIN-ELL', 'float', 'Minimum allowed ellipticity for reference image'],
+                [ 'obskey', 'OBSTKEY', 'string', 'Name of data type keywork in image header'],
+                [ 'obskeyb', 'OBSTBIAS', 'string', 'Obstype entry if image is a bias'],
+                [ 'obskeyd', 'OBSTDARK', 'string', 'Obstype entry if image is a dark'],
+                [ 'obskeyf', 'OBSTFLAT', 'string', 'Obstype entry if image is a flat'],
+                [ 'obskeys', 'OBSTSCI', 'string', 'Obstype entry if image is a science image'],
+                [ 'oscanx1', 'OSCANX1', 'int', 'Starting pixel of overscan region in x [pix]'],
+                [ 'oscanx2', 'OSCANX2', 'int', 'End pixel of overscan region in x [pix]'],
+                [ 'oscany1', 'OSCANY1', 'int', 'Starting pixel of overscan region in y [pix]'],
+                [ 'oscany2', 'OSCANY2', 'int', 'End pixel of overscan region in y[pix]'],
+                [ 'psf_comp_dist', 'PSFDIST', 'float', 'Minimum separation of PSF neighbour stars [PSF FWHM]'],
+                [ 'psf_comp_flux', 'PSFCFLUX', 'float', 'Maximum flux ratio of PSF neighbour stars'],
+                [ 'rakey', 'RA-KEY', 'string', 'Name of RA keyword in image header'],
+                [ 'subframes_x', 'SUBREGX', 'int', 'Number of image subregions in x-axis'],
+                [ 'subframes_y', 'SUBREGY', 'int', 'Number of image subregions in y-axis'],
+                [ 'timekey', 'TIME-KEY', 'string', 'Name of exposure timestamp keyword in image header'],
+                ]
+
+
+	data = np.array(data)
+	data_units = ['']*len(data[:,0])
+
+	data_structure = [data[:,0],
+                          data[:,2],
+	                  data_units,
+			 ]
+
+	self.create_a_new_layer(name, data_structure)
+
     def load_a_layer_from_file(self, metadata_directory, metadata_name, key_layer):
 	
         metadata = fits.open(metadata_directory + metadata_name, mmap=True)
@@ -103,19 +207,16 @@ class MetaData:
 	metadata.writeto(metadata_directory+metadata_name, overwrite=True)
     
     def transform_2D_table_to_dictionary(self, key_layer):
-	
+
 	layer = getattr(self, key_layer)
 
-	column_names = layer[1].keys()
-
-	keys = column_names[0]
+	keys = layer[1].keys()
 		
-	
-	dictionary = collections.namedtuple(key_layer+'_dictionnary', layer[1][keys].data.tolist())
+	dictionary = collections.namedtuple(key_layer+'_dictionary', keys)
 	
 	for index,key in enumerate(dictionary._fields):
 
-		setattr(dictionary, key, layer[1][index][1])
+		setattr(dictionary, key, layer[1][key][0])
 		
 	return dictionary
 
@@ -123,26 +224,20 @@ class MetaData:
     def update_2D_table_with_dictionary(self, key_layer, dictionary):
 
 	layer = getattr(self, key_layer)
-
 	column_names = layer[1].keys()
-	keys = column_names[0]
-
-	existing_rows = layer[1][keys].data.tolist()
 
 	for index,key in enumerate(dictionary._fields):
 	
 		value = getattr(dictionary, key)
 
-		if key in existing_rows:
+		if key in column_names:
 			
-			layer[1][index][1] = value
+			layer[1][key][0] = value
 
 		else :
 
 			
-			layer[1].add_row([key,value])
-	
-	
+			layer[1].add_column(Column([value], name = key, dtype = type(value)))
     	
     def add_row_to_layer(self, key_layer, new_row):
 
@@ -151,14 +246,15 @@ class MetaData:
 
     
 
-    def add_column_to_layer(self, key_layer, new_column_name, new_column_data, new_column_format):
+    def add_column_to_layer(self, key_layer, new_column_name, new_column_data, new_column_format=None, 
+			    new_column_unit=None ):
 	
 	layer = getattr(self, key_layer)
 	new_column = Column(new_column_data, name = new_column_name, dtype = new_column_format)
 	layer[1].add_column(new_column)
 
 	
-
+###
     def set_pars(self,par_dict):
         
         for key, value in par_dict.items():
