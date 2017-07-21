@@ -1,5 +1,5 @@
 ######################################################################
-#                                                                   
+#
 # starfind.py - identify the stars in a given image.
 #
 # dependencies:
@@ -40,14 +40,14 @@ import psf
 
 def starfind(path_to_image, plot_it=False, write_log=True):
     '''
-    The routine will quickly identify stars in a given image and return 
-    a star list and image quality parameters. The output is to be used 
-    to select suitable candidate images for constructing a template 
+    The routine will quickly identify stars in a given image and return
+    a star list and image quality parameters. The output is to be used
+    to select suitable candidate images for constructing a template
     reference image.
     '''
     if (write_log == True):
         logfile = open('starfind.log','a')
-    logfile.write("Current system time: "+datetime.now().strftime("%Y:%m:%dT%H:%M:%S")+"\n")
+        logfile.write("Current system time: "+datetime.now().strftime("%Y:%m:%dT%H:%M:%S")+"\n")
     
     t0 = time.time()
     im = fits.open(path_to_image)
@@ -146,39 +146,40 @@ def starfind(path_to_image, plot_it=False, write_log=True):
     i = 0
     while (i <= len(sources)-1):
         i_peak = sources[i]['peak']
-    position = [sources[i]['xcentroid'], sources[i]['ycentroid']]
-    print position
-    stamp_size = (20,20)
-    cutout = Cutout2D(scidata, position, stamp_size) # in pixels
-    yc, xc = cutout.position_cutout
-    yy, xx = np.indices(cutout.data.shape)
-    fit = psf.fit_psf(cutout.data, yy, xx, 'Gaussian2D')
-    fit_params = fit[0]
-    fit_errors = fit[1].diagonal()**0.5
-    gaussian = psf.Gaussian2D()
-    fit_residuals = psf.error_function(fit_params, cutout.data, gaussian, yy, xx)
-    fit_residuals = fit_residuals.reshape(cutout.data.shape)
-    cov = fit[1]*np.sum(fit_residuals**2)/((stamp_size[0])**2-6)
-    fit_errors = cov.diagonal()**0.5    
-    print fit_params, fit_errors
-    model = gaussian.psf_model(yy, xx, *fit_params)
-    if plot_it == True:
-        plt.figure(figsize=(3,8))
-        plt.subplot(3,1,1)
-        plt.imshow(cutout.data, cmap='gray', origin='lower')
-        plt.colorbar()
-        plt.title("Data")
-        plt.subplot(3,1,2)
-        plt.imshow(model, cmap='gray', origin='lower')
-        plt.colorbar()
-        plt.title("Model")
-        plt.subplot(3,1,3)
-        plt.imshow(fit_residuals, cmap='gray', origin='lower')
-        plt.title("Residual")
-        plt.colorbar()
-        plt.show()
-    
-    i = i + 1
+        position = [sources[i]['xcentroid'], sources[i]['ycentroid']]
+        #print position
+        stamp_size = (20,20)
+        cutout = Cutout2D(scidata, position, stamp_size) # in pixels
+        yc, xc = cutout.position_cutout
+        yy, xx = np.indices(cutout.data.shape)
+        fit = psf.fit_star(cutout.data, yy, xx, psf_model='Gaussian2D')
+        fit_params = fit[0]
+        fit_errors = fit[1].diagonal()**0.5
+        gaussian = psf.Gaussian2D()
+	background = psf.ConstantBackground()
+        fit_residuals = psf.error_star_fit_function(fit_params, cutout.data, gaussian, background, yy, xx)
+        fit_residuals = fit_residuals.reshape(cutout.data.shape)
+        cov = fit[1]*np.sum(fit_residuals**2)/((stamp_size[0])**2-6)
+        fit_errors = cov.diagonal()**0.5
+        print fit_params, fit_errors
+        model = gaussian.psf_model(yy, xx, *fit_params)
+        if plot_it == True:
+            plt.figure(figsize=(3,8))
+            plt.subplot(3,1,1)
+            plt.imshow(cutout.data, cmap='gray', origin='lower')
+            plt.colorbar()
+            plt.title("Data")
+            plt.subplot(3,1,2)
+            plt.imshow(model, cmap='gray', origin='lower')
+            plt.colorbar()
+            plt.title("Model")
+            plt.subplot(3,1,3)
+            plt.imshow(fit_residuals, cmap='gray', origin='lower')
+            plt.title("Residual")
+            plt.colorbar()
+            plt.show()
+        
+        i = i + 1
     
     # If plot_it is True, plot the sources found
     if plot_it == True:
