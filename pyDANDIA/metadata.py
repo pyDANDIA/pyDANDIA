@@ -12,23 +12,23 @@ from astropy.table import Column
 import numpy as np
 import collections
 
-def update_a_dictionnary(dictionnary, new_key, new_value):
+def update_a_dictionary(dictionary, new_key, new_value):
 
-	new_keys = dictionnary._fields + (new_key,)
-	new_dictionnary = collections.namedtuple(dictionnary.__name__, new_keys)
+	new_keys = dictionary._fields + (new_key,)
+	new_dictionary = collections.namedtuple(dictionary.__name__, new_keys)
 	
 
 
-	for index,key in enumerate(dictionnary._fields):
+	for index,key in enumerate(dictionary._fields):
 
-		value = getattr(dictionnary, key)
+		value = getattr(dictionary, key)
 			
-		setattr(new_dictionnary, key, value)
+		setattr(new_dictionary, key, value)
 
 	
-	setattr(new_dictionnary, new_key, new_value)	
+	setattr(new_dictionary, new_key, new_value)	
 	
-	return new_dictionnary
+	return new_dictionary
 
 
 
