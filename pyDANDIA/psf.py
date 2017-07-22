@@ -165,12 +165,12 @@ class BivariateNormal(PSFModel):
 
         self.update_psf_parameters(parameters)
 
-        zeta = ((X_star - self.psf_parameters.x_center) / self.psf_parameters.width_x)**2 - (2 * corr_xy * (X_star - self.psf_parameters.x_center) *\
+        zeta = ((X_star - self.psf_parameters.x_center) / self.psf_parameters.width_x)**2 - (2 * self.psf_parameters.corr_xy * (X_star - self.psf_parameters.x_center) *\
                 (Y_star - self.psf_parameters.y_center)) / (self.psf_parameters.width_x * self.psf_parameters.width_y) +\
                 ((Y_star - self.psf_parameters.y_center) / self.psf_parameters.width_y)**2
 
         model = self.psf_parameters.intensity * \
-            np.exp(-zeta / (2 * (1 - corr_xy * corr_xy)))
+            np.exp(-zeta / (2 * (1 - self.psf_parameters.corr_xy * self.psf_parameters.corr_xy)))
 
         return model
 

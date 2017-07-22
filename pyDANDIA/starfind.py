@@ -142,7 +142,8 @@ def starfind(path_to_image, plot_it=False, write_log=True):
     #sources.show_in_browser()
     
     # Fit a model to identified sources and estimate PSF shape parameters
-    fwhm_arr = []
+    fwhm_x = []
+    fwhm_y = []
     i = 0
     while (i <= len(sources)-1):
         i_peak = sources[i]['peak']
@@ -152,17 +153,19 @@ def starfind(path_to_image, plot_it=False, write_log=True):
         cutout = Cutout2D(scidata, position, stamp_size) # in pixels
         yc, xc = cutout.position_cutout
         yy, xx = np.indices(cutout.data.shape)
-        fit = psf.fit_star(cutout.data, yy, xx, psf_model='Gaussian2D')
+        fit = psf.fit_star(cutout.data, yy, xx, psf_model='BivariateNormal')
         fit_params = fit[0]
         fit_errors = fit[1].diagonal()**0.5
-        gaussian = psf.Gaussian2D()
+        biv = psf.BivariateNormal()
 	background = psf.ConstantBackground()
-        fit_residuals = psf.error_star_fit_function(fit_params, cutout.data, gaussian, background, yy, xx)
+        fit_residuals = psf.error_star_fit_function(fit_params, cutout.data, biv, background, yy, xx)
         fit_residuals = fit_residuals.reshape(cutout.data.shape)
         cov = fit[1]*np.sum(fit_residuals**2)/((stamp_size[0])**2-6)
         fit_errors = cov.diagonal()**0.5
-        print fit_params, fit_errors
-        model = gaussian.psf_model(yy, xx, *fit_params)
+        print fit_params, fit_errors, np.std(fit_residuals)
+        model = biv.psf_model(yy, xx, fit_params)
+	fwhm_y.append(fit_params[3])
+	fwhm_x.append(fit_params[4])
         if plot_it == True:
             plt.figure(figsize=(3,8))
             plt.subplot(3,1,1)
