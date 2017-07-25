@@ -13,7 +13,8 @@ import numpy as np
 import os
 from astropy.io import fits
 import sys
-sys.path.append('../trials/metadata/')
+
+
 import config
 from astropy.table import Table
 from astropy.nddata import Cutout2D
@@ -41,11 +42,14 @@ def create_or_load_the_reduction_metadata(output_metadata_directory, metadata_na
 	try:
 
 		meta_data_exist = [i for i in os.listdir(output_metadata_directory) if (i == metadata_name)]	
-		
+
 		if meta_data_exist == [] :
 
 			
 				reduction_metadata = metadata.MetaData()
+
+				reduction_metadata.create_metadata_file(output_metadata_directory, metadata_name)				
+
 
 				if verbose == True:
 
@@ -53,7 +57,9 @@ def create_or_load_the_reduction_metadata(output_metadata_directory, metadata_na
 
 		else :
 
-			reduction_metadata = metadata.open(output_metadata_directory + metadata_name)
+			reduction_metadata = metadata.MetaData()
+
+			reduction_metadata.load_all_metadata(output_metadata_directory, metadata_name)
 			if verbose == True:
 
 				print('Successfully found the reduction metadata')
@@ -69,12 +75,25 @@ def create_or_load_the_reduction_metadata(output_metadata_directory, metadata_na
 	return reduction_metadata
 
 
-def find_images_to_process(images_directory_path, images_name_definition='.fits', verbose=False):
+def find_images_to_process(reduction_metadata, images_directory_path= None, verbose=False):
+
 
 
 	try:
 
-		list_of_images = [i for i in os.listdir(images_directory_path) if (i[-5:] == images_name_definition) ]	
+		path = reduction_metadata.data_architecture[1]['IMAGES_PATH']
+		
+	except:
+		
+		if images_directory_path :
+			
+			path =  images_directory_path
+			reduction_metadata.add_column_to_layer('data_architecture', 'images_path', [path])			
+		
+
+	try:
+
+		list_of_images = [i for i in os.listdir(path)]	
 		
 		if list_of_images == [] :
 		
@@ -102,12 +121,65 @@ def find_images_to_process(images_directory_path, images_name_definition='.fits'
 
 		return None
 
+def update_the_metadata_with_new_images(reduction_metadata, images, verbose=False):
+
+	try :
+		layer = reduction_metadata.reduction_status
+
+		if layer == [None, None]:	
+
+			new_images = images
+			reduction_metadata.create_reduction_status_layer(new_images)
+			reduction_metadata.create_headers_summary_layer(new_images)
+			reduction_metadata.create_data_inventory_layer(new_images)
+			new_images = None
+
+		else:
+
+			new_images = []
+	
+			old_images = layer[1]['IMAGES']
+
+			for name in images :
+
+				if name not in old_images:
+				
+					new_images.append(name)
+
+	except:
+
+		print('Something went wrong on images/metadata matching !')
+
+
+	if new_images:
+
+				### to work
+				layer_reduction = reduction_metadata.reduction_status
+				new_row_reduction = [[None]]*len(layer_reduction.keys())
+				layer_headers = reduction_metadata.headers_summary
+				new_row_header = [[None]]*len(layer_reduction.keys())
+				layer_data = reduction_metadata.data_inventory
+				new_row_data = [[None]]*len(layer_reduction.keys())
+
+				for image_name in new_images:
+
+					new_row_reduction[0] = image_name
+					new_row_header[0] = image_name
+					new_row_data[0] = image_name
+
+					reduction_metadata.add_row(reduction_status, new_row_reduction)
+					reduction_metadata.add_row(reduction_status, new_row_header)
+					reduction_metadata.add_row(reduction_status, new_row_data)
+				
+	else:
+			
+		pass
 def find_images_already_process(reduction_metadata, verbose=False):
 
 
 	try:
 
-		images_already_treated = reduction_metadata['IMAGES']['NAMES']
+		images_already_treated = reduction_metadata['REDUCTION_STATUS']['NAMES']
 
 		if verbose == True:
 
@@ -301,11 +373,11 @@ def construct_the_stamps(open_image, stamp_size = None, arcseconds_stamp_size=(6
 		
 	
 
-	y_stamps_center = np.arange(x_stamp_size/2,full_image_x_size, x_stamp_size)
-	x_stamps_center = np.arange(y_stamp_size/2,full_image_y_size, y_stamp_size)
+	x_stamps_center = np.arange(x_stamp_size/2,full_image_x_size, x_stamp_size)
+	y_stamps_center = np.arange(y_stamp_size/2,full_image_y_size, y_stamp_size)
 
-	import pdb; pdb.set_trace()
-	stamps_center_y, stamps_center_x = np.meshgrid(y_stamps_center, x_stamps_center)
+
+	stamps_center_x, stamps_center_y = np.meshgrid(y_stamps_center, x_stamps_center)
 
 	stamps_y_min = stamps_center_y - y_stamp_size/2-number_of_overlaping_pixels
 	mask = 	stamps_y_min < 0
@@ -323,18 +395,11 @@ def construct_the_stamps(open_image, stamp_size = None, arcseconds_stamp_size=(6
 	mask = 	stamps_x_max > full_image_x_size
 	stamps_x_min[mask] = full_image_x_size
 
-	stamps_coordinates=np.zeros(stamps_x_min.shape)
-	stamps_list = []
-	count = 0
-	import pdb; pdb.set_trace()
-	for i in xrange(len(stamps_coordinates)):
+	stamps = [[j*(i+1),stamps_y_min[i,j],stamps_y_max[i,j],stamps_x_min[i,j],stamps_x_max[i,j]] 
+		  for i in range(stamps_x_min.shape[0]) for j in range(stamps_x_min.shape[1])]
 
-			for j in xrange(len(stamps_coordinates[0])):
-				stamps_list.append([count,max(stamps_y_min[i,j],0),min(stamps_y_max[i,j],full_image_y_size),
-							  max(stamps_x_min[i,j],0),min(stamps_x_max[i,j],full_image_x_size)])
-				count += 1
 
-	return np.array(stamps_list)
+	return np.array(stamps)
 
 def add_table_to_the_metadata(table_name, table_data, table_columns_names, table_format, open_metadata, 
 			      output_metadata_directory, metadata_name='pyDANDIA_metadata.fits', verbose=False):

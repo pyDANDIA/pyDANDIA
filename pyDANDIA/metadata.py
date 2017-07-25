@@ -69,6 +69,7 @@ class MetaData:
 
 	metadata.append(tbhdu1)
 	metadata.append(tbhdu2)
+
         metadata.writeto(metadata_directory+metadata_name, overwrite=True)
 
     def create_a_new_layer(self, layer_name, data_structure, data_columns = None):
@@ -116,7 +117,7 @@ class MetaData:
 	setattr(self, layer_name, layer) 
 
     def create_data_architecture_layer(self, metadata_directory, metadata_name):
-	
+
 	layer_name = 'data_architecture'
 	data_structure = [['metadata_name','output_directory'],
 			 ]
@@ -183,8 +184,35 @@ class MetaData:
 
 	self.create_a_new_layer(name, data_structure)
 
+    def create_reduction_status_layer(self, new_images):
+
+	layer_name = 'reduction_status'
+	data_structure = [['IMAGES','STAGE0','STAGE1'],
+			  ['S200','S10','S10'],
+			 ]
+        data = [new_images,[0]*len(new_images),[0]*len(new_images)]
+	self.create_a_new_layer(layer_name, data_structure, data)
+
+    def create_headers_summary_layer(self, new_images):
+
+	layer_name = 'headers_summary'
+	data_structure = [['IMAGES'],
+			  ['S200'],
+			 ]
+        data = [new_images]
+	self.create_a_new_layer(layer_name, data_structure, data)
+
+    def create_data_inventory_layer(self, new_images):
+
+	layer_name = 'data_inventory'
+	data_structure = [['IMAGES'],
+			  ['S200'],
+			 ]
+        data = [new_images]
+	self.create_a_new_layer(layer_name, data_structure, data)
+
     def load_a_layer_from_file(self, metadata_directory, metadata_name, key_layer):
-	
+
         metadata = fits.open(metadata_directory + metadata_name, mmap=True)
 
         layer = metadata[key_layer]
@@ -193,16 +221,41 @@ class MetaData:
 	table = Table(layer.data)
 	
         setattr(self, key_layer, [header, table])
+  
+    def load_all_metadata(self, metadata_directory, metadata_name):
+	
+	all_layers =  self.__dict__.keys()
+
+	for key_layer in all_layers:
+	
+		try:
+			self.load_a_layer_from_file(metadata_directory, metadata_name, key_layer)
+		except:
+
+			print 'No Layer with key name :' +key_layer
+
+    def save_updated_metadata(self, metadata_directory, metadata_name):
+
+	all_layers =  self.__dict__.keys()
+
+	for key_layer in all_layers:
+
+		self.save_a_layer_to_file(metadata_directory, metadata_name, key_layer)
+
 
     def save_a_layer_to_file(self, metadata_directory, metadata_name, key_layer):
 
 	layer = getattr(self, key_layer)
 
 	update_layer = fits.BinTableHDU(layer[1], header = layer[0] )
-	
-        metadata = fits.open(metadata_directory + metadata_name, mmap=True)	
+	update_layer.name = update_layer.header['name']
 
-	metadata[key_layer] = update_layer
+        metadata = fits.open(metadata_directory + metadata_name, mmap=True)	
+	try :
+		metadata[key_layer] = update_layer
+	except:
+		
+		metadata.append(update_layer)
 
 	metadata.writeto(metadata_directory+metadata_name, overwrite=True)
     
@@ -243,7 +296,7 @@ class MetaData:
 
 	layer = getattr(self, key_layer)
 	layer[1].add_row(new_row)
-
+	
     
 
     def add_column_to_layer(self, key_layer, new_column_name, new_column_data, new_column_format=None, 
@@ -253,6 +306,16 @@ class MetaData:
 	new_column = Column(new_column_data, name = new_column_name, dtype = new_column_format)
 	layer[1].add_column(new_column)
 
+
+    def update_row_to_layer(self, key_layer, row_index, new_row):
+
+	layer = getattr(self, key_layer)
+	layer[1][row_index] = new_row
+	
+    def update_column_to_layer(self, key_layer, key_column, new_column):
+
+	layer = getattr(self, key_layer)
+	layer[1][key_column] = new_new_column
 	
 ###
     def set_pars(self,par_dict):
