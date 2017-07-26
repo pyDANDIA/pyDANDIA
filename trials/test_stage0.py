@@ -6,7 +6,7 @@ import os
 sys.path.append('../pyDANDIA/')
 import stage0
 
-#os.system('rm pyDANDIA_metadata.fits')
+os.system('rm pyDANDIA_metadata.fits')
 data = fits.open('./data/lsc1m005-fl15-20170614-0130-e91.fits')
 
 aa = stage0.read_the_config_file('../Config/')
@@ -16,20 +16,26 @@ stamps =  stage0.construct_the_stamps(data,arcseconds_stamp_size=(60,60),pixel_s
 
 reduction_metadata = stage0.create_or_load_the_reduction_metadata('./', metadata_name='pyDANDIA_metadata.fits', verbose=True)
 
-data = stage0.find_images_to_process(reduction_metadata, './data/',verbose=True)
+data = stage0.find_all_images(reduction_metadata, './data/',verbose=True)
 
-stage0.update_the_metadata_with_new_images(reduction_metadata, data,verbose=True)
-reduction_metadata.save_updated_metadata('./', 'pyDANDIA_metadata.fits')
-already_reduce_data = stage0.find_images_already_process(reduction_metadata, verbose=True)
+new_images = stage0.find_images_need_to_be_process(reduction_metadata, data,verbose=True)
+aa = stage0.read_the_config_file('../Config/')
 
-new_data = stage0.remove_images_already_process(data, already_reduce_data, verbose=True)
 
-for data in new_data:
-	open_image = stage0.open_an_image('./data/',data, verbose=True)
+for data in new_images:
+	import pdb; pdb.set_trace()
+	open_image = stage0.open_an_image( reduction_metadata.data_architecture[1]['IMAGES_PATH'][0],data, verbose=True)
+	
+
+			stamps = stage0.construct_the_stamps(open_image, pixel_scale = 0.389)
+			data_structure = [['ID','Y_MIN','Y_MAX','X_MIN','X_MAX'],
+			 		 ]
+			reduction_metadata.create_a_new_layer('stamps', data_structure, data_columns = stamps)
+			reduction_metadata.save_a_layer_to_file( './', 'pyDANDIA_metadata.fits', 'stamps')
 	master_mask = stage0.construct_the_pixel_mask(open_image)
-	stamps = stage0.construct_the_stamps(open_image)
+	stage0.save_the_pixel_mask_in_image(open_image, master_mask, data, reduction_metadata)
+import pdb; pdb.set_trace()
 
-images = np.c_[new_data,np.arange(0,len(new_data))]
 
 stage0.add_table_to_the_metadata('IMAGES', images, ['NAMES','ID'], ['100A','I'],reduction_metadata, 
 			      './', metadata_name='pyDANDIA_metadata.fits')

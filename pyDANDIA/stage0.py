@@ -75,7 +75,7 @@ def create_or_load_the_reduction_metadata(output_metadata_directory, metadata_na
 	return reduction_metadata
 
 
-def find_images_to_process(reduction_metadata, images_directory_path= None, verbose=False):
+def find_all_images(reduction_metadata, images_directory_path= None, verbose=False):
 
 
 
@@ -88,6 +88,7 @@ def find_images_to_process(reduction_metadata, images_directory_path= None, verb
 		if images_directory_path :
 			
 			path =  images_directory_path
+
 			reduction_metadata.add_column_to_layer('data_architecture', 'images_path', [path])			
 		
 
@@ -121,7 +122,7 @@ def find_images_to_process(reduction_metadata, images_directory_path= None, verb
 
 		return None
 
-def update_the_metadata_with_new_images(reduction_metadata, images, verbose=False):
+def find_images_need_to_be_process(reduction_metadata, images, verbose=False):
 
 	try :
 		layer = reduction_metadata.reduction_status
@@ -129,11 +130,7 @@ def update_the_metadata_with_new_images(reduction_metadata, images, verbose=Fals
 		if layer == [None, None]:	
 
 			new_images = images
-			reduction_metadata.create_reduction_status_layer(new_images)
-			reduction_metadata.create_headers_summary_layer(new_images)
-			reduction_metadata.create_data_inventory_layer(new_images)
-			new_images = None
-
+			
 		else:
 
 			new_images = []
@@ -151,82 +148,15 @@ def update_the_metadata_with_new_images(reduction_metadata, images, verbose=Fals
 		print('Something went wrong on images/metadata matching !')
 
 
-	if new_images:
-
-				### to work
-				layer_reduction = reduction_metadata.reduction_status
-				new_row_reduction = [[None]]*len(layer_reduction.keys())
-				layer_headers = reduction_metadata.headers_summary
-				new_row_header = [[None]]*len(layer_reduction.keys())
-				layer_data = reduction_metadata.data_inventory
-				new_row_data = [[None]]*len(layer_reduction.keys())
-
-				for image_name in new_images:
-
-					new_row_reduction[0] = image_name
-					new_row_header[0] = image_name
-					new_row_data[0] = image_name
-
-					reduction_metadata.add_row(reduction_status, new_row_reduction)
-					reduction_metadata.add_row(reduction_status, new_row_header)
-					reduction_metadata.add_row(reduction_status, new_row_data)
-				
-	else:
-			
-		pass
-def find_images_already_process(reduction_metadata, verbose=False):
-
-
-	try:
-
-		images_already_treated = reduction_metadata['REDUCTION_STATUS']['NAMES']
-
-		if verbose == True:
-
-			print('Find '+str(len(images_already_treated))+' images already process.')
-
-		return images_already_treated
-
-	except:
-		
-		if verbose == True:
-
-			print('Could not find any images already process!')
-
-		return []
-
-def remove_images_already_process(list_of_images, list_of_already_process_image, verbose=False):
-
-	try:
-
-		if len(list_of_already_process_image) != 0:
-
-			for image in list_of_images:
-
-				if image in list_of_already_process_images_list :
-
-					list_of_images.remove(image)
-
-	except:
-		if verbose == True:
-
-			print('Something went wrong on removing images already process !')
-
-		pass
-
-	if verbose == True:
-
-		print('The total number of frames to treat is :'+str(len(list_of_images)))
-
-	return list_of_images
+	return new_images
 
 
 
 def open_an_image(image_directory_path, image_name, verbose=False):
-	
+
 	try:
 
-		image_data = fits.open(image_directory_path+image_name)
+		image_data = fits.open(image_directory_path+image_name, mmap=True)
 		if verbose == True:
 
 			print(image_name+' open : OK')
@@ -243,7 +173,7 @@ def open_an_image(image_directory_path, image_name, verbose=False):
 def construct_the_bad_pixel_mask(open_image, image_bad_pixel_mask_layer = 2):
 
 	try:
-	
+
 		bad_pixel_mask = open_image[image_bad_pixel_mask_layer].data
 
 		#BANZAI definition of bp == 1 or bp == 3		
@@ -346,7 +276,21 @@ def construct_the_pixel_mask(open_image):
 		master_mask = np.zeros(open_image[0].data.shape,int)
 
 	return master_mask	
+
+def save_the_pixel_mask_in_image(open_image, master_mask, image_name, reduction_metadata):
+
+	bad_pixels_mask = fits.ImageHDU(master_mask)
+	bad_pixels_mask.name = 'MASTER_PIXEL_MASK'
 	
+	try:
+		open_image['MASTER_PIXEL_MASK'] = bad_pixels_mask
+	except:
+
+		open_image.append(bad_pixels_mask)
+
+	image_directory = reduction_metadata.data_architecture[1]['IMAGES_PATH'][0]
+		
+	open_image.writeto(image_directory+image_name, overwrite=True)
 def construct_the_stamps(open_image, stamp_size = None, arcseconds_stamp_size=(60,60), pixel_scale = None, 
 			 number_of_overlaping_pixels=25, verbose=False):
 
@@ -401,64 +345,5 @@ def construct_the_stamps(open_image, stamp_size = None, arcseconds_stamp_size=(6
 
 	return np.array(stamps)
 
-def add_table_to_the_metadata(table_name, table_data, table_columns_names, table_format, open_metadata, 
-			      output_metadata_directory, metadata_name='pyDANDIA_metadata.fits', verbose=False):
-
-	columns = []
-
-	for i in xrange(len(table_data[0])):
-
-		column = fits.Column(name = table_columns_names[i], format = table_format[i], array=table_data[:,i])
-		columns.append(column)
-
-	tbhdu = fits.BinTableHDU.from_columns(columns)
-	tbhdu.name = table_name
-	
-	if table_name in [i.name for i in open_metadata]:
-		
-		open_metadata[table_name] = tbhdu
-	else:
-	
-		open_metadata.append(tbhdu)
-
-
-
-def add_column_to_a_table_in_the_metadata(table_name, table_data, table_columns_names, table_format, open_metadata, 
-			      output_metadata_directory, metadata_name='pyDANDIA_metadata.fits', verbose=False):
-
-	columns = []
-
-	for i in xrange(len(table_data[0])):
-
-		column = fits.Column(name = table_columns_names[i], format = table_format[i], array=table_data[:,i])
-		columns.append(column)
-
-	tbhdu = fits.BinTableHDU.from_columns(columns)
-	tbhdu.name = table_name
-	
-	if table_name in [i.name for i in open_metadata]:
-		
-		open_metadata[table_name] = tbhdu
-	else:
-	
-		open_metadata.append(tbhdu)
-
-
-
-def add_image_to_the_metadata(image_name, image_data, open_metadata, 
-			      output_metadata_directory, metadata_name='pyDANDIA_metadata.fits', verbose=False):
-
-	new_hdu = fits.ImageHDU(image_data, name = image_name)
-
-	if image_name in [i.name for i in open_metadata]:
-		
-		open_metadata[image_name] = new_hdu
-	else:
-	
-		open_metadata.append(new_hdu)
-
-def save_the_metadata(open_metadata, output_metadata_directory, metadata_name='pyDANDIA_metadata.fits', verbose=False):
-
-	open_metadata.writeto(output_metadata_directory+metadata_name, overwrite=True)
 
 

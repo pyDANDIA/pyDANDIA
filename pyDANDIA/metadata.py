@@ -48,7 +48,7 @@ class MetaData:
         self.headers_summary = [None,None]
         self.data_inventory = [None,None]
 	self.reduction_status = [None,None]
-
+	self.stamps = [None,None]
 
     
 	
@@ -73,7 +73,7 @@ class MetaData:
         metadata.writeto(metadata_directory+metadata_name, overwrite=True)
 
     def create_a_new_layer(self, layer_name, data_structure, data_columns = None):
-	
+
 	layer_header = fits.Header()
 	layer_header.update({'NAME':layer_name})
 	
@@ -90,11 +90,11 @@ class MetaData:
 	     
 
 
-	if data_columns :
+	try:
 		
 		data = data_columns
 
-	else:
+	except:
 
 		data = None
 
@@ -119,7 +119,7 @@ class MetaData:
     def create_data_architecture_layer(self, metadata_directory, metadata_name):
 
 	layer_name = 'data_architecture'
-	data_structure = [['metadata_name','output_directory'],
+	data_structure = [['METADATA_NAME','OUTPUT_DIRECTORY'],
 			 ]
         data = [[metadata_name],[metadata_directory]]
 	self.create_a_new_layer(layer_name, data_structure, data)
@@ -301,9 +301,9 @@ class MetaData:
 
     def add_column_to_layer(self, key_layer, new_column_name, new_column_data, new_column_format=None, 
 			    new_column_unit=None ):
-	
+
 	layer = getattr(self, key_layer)
-	new_column = Column(new_column_data, name = new_column_name, dtype = new_column_format)
+	new_column = Column(new_column_data, name = new_column_name.upper(), dtype = new_column_format)
 	layer[1].add_column(new_column)
 
 
