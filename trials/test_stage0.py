@@ -47,4 +47,3 @@ print end-start
 reduction_metadata.save_updated_metadata( './', metadata_name='pyDANDIA_metadata.fits')
 end = time.time()
 print end-start
-import pdb; pdb.set_trace()
