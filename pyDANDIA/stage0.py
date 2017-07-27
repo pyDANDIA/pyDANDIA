@@ -291,6 +291,31 @@ def save_the_pixel_mask_in_image(open_image, master_mask, image_name, reduction_
 	image_directory = reduction_metadata.data_architecture[1]['IMAGES_PATH'][0]
 		
 	open_image.writeto(image_directory+image_name, overwrite=True)
+
+
+def update_reduction_parameters_from_config_file(reduction_metadata, config_dictionnary):
+
+	layer = reduction_metadata.reduction_parameters[1]
+
+	keys = layer.keys()
+	
+	values = []
+	for key in keys :
+		
+		try:
+			values.append(config_dictionnary[key]['value'])
+		except:
+
+			values.append(0)
+	reduction_metadata.add_row_to_layer('reduction_parameters', values)
+
+def parse_the_header(open_image, reduction_metadata):
+
+	
+	pass
+
+		
+
 def construct_the_stamps(open_image, stamp_size = None, arcseconds_stamp_size=(60,60), pixel_scale = None, 
 			 number_of_overlaping_pixels=25, verbose=False):
 

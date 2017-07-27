@@ -239,8 +239,10 @@ class MetaData:
 	all_layers =  self.__dict__.keys()
 
 	for key_layer in all_layers:
+		layer = getattr(self, key_layer)
+		if layer != [None, None]:
 
-		self.save_a_layer_to_file(metadata_directory, metadata_name, key_layer)
+			self.save_a_layer_to_file(metadata_directory, metadata_name, key_layer)
 
 
     def save_a_layer_to_file(self, metadata_directory, metadata_name, key_layer):
