@@ -3,18 +3,21 @@ import matplotlib.pyplot as plt
 import numpy as np
 from astropy.io import fits
 import os
-sys.path.append('../pyDANDIA/')
-import stage0
+sys.path.append('/nethome/ebachelet/Desktop/pyDANDIA/pyDANDIA/')
+from pyDANDIA import stage0
 import time
 
 os.system('rm pyDANDIA_metadata.fits')
 data = fits.open('./data/lsc1m005-fl15-20170614-0130-e91.fits')
 
 aa = stage0.read_the_config_file('../Config/')
+import pdb; pdb.set_trace()
 
 reduction_metadata = stage0.create_or_load_the_reduction_metadata('./', metadata_name='pyDANDIA_metadata.fits', verbose=True)
-stage0.update_reduction_parameters_from_config_file(reduction_metadata, aa)
 
+
+stage0.update_reduction_metadata_with_config_file(reduction_metadata, aa)
+import pdb; pdb.set_trace()
 data = stage0.find_all_images(reduction_metadata, './data/',verbose=True)
 
 new_images = stage0.find_images_need_to_be_process(reduction_metadata, data,verbose=True)

@@ -14,361 +14,462 @@ import os
 from astropy.io import fits
 import sys
 
-
 import config
 from astropy.table import Table
 from astropy.nddata import Cutout2D
 
-import metadata
+from pyDANDIA import metadata
+from pyDANDIA import pixelmasks
 
 
 def open_the_variables_catalog(variables_catalog_directory, variables_catalog_name):
+    '''
+    NOT IMPLEMENTED YET
+    '''
 
+    variable_catalog = None
+    pass
 
-	variable_catalog = None
-	pass
 
-def read_the_config_file(config_directory, config_file_name = 'config.json'):
+def read_the_config_file(config_directory, config_file_name='config.json'):
+    '''
+    This read the reauired informations from the config file.
 
-	
+    :param string config_directory: the directory to the config file
+    :param string config_file_name: the name of the config file
+   
+    :return: the config file
+    :rtype: dictionnary
+    '''
 
+    pipeline_configuration = config.read_config(config_directory + config_file_name)
 
-	pipeline_configuration = config.read_config(config_directory+config_file_name)
-	
-	return pipeline_configuration
+    return pipeline_configuration
 
-def create_or_load_the_reduction_metadata(output_metadata_directory, metadata_name='pyDANDIA_metadata.fits', verbose=False):
 
-	try:
+def create_or_load_the_reduction_metadata(output_metadata_directory, metadata_name='pyDANDIA_metadata.fits',
+                                          verbose=False):
+    '''
+    This creates (new reduction) or load (ongoing reduction) the metadata file linked to this reduction.
 
-		meta_data_exist = [i for i in os.listdir(output_metadata_directory) if (i == metadata_name)]	
+    :param string output_metadata_directory: the directory where to place the metadata
+    :param string metadata_name: the name of the metadata file
+    :param boolean verbose: switch to True to have more informations
 
-		if meta_data_exist == [] :
+    :return: the metadata object
+    :rtype: metadata object
+    '''
+    try:
 
-			
-				reduction_metadata = metadata.MetaData()
+        meta_data_exist = [i for i in os.listdir(output_metadata_directory) if (i == metadata_name)]
 
-				reduction_metadata.create_metadata_file(output_metadata_directory, metadata_name)				
+        if meta_data_exist == []:
 
+            reduction_metadata = metadata.MetaData()
 
-				if verbose == True:
+            reduction_metadata.create_metadata_file(output_metadata_directory, metadata_name)
 
-					print('Successfully create the reduction metadata')
+            if verbose == True:
+                print('Successfully create the reduction metadata')
 
-		else :
+        else:
 
-			reduction_metadata = metadata.MetaData()
+            reduction_metadata = metadata.MetaData()
+            reduction_metadata.load_all_metadata(output_metadata_directory, metadata_name)
+            if verbose == True:
+                print('Successfully found the reduction metadata')
+    except:
 
-			reduction_metadata.load_all_metadata(output_metadata_directory, metadata_name)
-			if verbose == True:
+        if verbose == True:
+            print('No metadata created or loaded : check this!')
 
-				print('Successfully found the reduction metadata')
-	except:
+        sys.exit(1)
 
-		if verbose == True:
+    return reduction_metadata
 
-			print('No metadata created or loaded : check this!')
 
-		sys.exit(1)
+def find_all_images(reduction_metadata, images_directory_path=None, verbose=False):
+    '''
+    This found all the images.
 
-	
-	return reduction_metadata
+    :param object reduction_metadata: the metadata object
+    :param string images_directory_path: the directory of the images
+    :param boolean verbose: switch to True to have more informations
 
+    :return: the list of images (strings)
+    :rtype: list
+    '''
+    try:
 
-def find_all_images(reduction_metadata, images_directory_path= None, verbose=False):
+        path = reduction_metadata.data_architecture[1]['IMAGES_PATH']
 
+    except:
 
+        if images_directory_path:
+            path = images_directory_path
 
-	try:
+            reduction_metadata.add_column_to_layer('data_architecture', 'images_path', [path])
 
-		path = reduction_metadata.data_architecture[1]['IMAGES_PATH']
-		
-	except:
-		
-		if images_directory_path :
-			
-			path =  images_directory_path
+    try:
 
-			reduction_metadata.add_column_to_layer('data_architecture', 'images_path', [path])			
-		
+        list_of_images = [i for i in os.listdir(path)]
 
-	try:
+        if list_of_images == []:
 
-		list_of_images = [i for i in os.listdir(path)]	
-		
-		if list_of_images == [] :
-		
-			if verbose == True:
+            if verbose == True:
+                print('No images to process. I take a rest :)')
 
-				print('No images to process. I take a rest :)')
+            return None
 
-			return None
-			
 
-		else :
+        else:
 
-			if verbose == True:
+            if verbose == True:
+                print('Find ' + str(len(list_of_images)) + ' images to treat.')
 
-				print('Find '+str(len(list_of_images))+' images to treat.')
+            return list_of_images
 
-			return list_of_images
+    except:
 
-	except:
+        if verbose == True:
+            print('Something went wrong on images search!')
 
-		if verbose == True:
+        return None
 
-				print('Something went wrong on images search!')
-	
 
-		return None
+def find_images_need_to_be_process(reduction_metadata, list_of_images, verbose=False):
+    '''
+    This founds the images that need to be processed by the pipeline, i.e not already done.
 
-def find_images_need_to_be_process(reduction_metadata, images, verbose=False):
+    :param object reduction_metadata: the metadata object
+    :param  list list_of_images: the directory of the images
+    :param boolean verbose: switch to True to have more informations
 
-	try :
-		layer = reduction_metadata.reduction_status
+    :return: the new images that need to be processed.
+    :rtype: list
+    '''
+    try:
+        layer = reduction_metadata.reduction_status
 
-		if layer == [None, None]:	
+        if layer == [None, None]:
 
-			new_images = images
-			
-		else:
+            new_images = list_of_images
 
-			new_images = []
-	
-			old_images = layer[1]['IMAGES']
+        else:
 
-			for name in images :
+            new_images = []
 
-				if name not in old_images:
-				
-					new_images.append(name)
+            old_images = layer[1]['IMAGES']
 
-	except:
+            for name in list_of_images:
 
-		print('Something went wrong on images/metadata matching !')
+                if name not in old_images:
+                    if verbose == True:
+                        print(name + ' is a new image to treat!')
+                    new_images.append(name)
 
+    except:
+        if verbose == True:
+            print('Something went wrong on images/metadata matching !')
 
-	return new_images
+    return new_images
 
 
+def open_an_image(reduction_metadata, image_name, verbose=False):
+    '''
+    Simply open an image using astropy.io.fits
 
-def open_an_image(image_directory_path, image_name, verbose=False):
+    :param object reduction_metadata: the metadata object
+    :param string image_name: the image name
+    :param boolean verbose: switch to True to have more informations
 
-	try:
+    :return: the opened image
+    :rtype: astropy.image object
+    '''
+    image_directory_path = reduction_metadata.data_architecture[1]['IMAGES_PATH'][0]
+    try:
 
-		image_data = fits.open(image_directory_path+image_name, mmap=True)
-		if verbose == True:
+        image_data = fits.open(image_directory_path + image_name, mmap=True)
+        if verbose == True:
+            print(image_name + ' open : OK')
 
-			print(image_name+' open : OK')
-	
-		return image_data
-	except:
-		if verbose == True:
+        return image_data
+    except:
+        if verbose == True:
+            print(image_name + ' open : not OK!')
 
-			print(image_name+' open : not OK!')
+        return None
 
-		return None
 
+def construct_the_bad_pixel_mask(image_bad_pixel_mask, integers_to_flag):
+    '''
+    Construct the bad pixel mask : 0 = good pixel
+                                   1 = bad pixel
 
-def construct_the_bad_pixel_mask(open_image, image_bad_pixel_mask_layer = 2):
+    :param array_like image_bad_pixel_mask: an array of integer
+    :param list  integers_to_flag: the integers value that need to be flagged as BAD pixels
 
-	try:
 
-		bad_pixel_mask = open_image[image_bad_pixel_mask_layer].data
+    :return: the bad pixel mask
+    :rtype: array_like
+    '''
 
-		#BANZAI definition of bp == 1 or bp == 3		
-		index_saturation = np.where((bad_pixel_mask==2))
-		bad_pixel_mask[index_saturation] = 0
+    bad_pixel_mask = np.zeros(image_bad_pixel_mask.shape, int)
+    try:
 
-		index_saturation = np.where((bad_pixel_mask==3))
-		bad_pixel_mask[index_saturation] = 1
- 
-	except:
-		
-		bad_pixel_mask = np.zeros(open_image[0].data.shape, int)
+        bad_pixel_mask = np.zeros(image_bad_pixel_mask.shape, int)
 
+        for flag in integers_to_flag:
+            # BANZAI definition of bp == 1 or bp == 3
+            index_saturation = np.where((bad_pixel_mask == flag))
+            bad_pixel_mask[index_saturation] = 1
 
 
-	return bad_pixel_mask
-	
 
-def construct_the_variables_star_mask(open_image, variable_star_pixels = 10):
+    except:
 
-	try:
+        pass
 
-		RA_range = [265, 285]
-		DEC_range = [-35,-25]
+    return bad_pixel_mask
 
 
-		data = open_image[0].data
-		
-		if saturation_level:
+def construct_the_variables_star_mask(open_image, variable_star_pixels=10):
+    '''
+    Construct the variable stars pixel mask : 0 = good pixel
+                                              1 = bad pixel
 
-			pass
-	
-	except:
-		
-		saturated_pixel_mask = np.zeros(open_image[0].data.shape,int)
+    NEED WORK :)
 
-	pass
+    :param astropy.image open_image: the opened image
+    :param int  variable_star_pixels: the pixel radius you want to flagged around the variable object
 
-def construct_the_saturated_pixel_mask(open_image, saturation_level = None):
-	
-	try:
-		data = open_image[0].data
-		
-		if saturation_level:
+    :return: the variable star pixel mask
+    :rtype: array_like
+    '''
 
-			pass
-		else:
+    try:
 
-			saturation_level = open_image[0].header['SATURATE']
-		
-		mask = 	open_image[0].data >= saturation_level
-		saturated_pixel_mask = mask.astype(int)
+        pass
 
-	except:
-		
-		saturated_pixel_mask = np.zeros(open_image[0].data.shape,int)
+    except:
 
+        pass
 
-	return saturated_pixel_mask
-	
-def construct_the_low_level_pixel_mask(open_image, low_level = 0):
-	
-	try:
-		data = open_image[0].data
-		
-		mask = data <= low_level
+    pass
 
-		low_level_pixel_mask = mask.astype(int)
 
-	except:
-		
-		low_level_pixel_mask = np.zeros(open_image[0].data.shape,int)
+def construct_the_saturated_pixel_mask(open_image, saturation_level=65535):
+    '''
+    Construct the saturated pixel mask : 0 = good pixel
+                                         1 = bad pixel
 
+    :param astropy.image open_image: the opened image
+    :param int saturation_level: the level above considered as saturated
 
-	return low_level_pixel_mask
 
-def construct_the_pixel_mask(open_image):
+    :return: the saturated pixel mask
+    :rtype: array_like
+    '''
 
-	try:
-		bad_pixel_mask = construct_the_bad_pixel_mask(open_image)
-	
-		#variables_pixel_mask = construct_the_variables_star_mask()
-	
-		saturated_pixel_mask = construct_the_saturated_pixel_mask(open_image)
-	
-		low_level_pixel_mask = construct_the_low_level_pixel_mask(open_image)
-	
-		master_mask = np.zeros(open_image[0].data.shape,int)
+    try:
 
-		list_of_masks = [bad_pixel_mask, saturated_pixel_mask,low_level_pixel_mask]
+        if saturation_level:
+            pass
 
-		for index,mask in enumerate(list_of_masks[::-1]):
+        else:
 
-			master_mask += mask*2**index 
-		
-		return master_mask
+            saturation_level = open_image[0].header['SATURATE']
 
-	except:
+        mask = open_image[0].data >= saturation_level
+        saturated_pixel_mask = mask.astype(int)
 
-		master_mask = np.zeros(open_image[0].data.shape,int)
+    except:
 
-	return master_mask	
+        saturated_pixel_mask = np.zeros(open_image[0].data.shape, int)
 
-def save_the_pixel_mask_in_image(open_image, master_mask, image_name, reduction_metadata):
+    return saturated_pixel_mask
 
-	bad_pixels_mask = fits.ImageHDU(master_mask)
-	bad_pixels_mask.name = 'MASTER_PIXEL_MASK'
-	
-	try:
-		open_image['MASTER_PIXEL_MASK'] = bad_pixels_mask
-	except:
 
-		open_image.append(bad_pixels_mask)
+def construct_the_low_level_pixel_mask(open_image, low_level=0):
+    '''
+    Construct the low level pixel mask : 0 = good pixel
+                                         1 = bad pixel
 
-	image_directory = reduction_metadata.data_architecture[1]['IMAGES_PATH'][0]
-		
-	open_image.writeto(image_directory+image_name, overwrite=True)
+    :param astropy.image open_image: the opened image
+    :param int low_level: the level below is considered as bad value
 
 
-def update_reduction_parameters_from_config_file(reduction_metadata, config_dictionnary):
+    :return: the low level pixel mask
+    :rtype: array_like
+    '''
+    try:
+        data = open_image[0].data
 
-	layer = reduction_metadata.reduction_parameters[1]
+        mask = data <= low_level
 
-	keys = layer.keys()
-	
-	values = []
-	for key in keys :
-		
-		try:
-			values.append(config_dictionnary[key]['value'])
-		except:
+        low_level_pixel_mask = mask.astype(int)
 
-			values.append(0)
-	reduction_metadata.add_row_to_layer('reduction_parameters', values)
+    except:
 
-def parse_the_header(open_image, reduction_metadata):
+        low_level_pixel_mask = np.zeros(open_image[0].data.shape, int)
 
-	
-	pass
+    return low_level_pixel_mask
 
-		
 
-def construct_the_stamps(open_image, stamp_size = None, arcseconds_stamp_size=(60,60), pixel_scale = None, 
-			 number_of_overlaping_pixels=25, verbose=False):
+def construct_the_pixel_mask(open_image, bad_pixel_mask, integers_to_flag,
+                             saturation_level=65535, low_level=0):
+    '''
+    Construct the global pixel mask  using a bitmask approach.
 
-	image = open_image[0].data
+    :param astropy.image open_image: the opened image
+    :param list integers_to_flag: the list of integers corresponding to a bad pixel
+    :param float saturation_level: the value above which a pixel is consider saturated
+    :param float low_level: the value below which a pixel is consider as bad value
 
-	full_image_y_size, full_image_x_size = image.shape
 
-	if stamp_size:	
+    :return: the low level pixel mask
+    :rtype: array_like
+    '''
+    try:
+        bad_pixel_mask = construct_the_bad_pixel_mask(bad_pixel_mask, integers_to_flag)
 
-		y_stamp_size = stamp_size[0]
-		x_stamp_size = stamp_size[1]
-	
-	else:
-		try:
+        # variables_pixel_mask = construct_the_variables_star_mask(open_image, variable_star_pixels=10)
 
-			y_stamp_size = int(arcseconds_stamp_size[0]/pixel_scale)
-			x_stamp_size = int(arcseconds_stamp_size[1]/pixel_scale)
-		
-		except:
-			print('No pixel scale found!')
-			sys.exit(1)
+        saturated_pixel_mask = construct_the_saturated_pixel_mask(open_image, saturation_level)
 
-		
-		
-	
+        low_level_pixel_mask = construct_the_low_level_pixel_mask(open_image, low_level)
 
-	x_stamps_center = np.arange(x_stamp_size/2,full_image_x_size, x_stamp_size)
-	y_stamps_center = np.arange(y_stamp_size/2,full_image_y_size, y_stamp_size)
+        original_master_mask = np.zeros(open_image[0].data.shape, int)
+        list_of_masks = [bad_pixel_mask, saturated_pixel_mask, low_level_pixel_mask]
 
+        master_mask = pixelmasks.construct_a_master_mask(original_master_mask, list_of_masks)
 
-	stamps_center_x, stamps_center_y = np.meshgrid(y_stamps_center, x_stamps_center)
+        return master_mask
 
-	stamps_y_min = stamps_center_y - y_stamp_size/2-number_of_overlaping_pixels
-	mask = 	stamps_y_min < 0
-	stamps_y_min[mask] = 0
+    except:
 
-	stamps_y_max = stamps_center_y + y_stamp_size/2+number_of_overlaping_pixels
-	mask = 	stamps_y_max > full_image_y_size
-	stamps_y_min[mask] = full_image_y_size
+        master_mask = np.zeros(open_image[0].data.shape, int)
 
-	stamps_x_min = stamps_center_x - x_stamp_size/2-number_of_overlaping_pixels
-	mask = 	stamps_x_min < 0
-	stamps_x_min[mask] = 0
+    return master_mask
 
-	stamps_x_max = stamps_center_x + x_stamp_size/2+number_of_overlaping_pixels
-	mask = 	stamps_x_max > full_image_x_size
-	stamps_x_min[mask] = full_image_x_size
 
-	stamps = [[j*(i+1),stamps_y_min[i,j],stamps_y_max[i,j],stamps_x_min[i,j],stamps_x_max[i,j]] 
-		  for i in range(stamps_x_min.shape[0]) for j in range(stamps_x_min.shape[1])]
+def save_the_pixel_mask_in_image(reduction_metadata, image_name, open_image, master_mask):
+    '''
+    Construct the global pixel mask  using a bitmask approach.
 
+    :param object reduction_metadata: the metadata object
+    :param string image_name: the name of the image
+    :param astropy.image open_image: the opened image
+    :param array_like master_mask: the master mask which needs to be kept
 
-	return np.array(stamps)
+    '''
+    master_pixels_mask = fits.ImageHDU(master_mask)
+    master_pixels_mask.name = 'MASTER_PIXEL_MASK'
 
+    try:
+        open_image['MASTER_PIXEL_MASK'] = master_pixels_mask
+    except:
 
+        open_image.append(master_pixels_mask)
 
+    image_directory = reduction_metadata.data_architecture[1]['IMAGES_PATH'][0]
+
+    open_image.writeto(image_directory + image_name, overwrite=True)
+
+
+def update_reduction_metadata_with_config_file(reduction_metadata, config_dictionnary):
+    '''
+    Update the metadata with the config files
+
+    :param object reduction_metadata: the metadata object
+    :param dictionnary config_dictionnary: a python dictionnary containing the pyDANDIA parameters
+
+    '''
+
+
+    keys = config_dictionnary.keys()
+
+    data = []
+    for key in keys:
+
+        try:
+            data.append([key, config_dictionnary[key]['value'],  config_dictionnary[key]['format'],
+                         config_dictionnary[key]['unit']])
+
+        except:
+
+            print('Something went wrong with the config file on the key'+key)
+            sys.exit(1)
+
+    data = np.array(data)
+    names = [i.upper() for i in data[:, 0]]
+    units = data[:, 2]
+    formats = data[:, 3]
+
+    reduction_metadata.create_reduction_parameters_layer(names, units, formats, data[:,1])
+
+
+
+
+
+def parse_the_image_header(reduction_metadata, open_image):
+    '''
+    Update the metadata with the header keywords
+
+    :param object reduction_metadata: the metadata object
+    :param astropy.image open_image: the opened image
+
+    '''
+
+    layer = reduction_metadata.header_summary[1]
+
+
+
+
+
+def construct_the_stamps(open_image, stamp_size=None, arcseconds_stamp_size=(60, 60), pixel_scale=None,
+                         number_of_overlaping_pixels=25, verbose=False):
+    image = open_image[0].data
+
+    full_image_y_size, full_image_x_size = image.shape
+
+    if stamp_size:
+
+        y_stamp_size = stamp_size[0]
+        x_stamp_size = stamp_size[1]
+
+    else:
+        try:
+
+            y_stamp_size = int(arcseconds_stamp_size[0] / pixel_scale)
+            x_stamp_size = int(arcseconds_stamp_size[1] / pixel_scale)
+
+        except:
+            print('No pixel scale found!')
+            sys.exit(1)
+
+    x_stamps_center = np.arange(x_stamp_size / 2, full_image_x_size, x_stamp_size)
+    y_stamps_center = np.arange(y_stamp_size / 2, full_image_y_size, y_stamp_size)
+
+    stamps_center_x, stamps_center_y = np.meshgrid(y_stamps_center, x_stamps_center)
+
+    stamps_y_min = stamps_center_y - y_stamp_size / 2 - number_of_overlaping_pixels
+    mask = stamps_y_min < 0
+    stamps_y_min[mask] = 0
+
+    stamps_y_max = stamps_center_y + y_stamp_size / 2 + number_of_overlaping_pixels
+    mask = stamps_y_max > full_image_y_size
+    stamps_y_min[mask] = full_image_y_size
+
+    stamps_x_min = stamps_center_x - x_stamp_size / 2 - number_of_overlaping_pixels
+    mask = stamps_x_min < 0
+    stamps_x_min[mask] = 0
+
+    stamps_x_max = stamps_center_x + x_stamp_size / 2 + number_of_overlaping_pixels
+    mask = stamps_x_max > full_image_x_size
+    stamps_x_min[mask] = full_image_x_size
+
+    stamps = [[j * (i + 1), stamps_y_min[i, j], stamps_y_max[i, j], stamps_x_min[i, j], stamps_x_max[i, j]]
+              for i in range(stamps_x_min.shape[0]) for j in range(stamps_x_min.shape[1])]
+
+    return np.array(stamps)
