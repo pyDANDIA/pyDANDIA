@@ -88,6 +88,23 @@ def create_or_load_the_reduction_metadata(output_metadata_directory, metadata_na
     return reduction_metadata
 
 
+def set_bad_pixel_mask_directory(reduction_metadata, bpm_directory_path=None, verbose=False):
+    '''
+    This found all the images.
+
+    :param object reduction_metadata: the metadata object
+    :param string images_directory_path: the directory of the images
+    :param boolean verbose: switch to True to have more informations
+
+    :return: the list of images (strings)
+    :rtype: list
+    '''
+
+    reduction_metadata.add_column_to_layer('data_architecture', 'BPM_PATH', [bpm_directory_path],
+                                           new_column_format=None,
+                                           new_column_unit=None)
+
+
 def find_all_images(reduction_metadata, images_directory_path=None, verbose=False):
     '''
     This found all the images.
@@ -112,7 +129,7 @@ def find_all_images(reduction_metadata, images_directory_path=None, verbose=Fals
 
     try:
 
-        list_of_images = [i for i in os.listdir(path)]
+        list_of_images = [i for i in os.listdir(path) if ('.fits' in i) and ('.gz' not in i) and ('.bz2' not in i)]
 
         if list_of_images == []:
 
@@ -148,10 +165,11 @@ def find_images_need_to_be_process(reduction_metadata, list_of_images, verbose=F
     :return: the new images that need to be processed.
     :rtype: list
     '''
-    try:
-        layer = reduction_metadata.reduction_status
 
-        if layer == [None, None]:
+    try:
+        layer = reduction_metadata.data_inventory
+
+        if len(layer[1]) == 0:
 
             new_images = list_of_images
 
@@ -175,21 +193,27 @@ def find_images_need_to_be_process(reduction_metadata, list_of_images, verbose=F
     return new_images
 
 
-def open_an_image(reduction_metadata, image_name, verbose=False):
+def open_an_image(image_directory, image_name, image_index=0, verbose=False):
     '''
     Simply open an image using astropy.io.fits
 
     :param object reduction_metadata: the metadata object
+    :param string image_directory: the image name
     :param string image_name: the image name
+    :param string image_index: the image index of the astropy fits object
+
     :param boolean verbose: switch to True to have more informations
 
     :return: the opened image
     :rtype: astropy.image object
     '''
-    image_directory_path = reduction_metadata.data_architecture[1]['IMAGES_PATH'][0]
+    image_directory_path = image_directory
+
     try:
 
         image_data = fits.open(image_directory_path + image_name, mmap=True)
+        image_data = image_data[image_index]
+
         if verbose == True:
             print(image_name + ' open : OK')
 
@@ -197,6 +221,37 @@ def open_an_image(reduction_metadata, image_name, verbose=False):
     except:
         if verbose == True:
             print(image_name + ' open : not OK!')
+
+        return None
+
+
+def open_an_bad_pixel_mask(reduction_metadata, bpm_name, bpm_index=1, verbose=False):
+    '''
+    Simply open an image using astropy.io.fits
+
+    :param object reduction_metadata: the metadata object
+    :param string bpm_name: the bad pixel mask name
+    :param string bpm_index: the bad pixel mask index of the astropy fits object
+
+    :param boolean verbose: switch to True to have more informations
+
+    :return: the opened bad pixel mask
+    :rtype: astropy.image object
+    '''
+    bpm_directory_path = reduction_metadata.data_architecture[1]['BPM_PATH'][0]
+
+    try:
+
+        image_data = fits.open(bpm_directory_path + bpm_name, mmap=True)
+        image_data = image_data[bpm_index]
+
+        if verbose == True:
+            print(bpm_name + ' open : OK')
+
+        return image_data
+    except:
+        if verbose == True:
+            print(bpm_name + ' open : not OK!')
 
         return None
 
@@ -280,7 +335,7 @@ def construct_the_saturated_pixel_mask(open_image, saturation_level=65535):
 
             saturation_level = open_image[0].header['SATURATE']
 
-        mask = open_image[0].data >= saturation_level
+        mask = open_image.data >= saturation_level
         saturated_pixel_mask = mask.astype(int)
 
     except:
@@ -302,8 +357,9 @@ def construct_the_low_level_pixel_mask(open_image, low_level=0):
     :return: the low level pixel mask
     :rtype: array_like
     '''
+
     try:
-        data = open_image[0].data
+        data = open_image.data
 
         mask = data <= low_level
 
@@ -330,6 +386,7 @@ def construct_the_pixel_mask(open_image, bad_pixel_mask, integers_to_flag,
     :return: the low level pixel mask
     :rtype: array_like
     '''
+
     try:
         bad_pixel_mask = construct_the_bad_pixel_mask(bad_pixel_mask, integers_to_flag)
 
@@ -339,7 +396,7 @@ def construct_the_pixel_mask(open_image, bad_pixel_mask, integers_to_flag,
 
         low_level_pixel_mask = construct_the_low_level_pixel_mask(open_image, low_level)
 
-        original_master_mask = np.zeros(open_image[0].data.shape, int)
+        original_master_mask = np.zeros(open_image.data.shape, int)
         list_of_masks = [bad_pixel_mask, saturated_pixel_mask, low_level_pixel_mask]
 
         master_mask = pixelmasks.construct_a_master_mask(original_master_mask, list_of_masks)
@@ -348,7 +405,7 @@ def construct_the_pixel_mask(open_image, bad_pixel_mask, integers_to_flag,
 
     except:
 
-        master_mask = np.zeros(open_image[0].data.shape, int)
+        master_mask = np.zeros(open_image.data.shape, int)
 
     return master_mask
 
@@ -386,30 +443,26 @@ def update_reduction_metadata_with_config_file(reduction_metadata, config_dictio
 
     '''
 
-
     keys = config_dictionnary.keys()
 
     data = []
     for key in keys:
 
         try:
-            data.append([key, config_dictionnary[key]['value'],  config_dictionnary[key]['format'],
+            data.append([key, config_dictionnary[key]['value'], config_dictionnary[key]['format'],
                          config_dictionnary[key]['unit']])
 
         except:
 
-            print('Something went wrong with the config file on the key'+key)
+            print('Something went wrong with the config file on the key' + key)
             sys.exit(1)
 
     data = np.array(data)
     names = [i.upper() for i in data[:, 0]]
-    units = data[:, 2]
-    formats = data[:, 3]
+    formats = data[:, 2]
+    units = data[:, 3]
 
-    reduction_metadata.create_reduction_parameters_layer(names, units, formats, data[:,1])
-
-
-
+    reduction_metadata.create_reduction_parameters_layer(names, formats, units, data[:, 1])
 
 
 def parse_the_image_header(reduction_metadata, open_image):
@@ -419,17 +472,74 @@ def parse_the_image_header(reduction_metadata, open_image):
     :param object reduction_metadata: the metadata object
     :param astropy.image open_image: the opened image
 
+    :return an array containing the needed header info
+    :rtype array_like
     '''
 
-    layer = reduction_metadata.header_summary[1]
+    layer_reduction_parameters = reduction_metadata.reduction_parameters[1]
+    image_header = open_image.header
+
+    header_infos = []
+
+    for key in layer_reduction_parameters.keys():
+
+        try:
+            info = [key, image_header[layer_reduction_parameters[key][0]], layer_reduction_parameters[key].dtype]
+            header_infos.append(info)
+
+        except:
+            pass
+
+    return np.array(header_infos)
 
 
+def update_reduction_metadata_headers_summary_with_new_images(reduction_metadata, new_images):
+    '''
+    Update the metadata with the header keywords
 
+    :param object reduction_metadata: the metadata object
+    :param list new_images: list of strings
+
+    :return an array containing the needed header info
+    :rtype array_like
+    '''
+
+    for image_name in new_images:
+        open_image = open_an_image(reduction_metadata.data_architecture[1]['IMAGES_PATH'][0], image_name, verbose=False)
+
+        header_infos = parse_the_image_header(reduction_metadata, open_image)
+
+        names = np.append('IMAGES', header_infos[:, 0])
+        values = np.append(image_name, header_infos[:, 1])
+        formats = np.append('S200', header_infos[:, 2])
+
+        if reduction_metadata.headers_summary[1]:
+            reduction_metadata.add_row_to_layer('headers_summary', values)
+
+        else:
+
+            reduction_metadata.create_headers_summary_layer(names, formats, units=None, data=values)
 
 
 def construct_the_stamps(open_image, stamp_size=None, arcseconds_stamp_size=(60, 60), pixel_scale=None,
                          number_of_overlaping_pixels=25, verbose=False):
-    image = open_image[0].data
+    '''
+    Define the stamps for an image variable kernel definition
+
+    :param object reduction_metadata: the metadata object
+    :param list stamp_sizes: list of integer give the X,Y stamp size , i.e [150,52] give 150 pix in X, 52 in Y
+    :param tuple arcseconds_stamp_size: list of integer give the X,Y stamp size in arcseconds units
+    :param float pixel_scale: pixel scale of the CCD, in arcsec/pix
+    :param int number_of_overlaping_pixels : half of  number of pixels in both direction you want overlaping
+    :param boolean verbose: switch to True to have more informations
+
+
+
+    :return an array containing the pixel index, Y_min, Y_max, X_min, X_max (i.e matrix index definition)
+    :rtype array_like
+    '''
+
+    image = open_image.data
 
     full_image_y_size, full_image_x_size = image.shape
 
@@ -473,3 +583,63 @@ def construct_the_stamps(open_image, stamp_size=None, arcseconds_stamp_size=(60,
               for i in range(stamps_x_min.shape[0]) for j in range(stamps_x_min.shape[1])]
 
     return np.array(stamps)
+
+
+def update_reduction_metadata_stamps(reduction_metadata, open_image,
+                                     stamp_size=None, arcseconds_stamp_size=(60, 60),
+                                     pixel_scale=None, number_of_overlaping_pixels=25,
+                                     verbose=False):
+    '''
+    Create the stamps definition in the reduction_metadata
+
+    :param object reduction_metadata: the metadata object
+    :param astropy.image open_image: the opened image
+    :param list stamp_sizes: list of integer give the X,Y stamp size , i.e [150,52] give 150 pix in X, 52 in Y
+    :param tuple arcseconds_stamp_size: list of integer give the X,Y stamp size in arcseconds units
+    :param float pixel_scale: pixel scale of the CCD, in arcsec/pix
+    :param int number_of_overlaping_pixels : half of  number of pixels in both direction you want overlaping
+    :param boolean verbose: switch to True to have more informations
+
+    '''
+
+    if pixel_scale:
+        pass
+    else:
+        pixel_scale = float(reduction_metadata.headers_summary[1]['PIXEL_SCALE'][0])
+
+    stamps = construct_the_stamps(open_image, stamp_size, arcseconds_stamp_size, pixel_scale,
+                                  number_of_overlaping_pixels, verbose)
+
+    names = ['PIXEL_INDEX', 'Y_MIN', 'Y_MAX', 'X_MIN', 'X_MAX']
+    formats = ['int', 'S200', 'S200', 'S200', 'S200']
+    units = ['', 'pixel', 'pixel', 'pixel', 'pixel']
+
+    reduction_metadata.create_stamps_layer(names, formats, units, stamps)
+
+
+def create_reduction_metadata_data_inventory(reduction_metadata, new_images, status=0):
+    '''
+        Create the data_inventory layer with all status set to status
+
+        :param object reduction_metadata: the metadata object
+        :param list new_images: list of string with the new images names
+        :param int status: status of stage0 reducitonfor a frame. 0 : not done
+                                                                  1 : done
+    '''
+    for new_image in new_images:
+        reduction_metadata.add_row_to_layer('data_inventory', [new_image] + [status] *
+                                            (len(reduction_metadata.data_inventory[1].keys()) - 1))
+
+
+def update_reduction_metadata_data_inventory(reduction_metadata, new_images, status=1):
+    '''
+        Update the data_inventory layer with all status set to status
+
+        :param object reduction_metadata: the metadata object
+        :param list new_images: list of string with the new images names
+        :param int status: status of stage0 reducitonfor a frame. 0 : not done
+                                                                  1 : done
+    '''
+    for new_image in new_images:
+        index_image = np.where(reduction_metadata.data_inventory[1]['IMAGES'] == new_image)[0][0]
+        reduction_metadata.data_inventory[1][index_image][1] = status

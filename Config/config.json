@@ -20,19 +20,19 @@
     "cppcode": {
         "comment": "cppcode - STRING - The full directory path indicating where the DanIDL C++ code is installed.", 
         "value": "/path/to/C++/code/",
-	"format":"str",
+	"format":"S200",
 	"unit":""
     }, 
     "datekey": {
         "comment": "datekey - STRING - Header keyword recording the date (universal time) at the start of the observation. The value of this keyword should be a STRING of the format YYYY-MM-DDxxx...xxx where YYYY-MM-DD is a valid date and xxx...xxx represents a string of arbitrary characters of any length.", 
         "value": "DATE-OBS",
-	"format":"str",
+	"format":"S200",
 	"unit":"day"
     }, 
     "deckey": {
         "comment": "deckey - STRING - Header keyword recording the declination (J2000) of the observation. The value of this keyword should be a STRING of the format pDD:MM:SS.SSS, where pDD:MM:SS.SSS is an angle between +-90 degrees in sexagesimal format.", 
         "value": "DEC",
-	"format":"str",
+	"format":"S200",
 	"unit":"deg"
     }, 
     "det_thresh": {
@@ -56,13 +56,13 @@
     "expkey": {
         "comment": "expkey - STRING - Header keyword recording the image exposure time in seconds. The value of this keyword should be a NUMBER with a non-negative value, or a STRING that represents a valid non-negative number.", 
         "value": "EXPTIME",
-	"format":"str",
+	"format":"S200",
 	"unit":""
     }, 
     "filtkey": {
         "comment": "filtkey - STRING - Header keyword recording the filter employed. The value of this keyword should be a STRING.", 
         "value": "FILTER2",
-	"format":"str",
+	"format":"S200",
 	"unit":""
     }, 
     "flim": {
@@ -176,7 +176,7 @@
     "mbiasmethod": {
         "comment": "mbiasmethod - STRING - Method for combining the bias frames (mean = Mean : median = Median : sigclip = Sigma-clipped mean : Default value = sigclip).", 
         "value": "sigclip",
-	"format":"str",
+	"format":"S200",
 	"unit":""
     }, 
     "mbiaspro": {
@@ -194,7 +194,7 @@
     "mdarkmethod": {
         "comment": "mdarkmethod - STRING - Method for combining the dark frames (mean = Mean : median = Median : sigclip = Sigma-clipped mean : Default value = sigclip).", 
         "value": "sigclip",
-	"format":"str",
+	"format":"S200",
 	"unit":""
     }, 
     "mdarkpro": {
@@ -212,7 +212,7 @@
     "mflatmethod": {
         "comment": "mflatmethod - STRING - Method for combining the flat frames (mean = Mean : median = Median : sigclip = Sigma-clipped mean : Default value = median).", 
         "value": "median",
-	"format":"str",
+	"format":"S200",
 	"unit":""
     }, 
     "mflatpro": {
@@ -260,31 +260,31 @@
     "obskey": {
         "comment": "obskey - STRING  - Header keyword recording the observation type.", 
         "value": "OBSTYPE",
-	"format":"str",
+	"format":"S200",
 	"unit":""
     }, 
     "obskeyb": {
         "comment": "obskeyb - STRING - Value of the observation type header keyword for a bias frame.", 
         "value": "BIAS",
-	"format":"str",
+	"format":"S200",
 	"unit":""
     }, 
     "obskeyd": {
         "comment": "obskeyd - STRING - Value of the observation type header keyword for a dark frame.", 
         "value": "DARK",
-	"format":"str",
+	"format":"S200",
 	"unit":""
     }, 
     "obskeyf": {
         "comment": "obskeyf - STRING - Value of the observation type header keyword for a flat frame.", 
         "value": "SKYFLAT",
-	"format":"str",
+	"format":"S200",
 	"unit":""
     }, 
     "obskeys": {
         "comment": "obskeys - STRING - Value of the observation type header keyword for a science frame.", 
         "value": "EXPOSE",
-	"format":"str",
+	"format":"S200",
 	"unit":""
     }, 
     "oscanauto": {
@@ -368,7 +368,7 @@
     "rakey": {
         "comment": "rakey - STRING - Header keyword recording the right ascension (J2000) of the observation. The value of this keyword should be a STRING of the format HH:MM:SS.SSS, where HH:MM:SS.SSS is a valid time.", 
         "value": "RA",
-	"format":"str",
+	"format":"S200",
 	"unit":"hours"
     }, 
     "replace_cr": {
@@ -428,7 +428,7 @@
     "timekey": {
         "comment": "timekey - STRING - Header keyword recording the universal time at the start of the observation. The value of this keyword should be a NUMBER in hours, or a STRING of the format HH:MM:SS.SSS, where HH:MM:SS.SSS is a valid time.", 
         "value": "UTSTART",
-	"format":"str",
+	"format":"S200",
 	"unit":""
     }, 
     "trans_auto": {
@@ -440,7 +440,7 @@
     "trans_type": {
         "comment": "trans_type - STRING - Type of coordinate transformation to fit when fitting a coordinate transformation between two images (shift = General pixel shift : rot_shift = Rotation and general pixel shift : rot_mag_shift = Rotation, magnification, and general pixel shift : linear = Linear : polynomial = Polynomial : Default value = linear).", 
         "value": "polynomial",
-	"format":"str",
+	"format":"S200",
 	"unit":""
     }, 
     "use_reflist": {
@@ -453,6 +453,12 @@
         "comment": "var_deg - INT - Polynomial degree of the spatial variation of the model used to represent the image PSF (0 = Constant : 1 = Linear : 2 = Quadratic : 3 = Cubic : Default value = 0).", 
         "value": 1,
 	"format":"int",
+	"unit":""
+    },
+    "pixeL_scale": {
+        "comment": "pixeL_scale - STRING - The pixel scale header keyword", 
+        "value": "PIXSCALE",
+	"format":"S200",
 	"unit":""
     }
 }

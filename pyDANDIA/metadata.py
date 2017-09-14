@@ -43,7 +43,6 @@ class MetaData:
         self.headers_summary = [None, None]
         self.data_inventory = [None, None]
 
-        self.reduction_status = [None, None]
         self.stamps = [None, None]
 
     def create_metadata_file(self, metadata_directory, metadata_name):
@@ -51,13 +50,16 @@ class MetaData:
         metadata = fits.HDUList()
 
         self.create_data_architecture_layer(metadata_directory, metadata_name)
+        self.create_data_inventory_layer()
 
         tbhdu1 = fits.BinTableHDU(self.data_architecture[1], header=self.data_architecture[0])
+        tbhdu2 = fits.BinTableHDU(self.data_inventory[1], header=self.data_inventory[0])
 
         tbhdu1.name = tbhdu1.header['name']
-        tbhdu1.name = tbhdu1.header['name']
+        tbhdu2.name = tbhdu2.header['name']
 
         metadata.append(tbhdu1)
+        metadata.append(tbhdu2)
 
         metadata.writeto(metadata_directory + metadata_name, overwrite=True)
 
@@ -105,7 +107,7 @@ class MetaData:
         data = [[metadata_name], [metadata_directory]]
         self.create_a_new_layer(layer_name, data_structure, data)
 
-    def create_reduction_parameters_layer(self, names, units, formats, data):
+    def create_reduction_parameters_layer(self, names, formats, units, data):
 
         name = 'reduction_parameters'
 
@@ -156,36 +158,35 @@ class MetaData:
 
 
         data_structure = [names,
-                          units,
-                          formats]
+                          formats,
+                          units]
 
         self.create_a_new_layer(name, data_structure, data)
 
-    def create_reduction_status_layer(self, new_images):
-
-        layer_name = 'reduction_status'
-        data_structure = [['IMAGES', 'STAGE0', 'STAGE1'],
-                          ['S200', 'S10', 'S10'],
-                          ]
-        data = [new_images, [0] * len(new_images), [0] * len(new_images)]
-        self.create_a_new_layer(layer_name, data_structure, data)
-
-    def create_headers_summary_layer(self, new_images):
+    def create_headers_summary_layer(self, names, formats, units=None, data=None):
 
         layer_name = 'headers_summary'
-        data_structure = [['IMAGES'],
-                          ['S200'],
-                          ]
-        data = [new_images]
+        data_structure = [names,
+                          formats,
+                          units]
         self.create_a_new_layer(layer_name, data_structure, data)
 
-    def create_data_inventory_layer(self, new_images):
+    def create_data_inventory_layer(self):
 
         layer_name = 'data_inventory'
-        data_structure = [['IMAGES'],
-                          ['S200'],
-                          ]
-        data = [new_images]
+        data_structure = [
+            ['IMAGES', 'STAGE_0', 'STAGE_1', 'STAGE_2', 'STAGE_3', 'STAGE_4', 'STAGE_5', 'STAGE_6', 'STAGE_7'],
+            ['S200', 'S10', 'S10', 'S10', 'S10', 'S10', 'S10', 'S10', 'S10'],
+            ]
+
+        self.create_a_new_layer(layer_name, data_structure)
+
+    def create_stamps_layer(self, names, formats, units=None, data=None):
+
+        layer_name = 'stamps'
+        data_structure = [names,
+                          formats,
+                          units]
         self.create_a_new_layer(layer_name, data_structure, data)
 
     def load_a_layer_from_file(self, metadata_directory, metadata_name, key_layer):
@@ -274,6 +275,7 @@ class MetaData:
     def add_column_to_layer(self, key_layer, new_column_name, new_column_data, new_column_format=None,
                             new_column_unit=None):
 
+
         layer = getattr(self, key_layer)
         new_column = Column(new_column_data, name=new_column_name.upper(), dtype=new_column_format)
         layer[1].add_column(new_column)
@@ -286,7 +288,7 @@ class MetaData:
     def update_column_to_layer(self, key_layer, key_column, new_column):
 
         layer = getattr(self, key_layer)
-        layer[1][key_column] = new_new_column
+        layer[1][key_column] = new_column
 
     ###
     def set_pars(self, par_dict):
