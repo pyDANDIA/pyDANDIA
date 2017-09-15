@@ -14,6 +14,17 @@ import collections
 
 
 def update_a_dictionary(dictionary, new_key, new_value):
+    '''
+    Update a namedtuple dictionary with a new key and new value
+
+    :param namedtuple_object dictionary: the dictionary need to be updated
+    :param string new_key: the new key desirec in the new dictionnary
+    :param new_value:  the new value associated ot the new key.
+
+    :return new_dictionary:  the updated namedtuple dictionary
+    :rtype namedtuple dictionary
+    '''
+
     new_keys = dictionary._fields + (new_key,)
     new_dictionary = collections.namedtuple(dictionary.__name__, new_keys)
 
@@ -46,7 +57,13 @@ class MetaData:
         self.stamps = [None, None]
 
     def create_metadata_file(self, metadata_directory, metadata_name):
+        '''
+        Create a metadata fits file from scratch
 
+        :param string metadata_directory: the metadata directory where this file gonna be saved
+        :param string metadata_name: the name of the metadata file
+
+        '''
         metadata = fits.HDUList()
 
         self.create_data_architecture_layer(metadata_directory, metadata_name)
@@ -64,6 +81,15 @@ class MetaData:
         metadata.writeto(metadata_directory + metadata_name, overwrite=True)
 
     def create_a_new_layer(self, layer_name, data_structure, data_columns=None):
+        '''
+        Add a new layer to the metadata object
+
+        :param string layer_name: the name associated to the layer
+        :param list data_structure: a list containing the [[columns names],[columns format],[columns units]]
+        :param array_like data_columns: the content of the astropy.table
+
+
+        '''
 
         layer_header = fits.Header()
         layer_header.update({'NAME': layer_name})
@@ -100,15 +126,30 @@ class MetaData:
         setattr(self, layer_name, layer)
 
     def create_data_architecture_layer(self, metadata_directory, metadata_name):
+        '''
+        Create the data architecture layer, which contains the different directories paths, names etc...
 
+        :param string metadata_directory: the metadata directory where this file gonna be saved
+        :param string metadata_name: the nbame of the metadata file
+
+        '''
         layer_name = 'data_architecture'
         data_structure = [['METADATA_NAME', 'OUTPUT_DIRECTORY'],
                           ]
         data = [[metadata_name], [metadata_directory]]
         self.create_a_new_layer(layer_name, data_structure, data)
 
-    def create_reduction_parameters_layer(self, names, formats, units, data):
+    def create_reduction_parameters_layer(self, names, formats, units, data=None):
+        '''
+        Create the reduction parameters layer, which contains the different informations contains in the config.json
+        file
 
+        :param list names: the list of names (string) of the columns
+        :param list formats: the list of format (dtype) of the columns
+        :param list units: the list of units (string) of the columns
+        :param array_like: the data need to fill the astropy.table
+
+        '''
         name = 'reduction_parameters'
 
         # data = [['year', 'YEAR', 'int', 'Year of observations'],
@@ -164,7 +205,16 @@ class MetaData:
         self.create_a_new_layer(name, data_structure, data)
 
     def create_headers_summary_layer(self, names, formats, units=None, data=None):
+        '''
+        Create the headers_summary layer, which contains the different informations contains in each image header needed
+        by pyDANDIA
 
+        :param list names: the list of names (string) of the columns
+        :param list formats: the list of format (dtype) of the columns
+        :param list units: the list of units (string) of the columns
+        :param array_like: the data need to fill the astropy.table
+
+        '''
         layer_name = 'headers_summary'
         data_structure = [names,
                           formats,
@@ -172,17 +222,28 @@ class MetaData:
         self.create_a_new_layer(layer_name, data_structure, data)
 
     def create_data_inventory_layer(self):
+        '''
+        Create the data_inventory layer, which summarizes the status of the reduction for all images vs all stages
 
+        '''
         layer_name = 'data_inventory'
         data_structure = [
             ['IMAGES', 'STAGE_0', 'STAGE_1', 'STAGE_2', 'STAGE_3', 'STAGE_4', 'STAGE_5', 'STAGE_6', 'STAGE_7'],
             ['S200', 'S10', 'S10', 'S10', 'S10', 'S10', 'S10', 'S10', 'S10'],
-            ]
+        ]
 
         self.create_a_new_layer(layer_name, data_structure)
 
     def create_stamps_layer(self, names, formats, units=None, data=None):
+        '''
+        Create the stamps layer, which contains the stamps index, and coordinates of each frames subdivision
 
+        :param list names: the list of names (string) of the columns
+        :param list formats: the list of format (dtype) of the columns
+        :param list units: the list of units (string) of the columns
+        :param array_like: the data need to fill the astropy.table
+
+        '''
         layer_name = 'stamps'
         data_structure = [names,
                           formats,
@@ -190,7 +251,15 @@ class MetaData:
         self.create_a_new_layer(layer_name, data_structure, data)
 
     def load_a_layer_from_file(self, metadata_directory, metadata_name, key_layer):
+        '''
+        Load into the metadata object the layer from the metadata file.
 
+        :param string metadata_directory: the metadata directory where this file gonna be saved
+        :param string metadata_name: the name of the metadata file
+        :param string key_layer: the layer which gonna be load from the file
+
+
+        '''
         metadata = fits.open(metadata_directory + metadata_name, mmap=True)
 
         layer = metadata[key_layer]
@@ -201,7 +270,14 @@ class MetaData:
         setattr(self, key_layer, [header, table])
 
     def load_all_metadata(self, metadata_directory, metadata_name):
+        '''
+        Load into the metadata object all layers contains in the metadata file.
 
+        :param string metadata_directory: the metadata directory where this file gonna be saved
+        :param string metadata_name: the name of the metadata file
+
+
+        '''
         all_layers = self.__dict__.keys()
 
         for key_layer in all_layers:
@@ -213,7 +289,14 @@ class MetaData:
                 print 'No Layer with key name :' + key_layer
 
     def save_updated_metadata(self, metadata_directory, metadata_name):
+        '''
+        Save in the metadata file the updated metadata object (i.e all layers).
 
+        :param string metadata_directory: the metadata directory where this file gonna be saved
+        :param string metadata_name: the name of the metadata file
+
+
+        '''
         all_layers = self.__dict__.keys()
 
         for key_layer in all_layers:
@@ -222,7 +305,14 @@ class MetaData:
                 self.save_a_layer_to_file(metadata_directory, metadata_name, key_layer)
 
     def save_a_layer_to_file(self, metadata_directory, metadata_name, key_layer):
+        '''
+        Save in the metadata file the updated layer.
 
+        :param string metadata_directory: the metadata directory where this file gonna be saved
+        :param string metadata_name: the name of the metadata file
+        :param string key layer: the name of the layer need to be saved
+
+        '''
         layer = getattr(self, key_layer)
 
         update_layer = fits.BinTableHDU(layer[1], header=layer[0])
@@ -238,7 +328,14 @@ class MetaData:
         metadata.writeto(metadata_directory + metadata_name, overwrite=True)
 
     def transform_2D_table_to_dictionary(self, key_layer):
+        '''
+        Transform a 2D astropy.table to a collection.namedtuple dictionary
 
+        :param string key_layer: the name of the layer transform to a dictionary
+
+        :return dictionary : a namedutple.dicitonary containing the astropy.table
+        :rtype collections.namedtuple
+        '''
         layer = getattr(self, key_layer)
 
         keys = layer[1].keys()
@@ -251,7 +348,13 @@ class MetaData:
         return dictionary
 
     def update_2D_table_with_dictionary(self, key_layer, dictionary):
+        '''
+        Update a layer with a dictionary
 
+        :param string key_layer: the name of the layer need to be saved
+        :param collecitions.namedtuple dictionary: the dictionary that will be translate to an astropy.table
+
+        '''
         layer = getattr(self, key_layer)
         column_names = layer[1].keys()
 
@@ -268,25 +371,54 @@ class MetaData:
                 layer[1].add_column(Column([value], name=key, dtype=type(value)))
 
     def add_row_to_layer(self, key_layer, new_row):
+        '''
+        Add a row to a specific layer
 
+        :param string key_layer: the name of the layer need to be saved
+        :param list new_row: the list of value which gonna be append to the layer
+
+        '''
         layer = getattr(self, key_layer)
         layer[1].add_row(new_row)
 
     def add_column_to_layer(self, key_layer, new_column_name, new_column_data, new_column_format=None,
                             new_column_unit=None):
+        '''
+        Add a entire column to a specific layer
+
+        :param string key_layer: the name of the layer need to be saved
+        :param dtype new_column_name: the name of the new_column
+        :param list new_column_data: the data representing the column added
+        :param string new_column_unit: the dunit of the new column
 
 
+
+        '''
         layer = getattr(self, key_layer)
         new_column = Column(new_column_data, name=new_column_name.upper(), dtype=new_column_format)
         layer[1].add_column(new_column)
 
     def update_row_to_layer(self, key_layer, row_index, new_row):
+        '''
+        Modify an entire row of the layer
 
+        :param string key_layer: the name of the layer need to be saved
+        :param int row_index: the index of the line
+        :param list new_row: the new line content
+
+        '''
         layer = getattr(self, key_layer)
         layer[1][row_index] = new_row
 
     def update_column_to_layer(self, key_layer, key_column, new_column):
+        '''
+        Modify an entire column of the layer
 
+        :param string key_layer: the name of the layer need to be saved
+        :param string key_column: the name  of the column
+        :param list new_column: the new line content
+
+        '''
         layer = getattr(self, key_layer)
         layer[1][key_column] = new_column
 
