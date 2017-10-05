@@ -104,6 +104,13 @@ class MetaData:
 
         try:
 
+            data_units = data_structure[2]
+        except:
+
+            data_units = None
+
+        try:
+
             data = data_columns
 
         except:
@@ -115,7 +122,7 @@ class MetaData:
         try:
 
             for index, key_column in enumerate(layer_table.keys()):
-                layer_table[key_column].unit = units[index]
+                layer_table[key_column].unit = data_units[index]
 
         except:
 
@@ -278,7 +285,11 @@ class MetaData:
 
 
         '''
-        all_layers = self.__dict__.keys()
+
+        metadata = fits.open(metadata_directory + metadata_name, mmap=True)
+
+        all_layers = [i.header['NAME'] for i in metadata[1:]]
+
 
         for key_layer in all_layers:
 
@@ -286,7 +297,7 @@ class MetaData:
                 self.load_a_layer_from_file(metadata_directory, metadata_name, key_layer)
             except:
 
-                print 'No Layer with key name :' + key_layer
+                print('No Layer with key name :' + key_layer)
 
     def save_updated_metadata(self, metadata_directory, metadata_name):
         '''
@@ -394,8 +405,10 @@ class MetaData:
 
 
         '''
+
         layer = getattr(self, key_layer)
-        new_column = Column(new_column_data, name=new_column_name.upper(), dtype=new_column_format)
+        new_column = Column(new_column_data, name=new_column_name.upper(),
+                            dtype=new_column_format, unit = new_column_unit)
         layer[1].add_column(new_column)
 
     def update_row_to_layer(self, key_layer, row_index, new_row):
