@@ -11,7 +11,7 @@ import metadata
 import starfind
 from astropy.io import fits
 
-VERSION = 'pyDANDIA_stage3_v0.1'
+VERSION = 'pyDANDIA_stage3_v0.2'
 CODE_DIR = '/Users/rstreet/software/pyDANDIA/'
 
 def stage3(red_dir):
