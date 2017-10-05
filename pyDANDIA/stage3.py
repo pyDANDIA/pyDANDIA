@@ -11,7 +11,7 @@ import metadata
 import starfind
 from astropy.io import fits
 
-VERSION = 'pyDANDIA_stage3_v0.1'
+VERSION = 'pyDANDIA_stage3_v0.2'
 CODE_DIR = '/Users/rstreet/software/pyDANDIA/'
 
 def stage3(red_dir):
@@ -34,8 +34,10 @@ def stage3(red_dir):
     
         sources = starfind.detect_sources(meta,scidata,log)
         
-        
-    # WCS fit
+        ref_source_catalog = wcs.reference_astrometry(log,\
+                                                    meta.reference_image_path,\
+                                                    detected_sources,\
+                                                    diagnostics=True)
     
     # Select PSF stars
     
