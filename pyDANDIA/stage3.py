@@ -34,8 +34,10 @@ def stage3(red_dir):
     
         sources = starfind.detect_sources(meta,scidata,log)
         
-        
-    # WCS fit
+        ref_source_catalog = wcs.reference_astrometry(log,\
+                                                    meta.reference_image_path,\
+                                                    detected_sources,\
+                                                    diagnostics=True)
     
     # Select PSF stars
     

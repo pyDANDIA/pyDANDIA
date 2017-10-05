@@ -7,7 +7,65 @@ Created on Sat Sep 23 15:14:35 2017
 
 from os import path
 from astropy.io import fits
+import numpy as np
 
+def read_source_catalog(catalog_file):
+    """Function to read the file of detected sources
+    Expected format: ASCII file with columns:
+    id xcentroid ycentroid sharpness roundness1 roundness2 npix sky peak flux mag
+    """
+    
+    if path.isfile(catalog_file) == False:
+        
+        return np.zeros(1)
+    
+    file_lines = open(catalog_file,'r').readlines()
+
+    data = []    
+    
+    for line in file_lines[1:]:
+
+        entry = []
+
+        for item in line.replace('\n','').split():
+            entry.append(float(item))
+
+        data.append(entry)
+    
+    return np.array(data)
+
+def output_ref_catalog(catalog_file,ref_catalog):
+    """Function to output a catalog of the information on sources detected
+    within the reference image
+
+    Format of output is a FITS binary table with the following columns:
+    idx x  y  ra  dec  inst_mag inst_mag_err J  Jerr  H Herr   K   Kerr
+    """
+    
+    header = fits.Header()
+    header['NSTARS'] = len(ref_catalog)
+    prihdu = fits.PrimaryHDU(header=header)
+    
+    tbhdu = fits.BinTableHDU.from_columns(\
+            [fits.Column(name='Index', format='I', array=ref_catalog[:,0]),\
+            fits.Column(name='X_pixel', format='E', array=ref_catalog[:,1]),\
+            fits.Column(name='Y_pixel', format='E', array=ref_catalog[:,2]),\
+            fits.Column(name='RA_J2000_deg]', format='D', array=ref_catalog[:,3]),\
+            fits.Column(name='Dec_J2000_deg]', format='D', array=ref_catalog[:,4]),\
+            fits.Column(name='Instr_mag', format='E', array=ref_catalog[:,5]),\
+            fits.Column(name='Instr_mag_err', format='E', array=ref_catalog[:,6]),\
+            fits.Column(name='J_mag', format='E', array=ref_catalog[:,7]),\
+            fits.Column(name='J_mag_err', format='E', array=ref_catalog[:,8]),\
+            fits.Column(name='H_mag', format='E', array=ref_catalog[:,9]),\
+            fits.Column(name='H_mag_err', format='E', array=ref_catalog[:,10]),\
+            fits.Column(name='Ks_mag', format='E', array=ref_catalog[:,11]),\
+            fits.Column(name='Ks_mag_err', format='E', array=ref_catalog[:,12]),\
+            ])
+    
+    thdulist = fits.HDUList([prihdu, tbhdu])
+    
+    thdulist.writeto(catalog_file,overwrite=True)
+    
 def extract_star_catalog(star_cat_file, ra_min=None, dec_min=None, 
                                       ra_max=None, dec_max=None):
     """Function to read a catalogue of stars in standard FITS binary table 

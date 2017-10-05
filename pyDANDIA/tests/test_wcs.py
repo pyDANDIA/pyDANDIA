@@ -4,7 +4,7 @@ Created on Thu Jul 20 17:14:17 2017
 
 @author: rstreet
 """
-from os import getcwd, path
+from os import getcwd, path, remove
 from sys import path as systempath
 cwd = getcwd()
 systempath.append(path.join(cwd,'../'))
@@ -12,25 +12,37 @@ import logs
 import wcs
 import stage3
 from astropy.io import fits
+import catalog_utils
 
 cwd = getcwd()
 TEST_DATA = path.join(cwd,'data')
 
-def test_run_imwcs():
-    """Function to test the function for refining an image WCS"""
-    
-    #meta = stage3.TmpMeta(TEST_DATA)
+def test_reference_astrometry():
     
     log = logs.start_stage_log( cwd, 'test_wcs' )
     
-    input_image_path = path.join(TEST_DATA,'lsc1m005-fl15-20170701-0144-e91_cropped.fits')
-    catalog_sources = path.join(TEST_DATA,'lsc1m005-fl15-20170701-0144-e91_cropped_2mass.cat')
-    detected_sources = path.join(TEST_DATA,'lsc1m005-fl15-20170701-0144-e91_cropped_sources.txt')
-    output_image_path = path.join(TEST_DATA,'lsc1m005-fl15-20170701-0144-e91_cropped_wcs.fits')
+    image_path = path.join(TEST_DATA,'lsc1m005-fl15-20170701-0144-e91_cropped.fits')
+    detected_sources_file = path.join(TEST_DATA,'lsc1m005-fl15-20170701-0144-e91_cropped_sources.txt')
     
-    wcs.run_imwcs(detected_sources,catalog_sources,input_image_path,output_image_path)
-
+    outputs = ['reference_detected_sources_pixels.png',
+               'reference_detected_sources_world.png',
+               'astrometry_separations.png',
+               'star_catalog.fits']    
+    
+    for item in outputs:
+        remove(path.join(TEST_DATA,item))
+    
+    detected_sources = catalog_utils.read_source_catalog(detected_sources_file)
+    
+    wcs.reference_astrometry(log,image_path,detected_sources)
+    
+    assert path.isfile(path.join(TEST_DATA,'reference_detected_sources_pixels.png')) == True
+    assert path.isfile(path.join(TEST_DATA,'reference_detected_sources_world.png')) == True
+    assert path.isfile(path.join(TEST_DATA,'astrometry_separations.png')) == True
+    assert path.isfile(path.join(TEST_DATA,'star_catalog.fits')) == True
+    
     logs.close_stage_log(log)
+    
 
 def test_search_vizier_for_objects_in_fov():
     """Function to test the online extraction of a catalogue of known
@@ -44,4 +56,4 @@ def test_search_vizier_for_objects_in_fov():
     assert len(catalog) == 50
     
 if __name__ == '__main__':
-    test_run_imwcs()
+    test_reference_astrometry()
