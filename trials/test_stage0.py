@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from astropy.io import fits
 import os
-sys.path.append('/nethome/ebachelet/Desktop/pyDANDIA/pyDANDIA/')
+sys.path.append('/home/Tux/ytsapras/Programs/Workspace/pyDANDIA/pyDANDIA/')
 from pyDANDIA import stage0
 import time
 
