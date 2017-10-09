@@ -23,7 +23,7 @@ def test_stage_log():
     
     assert path.isfile(log_name)
     
-    logs.close_stage_log(log)
+    logs.close_log(log)
     
     file_lines = open(log_name,'r').readlines()
     

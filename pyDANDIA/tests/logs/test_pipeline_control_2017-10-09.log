@@ -1,0 +1,23 @@
+2017-10-09T15:32:38 Started pipeline run 
+
+2017-10-09T15:32:38   Software version: test_pipeline_control v0.1
+
+2017-10-09T15:32:38 No instruction file found, going to reduce all datasets
+2017-10-09T15:32:38 __pycache__
+2017-10-09T15:32:38 counter.py
+2017-10-09T15:32:38 data
+2017-10-09T15:32:38 test_log.log
+2017-10-09T15:32:38 test_metadata.py
+2017-10-09T15:32:38 test_pipeline_control.py
+2017-10-09T15:32:38 test_starfind.py
+2017-10-09T15:32:38 test_wcs.log
+2017-10-09T15:32:38 test_wcs.py
+2017-10-09T15:32:38 wcs_catalog_info
+2017-10-09T15:32:38 Processing complete
+
+2017-10-09T15:32:38 Started pipeline run 
+
+2017-10-09T15:32:38   Software version: test_pipeline_control v0.1
+
+2017-10-09T15:32:38 Processing complete
+

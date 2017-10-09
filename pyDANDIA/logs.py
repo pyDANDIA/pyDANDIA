@@ -72,7 +72,7 @@ def start_stage_log( log_dir, stage_name, version=None ):
         
     return log
 
-def close_stage_log(log):
+def close_log(log):
     """Function to cleanly shutdown logging functions with a final timestamped
     entry.
     Parameters:
@@ -84,3 +84,62 @@ def close_stage_log(log):
     log.info( 'Processing complete\n' )
     logging.shutdown()
     
+def start_pipeline_log( log_dir, log_name, version=None ):
+    """Function to initialize a log file for the pyDANDIA pipeline.  
+    
+    The naming convention for the file is [log_name]_<date_string>.log.  
+    
+    The new file will automatically overwrite any previously-existing logfile
+    for the given reduction.  
+
+    This function also configures the log file to provide timestamps for 
+    all entries.  
+    
+    Parameters:
+        log_dir   string        Directory path
+                                log_root_name  Name of the log file
+        log_name  string        Name of the stage to be logged
+                                Used as both the log file name and the name
+                                of the logger Object 
+        version   string        [optional] Stage code version string
+    Returns:
+        log       open logger object
+    """
+    
+    # Console output not captured, though code remains for testing purposes
+    console = False
+
+    ts = datetime.utcnow()
+
+    log_file = path.join(log_dir, log_name+'_'+ts.strftime("%Y-%m-%d")+'.log')
+        
+    # To capture the logging stream from the whole script, create
+    # a log instance together with a console handler.  
+    # Set formatting as appropriate.
+    log = logging.getLogger( log_name )
+    
+    if len(log.handlers) == 0:
+        log.setLevel( logging.INFO )
+        file_handler = logging.FileHandler( log_file )
+        file_handler.setLevel( logging.INFO )
+        
+        if console == True:
+            console_handler = logging.StreamHandler()
+            console_handler.setLevel( logging.INFO )
+    
+        formatter = logging.Formatter( fmt='%(asctime)s %(message)s', \
+                                    datefmt='%Y-%m-%dT%H:%M:%S' )
+        file_handler.setFormatter( formatter )
+
+        if console == True:        
+            console_handler.setFormatter( formatter )
+    
+        log.addHandler( file_handler )
+        if console == True:            
+            log.addHandler( console_handler )
+    
+    log.info( 'Started pipeline run \n')
+    if version != None:
+        log.info('  Software version: '+version+'\n')
+        
+    return log
