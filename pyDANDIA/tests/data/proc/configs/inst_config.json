@@ -57,7 +57,7 @@
         "comment": "rakey - STRING - Header keyword recording the right ascension (J2000) of the observation. The value of this keyword should be a STRING of the format HH:MM:SS.SSS, where HH:MM:SS.SSS is a valid time.", 
         "value": "RA",
 	"format":"S200",
-	"unit":"hours"
+	"unit":"h"
     }, 
     "deckey": {
         "comment": "deckey - STRING - Header keyword recording the declination (J2000) of the observation. The value of this keyword should be a STRING of the format pDD:MM:SS.SSS, where pDD:MM:SS.SSS is an angle between +-90 degrees in sexagesimal format.", 
@@ -93,13 +93,13 @@
         "comment": "gain - DOUBLE - CCD gain (e-/ADU). This parameter should be positive (Default value = 1.0)", 
         "value": 1.0,
 	"format":"float",
-	"unit":"e-/ADU"
+	"unit":"e/adu"
     },
     "ron": {
         "comment": "ron - DOUBLE - CCD readout noise (ADU). This parameter should be non-negative (Default value = 0.0)", 
         "value": 0.0,
 	"format":"float",
-	"unit":"ADU"
+	"unit":"adu"
     }, 
     "imagex1": {
         "comment": "imagex1 - INT - Image region bottom left hand corner (x1,y1) and top right hand corner (x2,y2) in pixel number coordinates.", 
@@ -129,7 +129,7 @@
         "comment": "maxval - DOUBLE - Maximum useful pixel value in a raw image (ADU).", 
         "value": 80000.0,
 	"format":"float",
-	"unit":"ADU"
+	"unit":"adu"
     }, 
     "minval": {
         "comment": "minval - DOUBLE - Minimum useful pixel value in a raw image (ADU).", 

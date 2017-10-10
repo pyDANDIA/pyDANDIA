@@ -8,10 +8,11 @@ from os import path
 from astropy.io import fits
 from astropy.table import Table
 from astropy.table import Column
+from astropy.utils.exceptions import AstropyWarning
 
 import numpy as np
 import collections
-
+import warnings
 
 def update_a_dictionary(dictionary, new_key, new_value):
     '''
@@ -78,7 +79,7 @@ class MetaData:
         metadata.append(tbhdu1)
         metadata.append(tbhdu2)
 
-        metadata.writeto(metadata_directory + metadata_name, overwrite=True)
+        metadata.writeto(path.join(metadata_directory,metadata_name), overwrite=True)
 
     def create_a_new_layer(self, layer_name, data_structure, data_columns=None):
         '''
@@ -267,7 +268,7 @@ class MetaData:
 
 
         '''
-        metadata = fits.open(metadata_directory + metadata_name, mmap=True)
+        metadata = fits.open(path.join(metadata_directory,metadata_name), mmap=True)
 
         layer = metadata[key_layer]
 
@@ -286,7 +287,7 @@ class MetaData:
 
         '''
 
-        metadata = fits.open(metadata_directory + metadata_name, mmap=True)
+        metadata = fits.open(path.join(metadata_directory,metadata_name), mmap=True)
 
         all_layers = [i.header['NAME'] for i in metadata[1:]]
 
@@ -313,12 +314,15 @@ class MetaData:
         for key_layer in all_layers:
             layer = getattr(self, key_layer)
             if layer != [None, None]:
-                self.save_a_layer_to_file(metadata_directory, metadata_name, key_layer)
+                if log != None:
+                    log.info('Writing meta data layer '+key_layer)
+                self.save_a_layer_to_file(metadata_directory, metadata_name, key_layer,log=log)
 
         if log != None:
             log.info('Stored updated metadata')
 
-    def save_a_layer_to_file(self, metadata_directory, metadata_name, key_layer):
+    def save_a_layer_to_file(self, metadata_directory, metadata_name, 
+                             key_layer, log=None):
         '''
         Save in the metadata file the updated layer.
 
@@ -327,20 +331,33 @@ class MetaData:
         :param string key layer: the name of the layer need to be saved
 
         '''
+                
         layer = getattr(self, key_layer)
-
-        update_layer = fits.BinTableHDU(layer[1], header=layer[0])
-        update_layer.name = update_layer.header['name']
-
-        metadata = fits.open(path.join(metadata_directory,metadata_name), 
-                             mmap=True)
+        
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore', AstropyWarning)
+            update_layer = fits.BinTableHDU(layer[1], header=layer[0])
+            update_layer.name = update_layer.header['name']
+            
         try:
-            metadata[key_layer] = update_layer
-        except:
+            metadata = fits.open(path.join(metadata_directory,metadata_name), 
+                                 mmap=True)
+            try:
+                
+                metadata[key_layer] = update_layer
+                
+            except:
 
-            metadata.append(update_layer)
+                metadata.append(update_layer)
 
-        metadata.writeto(metadata_directory + metadata_name, overwrite=True)
+            metadata.writeto(path.join(metadata_directory,metadata_name), 
+                             overwrite=True)
+
+        except IOError:
+            if log != None:
+                log.info()
+                log.info('ERROR: Cannot output metadata to file '+\
+                            path.join(metadata_directory,metadata_name))
 
     def transform_2D_table_to_dictionary(self, key_layer):
         '''

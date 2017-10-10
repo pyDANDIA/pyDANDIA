@@ -24,8 +24,6 @@ import metadata
 import pixelmasks
 import logs
 
-VERSION = 'stage0 v0.1'
-
 def run_stage0(setup):
     """Main driver function to run stage 0: data preparation.
     
@@ -33,8 +31,9 @@ def run_stage0(setup):
     reduction, and to make sure the reduction meta data is up to date.
     """
     
+    stage0_version = 'stage0 v0.1'
     
-    log = logs.start_stage_log(setup.red_dir, 'stage0', version=VERSION)
+    log = logs.start_stage_log(setup.red_dir, 'stage0', version=stage0_version)
     log.info('Setup:\n'+setup.summary())
     
     pipeline_config = read_the_config_file(setup.pipeline_config_dir,log=log)    
@@ -59,45 +58,46 @@ def run_stage0(setup):
         
         create_reduction_metadata_data_inventory(reduction_metadata, 
                                 new_images, status=0, log=log)
-        
-    update_reduction_metadata_headers_summary_with_new_images(
+    
+    if len(new_images) > 0:
+        update_reduction_metadata_headers_summary_with_new_images(
                             reduction_metadata, new_images, log=log)
     
-    open_image = open_an_image(
-                            reduction_metadata.data_architecture[1]['IMAGES_PATH'][0], 
-                            new_images[0],image_index=0, verbose=True, log=log)
+        open_image = open_an_image(
+                    reduction_metadata.data_architecture[1]['IMAGES_PATH'][0], 
+                    new_images[0],image_index=0, verbose=True, log=log)
 
-    update_reduction_metadata_stamps(reduction_metadata, open_image,
-                                 stamp_size=None, 
-                                 arcseconds_stamp_size=(60, 60),
-                                 pixel_scale=None, 
-                                 number_of_overlaping_pixels=25,
-                                 verbose=False, log=log)
+        update_reduction_metadata_stamps(reduction_metadata, open_image,
+                     stamp_size=None, 
+                     arcseconds_stamp_size=(60, 60),
+                     pixel_scale=None, 
+                     number_of_overlaping_pixels=25,
+                     verbose=False, log=log)
     
-    set_bad_pixel_mask_directory(reduction_metadata, 
-                                 bpm_directory_path=os.path.join(setup.red_dir,'data'), 
-                                 verbose=False, log=log)
+        set_bad_pixel_mask_directory(reduction_metadata, 
+                     bpm_directory_path=os.path.join(setup.red_dir,'data'), 
+                     verbose=False, log=log)
 
-    log.info('Updating metadata with info on new images...')
-    for new_image in new_images:
-        open_image = open_an_image( 
-            reduction_metadata.data_architecture[1]['IMAGES_PATH'][0],
-            new_image, image_index=0, verbose=True, log=log)
-        
-        bad_pixel_mask = open_an_image( 
-            reduction_metadata.data_architecture[1]['BPM_PATH'][0],
-            new_image, image_index=2, verbose=True, log=log)
+        log.info('Updating metadata with info on new images...')
+        for new_image in new_images:
+            open_image = open_an_image( 
+                reduction_metadata.data_architecture[1]['IMAGES_PATH'][0],
+                new_image, image_index=0, verbose=True, log=log)
+            
+            bad_pixel_mask = open_an_image( 
+                reduction_metadata.data_architecture[1]['BPM_PATH'][0],
+                new_image, image_index=2, verbose=True, log=log)
+            
+            construct_the_pixel_mask(open_image, bad_pixel_mask, [1,3],
+                             saturation_level=65535, low_level=0, log=log)
+            
+            log.info(' -> '+new_image)
         
         construct_the_pixel_mask(open_image, bad_pixel_mask, [1,3],
                          saturation_level=65535, low_level=0, log=log)
-        
-        log.info(' -> '+new_image)
-        
-    construct_the_pixel_mask(open_image, bad_pixel_mask, [1,3],
-                         saturation_level=65535, low_level=0, log=log)
 
     
-    update_reduction_metadata_data_inventory(reduction_metadata, 
+        update_reduction_metadata_data_inventory(reduction_metadata, 
                         new_images, status=1, log=log)
     
     reduction_metadata.save_updated_metadata(
@@ -167,7 +167,7 @@ def create_or_load_the_reduction_metadata(output_metadata_directory, metadata_na
             reduction_metadata.create_metadata_file(output_metadata_directory, metadata_name)
 
             if verbose == True and log != None:
-                log.info('Successfully create the reduction metadata')
+                log.info('Successfully created the reduction metadata file')
 
         else:
 
