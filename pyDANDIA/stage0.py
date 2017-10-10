@@ -14,7 +14,7 @@ import os
 from astropy.io import fits
 import sys
 
-import config
+import config_utils
 from astropy.table import Table
 from astropy.nddata import Cutout2D
 
@@ -37,90 +37,80 @@ def run_stage0(setup):
     log = logs.start_stage_log(setup.red_dir, 'stage0', version=VERSION)
     log.info('Setup:\n'+setup.summary())
     
-    pipeline_config = read_the_config_file(setup.pipeline_config_dir)
-    log.info(pipeline_config)
+    pipeline_config = read_the_config_file(setup.pipeline_config_dir,log=log)    
     
-    sys.exit()
-    
-    log.info('Read pipeline configuration from '+setup.pipeline_config_dir)
-
     reduction_metadata = create_or_load_the_reduction_metadata(
                                     setup.red_dir, 
                                     metadata_name='pyDANDIA_metadata.fits', 
-                                    verbose=True)
-    log.info('Loaded/created metadata')
+                                    verbose=True,log=log)
     
     update_reduction_metadata_with_config_file(reduction_metadata, 
-                                    pipeline_config)
-    log.info('Updated metadata with pipeline configuration parameters')
+                                    pipeline_config,log=log)
 
     data = find_all_images(reduction_metadata, 
-                                path.join(setup.red_dir,'data'),
-                                verbose=True)
-    log.info('Found '+str(len(data))+' images in the dataset')
+                                os.path.join(setup.red_dir,'data'),
+                                verbose=True,log=log)
                                 
     new_images=find_images_need_to_be_process(reduction_metadata, data, 
-                                verbose=False)
-    log.info('Of these, '+str(len(new_images))+' images need reduction')
+                                verbose=False, log=log)
     
     
     if len(reduction_metadata.data_inventory[1])==0:
         
         create_reduction_metadata_data_inventory(reduction_metadata, 
-                                new_images, status=0)
-        log.info('Completed inventory of the data')
+                                new_images, status=0, log=log)
         
     update_reduction_metadata_headers_summary_with_new_images(
-                            reduction_metadata, new_images)
-    log.info('Added data on new images to the metadata')
+                            reduction_metadata, new_images, log=log)
     
     open_image = open_an_image(
                             reduction_metadata.data_architecture[1]['IMAGES_PATH'][0], 
-                            new_images[0],image_index=0, verbose=True)
+                            new_images[0],image_index=0, verbose=True, log=log)
 
     update_reduction_metadata_stamps(reduction_metadata, open_image,
                                  stamp_size=None, 
                                  arcseconds_stamp_size=(60, 60),
                                  pixel_scale=None, 
                                  number_of_overlaping_pixels=25,
-                                 verbose=False)
-    log.info('Updated reduction metadata stamps')
+                                 verbose=False, log=log)
     
     set_bad_pixel_mask_directory(reduction_metadata, 
-                                        bpm_directory_path=path.join(setup.red_dir,'data'), 
-                                        verbose=False)
+                                 bpm_directory_path=os.path.join(setup.red_dir,'data'), 
+                                 verbose=False, log=log)
 
     log.info('Updating metadata with info on new images...')
     for new_image in new_images:
         open_image = open_an_image( 
             reduction_metadata.data_architecture[1]['IMAGES_PATH'][0],
-            new_image, image_index=0, verbose=True)
+            new_image, image_index=0, verbose=True, log=log)
         
         bad_pixel_mask = open_an_image( 
             reduction_metadata.data_architecture[1]['BPM_PATH'][0],
-            new_image, image_index=2, verbose=True)
+            new_image, image_index=2, verbose=True, log=log)
         
         construct_the_pixel_mask(open_image, bad_pixel_mask, [1,3],
-                         saturation_level=65535, low_level=0)
+                         saturation_level=65535, low_level=0, log=log)
         
         log.info(' -> '+new_image)
         
     construct_the_pixel_mask(open_image, bad_pixel_mask, [1,3],
-                         saturation_level=65535, low_level=0)
-    log.info('Constructed the pixel mask')
+                         saturation_level=65535, low_level=0, log=log)
+
     
     update_reduction_metadata_data_inventory(reduction_metadata, 
-                        new_images, status=1)
-    log.info('Added new images to the data inventory')
+                        new_images, status=1, log=log)
     
     reduction_metadata.save_updated_metadata(
             reduction_metadata.data_architecture[1]['OUTPUT_DIRECTORY'][0],
-            reduction_metadata.data_architecture[1]['METADATA_NAME'][0])
-    log.info('Stored updated metadata')
+            reduction_metadata.data_architecture[1]['METADATA_NAME'][0],
+            log=log)
     
-    log.info('Stage complete')
+    logs.close_log(log)
     
-    return True, reduction_metadata
+    status = 'OK'
+    report = 'Completed'
+    
+    return status, report, reduction_metadata
     
 
 def open_the_variables_catalog(variables_catalog_directory, variables_catalog_name):
@@ -132,7 +122,8 @@ def open_the_variables_catalog(variables_catalog_directory, variables_catalog_na
     pass
 
 
-def read_the_config_file(config_directory, config_file_name='config.json'):
+def read_the_config_file(config_directory, config_file_name='config.json',
+                         log=None):
     '''
     This read the reauired informations from the config file.
 
@@ -143,13 +134,18 @@ def read_the_config_file(config_directory, config_file_name='config.json'):
     :rtype: dictionnary
     '''
 
-    pipeline_configuration = config.read_config(config_directory + config_file_name)
+    config_file_path = os.path.join(config_directory, config_file_name)
+
+    pipeline_configuration = config_utils.read_config(config_file_path)
+
+    if log != None:
+        log.info('Read pipeline configuration from '+config_file_path)
 
     return pipeline_configuration
 
 
 def create_or_load_the_reduction_metadata(output_metadata_directory, metadata_name='pyDANDIA_metadata.fits',
-                                          verbose=False):
+                                          verbose=False,log=None):
     '''
     This creates (new reduction) or load (ongoing reduction) the metadata file linked to this reduction.
 
@@ -170,26 +166,27 @@ def create_or_load_the_reduction_metadata(output_metadata_directory, metadata_na
 
             reduction_metadata.create_metadata_file(output_metadata_directory, metadata_name)
 
-            if verbose == True:
-                print('Successfully create the reduction metadata')
+            if verbose == True and log != None:
+                log.info('Successfully create the reduction metadata')
 
         else:
 
             reduction_metadata = metadata.MetaData()
             reduction_metadata.load_all_metadata(output_metadata_directory, metadata_name)
-            if verbose == True:
-                print('Successfully found the reduction metadata')
+            if verbose == True and log != None:
+                log.info('Successfully found the reduction metadata')
     except:
 
-        if verbose == True:
-            print('No metadata created or loaded : check this!')
+        if verbose == True and log != None:
+            log.info('No metadata created or loaded : check this!')
 
         sys.exit(1)
 
     return reduction_metadata
 
 
-def set_bad_pixel_mask_directory(reduction_metadata, bpm_directory_path=None, verbose=False):
+def set_bad_pixel_mask_directory(reduction_metadata, bpm_directory_path=None, 
+                                 verbose=False, log=None):
     '''
     This found all the images.
 
@@ -201,12 +198,16 @@ def set_bad_pixel_mask_directory(reduction_metadata, bpm_directory_path=None, ve
     :rtype: list
     '''
 
-    reduction_metadata.add_column_to_layer('data_architecture', 'BPM_PATH', [bpm_directory_path],
+    reduction_metadata.add_column_to_layer('data_architecture', 
+                                           'BPM_PATH', [bpm_directory_path],
                                            new_column_format=None,
                                            new_column_unit=None)
+    
+    if verbose == True and log != None:
+        log.info('Set bad pixel mask directory')
 
-
-def find_all_images(reduction_metadata, images_directory_path=None, verbose=False):
+def find_all_images(reduction_metadata, images_directory_path=None, 
+                    verbose=False, log=None):
     '''
     This found all the images.
 
@@ -234,28 +235,30 @@ def find_all_images(reduction_metadata, images_directory_path=None, verbose=Fals
 
         if list_of_images == []:
 
-            if verbose == True:
-                print('No images to process. I take a rest :)')
+            if verbose == True and log != None:
+                log.info('No images to process. I take a rest :)')
 
             return None
 
 
         else:
 
-            if verbose == True:
-                print('Find ' + str(len(list_of_images)) + ' images to treat.')
+            if verbose == True and log != None:
+                log.info('Found ' + str(len(list_of_images)) + \
+                        ' images in this dataset')
 
             return list_of_images
 
     except:
 
-        if verbose == True:
-            print('Something went wrong on images search!')
+        if verbose == True and log != None:
+            log.info('Something went wrong on images search!')
 
         return None
 
 
-def find_images_need_to_be_process(reduction_metadata, list_of_images, verbose=False):
+def find_images_need_to_be_process(reduction_metadata, list_of_images, 
+                                   verbose=False, log=None):
     '''
     This founds the images that need to be processed by the pipeline, i.e not already done.
 
@@ -283,18 +286,22 @@ def find_images_need_to_be_process(reduction_metadata, list_of_images, verbose=F
             for name in list_of_images:
 
                 if name not in old_images:
-                    if verbose == True:
-                        print(name + ' is a new image to treat!')
+                    if verbose == True and log != None:
+                        log.info(name + ' is a new image to treat!')
                     new_images.append(name)
 
     except:
-        if verbose == True:
-            print('Something went wrong on images/metadata matching !')
+        if log != None:
+            log.info('Error in scanning for new images to reduce')
 
+    if log != None:
+        log.info('Total of '+str(len(new_images))+' images need reduction')
+    
     return new_images
 
 
-def open_an_image(image_directory, image_name, image_index=0, verbose=False):
+def open_an_image(image_directory, image_name, image_index=0, 
+                  verbose=False, log=None):
     '''
     Simply open an image using astropy.io.fits
 
@@ -309,19 +316,23 @@ def open_an_image(image_directory, image_name, image_index=0, verbose=False):
     :rtype: astropy.image object
     '''
     image_directory_path = image_directory
-
+    
+    if verbose == True and log != None:
+        log.info('Attempting to open image '+os.path.join(image_directory_path,image_name))
+    
     try:
 
-        image_data = fits.open(image_directory_path + image_name, mmap=True)
+        image_data = fits.open(os.path.join(image_directory_path,image_name), 
+                               mmap=True)
         image_data = image_data[image_index]
-
-        if verbose == True:
-            print(image_name + ' open : OK')
-
+    
+        if verbose == True and log != None:
+            log.info(image_name + ' open : OK')
+    
         return image_data
     except:
-        if verbose == True:
-            print(image_name + ' open : not OK!')
+        if verbose == True and log != None:
+            log.info(image_name + ' open : not OK!')
 
         return None
 
@@ -474,7 +485,7 @@ def construct_the_low_level_pixel_mask(open_image, low_level=0):
 
 
 def construct_the_pixel_mask(open_image, bad_pixel_mask, integers_to_flag,
-                             saturation_level=65535, low_level=0):
+                             saturation_level=65535, low_level=0, log=None):
     '''
     Construct the global pixel mask  using a bitmask approach.
 
@@ -502,12 +513,18 @@ def construct_the_pixel_mask(open_image, bad_pixel_mask, integers_to_flag,
 
         master_mask = pixelmasks.construct_a_master_mask(original_master_mask, list_of_masks)
 
+        if log != None:
+            log.info('Successfully built a BPM')
+
         return master_mask
 
     except:
 
         master_mask = np.zeros(open_image.data.shape, int)
 
+        if log != None:
+            log.info('Error building the BPM; using zeroed array')
+            
     return master_mask
 
 
@@ -535,7 +552,8 @@ def save_the_pixel_mask_in_image(reduction_metadata, image_name, open_image, mas
     open_image.writeto(image_directory + image_name, overwrite=True)
 
 
-def update_reduction_metadata_with_config_file(reduction_metadata, config_dictionnary):
+def update_reduction_metadata_with_config_file(reduction_metadata, 
+                                               config_dictionnary,log=None):
     '''
     Update the metadata with the config files
 
@@ -554,8 +572,8 @@ def update_reduction_metadata_with_config_file(reduction_metadata, config_dictio
                          config_dictionnary[key]['unit']])
 
         except:
-
-            print('Something went wrong with the config file on the key' + key)
+            if log != None:
+                log.info('Error in config file on key' + key)
             sys.exit(1)
 
     data = np.array(data)
@@ -565,6 +583,8 @@ def update_reduction_metadata_with_config_file(reduction_metadata, config_dictio
 
     reduction_metadata.create_reduction_parameters_layer(names, formats, units, data[:, 1])
 
+    if log != None:
+        log.info('Updated metadata with pipeline configuration parameters')
 
 def parse_the_image_header(reduction_metadata, open_image):
     '''
@@ -585,7 +605,8 @@ def parse_the_image_header(reduction_metadata, open_image):
     for key in layer_reduction_parameters.keys():
 
         try:
-            info = [key, image_header[layer_reduction_parameters[key][0]], layer_reduction_parameters[key].dtype]
+            info = [key, image_header[layer_reduction_parameters[key][0]], 
+                    layer_reduction_parameters[key].dtype]
             header_infos.append(info)
 
         except:
@@ -594,7 +615,8 @@ def parse_the_image_header(reduction_metadata, open_image):
     return np.array(header_infos)
 
 
-def update_reduction_metadata_headers_summary_with_new_images(reduction_metadata, new_images):
+def update_reduction_metadata_headers_summary_with_new_images(reduction_metadata, 
+                                                              new_images, log=None):
     '''
     Update the metadata with the header keywords
 
@@ -604,10 +626,11 @@ def update_reduction_metadata_headers_summary_with_new_images(reduction_metadata
     :return an array containing the needed header info
     :rtype array_like
     '''
-
+    
     for image_name in new_images:
-        open_image = open_an_image(reduction_metadata.data_architecture[1]['IMAGES_PATH'][0], image_name, verbose=False)
-
+        open_image = open_an_image(reduction_metadata.data_architecture[1]['IMAGES_PATH'][0], 
+                                   image_name, verbose=False,log=log)
+        
         header_infos = parse_the_image_header(reduction_metadata, open_image)
 
         names = np.append('IMAGES', header_infos[:, 0])
@@ -619,8 +642,12 @@ def update_reduction_metadata_headers_summary_with_new_images(reduction_metadata
 
         else:
 
-            reduction_metadata.create_headers_summary_layer(names, formats, units=None, data=values)
-
+            reduction_metadata.create_headers_summary_layer(names, formats, 
+                                                            units=None, 
+                                                            data=values)
+            
+    if log != None:
+        log.info('Added data on new images to the metadata')
 
 def construct_the_stamps(open_image, stamp_size=None, arcseconds_stamp_size=(60, 60), pixel_scale=None,
                          number_of_overlaping_pixels=25, verbose=False):
@@ -689,7 +716,7 @@ def construct_the_stamps(open_image, stamp_size=None, arcseconds_stamp_size=(60,
 def update_reduction_metadata_stamps(reduction_metadata, open_image,
                                      stamp_size=None, arcseconds_stamp_size=(60, 60),
                                      pixel_scale=None, number_of_overlaping_pixels=25,
-                                     verbose=False):
+                                     verbose=False, log=None):
     '''
     Create the stamps definition in the reduction_metadata
 
@@ -717,8 +744,11 @@ def update_reduction_metadata_stamps(reduction_metadata, open_image,
 
     reduction_metadata.create_stamps_layer(names, formats, units, stamps)
 
+    if log != None:
+        log.info('Updated reduction metadata stamps')
 
-def create_reduction_metadata_data_inventory(reduction_metadata, new_images, status=0):
+def create_reduction_metadata_data_inventory(reduction_metadata, new_images, 
+                                             status=0, log=None):
     '''
         Create the data_inventory layer with all status set to status
 
@@ -731,8 +761,11 @@ def create_reduction_metadata_data_inventory(reduction_metadata, new_images, sta
         reduction_metadata.add_row_to_layer('data_inventory', [new_image] + [status] *
                                             (len(reduction_metadata.data_inventory[1].keys()) - 1))
 
-
-def update_reduction_metadata_data_inventory(reduction_metadata, new_images, status=1):
+    if log != None:
+        log.info('Completed inventory of the data')
+        
+def update_reduction_metadata_data_inventory(reduction_metadata, new_images, 
+                                             status=1, log=None):
     '''
         Update the data_inventory layer with all status set to status
 
@@ -744,3 +777,7 @@ def update_reduction_metadata_data_inventory(reduction_metadata, new_images, sta
     for new_image in new_images:
         index_image = np.where(reduction_metadata.data_inventory[1]['IMAGES'] == new_image)[0][0]
         reduction_metadata.data_inventory[1][index_image][1] = status
+
+    if log != None:
+        log.info('Updated the reduction data inventory')
+        

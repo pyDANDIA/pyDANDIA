@@ -12,8 +12,6 @@ systempath.append(path.join(cwd,'../'))
 import stage0
 import logs
 
-VERSION = 'reduction_control v0.1'
-
 def reduction_control():
     """Main driver function for the pyDANDIA pipelined reduction of an 
     individual dataset.  
@@ -26,14 +24,16 @@ def reduction_control():
                                 dataset
     """
 
+    reduction_version = 'reduction_control v0.1'
+
     setup = get_args()
     
     
     log = logs.start_pipeline_log(setup.red_dir, 'reduction_control', 
-                               version=VERSION)
+                               version=reduction_version)
 
-    (status,meta_data) = stage0.run_stage0(setup)
-    log.info('Completed stage 0 with status '+repr(status))
+    (status,report,meta_data) = stage0.run_stage0(setup)
+    log.info('Completed stage 0 with status '+repr(status)+': '+report)
     
     
     logs.close_log(log)

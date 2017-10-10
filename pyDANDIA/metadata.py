@@ -299,7 +299,7 @@ class MetaData:
 
                 print('No Layer with key name :' + key_layer)
 
-    def save_updated_metadata(self, metadata_directory, metadata_name):
+    def save_updated_metadata(self, metadata_directory, metadata_name, log=None):
         '''
         Save in the metadata file the updated metadata object (i.e all layers).
 
@@ -314,6 +314,9 @@ class MetaData:
             layer = getattr(self, key_layer)
             if layer != [None, None]:
                 self.save_a_layer_to_file(metadata_directory, metadata_name, key_layer)
+
+        if log != None:
+            log.info('Stored updated metadata')
 
     def save_a_layer_to_file(self, metadata_directory, metadata_name, key_layer):
         '''

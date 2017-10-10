@@ -13,17 +13,17 @@ import glob
 import subprocess
 import logs
 
-VERSION = 'pipeline_control v0.1'
-
 def pipeline_control():
     """Main driver program controlling the reduction of multiple datasets 
     with pyDANDIA.
     """
     
+    pipeline_version = 'pipeline_control v0.1'
+    
     setup = pipeline_setup()
 
     log = logs.start_pipeline_log(setup.log_dir, 'pipeline_control', 
-                               version=VERSION)
+                               version=pipeline_version)
 
     datasets = get_datasets_for_reduction(setup,log)
     

@@ -35,7 +35,7 @@ from datetime import datetime
 import sys
 import os
 
-from config import read_config
+import config_utils
 import psf
 
 def starfind(path_to_image, plot_it=False, write_log=False):
@@ -57,7 +57,7 @@ def starfind(path_to_image, plot_it=False, write_log=False):
     # Get size of image
     ymax, xmax = scidata.shape
     # Read configuration file and get saturation limit
-    config = read_config('../Config/config.json')
+    config = config_utils.read_config('../Config/config.json')
     # If it is a large image, consider 250x250 pixel subregions and
     # choose the one with the fewest saturated pixels to evaluate stats
     try:
