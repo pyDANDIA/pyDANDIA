@@ -1,0 +1,470 @@
+{
+    "proc_data": {
+        "comment": "proc_data - STRING - The full path to the reduction directory.", 
+        "value": "/Users/rstreet/ROMEREA/proc",
+	"format":"S200",
+	"unit":""
+    },     
+    "back_var": {
+        "comment": "back_var - INT - Switch for a spatially variable differential background (1 = YES : 0 = NO : Default Value = 1).", 
+        "value": 1,
+	"format":"int",
+	"unit":"boolean"
+    }, 
+    "coeff2": {
+        "comment": "coeff2 - DOUBLE -|- Coefficients a1 and a2 in the linearisation equation: Xnew = X + a1*X^2 + a2*X^3", 
+        "value": 1e-06,
+	"format":"float",
+	"unit":""
+    }, 
+    "coeff3": {
+        "comment": "coeff3 - DOUBLE -|  where X represents the image counts after bias level and bias pattern correction.", 
+        "value": 1e-12,
+	"format":"float",
+	"unit":""
+    }, 
+    "cppcode": {
+        "comment": "cppcode - STRING - The full directory path indicating where the DanIDL C++ code is installed.", 
+        "value": "/path/to/C++/code/",
+	"format":"S200",
+	"unit":""
+    }, 
+    "datekey": {
+        "comment": "datekey - STRING - Header keyword recording the date (universal time) at the start of the observation. The value of this keyword should be a STRING of the format YYYY-MM-DDxxx...xxx where YYYY-MM-DD is a valid date and xxx...xxx represents a string of arbitrary characters of any length.", 
+        "value": "DATE-OBS",
+	"format":"S200",
+	"unit":"day"
+    }, 
+    "deckey": {
+        "comment": "deckey - STRING - Header keyword recording the declination (J2000) of the observation. The value of this keyword should be a STRING of the format pDD:MM:SS.SSS, where pDD:MM:SS.SSS is an angle between +-90 degrees in sexagesimal format.", 
+        "value": "DEC",
+	"format":"S200",
+	"unit":"deg"
+    }, 
+    "det_thresh": {
+        "comment": "det_thresh - DOUBLE - Detection threshold used to detect stars in units of image sky sigma. This parameter should be positive (Default value = 3.0).", 
+        "value": 3.0,
+	"format":"float",
+	"unit":""
+    }, 
+    "diffpro": {
+        "comment": "diffpro - INT - Switch for the method of difference image creation (see subtract routine : Default Value = 0).", 
+        "value": 0,
+	"format":"int",
+	"unit":""
+    }, 
+    "expfrac": {
+        "comment": "expfrac - DOUBLE - Fraction of the exposure time to be added to the universal time at the start of the observation when calculating the GJD and HJD of the observation (Default value = 0.5).", 
+        "value": 0.5,
+	"format":"float",
+	"unit":""
+    }, 
+    "expkey": {
+        "comment": "expkey - STRING - Header keyword recording the image exposure time in seconds. The value of this keyword should be a NUMBER with a non-negative value, or a STRING that represents a valid non-negative number.", 
+        "value": "EXPTIME",
+	"format":"S200",
+	"unit":""
+    }, 
+    "filtkey": {
+        "comment": "filtkey - STRING - Header keyword recording the filter employed. The value of this keyword should be a STRING.", 
+        "value": "FILTER2",
+	"format":"S200",
+	"unit":""
+    }, 
+    "flim": {
+        "comment": "flim - DOUBLE - Minimum contrast between the Laplacian image and the fine structure image. This parameter should be positive (Default value = 2.0).", 
+        "value": 2.0,
+	"format":"float",
+	"unit":""
+    }, 
+    "fov": {
+        "comment": "fov - DOUBLE - Field of view of the CCD camera (deg). This parameter should be positive and less than or equal to 90.0 (Default value = 0.1).", 
+        "value": 0.1,
+	"format":"float",
+	"unit":"deg"
+    }, 
+    "gain": {
+        "comment": "gain - DOUBLE - CCD gain (e-/ADU). This parameter should be positive (Default value = 1.0)", 
+        "value": 1.0,
+	"format":"float",
+	"unit":"e-/ADU"
+    }, 
+    "grow": {
+        "comment": "grow - DOUBLE - Controls the amount of overlap between the image regions used for the kernel solutions (Default value = 0.0).", 
+        "value": 0.0,
+	"format":"float",
+	"unit":"pixel"
+    }, 
+    "growsatx": {
+        "comment": "growsatx - INT - Half box size in the x direction (pix) to be used for growing saturated bad pixels in the bad pixel mask for each science image. This parameter should be non-negative (Default value = 0).", 
+        "value": 0,
+	"format":"int",
+	"unit":"pixel"
+    }, 
+    "growsaty": {
+        "comment": "growsaty - INT - Half box size in the y direction (pix) to be used for growing saturated bad pixels in the bad pixel mask for each science image. This parameter should be non-negative (Default value = 0).", 
+        "value": 0,
+	"format":"int",
+	"unit":"pixel"
+    }, 
+    "icdeg": {
+        "comment": "icdeg - INT - Degree of the 2D polynomial in spatial coordinates used to model non-uniform illumination in the flat frames. This parameter should be non-negative (Default value = 0).", 
+        "value": 0,
+	"format":"int",
+	"unit":""
+    }, 
+    "imagex1": {
+        "comment": "imagex1 - INT - Image region bottom left hand corner (x1,y1) and top right hand corner (x2,y2) in pixel number coordinates.", 
+        "value": 1,
+	"format":"int",
+	"unit":"pixel"
+    }, 
+    "imagex2": {
+        "comment": "imagex2 - INT - Image region bottom left hand corner (x1,y1) and top right hand corner (x2,y2) in pixel number coordinates.", 
+        "value": 1000,
+	"format":"int",
+	"unit":"pixel"
+    }, 
+    "imagey1": {
+        "comment": "imagey1 - INT - Image region bottom left hand corner (x1,y1) and top right hand corner (x2,y2) in pixel number coordinates.", 
+        "value": 1,
+	"format":"int",
+	"unit":"pixel"
+    }, 
+    "imagey2": {
+        "comment": "imagey2 - INT - Image region bottom left hand corner (x1,y1) and top right hand corner (x2,y2) in pixel number coordinates.", 
+        "value": 1000,
+	"format":"int",
+	"unit":"pixel"
+    }, 
+    "init_mthresh": {
+        "comment": "init_mthresh - DOUBLE - Initial distance threshold (pix) to reject false star matches. This parameter should be positive (Default value = 1.0).", 
+        "value": 1.0,
+	"format":"float",
+	"unit":"pixel"
+    }, 
+    "ker_rad": {
+        "comment": "ker_rad - DOUBLE - Radius of the kernel pixel array in units of image FWHM (Default value = 2.0).", 
+        "value": 2.0,
+	"format":"float",
+	"unit":""
+    }, 
+    "lres_ker_rad": {
+        "comment": "lres_ker_rad - DOUBLE - Threshold radius of the kernel pixel array, in units of image FWHM, beyond which kernel pixels are of lower resolution (Default value = 2.0).", 
+        "value": 2.0,
+	"format":"float",
+	"unit":""
+    }, 
+    "max_nimages": {
+        "comment": "max_nimages - INT - Maximum number of images to be used in the combined reference image (Default value = 1).", 
+        "value": 1,
+	"format":"int",
+	"unit":""
+    }, 
+    "max_scale": {
+        "comment": "max_scale - DOUBLE - Maximum possible transformation scale factor (magnification) between any two images (Default value = -1.0).", 
+        "value": -1.0,
+	"format":"float",
+	"unit":""
+    }, 
+    "max_sky": {
+        "comment": "max_sky - DOUBLE - Largest acceptable value of the sky background for an image to be used in the combined reference image (ADU : Default value = 5000).", 
+        "value": 5000,
+	"format":"float",
+	"unit":"ADU"
+    }, 
+    "maxval": {
+        "comment": "maxval - DOUBLE - Maximum useful pixel value in a raw image (ADU).", 
+        "value": 80000.0,
+	"format":"float",
+	"unit":"ADU"
+    }, 
+    "mbiasmethod": {
+        "comment": "mbiasmethod - STRING - Method for combining the bias frames (mean = Mean : median = Median : sigclip = Sigma-clipped mean : Default value = sigclip).", 
+        "value": "sigclip",
+	"format":"S200",
+	"unit":""
+    }, 
+    "mbiaspro": {
+        "comment": "mbiaspro - INT - Switch for master bias frame correction (0 = NO : 1 = YES : Default value = 0).", 
+        "value": 0,
+	"format":"int",
+	"unit":""
+    }, 
+    "mbiassigma": {
+        "comment": "mbiassigma - DOUBLE - Sigma-clip threshold to be used if mbiasmethod is set to sigclip (Default value = -1.0).", 
+        "value": -1.0,
+	"format":"float",
+	"unit":""
+    }, 
+    "mdarkmethod": {
+        "comment": "mdarkmethod - STRING - Method for combining the dark frames (mean = Mean : median = Median : sigclip = Sigma-clipped mean : Default value = sigclip).", 
+        "value": "sigclip",
+	"format":"S200",
+	"unit":""
+    }, 
+    "mdarkpro": {
+        "comment": "mdarkpro - INT - Switch for master dark frame correction (0 = NO : 1 = YES : Default value = 0).", 
+        "value": 0,
+	"format":"int",
+	"unit":"boolean"
+    }, 
+    "mdarksigma": {
+        "comment": "mdarksigma - DOUBLE - Sigma-clip threshold to be used if mdarkmethod is set to sigclip (Default value = -1.0).", 
+        "value": -1.0,
+	"format":"float",
+	"unit":""
+    }, 
+    "mflatmethod": {
+        "comment": "mflatmethod - STRING - Method for combining the flat frames (mean = Mean : median = Median : sigclip = Sigma-clipped mean : Default value = median).", 
+        "value": "median",
+	"format":"S200",
+	"unit":""
+    }, 
+    "mflatpro": {
+        "comment": "mflatpro - INT - Switch for master flat frame correction (0 = NO : 1 = YES : Default value = 0).", 
+        "value": 0,
+	"format":"int",
+	"unit":"boolean"
+    }, 
+    "mflatsigma": {
+        "comment": "mflatsigma - DOUBLE - Sigma-clip threshold to be used if oscanmethod is set to sigclip (Default value = -1.0).", 
+        "value": -1.0,
+	"format":"float",
+	"unit":""
+    }, 
+    "min_ell": {
+        "comment": "min_ell - DOUBLE - Smallest acceptable value of the PSF ellipticity for an image to be used in the combined reference image. This parameter should be non-negative and less than or equal to 1.0 (Default value = 0.8).", 
+        "value": 0.8,
+	"format":"float",
+	"unit":""
+    }, 
+    "min_scale": {
+        "comment": "min_scale - DOUBLE - Minimum possible transformation scale factor (magnification) between any two images (Default value = -1.0).", 
+        "value": -1.0,
+	"format":"float",
+	"unit":""
+    }, 
+    "minval": {
+        "comment": "minval - DOUBLE - Minimum useful pixel value in a raw image (ADU).", 
+        "value": 1.0,
+	"format":"float",
+	"unit":""
+    }, 
+    "niter_cos": {
+        "comment": "niter_cos - INT - Maximum number of iterations to perform. This parameter should be positive (Default value = 4).", 
+        "value": 4,
+	"format":"int",
+	"unit":""
+    }, 
+    "niter_ker": {
+        "comment": "niter_ker - INT - Maximum number of iterations to perform when determining the kernel solution (Default value = 3),", 
+        "value": 3,
+	"format":"int",
+	"unit":""
+    }, 
+    "obskey": {
+        "comment": "obskey - STRING  - Header keyword recording the observation type.", 
+        "value": "OBSTYPE",
+	"format":"S200",
+	"unit":""
+    }, 
+    "obskeyb": {
+        "comment": "obskeyb - STRING - Value of the observation type header keyword for a bias frame.", 
+        "value": "BIAS",
+	"format":"S200",
+	"unit":""
+    }, 
+    "obskeyd": {
+        "comment": "obskeyd - STRING - Value of the observation type header keyword for a dark frame.", 
+        "value": "DARK",
+	"format":"S200",
+	"unit":""
+    }, 
+    "obskeyf": {
+        "comment": "obskeyf - STRING - Value of the observation type header keyword for a flat frame.", 
+        "value": "SKYFLAT",
+	"format":"S200",
+	"unit":""
+    }, 
+    "obskeys": {
+        "comment": "obskeys - STRING - Value of the observation type header keyword for a science frame.", 
+        "value": "EXPOSE",
+	"format":"S200",
+	"unit":""
+    }, 
+    "oscanauto": {
+        "comment": "oscanauto - INT - Switch for automatic polynomial model degree determination when calculating a vector overscan correction (oscanpro set to 3 or 4) (0 = Pre-defined degree : 1 = Automatic degree : Default value = 0).", 
+        "value": 0,
+	"format":"int",
+	"unit":""
+    }, 
+    "oscandeg": {
+        "comment": "oscandeg - INT - Degree (or maximum degree) of the polynomial model to be fitted to the overscan region as a function of the image row/column (oscanpro set to 3 or 4). This parameter should be non-negative (Default value = 0).", 
+        "value": 0,
+	"format":"int",
+	"unit":""
+    }, 
+    "oscanpro": {
+        "comment": "oscanpro - INT - Switch for bias level correction (0 = No bias level correction : 1 = Single constant bias level correction : 2 = Per-image constant overscan correction : 3 = Vector overscan correction per image row : 4 = Vector overscan correction per image column : Default value = 0).", 
+        "value": 0,
+	"format":"int",
+	"unit":""
+    }, 
+    "oscanx1": {
+        "comment": "oscanx1 - INT - Overscan region bottom left hand corner (x1,y1) and top right hand corner (x2,y2) in pixel number coordinates.", 
+        "value": 1,
+	"format":"int",
+	"unit":""
+    }, 
+    "oscanx2": {
+        "comment": "oscanx2 - INT - Overscan region bottom left hand corner (x1,y1) and top right hand corner (x2,y2) in pixel number coordinates.", 
+        "value": 1,
+	"format":"int",
+	"unit":""
+    }, 
+    "oscany1": {
+        "comment": "oscany1 - INT - Overscan region bottom left hand corner (x1,y1) and top right hand corner (x2,y2) in pixel number coordinates.", 
+        "value": 1,
+	"format":"int",
+	"unit":""
+    }, 
+    "oscany2": {
+        "comment": "oscany2 - INT - Overscan region bottom left hand corner (x1,y1) and top right hand corner (x2,y2) in pixel number coordinates.", 
+        "value": 1,
+	"format":"int",
+	"unit":""
+    }, 
+    "ps_var": {
+        "comment": "ps_var - INT - Switch for a spatially variable photometric scale factor (1 = YES : 0 = NO : Default Value = 0).", 
+        "value": 0,
+	"format":"int",
+	"unit":""
+    }, 
+    "psf_comp_dist": {
+        "comment": "psf_comp_dist - DOUBLE - Any star within a distance 0.5*psf_comp_dist*psf_size, in units of FWHM, of another star is considered to be a companion of that star for PSF star selection purposes. This parameter should be non-negative (Default value = 0.7).", 
+        "value": 0.7,
+	"format":"float",
+	"unit":""
+    }, 
+    "psf_comp_flux": {
+        "comment": "psf_comp_flux - DOUBLE - Maximum flux ratio that any companion star may have for a star to be considered a PSF star. This parameter should be non-negative (Default value = 0.1).", 
+        "value": 0.1,
+	"format":"float",
+	"unit":""
+    }, 
+    "psf_corr_thresh": {
+        "comment": "psf_corr_thresh - DOUBLE - Minimum correlation coefficient of a star with the image PSF model in order to be considered a PSF star. This parameter should be non-negative (Default value = 0.9).", 
+        "value": 0.9,
+	"format":"float",
+	"unit":""
+    }, 
+    "psf_size": {
+        "comment": "psf_size - DOUBLE - Size of the model PSF stamp in units of FWHM. This parameter should be positive (Default value = 8.0).", 
+        "value": 8.0,
+	"format":"float",
+	"unit":""
+    }, 
+    "psf_thresh": {
+        "comment": "psf_thresh - DOUBLE - Detection threshold used to detect candidate PSF stars in units of image sky sigma. This parameter should be positive (Default value = 10.0).", 
+        "value": 10.0,
+	"format":"float",
+	"unit":""
+    }, 
+    "rakey": {
+        "comment": "rakey - STRING - Header keyword recording the right ascension (J2000) of the observation. The value of this keyword should be a STRING of the format HH:MM:SS.SSS, where HH:MM:SS.SSS is a valid time.", 
+        "value": "RA",
+	"format":"S200",
+	"unit":"hours"
+    }, 
+    "replace_cr": {
+        "comment": "replace_cr - INT - Switch for replacing pixel values that have been contaminated by cosmic ray events (0 = NO : 1 = YES : Default value = 0).", 
+        "value": 0,
+	"format":"int",
+	"unit":""
+    }, 
+    "ron": {
+        "comment": "ron - DOUBLE - CCD readout noise (ADU). This parameter should be non-negative (Default value = 0.0)", 
+        "value": 0.0,
+	"format":"float",
+	"unit":"ADU"
+    }, 
+    "sigclip": {
+        "comment": "sigclip - DOUBLE - Threshold in units of sigma for cosmic ray detection on the Laplacian image. This parameter should be positive (Default value = 4.5).", 
+        "value": 4.5,
+	"format":"float",
+	"unit":""
+    }, 
+    "sigfrac": {
+        "comment": "sigfrac - DOUBLE - Fraction of sigclip to be used as a threshold for cosmic ray growth. This parameter should be positive (Default value = 0.5).", 
+        "value": 0.5,
+	"format":"float",
+	"unit":""
+    }, 
+    "smooth_fwhm": {
+        "comment": "smooth_fwhm - DOUBLE - Amount of image smoothing to perform (Default value = 0).", 
+        "value": 0,
+	"format":"float",
+	"unit":""
+    }, 
+    "smooth_pro": {
+        "comment": "smooth_pro - INT - Switch for image smoothing [0: No smoothing, 1,2,3: Gaussian smoothing (see reference image documentation)] (Default value = 0).", 
+        "value": 0,
+	"format":"int",
+	"unit":""
+    }, 
+    "star_space": {
+        "comment": "star_space - DOUBLE - Average spacing (pix) in each of the x and y coordinates between the stars to be considered for matching purposes. This parameter should be positive (Default value = 30.0).", 
+        "value": 30.0,
+	"format":"float",
+	"unit":""
+    }, 
+    "subframes_x": {
+        "comment": "subframes_x - INT - Number of subdivisions in the x direction used in defining the grid of kernel solutions (Default value = 1).", 
+        "value": 1,
+	"format":"int",
+	"unit":""
+    }, 
+    "subframes_y": {
+        "comment": "subframes_y - INT - Number of subdivisions in the y direction used in defining the grid of kernel solutions (Default value = 1).", 
+        "value": 1,
+	"format":"int",
+	"unit":""
+    }, 
+    "timekey": {
+        "comment": "timekey - STRING - Header keyword recording the universal time at the start of the observation. The value of this keyword should be a NUMBER in hours, or a STRING of the format HH:MM:SS.SSS, where HH:MM:SS.SSS is a valid time.", 
+        "value": "UTSTART",
+	"format":"S200",
+	"unit":""
+    }, 
+    "trans_auto": {
+        "comment": "trans_auto - INT - Switch for automatic determination of the coordinate transformation type when fitting a coordinate transformation between two images (0 = Pre-defined transformation type : 1 = Automatic transformation type : Default value = 0).", 
+        "value": 0,
+	"format":"int",
+	"unit":""
+    }, 
+    "trans_type": {
+        "comment": "trans_type - STRING - Type of coordinate transformation to fit when fitting a coordinate transformation between two images (shift = General pixel shift : rot_shift = Rotation and general pixel shift : rot_mag_shift = Rotation, magnification, and general pixel shift : linear = Linear : polynomial = Polynomial : Default value = linear).", 
+        "value": "polynomial",
+	"format":"S200",
+	"unit":""
+    }, 
+    "use_reflist": {
+        "comment": "use_reflist - INT - Switch for using the images listed in the reference image combination list (0 = NO : 1 = YES : Default value = 0).", 
+        "value": 0,
+	"format":"int",
+	"unit":""
+    }, 
+    "var_deg": {
+        "comment": "var_deg - INT - Polynomial degree of the spatial variation of the model used to represent the image PSF (0 = Constant : 1 = Linear : 2 = Quadratic : 3 = Cubic : Default value = 0).", 
+        "value": 1,
+	"format":"int",
+	"unit":""
+    },
+    "pixeL_scale": {
+        "comment": "pixeL_scale - STRING - The pixel scale header keyword", 
+        "value": "PIXSCALE",
+	"format":"S200",
+	"unit":""
+    }
+}

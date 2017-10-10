@@ -332,7 +332,8 @@ class MetaData:
         update_layer = fits.BinTableHDU(layer[1], header=layer[0])
         update_layer.name = update_layer.header['name']
 
-        metadata = fits.open(metadata_directory + metadata_name, mmap=True)
+        metadata = fits.open(path.join(metadata_directory,metadata_name), 
+                             mmap=True)
         try:
             metadata[key_layer] = update_layer
         except:
