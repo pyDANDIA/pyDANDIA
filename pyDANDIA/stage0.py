@@ -34,7 +34,7 @@ def run_stage0(setup):
     stage0_version = 'stage0 v0.1'
     
     log = logs.start_stage_log(setup.red_dir, 'stage0', version=stage0_version)
-    log.info('Setup:\n'+setup.summary())
+    log.info('Setup:\n'+setup.summary()+'\n')
     
     pipeline_config = read_the_config_file(setup.pipeline_config_dir,log=log)    
     
@@ -108,7 +108,7 @@ def run_stage0(setup):
     logs.close_log(log)
     
     status = 'OK'
-    report = 'Completed'
+    report = 'Completed successfully'
     
     return status, report, reduction_metadata
     

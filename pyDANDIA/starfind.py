@@ -29,45 +29,58 @@ from astropy import units as u
 from photutils import background, detection, DAOStarFinder
 from photutils import CircularAperture
 import matplotlib.pyplot as plt
-
+from reduction_control import ReductionSetup
 import time
 from datetime import datetime
 import sys
 import os
-
+import logs
 import config_utils
 import psf
 
-def starfind(path_to_image, plot_it=False, write_log=False):
+def starfind(setup,path_to_image, plot_it=False, log=None):
     '''
     The routine will quickly identify stars in a given image and return
     a star list and image quality parameters. The output is to be used
     to select suitable candidate images for constructing a template
     reference image.
     '''
+    
     imname = path_to_image.split('/')[-1]
-    if (write_log == True):
-        logfile = open('starfind.log','a')
-        logfile.write("Current system time: "+datetime.now().strftime("%Y:%m:%dT%H:%M:%S")+"\n")
+
+    if log != None:
+        log.info('Starting starfind')
+    
+    params = { 'sky': 0.0, 'fwhm_y': 0.0, 'fwhm_x': 0.0, 'corr_xy':0.0 }
     
     t0 = time.time()
     im = fits.open(path_to_image)
     header = im[0].header
     scidata = im[0].data
+
     # Get size of image
     ymax, xmax = scidata.shape
+
     # Read configuration file and get saturation limit
-    config = config_utils.read_config('../Config/config.json')
+    config_file_path = os.path.join(setup.pipeline_config_dir, 'config.json')
+    config = config_utils.read_config(config_file_path)
+
     # If it is a large image, consider 250x250 pixel subregions and
     # choose the one with the fewest saturated pixels to evaluate stats
     try:
+
         saturation = config['maxval']['value']
+
     except:
-        if (write_log == True):
-            logfile.write("Could not extract the saturation parameter from the configuration file.")
-            logfile.close()
-        
-        sys.exit('Could not extract the saturation parameter from the configuration file.')
+
+        if log != None:
+            
+            status = 'ERROR'
+            report = 'Could not extract the saturation parameter from the configuration file.'
+
+            log.info(report)
+
+            return status, report, params
     
     nr_sat_pix = 100000
     bestx1 = -1
@@ -76,14 +89,19 @@ def starfind(path_to_image, plot_it=False, write_log=False):
     besty2 = -1
     regionsx = np.arange(0, xmax, 250)
     regionsy = np.arange(0, ymax, 250)
+
     for i in regionsx[0:-1]:
+
         x1 = i
         x2 = i + 250
+
         for j in regionsy[0:-1]:
+
             y1 = j
             y2 = j + 250
             nr_pix = len(scidata[y1:y2,x1:x2][np.where(scidata[y1:y2,x1:x2] > saturation)])
             #print x1, x2, y1, y2, nr_pix
+
             if nr_pix < nr_sat_pix:
                nr_sat_pix = nr_pix
                bestx1 = x1
@@ -93,50 +111,73 @@ def starfind(path_to_image, plot_it=False, write_log=False):
     
     #mean, median, std = sigma_clipped_stats(scidata[1:ymax, 1:xmax], sigma=3.0, iters=5)
     # Evaluate mean, median and standard deviation for the selected subregion
-    mean, median, std = sigma_clipped_stats(scidata[besty1:besty2,bestx1:bestx2], sigma=3.0, iters=5)
+    mean, median, std = sigma_clipped_stats(scidata[besty1:besty2,bestx1:bestx2], 
+                                            sigma=3.0, iters=5)
+    
     # Identify stars
     daofind = DAOStarFinder(fwhm=3.0, threshold=5.*std)
+    
     sources = daofind(scidata[besty1:besty2,bestx1:bestx2] - median)
+
     # Write steps to a log file
-    if (write_log == True):
-        logfile.write("Identifying sources on image %s ...\n" % path_to_image.split('/')[-1])
-        logfile.write("Found %s sources.\n" % str(len(sources)))
+    if log != None:
+        log.info("Identifying sources on image %s ...\n" % path_to_image.split('/')[-1])
+        log.info("Found %s sources.\n" % str(len(sources)))
+        
         if len(sources) == 0:
-            logfile.write("Insufficient number of sources found. Stopping execution.\n")
-            sys.exit('Could not detect enough sources on image.')
+            
+            status = 'ERROR'
+            report = 'Insufficient number of sources found. Stopping execution.'
+            
+            log.info(report)
+
+            return status, report, params
+            
         elif (len(sources) > 0 and len(sources) <= 5):
-            logfile.write("WARNING: Too few sources detected on image.\n")
+            
+            log.info('WARNING: Too few sources detected on image.')
+            
         else:
-            logfile.write("Using best sources to determine FWHM (up to 30).\n")
+            
+            log.info('Using best sources to determine FWHM (up to 30).')
     
     # Discount saturated stars
     sources = sources[np.where(sources['peak'] < saturation)]
     sources.sort('peak')
     sources.reverse()
+    
     # Discount stars too close to the edges of the image
     sources = sources[np.where((sources['xcentroid'] > 10) & 
                                (sources['xcentroid'] < 240) &  
                    (sources['ycentroid'] < 240) & 
                    (sources['ycentroid'] > 30))]
+
     # Keep only up to 100 stars
     sources = sources[0:100]
     
     sources_with_close_stars_ids = []
     # Discount stars with close neighbours (within r=10 pix)
+
     for i in np.arange(len(sources)):
+
         source_i = sources[i]
+
         for other_source in sources[i+1:]:
+
             if (np.sqrt((source_i['xcentroid']-other_source['xcentroid'])**2 +
                      (source_i['ycentroid']-other_source['ycentroid'])**2) <= 10 ):
+
                 sources_with_close_stars_ids.append(i)
                     #print source_i, other_source
+
             continue
     
     # Keep up to 30 isolated sources only (may be fewer)
     sources.remove_rows(sources_with_close_stars_ids)
     sources = sources[0:30]
-    if (write_log == True):
-        logfile.write("Kept %s sources.\n" % str(len(sources)))
+    
+    if log != None:
+        log.info("Kept %s sources.\n" % str(len(sources)))
     
     #return sources
     # Uncomment the following line to display source list in browser window:
@@ -147,59 +188,73 @@ def starfind(path_to_image, plot_it=False, write_log=False):
     fwhm_x_arr = []
     fwhm_y_arr = []
     corr_xy_arr = []
+    
     i = 0
     while (i <= len(sources)-1):
+
         try:
- 	    i_peak = sources[i]['peak']
- 	    position = [sources[i]['xcentroid'], sources[i]['ycentroid']]
- 	    #print position
- 	    stamp_size = (20,20)
- 	    cutout = Cutout2D(scidata[besty1:besty2,bestx1:bestx2], position, stamp_size) # in pixels
- 	    yc, xc = cutout.position_cutout
- 	    yy, xx = np.indices(cutout.data.shape)
- 	    fit = psf.fit_star(cutout.data, yy, xx, psf_model='BivariateNormal')
- 	    fit_params = fit[0]
- 	    fit_errors = fit[1].diagonal()**0.5
- 	    biv = psf.BivariateNormal()
-	    background = psf.ConstantBackground()
- 	    fit_residuals = psf.error_star_fit_function(fit_params, cutout.data, biv, background, yy, xx)
- 	    fit_residuals = fit_residuals.reshape(cutout.data.shape)
- 	    cov = fit[1]*np.sum(fit_residuals**2)/((stamp_size[0])**2-6)
- 	    fit_errors = cov.diagonal()**0.5
- 	    print fit_params
- 	    model = biv.psf_model(yy, xx, fit_params)
-	    fwhm_y_arr.append(fit_params[3])
-	    fwhm_x_arr.append(fit_params[4])
-	    corr_xy_arr.append(fit_params[5])
-	    sky_arr.append(fit_params[6])
- 	    if plot_it == True:
- 	    	plt.figure(figsize=(3,8))
- 	    	plt.subplot(3,1,1)
- 	    	plt.imshow(cutout.data, cmap='gray', origin='lower')
- 	    	plt.colorbar()
- 	    	plt.title("Data")
- 	    	plt.subplot(3,1,2)
- 	    	plt.imshow(model, cmap='gray', origin='lower')
- 	    	plt.colorbar()
- 	    	plt.title("Model")
- 	    	plt.subplot(3,1,3)
- 	    	plt.imshow(fit_residuals, cmap='gray', origin='lower')
- 	    	plt.title("Residual")
- 	    	plt.colorbar()
- 	    	plt.show()
+            i_peak = sources[i]['peak']
+            position = [sources[i]['xcentroid'], sources[i]['ycentroid']]
+            #print position
+            stamp_size = (20,20)
+            cutout = Cutout2D(scidata[besty1:besty2,bestx1:bestx2], 
+                                 position, stamp_size) # in pixels
+            yc, xc = cutout.position_cutout
+            yy, xx = np.indices(cutout.data.shape)
+            fit = psf.fit_star(cutout.data, yy, xx, psf_model='BivariateNormal')
+            fit_params = fit[0]
+            fit_errors = fit[1].diagonal()**0.5
+            biv = psf.BivariateNormal()
+            background = psf.ConstantBackground()
+            fit_residuals = psf.error_star_fit_function(fit_params, 
+                                cutout.data, biv, background, yy, xx)
+            fit_residuals = fit_residuals.reshape(cutout.data.shape)
+            cov = fit[1]*np.sum(fit_residuals**2)/((stamp_size[0])**2-6)
+            fit_errors = cov.diagonal()**0.5
+            #print fit_params
+            model = biv.psf_model(yy, xx, fit_params)
+            fwhm_y_arr.append(fit_params[3])
+            fwhm_x_arr.append(fit_params[4])
+            corr_xy_arr.append(fit_params[5])
+            sky_arr.append(fit_params[6])
+        
+            if plot_it == True:
+                plt.figure(figsize=(3,8))
+                plt.subplot(3,1,1)
+                plt.imshow(cutout.data, cmap='gray', origin='lower')
+                plt.colorbar()
+                plt.title("Data")
+                plt.subplot(3,1,2)
+                plt.imshow(model, cmap='gray', origin='lower')
+                plt.colorbar()
+                plt.title("Model")
+                plt.subplot(3,1,3)
+                plt.imshow(fit_residuals, cmap='gray', origin='lower')
+                plt.title("Residual")
+                plt.colorbar()
+                plt.savefig(path.join(setup.red_dir,'starfind_model.png'))
         except:
-	    print "Could not fit source: %s." %str(i)
-	
+            if log != None:
+                log.info("Could not fit source: %s." %str(i))
+        
         i = i + 1
     
     # Estimate the median values for the parameters over the stars identified
-    sky = np.median(sky_arr)
-    fwhm_y = np.median(fwhm_y_arr)
-    fwhm_x = np.median(fwhm_x_arr)
-    corr_xy = np.median(corr_xy_arr)
+    params['sky'] = np.median(sky_arr)
+    params['fwhm_y'] = np.median(fwhm_y_arr)
+    params['fwhm_x'] = np.median(fwhm_x_arr)
+    params['corr_xy'] = np.median(corr_xy_arr)
     
+    if log != None:
+        log.info('Measured median values:')
+        log.info('Sky background = '+str(params['sky']))
+        log.info('FWHM X = '+str(params['fwhm_x']))
+        log.info('FWHM Y = '+str(params['fwhm_y']))
+        log.info('Corr XY = '+str(params['corr_xy']))
+        
     # If plot_it is True, plot the sources found
     if plot_it == True:
+        
         temp = np.copy(scidata[besty1:besty2,bestx1:bestx2])
         temp[np.where(temp < median)] = median
         temp[np.where(temp > 25000)] = 25000
@@ -210,17 +265,16 @@ def starfind(path_to_image, plot_it=False, write_log=False):
         plt.title("Data")
         #plt.colorbar()
         apertures.plot(color='red', lw=1.2, alpha=0.5)
-        plt.show()
-        #plt.savefig('stars250x250.png')
-    im.close()
-    # Close the log file
-    if (write_log == True):
-        logfile.write("Finished processing image %s in %.3f seconds.\n" % (str(imname), (time.time()-t0)))
-        logfile.write("---------------------------------------------.\n")
-        logfile.close()
+        plt.savefig(path.join(setup.red_dir,'stars250x250.png'))
+        im.close()
     
-    #print sky, fwhm_y, fwhm_x, corr_xy
-    return sky, fwhm_y, fwhm_x, corr_xy
+    if log != None:
+        log.info("Finished processing image %s in %.3f seconds.\n" % (str(imname), (time.time()-t0)))
+    
+    status = 'OK'
+    report = 'Completed successfully'
+    return status, report, params
+    
     
 def write_trendlog(path_to_trendlog_file, sources):
     if os.path.exists(path_to_trendlog_file):
@@ -232,6 +286,7 @@ def write_trendlog(path_to_trendlog_file, sources):
     out.write("Sky (ADU) : Sky Sigma (ADU) : FWHM (pix) : FWHM Major Axis (pix) : ")
     out.write("FWHM Minor Axis (pix) : Ellipticity : Number Of Peaks Used : ")
     out.write("Number Of Stars Detected At A Normalised Threshold Above The Sky Background\n")
+
 
 def detect_sources(meta,scidata,log):
     """Function to detect all sources in the given image"""
@@ -246,10 +301,23 @@ def detect_sources(meta,scidata,log):
     
     return sources
 
+
+
 #################################
 # Command line section
 if __name__ == '__main__':
     path_to_image = '../trials/data/lsc1m005-fl15-20170614-0130-e91.fits'
     path_to_image = '../trials/data/lsc1m005-fl15-20170614-0188-e91.fits'
-    #path_to_image = '/home/Tux/ytsapras/Programs/Workspace/development/pipeline_200x200_testdata/lsc1m005-fl15-20170614-0130-e91_cropped.fits'
-    starfind(path_to_image, plot_it=False, write_log=False)
+    
+    setup = ReductionSetup()
+    setup.red_dir = os.path.join(os.getcwd(),'tests','data')
+    setup.log_dir = os.getcwd()
+    setup.pipeline_config_dir = os.path.join(os.getcwd(),'tests','data','proc','config')
+    setup.software_dir = os.getcwd()
+    
+    log = logs.start_pipeline_log(setup.red_dir, 'starfind')
+                               
+    (status, report, params) = starfind(setup, path_to_image, plot_it=False, 
+                                            log=log)
+    logs.close_log(log)
+    

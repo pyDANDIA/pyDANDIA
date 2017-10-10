@@ -10,6 +10,7 @@ from sys import path as systempath
 cwd = getcwd()
 systempath.append(path.join(cwd,'../'))
 import stage0
+import stage1
 import logs
 
 def reduction_control():
@@ -35,6 +36,8 @@ def reduction_control():
     (status,report,meta_data) = stage0.run_stage0(setup)
     log.info('Completed stage 0 with status '+repr(status)+': '+report)
     
+    (status, report) = stage1.run_stage1(setup)
+    log.info('Completed stage 1 with status '+repr(status)+': '+report)
     
     logs.close_log(log)
 
