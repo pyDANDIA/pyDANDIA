@@ -125,7 +125,7 @@ def open_the_variables_catalog(variables_catalog_directory, variables_catalog_na
 def read_the_config_file(config_directory, config_file_name='config.json',
                          log=None):
     '''
-    This read the reauired informations from the config file.
+    This read the required informations from the config file.
 
     :param string config_directory: the directory to the config file
     :param string config_file_name: the name of the config file
