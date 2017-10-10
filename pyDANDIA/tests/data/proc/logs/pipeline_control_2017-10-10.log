@@ -1,0 +1,297 @@
+2017-10-10T13:40:28 Started pipeline run 
+
+2017-10-10T13:40:28   Software version: pipeline_control v0.1
+
+2017-10-10T13:40:28 Found a reduce_datasets instruction file
+2017-10-10T13:40:28 Going to reduce the following datasets:
+2017-10-10T13:40:28 ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip
+2017-10-10T13:40:28 Starting reductions:
+2017-10-10T13:40:28  -> Dataset ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip reduction PID 71012
+2017-10-10T13:40:28 Processing complete
+
+2017-10-10T13:45:49 Started pipeline run 
+
+2017-10-10T13:45:49   Software version: pipeline_control v0.1
+
+2017-10-10T13:45:49 Found a reduce_datasets instruction file
+2017-10-10T13:45:49 Going to reduce the following datasets:
+2017-10-10T13:45:49 ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip
+2017-10-10T13:45:49 Starting reductions:
+2017-10-10T13:45:49  -> Dataset ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip reduction PID 71111
+2017-10-10T13:45:49 Processing complete
+
+2017-10-10T13:52:03 Started pipeline run 
+
+2017-10-10T13:52:03   Software version: pipeline_control v0.1
+
+2017-10-10T13:52:03 Found a reduce_datasets instruction file
+2017-10-10T13:52:03 Going to reduce the following datasets:
+2017-10-10T13:52:03 ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip
+2017-10-10T13:52:03 Starting reductions:
+2017-10-10T13:52:03  -> Dataset ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip reduction PID 71257
+2017-10-10T13:52:03 Processing complete
+
+2017-10-10T14:00:35 Started pipeline run 
+
+2017-10-10T14:00:35   Software version: pipeline_control v0.1
+
+2017-10-10T14:00:35 Found a reduce_datasets instruction file
+2017-10-10T14:00:35 Going to reduce the following datasets:
+2017-10-10T14:00:35 ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip
+2017-10-10T14:00:35 Starting reductions:
+2017-10-10T14:00:35  -> Dataset ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip reduction PID 71477
+2017-10-10T14:00:35 Processing complete
+
+2017-10-10T14:06:34 Started pipeline run 
+
+2017-10-10T14:06:34   Software version: pipeline_control v0.1
+
+2017-10-10T14:06:34 Found a reduce_datasets instruction file
+2017-10-10T14:06:34 Going to reduce the following datasets:
+2017-10-10T14:06:34 ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip
+2017-10-10T14:06:34 Starting reductions:
+2017-10-10T14:06:34  -> Dataset ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip reduction PID 71549
+2017-10-10T14:06:34 Processing complete
+
+2017-10-10T14:07:47 Started pipeline run 
+
+2017-10-10T14:07:47   Software version: pipeline_control v0.1
+
+2017-10-10T14:07:47 Found a reduce_datasets instruction file
+2017-10-10T14:07:47 Going to reduce the following datasets:
+2017-10-10T14:07:47 ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip
+2017-10-10T14:07:47 Starting reductions:
+2017-10-10T14:07:47  -> Dataset ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip reduction PID 71592
+2017-10-10T14:07:47 Processing complete
+
+2017-10-10T14:09:25 Started pipeline run 
+
+2017-10-10T14:09:25   Software version: pipeline_control v0.1
+
+2017-10-10T14:09:25 Found a reduce_datasets instruction file
+2017-10-10T14:09:25 Going to reduce the following datasets:
+2017-10-10T14:09:25 ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip
+2017-10-10T14:09:25 Starting reductions:
+2017-10-10T14:09:25  -> Dataset ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip reduction PID 71645
+2017-10-10T14:09:25 Processing complete
+
+2017-10-10T14:22:29 Started pipeline run 
+
+2017-10-10T14:22:29   Software version: pipeline_control v0.1
+
+2017-10-10T14:22:29 Found a reduce_datasets instruction file
+2017-10-10T14:22:29 Going to reduce the following datasets:
+2017-10-10T14:22:29 ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip
+2017-10-10T14:22:29 Starting reductions:
+2017-10-10T14:22:29  -> Dataset ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip reduction PID 71988
+2017-10-10T14:22:29 Processing complete
+
+2017-10-10T14:25:52 Started pipeline run 
+
+2017-10-10T14:25:52   Software version: pipeline_control v0.1
+
+2017-10-10T14:25:52 Found a reduce_datasets instruction file
+2017-10-10T14:25:52 Going to reduce the following datasets:
+2017-10-10T14:25:52 ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip
+2017-10-10T14:25:52 Starting reductions:
+2017-10-10T14:25:52  -> Dataset ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip reduction PID 72048
+2017-10-10T14:25:52 Processing complete
+
+2017-10-10T14:29:52 Started pipeline run 
+
+2017-10-10T14:29:52   Software version: pipeline_control v0.1
+
+2017-10-10T14:29:52 Found a reduce_datasets instruction file
+2017-10-10T14:29:52 Going to reduce the following datasets:
+2017-10-10T14:29:52 ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip
+2017-10-10T14:29:52 Starting reductions:
+2017-10-10T14:29:52  -> Dataset ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip reduction PID 72176
+2017-10-10T14:29:52 Processing complete
+
+2017-10-10T14:30:27 Started pipeline run 
+
+2017-10-10T14:30:27   Software version: pipeline_control v0.1
+
+2017-10-10T14:30:27 Found a reduce_datasets instruction file
+2017-10-10T14:30:27 Going to reduce the following datasets:
+2017-10-10T14:30:27 ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip
+2017-10-10T14:30:27 Starting reductions:
+2017-10-10T14:30:27  -> Dataset ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip reduction PID 72203
+2017-10-10T14:30:27 Processing complete
+
+2017-10-10T14:31:40 Started pipeline run 
+
+2017-10-10T14:31:40   Software version: pipeline_control v0.1
+
+2017-10-10T14:31:40 Found a reduce_datasets instruction file
+2017-10-10T14:31:40 Going to reduce the following datasets:
+2017-10-10T14:31:40 ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip
+2017-10-10T14:31:40 Starting reductions:
+2017-10-10T14:31:40  -> Dataset ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip reduction PID 72265
+2017-10-10T14:31:40 Processing complete
+
+2017-10-10T14:35:53 Started pipeline run 
+
+2017-10-10T14:35:53   Software version: pipeline_control v0.1
+
+2017-10-10T14:35:53 Found a reduce_datasets instruction file
+2017-10-10T14:35:53 Going to reduce the following datasets:
+2017-10-10T14:35:53 ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip
+2017-10-10T14:35:53 Starting reductions:
+2017-10-10T14:35:53  -> Dataset ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip reduction PID 72419
+2017-10-10T14:35:53 Processing complete
+
+2017-10-10T14:36:06 Started pipeline run 
+
+2017-10-10T14:36:06   Software version: pipeline_control v0.1
+
+2017-10-10T14:36:06 Found a reduce_datasets instruction file
+2017-10-10T14:36:06 Going to reduce the following datasets:
+2017-10-10T14:36:06 ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip
+2017-10-10T14:36:06 Starting reductions:
+2017-10-10T14:36:06  -> Dataset ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip reduction PID 72443
+2017-10-10T14:36:06 Processing complete
+
+2017-10-10T14:36:35 Started pipeline run 
+
+2017-10-10T14:36:35   Software version: pipeline_control v0.1
+
+2017-10-10T14:36:35 Found a reduce_datasets instruction file
+2017-10-10T14:36:35 Going to reduce the following datasets:
+2017-10-10T14:36:35 ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip
+2017-10-10T14:36:35 Starting reductions:
+2017-10-10T14:36:35  -> Dataset ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip reduction PID 72467
+2017-10-10T14:36:35 Processing complete
+
+2017-10-10T14:38:46 Started pipeline run 
+
+2017-10-10T14:38:46   Software version: pipeline_control v0.1
+
+2017-10-10T14:38:46 Found a reduce_datasets instruction file
+2017-10-10T14:38:46 Going to reduce the following datasets:
+2017-10-10T14:38:46 ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip
+2017-10-10T14:38:46 Starting reductions:
+2017-10-10T14:38:46  -> Dataset ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip reduction PID 72511
+2017-10-10T14:38:46 Processing complete
+
+2017-10-10T14:39:18 Started pipeline run 
+
+2017-10-10T14:39:18   Software version: pipeline_control v0.1
+
+2017-10-10T14:39:18 Found a reduce_datasets instruction file
+2017-10-10T14:39:18 Going to reduce the following datasets:
+2017-10-10T14:39:18 ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip
+2017-10-10T14:39:18 Starting reductions:
+2017-10-10T14:39:18  -> Dataset ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip reduction PID 72538
+2017-10-10T14:39:18 Processing complete
+
+2017-10-10T14:45:28 Started pipeline run 
+
+2017-10-10T14:45:28   Software version: pipeline_control v0.1
+
+2017-10-10T14:45:28 Found a reduce_datasets instruction file
+2017-10-10T14:45:28 Going to reduce the following datasets:
+2017-10-10T14:45:28 ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip
+2017-10-10T14:45:28 Starting reductions:
+2017-10-10T14:45:28  -> Dataset ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip reduction PID 72702
+2017-10-10T14:45:28 Processing complete
+
+2017-10-10T14:50:05 Started pipeline run 
+
+2017-10-10T14:50:05   Software version: pipeline_control v0.1
+
+2017-10-10T14:50:05 Found a reduce_datasets instruction file
+2017-10-10T14:50:05 Going to reduce the following datasets:
+2017-10-10T14:50:05 ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip
+2017-10-10T14:50:05 Starting reductions:
+2017-10-10T14:50:05  -> Dataset ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip reduction PID 72837
+2017-10-10T14:50:05 Processing complete
+
+2017-10-10T14:53:59 Started pipeline run 
+
+2017-10-10T14:53:59   Software version: pipeline_control v0.1
+
+2017-10-10T14:53:59 Found a reduce_datasets instruction file
+2017-10-10T14:53:59 Going to reduce the following datasets:
+2017-10-10T14:53:59 ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip
+2017-10-10T14:53:59 Starting reductions:
+2017-10-10T14:53:59  -> Dataset ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip reduction PID 72988
+2017-10-10T14:53:59 Processing complete
+
+2017-10-10T14:54:31 Started pipeline run 
+
+2017-10-10T14:54:31   Software version: pipeline_control v0.1
+
+2017-10-10T14:54:31 Found a reduce_datasets instruction file
+2017-10-10T14:54:31 Going to reduce the following datasets:
+2017-10-10T14:54:31 ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip
+2017-10-10T14:54:31 Starting reductions:
+2017-10-10T14:54:31  -> Dataset ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip reduction PID 73023
+2017-10-10T14:54:31 Processing complete
+
+2017-10-10T14:57:52 Started pipeline run 
+
+2017-10-10T14:57:52   Software version: pipeline_control v0.1
+
+2017-10-10T14:57:52 Found a reduce_datasets instruction file
+2017-10-10T14:57:52 Going to reduce the following datasets:
+2017-10-10T14:57:52 ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip
+2017-10-10T14:57:52 Starting reductions:
+2017-10-10T14:57:52  -> Dataset ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip reduction PID 73190
+2017-10-10T14:57:52 Processing complete
+
+2017-10-10T14:58:27 Started pipeline run 
+
+2017-10-10T14:58:27   Software version: pipeline_control v0.1
+
+2017-10-10T14:58:27 Found a reduce_datasets instruction file
+2017-10-10T14:58:27 Going to reduce the following datasets:
+2017-10-10T14:58:27 ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip
+2017-10-10T14:58:27 Starting reductions:
+2017-10-10T14:58:27  -> Dataset ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip reduction PID 73242
+2017-10-10T14:58:27 Processing complete
+
+2017-10-10T15:00:11 Started pipeline run 
+
+2017-10-10T15:00:11   Software version: pipeline_control v0.1
+
+2017-10-10T15:00:11 Found a reduce_datasets instruction file
+2017-10-10T15:00:11 Going to reduce the following datasets:
+2017-10-10T15:00:11 ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip
+2017-10-10T15:00:11 Starting reductions:
+2017-10-10T15:00:11  -> Dataset ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip reduction PID 73368
+2017-10-10T15:00:11 Processing complete
+
+2017-10-10T15:00:22 Started pipeline run 
+
+2017-10-10T15:00:22   Software version: pipeline_control v0.1
+
+2017-10-10T15:00:22 Found a reduce_datasets instruction file
+2017-10-10T15:00:22 Going to reduce the following datasets:
+2017-10-10T15:00:22 ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip
+2017-10-10T15:00:22 Starting reductions:
+2017-10-10T15:00:22  -> Dataset ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip reduction PID 73396
+2017-10-10T15:00:22 Processing complete
+
+2017-10-10T15:01:02 Started pipeline run 
+
+2017-10-10T15:01:02   Software version: pipeline_control v0.1
+
+2017-10-10T15:01:02 Found a reduce_datasets instruction file
+2017-10-10T15:01:02 Going to reduce the following datasets:
+2017-10-10T15:01:02 ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip
+2017-10-10T15:01:02 Starting reductions:
+2017-10-10T15:01:02  -> Dataset ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip reduction PID 73447
+2017-10-10T15:01:02 Processing complete
+
+2017-10-10T15:01:25 Started pipeline run 
+
+2017-10-10T15:01:25   Software version: pipeline_control v0.1
+
+2017-10-10T15:01:25 Found a reduce_datasets instruction file
+2017-10-10T15:01:25 Going to reduce the following datasets:
+2017-10-10T15:01:25 ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip
+2017-10-10T15:01:25 Starting reductions:
+2017-10-10T15:01:25  -> Dataset ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip reduction PID 73484
+2017-10-10T15:01:25 Processing complete
+
