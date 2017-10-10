@@ -1,7 +1,7 @@
 {
     "proc_data": {
         "comment": "proc_data - STRING - The full path to the reduction directory.", 
-        "value": "/Users/rstreet/software/pyDANDIA/pyDANDIA/tests/data/proc",
+        "value": "/nethome/ebachelet/Desktop/pyDANDIA/pyDANDIA/tests/data/proc",
 	"format":"S200",
 	"unit":""
     },     
