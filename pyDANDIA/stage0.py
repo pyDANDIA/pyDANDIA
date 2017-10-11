@@ -25,10 +25,12 @@ import pixelmasks
 import logs
 
 def run_stage0(setup):
-    """Main driver function to run stage 0: data preparation.
-    
+    """Main driver function to run stage 0: data preparation.    
     The tasks of this stage are to ensure that all images are prepared for 
-    reduction, and to make sure the reduction meta data is up to date.
+    reduction, and to make sure the reduction metadata is up to date.
+    Input: setup - is an instance of the ReductionSetup class. See 
+           reduction_control.py
+    Output: prepares the metadata file
     """
     
     stage0_version = 'stage0 v0.1'
@@ -50,7 +52,7 @@ def run_stage0(setup):
                                 os.path.join(setup.red_dir,'data'),
                                 verbose=True,log=log)
                                 
-    new_images=find_images_need_to_be_process(reduction_metadata, data, 
+    new_images = find_images_need_to_be_process(reduction_metadata, data, 
                                 verbose=False, log=log)
     
     
@@ -62,22 +64,22 @@ def run_stage0(setup):
     if len(new_images) > 0:
         update_reduction_metadata_headers_summary_with_new_images(
                             reduction_metadata, new_images, log=log)
-    
+        
         open_image = open_an_image(
                     reduction_metadata.data_architecture[1]['IMAGES_PATH'][0], 
                     new_images[0],image_index=0, verbose=True, log=log)
-
+        
         update_reduction_metadata_stamps(reduction_metadata, open_image,
                      stamp_size=None, 
                      arcseconds_stamp_size=(60, 60),
                      pixel_scale=None, 
                      number_of_overlaping_pixels=25,
                      verbose=False, log=log)
-    
+        
         set_bad_pixel_mask_directory(reduction_metadata, 
                      bpm_directory_path=os.path.join(setup.red_dir,'data'), 
                      verbose=False, log=log)
-
+        
         log.info('Updating metadata with info on new images...')
         for new_image in new_images:
             open_image = open_an_image( 
@@ -95,8 +97,8 @@ def run_stage0(setup):
         
         construct_the_pixel_mask(open_image, bad_pixel_mask, [1,3],
                          saturation_level=65535, low_level=0, log=log)
-
-    
+        
+        
         update_reduction_metadata_data_inventory(reduction_metadata, 
                         new_images, status=1, log=log)
     

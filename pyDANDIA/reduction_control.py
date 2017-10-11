@@ -31,7 +31,7 @@ def reduction_control():
     
     
     log = logs.start_pipeline_log(setup.red_dir, 'reduction_control', 
-                               version=reduction_version)
+                                  version=reduction_version)
 
     (status,report,meta_data) = stage0.run_stage0(setup)
     log.info('Completed stage 0 with status '+repr(status)+': '+report)
@@ -70,7 +70,7 @@ def get_args():
         setup.red_dir = raw_input('Please enter the path to the datasets reduction directory: ')
     
     else:
-    
+        
         setup.red_dir = argv[1]
     
     setup.log_dir = path.join(setup.red_dir,'..','logs')
