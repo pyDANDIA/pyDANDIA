@@ -1,15 +1,21 @@
 {
     "proc_data": {
         "comment": "proc_data - STRING - The full path to the reduction directory.", 
-        "value": "/home/Tux/ytsapras/Programs/Workspace/pyDANDIA/pyDANDIA/tests/data/proc",
+        "value": "/nethome/ebachelet/Desktop/pyDANDIA/pyDANDIA/tests/data/proc",
 	"format":"S200",
 	"unit":""
-    },     
+    },
+    "verbose": {
+        "comment": "verbose - INT - Switch for additional logging output (1 = YES : 0 = NO : Default Value = 1).", 
+        "value": 1,
+	"format":"int",
+	"unit":""
+    },   
     "back_var": {
         "comment": "back_var - INT - Switch for a spatially variable differential background (1 = YES : 0 = NO : Default Value = 1).", 
         "value": 1,
 	"format":"int",
-	"unit":"boolean"
+	"unit":""
     }, 
     "coeff2": {
         "comment": "coeff2 - DOUBLE -|- Coefficients a1 and a2 in the linearisation equation: Xnew = X + a1*X^2 + a2*X^3", 
@@ -87,7 +93,7 @@
         "comment": "gain - DOUBLE - CCD gain (e-/ADU). This parameter should be positive (Default value = 1.0)", 
         "value": 1.0,
 	"format":"float",
-	"unit":"e-/ADU"
+	"unit":"e/adu"
     }, 
     "grow": {
         "comment": "grow - DOUBLE - Controls the amount of overlap between the image regions used for the kernel solutions (Default value = 0.0).", 
@@ -171,13 +177,13 @@
         "comment": "max_sky - DOUBLE - Largest acceptable value of the sky background for an image to be used in the combined reference image (ADU : Default value = 5000).", 
         "value": 5000,
 	"format":"float",
-	"unit":"ADU"
+	"unit":"adu"
     }, 
     "maxval": {
         "comment": "maxval - DOUBLE - Maximum useful pixel value in a raw image (ADU).", 
         "value": 80000.0,
 	"format":"float",
-	"unit":"ADU"
+	"unit":"adu"
     }, 
     "mbiasmethod": {
         "comment": "mbiasmethod - STRING - Method for combining the bias frames (mean = Mean : median = Median : sigclip = Sigma-clipped mean : Default value = sigclip).", 
@@ -207,7 +213,7 @@
         "comment": "mdarkpro - INT - Switch for master dark frame correction (0 = NO : 1 = YES : Default value = 0).", 
         "value": 0,
 	"format":"int",
-	"unit":"boolean"
+	"unit":""
     }, 
     "mdarksigma": {
         "comment": "mdarksigma - DOUBLE - Sigma-clip threshold to be used if mdarkmethod is set to sigclip (Default value = -1.0).", 
@@ -225,7 +231,7 @@
         "comment": "mflatpro - INT - Switch for master flat frame correction (0 = NO : 1 = YES : Default value = 0).", 
         "value": 0,
 	"format":"int",
-	"unit":"boolean"
+	"unit":""
     }, 
     "mflatsigma": {
         "comment": "mflatsigma - DOUBLE - Sigma-clip threshold to be used if oscanmethod is set to sigclip (Default value = -1.0).", 
@@ -375,7 +381,7 @@
         "comment": "rakey - STRING - Header keyword recording the right ascension (J2000) of the observation. The value of this keyword should be a STRING of the format HH:MM:SS.SSS, where HH:MM:SS.SSS is a valid time.", 
         "value": "RA",
 	"format":"S200",
-	"unit":"hours"
+	"unit":"h"
     }, 
     "replace_cr": {
         "comment": "replace_cr - INT - Switch for replacing pixel values that have been contaminated by cosmic ray events (0 = NO : 1 = YES : Default value = 0).", 
@@ -387,7 +393,7 @@
         "comment": "ron - DOUBLE - CCD readout noise (ADU). This parameter should be non-negative (Default value = 0.0)", 
         "value": 0.0,
 	"format":"float",
-	"unit":"ADU"
+	"unit":"adu"
     }, 
     "sigclip": {
         "comment": "sigclip - DOUBLE - Threshold in units of sigma for cosmic ray detection on the Laplacian image. This parameter should be positive (Default value = 4.5).", 

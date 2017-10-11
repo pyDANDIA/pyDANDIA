@@ -4,7 +4,13 @@
         "value": "/nethome/ebachelet/Desktop/pyDANDIA/pyDANDIA/tests/data/proc",
 	"format":"S200",
 	"unit":""
-    },     
+    },
+    "verbose": {
+        "comment": "verbose - INT - Switch for additional logging output (1 = YES : 0 = NO : Default Value = 1).", 
+        "value": 1,
+	"format":"int",
+	"unit":""
+    },   
     "back_var": {
         "comment": "back_var - INT - Switch for a spatially variable differential background (1 = YES : 0 = NO : Default Value = 1).", 
         "value": 1,
