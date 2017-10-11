@@ -49,11 +49,10 @@ def run_stage0(setup):
                                     pipeline_config,log=log)
 
     data = find_all_images(reduction_metadata, 
-                                os.path.join(setup.red_dir,'data'),
-                                verbose=True,log=log)
+                                os.path.join(setup.red_dir,'data'),log=log)
                                 
     new_images = find_images_need_to_be_process(reduction_metadata, data, 
-                                verbose=False, log=log)
+                                log=log)
     
     
     if len(reduction_metadata.data_inventory[1])==0:
@@ -65,35 +64,35 @@ def run_stage0(setup):
         update_reduction_metadata_headers_summary_with_new_images(
                             reduction_metadata, new_images, log=log)
         
-        open_image = open_an_image(
+        open_image = open_an_image(reduction_metadata,
                     reduction_metadata.data_architecture[1]['IMAGES_PATH'][0], 
-                    new_images[0],image_index=0, verbose=True, log=log)
+                    new_images[0],image_index=0, log=log)
         
         update_reduction_metadata_stamps(reduction_metadata, open_image,
                      stamp_size=None, 
                      arcseconds_stamp_size=(60, 60),
                      pixel_scale=None, 
-                     number_of_overlaping_pixels=25,
-                     verbose=False, log=log)
+                     number_of_overlaping_pixels=25, log=log)
         
         set_bad_pixel_mask_directory(reduction_metadata, 
                      bpm_directory_path=os.path.join(setup.red_dir,'data'), 
-                     verbose=False, log=log)
+                     log=log)
         
-        log.info('Updating metadata with info on new images...')
-        for new_image in new_images:
-            open_image = open_an_image( 
-                reduction_metadata.data_architecture[1]['IMAGES_PATH'][0],
-                new_image, image_index=0, verbose=True, log=log)
+        logs.ifverbose(log,reduction_metadata,'Updating metadata with info on new images...')
             
-            bad_pixel_mask = open_an_image( 
+        for new_image in new_images:
+            open_image = open_an_image(reduction_metadata,
+                reduction_metadata.data_architecture[1]['IMAGES_PATH'][0],
+                new_image, image_index=0, log=log)
+            
+            bad_pixel_mask = open_an_image(reduction_metadata, 
                 reduction_metadata.data_architecture[1]['BPM_PATH'][0],
-                new_image, image_index=2, verbose=True, log=log)
+                new_image, image_index=2, log=log)
             
             construct_the_pixel_mask(open_image, bad_pixel_mask, [1,3],
                              saturation_level=65535, low_level=0, log=log)
-            
-            log.info(' -> '+new_image)
+                             
+            logs.ifverbose(log,reduction_metadata,' -> '+new_image)
         
         construct_the_pixel_mask(open_image, bad_pixel_mask, [1,3],
                          saturation_level=65535, low_level=0, log=log)
@@ -205,11 +204,9 @@ def set_bad_pixel_mask_directory(reduction_metadata, bpm_directory_path=None,
                                            new_column_format=None,
                                            new_column_unit=None)
     
-    if verbose == True and log != None:
-        log.info('Set bad pixel mask directory')
+    logs.ifverbose(log,reduction_metadata,'Set bad pixel mask directory')
 
-def find_all_images(reduction_metadata, images_directory_path=None, 
-                    verbose=False, log=None):
+def find_all_images(reduction_metadata, images_directory_path=None, log=None):
     '''
     This found all the images.
 
@@ -237,30 +234,29 @@ def find_all_images(reduction_metadata, images_directory_path=None,
 
         if list_of_images == []:
 
-            if verbose == True and log != None:
-                log.info('No images to process. I take a rest :)')
+            logs.ifverbose(log,reduction_metadata,
+                                   'No images to process. I take a rest :)')
 
             return None
 
 
         else:
 
-            if verbose == True and log != None:
-                log.info('Found ' + str(len(list_of_images)) + \
-                        ' images in this dataset')
+            logs.ifverbose(log,reduction_metadata,
+                           'Found ' + str(len(list_of_images)) + \
+                           ' images in this dataset')
 
             return list_of_images
 
     except:
 
-        if verbose == True and log != None:
-            log.info('Something went wrong on images search!')
+        logs.ifverbose(log,reduction_metadata,
+                           'Something went wrong on images search!')
 
         return None
 
 
-def find_images_need_to_be_process(reduction_metadata, list_of_images, 
-                                   verbose=False, log=None):
+def find_images_need_to_be_process(reduction_metadata, list_of_images,log=None):
     '''
     This founds the images that need to be processed by the pipeline, i.e not already done.
 
@@ -288,8 +284,8 @@ def find_images_need_to_be_process(reduction_metadata, list_of_images,
             for name in list_of_images:
 
                 if name not in old_images:
-                    if verbose == True and log != None:
-                        log.info(name + ' is a new image to treat!')
+                    logs.ifverbose(log,reduction_metadata,
+                                   name + ' is a new image to treat!')
                     new_images.append(name)
 
     except:
@@ -302,8 +298,8 @@ def find_images_need_to_be_process(reduction_metadata, list_of_images,
     return new_images
 
 
-def open_an_image(image_directory, image_name, image_index=0, 
-                  verbose=False, log=None):
+def open_an_image(reduction_metadata, image_directory, image_name, 
+                  image_index=0, log=None):
     '''
     Simply open an image using astropy.io.fits
 
@@ -319,8 +315,8 @@ def open_an_image(image_directory, image_name, image_index=0,
     '''
     image_directory_path = image_directory
     
-    if verbose == True and log != None:
-        log.info('Attempting to open image '+os.path.join(image_directory_path,image_name))
+    logs.ifverbose(log,reduction_metadata,
+    'Attempting to open image '+os.path.join(image_directory_path,image_name))
     
     try:
 
@@ -328,13 +324,12 @@ def open_an_image(image_directory, image_name, image_index=0,
                                mmap=True)
         image_data = image_data[image_index]
     
-        if verbose == True and log != None:
-            log.info(image_name + ' open : OK')
+        logs.ifverbose(log,reduction_metadata,image_name + ' open : OK')
     
         return image_data
+        
     except:
-        if verbose == True and log != None:
-            log.info(image_name + ' open : not OK!')
+        logs.ifverbose(log,reduction_metadata,image_name + ' open : not OK!')
 
         return None
 
@@ -630,8 +625,9 @@ def update_reduction_metadata_headers_summary_with_new_images(reduction_metadata
     '''
     
     for image_name in new_images:
-        open_image = open_an_image(reduction_metadata.data_architecture[1]['IMAGES_PATH'][0], 
-                                   image_name, verbose=False,log=log)
+        open_image = open_an_image(reduction_metadata,
+                                   reduction_metadata.data_architecture[1]['IMAGES_PATH'][0], 
+                                   image_name, log=log)
         
         header_infos = parse_the_image_header(reduction_metadata, open_image)
 
@@ -651,8 +647,8 @@ def update_reduction_metadata_headers_summary_with_new_images(reduction_metadata
     if log != None:
         log.info('Added data on new images to the metadata')
 
-def construct_the_stamps(open_image, stamp_size=None, arcseconds_stamp_size=(60, 60), pixel_scale=None,
-                         number_of_overlaping_pixels=25, verbose=False):
+def construct_the_stamps(reduction_metadata, open_image, stamp_size=None, arcseconds_stamp_size=(60, 60), pixel_scale=None,
+                         number_of_overlaping_pixels=25,log=None):
     '''
     Define the stamps for an image variable kernel definition
 
@@ -685,8 +681,10 @@ def construct_the_stamps(open_image, stamp_size=None, arcseconds_stamp_size=(60,
             x_stamp_size = int(arcseconds_stamp_size[1] / pixel_scale)
 
         except:
-            print('No pixel scale found!')
-            sys.exit(1)
+            status = 'ERROR'
+            report = 'No pixel scale found!'
+            log.info(status + ': '+report)
+            return status, report, np.zeros(1)
 
     x_stamps_center = np.arange(x_stamp_size / 2, full_image_x_size, x_stamp_size)
     y_stamps_center = np.arange(y_stamp_size / 2, full_image_y_size, y_stamp_size)
@@ -712,13 +710,15 @@ def construct_the_stamps(open_image, stamp_size=None, arcseconds_stamp_size=(60,
     stamps = [[j * (i + 1), stamps_y_min[i, j], stamps_y_max[i, j], stamps_x_min[i, j], stamps_x_max[i, j]]
               for i in range(stamps_x_min.shape[0]) for j in range(stamps_x_min.shape[1])]
 
-    return np.array(stamps)
+    status = 'OK'
+    report = 'Completed successfully'
+    return status, report, np.array(stamps)
 
 
 def update_reduction_metadata_stamps(reduction_metadata, open_image,
                                      stamp_size=None, arcseconds_stamp_size=(60, 60),
                                      pixel_scale=None, number_of_overlaping_pixels=25,
-                                     verbose=False, log=None):
+                                     log=None):
     '''
     Create the stamps definition in the reduction_metadata
 
@@ -728,7 +728,6 @@ def update_reduction_metadata_stamps(reduction_metadata, open_image,
     :param tuple arcseconds_stamp_size: list of integer give the X,Y stamp size in arcseconds units
     :param float pixel_scale: pixel scale of the CCD, in arcsec/pix
     :param int number_of_overlaping_pixels : half of  number of pixels in both direction you want overlaping
-    :param boolean verbose: switch to True to have more informations
 
     '''
 
@@ -737,8 +736,9 @@ def update_reduction_metadata_stamps(reduction_metadata, open_image,
     else:
         pixel_scale = float(reduction_metadata.headers_summary[1]['PIXEL_SCALE'][0])
 
-    stamps = construct_the_stamps(open_image, stamp_size, arcseconds_stamp_size, pixel_scale,
-                                  number_of_overlaping_pixels, verbose)
+    (status, report, stamps) = construct_the_stamps(reduction_metadata, 
+                                open_image, stamp_size, arcseconds_stamp_size, 
+                                pixel_scale,number_of_overlaping_pixels,log=log)
 
     names = ['PIXEL_INDEX', 'Y_MIN', 'Y_MAX', 'X_MIN', 'X_MAX']
     formats = ['int', 'S200', 'S200', 'S200', 'S200']
@@ -746,8 +746,7 @@ def update_reduction_metadata_stamps(reduction_metadata, open_image,
 
     reduction_metadata.create_stamps_layer(names, formats, units, stamps)
 
-    if log != None:
-        log.info('Updated reduction metadata stamps')
+    logs.ifverbose(log,reduction_metadata,'Updated reduction metadata stamps')
 
 def create_reduction_metadata_data_inventory(reduction_metadata, new_images, 
                                              status=0, log=None):
