@@ -297,7 +297,7 @@ def detect_sources(meta, scidata, log):
 ###############################################################################
 # Command line section
 if __name__ == '__main__':
-    path_to_image = '../trials/data/lsc1m005-fl15-20170614-0130-e91.fits'
+    #path_to_image = '../trials/data/lsc1m005-fl15-20170614-0130-e91.fits'
     path_to_image = '../trials/data/lsc1m005-fl15-20170614-0188-e91.fits'
     
     setup = ReductionSetup()

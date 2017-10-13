@@ -1,7 +1,7 @@
 {
     "instrid": {
         "comment": "instrid - STRING  - The instrument name.", 
-        "value": "my_instrument_name",
+        "value": "fl06",
 	"format":"S200",
 	"unit":""
     },     
@@ -85,7 +85,7 @@
     },    
     "fov": {
         "comment": "fov - DOUBLE - Field of view of the CCD camera (deg). This parameter should be positive and less than or equal to 90.0 (Default value = 0.1).", 
-        "value": 0.1,
+        "value": 0.196,
 	"format":"float",
 	"unit":"deg"
     }, 
@@ -97,7 +97,7 @@
     },
     "ron": {
         "comment": "ron - DOUBLE - CCD readout noise (ADU). This parameter should be non-negative (Default value = 0.0)", 
-        "value": 0.0,
+        "value": 7.90,
 	"format":"float",
 	"unit":"adu"
     }, 
@@ -109,7 +109,7 @@
     }, 
     "imagex2": {
         "comment": "imagex2 - INT - Image region bottom left hand corner (x1,y1) and top right hand corner (x2,y2) in pixel number coordinates.", 
-        "value": 1000,
+        "value": 4096,
 	"format":"int",
 	"unit":"pixel"
     }, 
@@ -121,13 +121,13 @@
     }, 
     "imagey2": {
         "comment": "imagey2 - INT - Image region bottom left hand corner (x1,y1) and top right hand corner (x2,y2) in pixel number coordinates.", 
-        "value": 1000,
+        "value": 4096,
 	"format":"int",
 	"unit":"pixel"
     }, 
     "maxval": {
         "comment": "maxval - DOUBLE - Maximum useful pixel value in a raw image (ADU).", 
-        "value": 80000.0,
+        "value": 90000.0,
 	"format":"float",
 	"unit":"adu"
     }, 
