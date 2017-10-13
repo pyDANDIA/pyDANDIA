@@ -48,17 +48,24 @@ def get_args():
     """Function to acquire the commandline arguments needed to run a stage
     of pyDANDIA in stand alone mode."""
     
-    helptext = '''              RUN STAGE STAND ALONE
+    helptext = """              RUN STAGE STAND ALONE
             
             Call sequence is:
-            > python run_stage.py [stage] [path to reduction directory]
+            > python run_stage.py [stage] [path to reduction directory] [-v]
             
             where stage is the name of the stage or code to be run, one of:
                 stage0, stage1, starfind
             
             and the path to the reduction directory is given to the dataset
             to be processed
-            '''
+            
+            The optional -v flag controls the verbosity of the pipeline 
+            logging output.  Values 
+            N can be:
+            -v 0 [Default] Essential logging output only, written to log file. 
+            -v 1           Detailed logging output, written to log file.
+            -v 2           Detailed logging output, written to screen and to log file.
+            """
     
     params = {}
     
