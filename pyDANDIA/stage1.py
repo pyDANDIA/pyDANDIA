@@ -25,7 +25,7 @@ import metadata
 import stage0
 import logs
 
-def run_stage1(setup, verbosity=0):
+def run_stage1(setup, verbosity=2):
     """Main driver function to run stage 1 of pyDANDIA: measurement of image 
     properties. This stage populates the metadata with the FWHM and sky 
     background for each image.
