@@ -5,10 +5,11 @@ Created on Mon Oct  9 11:01:19 2017
 @author: rstreet
 """
 from os import getcwd, path, remove
-from sys import argv
+from sys import argv, exit
 from sys import path as systempath
 cwd = getcwd()
 systempath.append(path.join(cwd,'../'))
+import pipeline_setup
 import stage0
 import stage1
 import logs
@@ -29,7 +30,6 @@ def reduction_control():
 
     setup = get_args()
     
-    
     log = logs.start_pipeline_log(setup.red_dir, 'reduction_control', 
                                   version=reduction_version)
 
@@ -41,41 +41,58 @@ def reduction_control():
     
     logs.close_log(log)
 
-class ReductionSetup:
-    """Class describing the fundamental parameters needed to identify
-    a single-dataset reduction and trigger its reduction
-    """
-    
-    def __init__(self):
-        self.red_dir = None
-        self.log_dir = None
-        self.pipeline_config_dir = None
-        self.software_dir = getcwd()
-        
-    def summary(self):
-        output = 'Reduction directory: '+repr(self.red_dir)+'\n'+\
-                'Log directory: '+repr(self.log_dir)+'\n'+\
-                'Pipeline configuration directory: '+repr(self.pipeline_config_dir)+'\n'+\
-                'Software directory: '+repr(self.software_dir)
-        return output
-        
+
 def get_args():
     """Function to obtain the command line arguments necessary to run a 
     single-dataset reduction."""
     
-    setup = ReductionSetup()
+    helptext = """
+                    pyDANDIA Reduction Control
+    
+    Main driver program to run pyDANDIA in pipeline mode for a single dataset. 
+    
+    Command and options:
+    > python reduction_control.py red_dir_path [-v N ]
+    
+    where red_dir_path is the path to a dataset's reduction directory
+    
+    The -v flag controls the verbosity of the pipeline logging output.  Values 
+    N can be:
+    -v 0 [Default] Essential logging output only, written to log file. 
+    -v 1           Detailed logging output, written to log file.
+    -v 2           Detailed logging output, written to screen and to log file.
+
+    To display information on options:    
+    > python reduction_control.py -help
+    """
+        
+    if '-help' in argv:
+        print(helptext)
+        exit()
+    
+    params = {}
     
     if len(argv) == 1:
         
-        setup.red_dir = raw_input('Please enter the path to the datasets reduction directory: ')
+        params['red_dir'] = raw_input('Please enter the path to the datasets reduction directory: ')
     
     else:
         
-        setup.red_dir = argv[1]
+        params['red_dir'] = argv[1]
     
-    setup.log_dir = path.join(setup.red_dir,'..','logs')
-    setup.pipeline_config_dir = path.join(setup.red_dir,'..','configs')
-    setup.software_dir = getcwd()
+    if '-v' in argv:
+        
+        idx = argv.index('-v')
+        
+        if len(argv) >= idx + 1:
+            
+            params['verbosity'] = int(argv[idx+1])
+        
+    params['log_dir'] = path.join(params['red_dir'],'..','logs')
+    params['pipeline_config_dir'] = path.join(params['red_dir'],'..','configs')
+    params['software_dir'] = getcwd()
+    
+    setup= pipeline_setup.pipeline_setup(params)
     
     return setup
     

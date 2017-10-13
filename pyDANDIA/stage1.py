@@ -47,10 +47,10 @@ def run_stage1(setup, verbosity=0):
         print ('Setup:\n'+setup.summary()+'\n')
     
     # Create or load the metadata file
-    reduction_metadata = stage0.create_or_load_the_reduction_metadata(
+    reduction_metadata = stage0.create_or_load_the_reduction_metadata(setup,
                                     setup.red_dir, 
                                     metadata_name='pyDANDIA_metadata.fits', 
-                                    verbose=True,log=log)
+                                    log=log)
                                     
     # Collect the image files
     images = glob.glob(os.path.join(setup.red_dir,'data','*fits'))

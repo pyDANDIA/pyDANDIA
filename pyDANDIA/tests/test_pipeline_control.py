@@ -10,28 +10,30 @@ from sys import argv
 from sys import path as systempath
 cwd = getcwd()
 systempath.append(path.join(cwd,'../'))
+import pipeline_setup
 import pipeline_control
 import logs
 
 TEST_DATA = path.join(cwd,'data')
+
 VERSION = 'test_pipeline_control v0.1'
 
-def test_pipeline_setup():
-    """Function to test the initial set-up of the pipeline"""
-
-    test_setup = pipeline_control.PipelineSetup()
-    
-    setup = pipeline_control.pipeline_setup(debug=True)
-    
-    assert type(setup) == type(test_setup)
-    
-
+params = {'red_dir': path.join(cwd, 'data', 'proc', 
+                                   'ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip'), 
+              'log_dir': path.join(cwd, 'data', 'proc', 
+                                   'logs'),
+              'pipeline_config_dir': path.join(cwd, 'data', 'proc', 
+                                   'configs'),
+              'software_dir': path.join(cwd, '..'),
+              'verbosity': 2
+            }
+            
 def test_get_datasets():
     """Function to test the function which identifies which datasets
     should be reduced.
     """
 
-    setup = pipeline_control.pipeline_setup(debug=True)
+    setup = pipeline_setup.pipeline_setup(params)
     
     log = logs.start_pipeline_log(setup.log_dir, 'test_pipeline_control', 
                                version=VERSION)
@@ -45,9 +47,7 @@ def test_get_datasets():
 def test_trigger_reduction():
     """Function to test the spawning of reduction processes"""
     
-    setup = pipeline_control.pipeline_setup(debug=True)
-
-    print setup.log_dir
+    setup = pipeline_setup.pipeline_setup(params)
 
     log = logs.start_pipeline_log(setup.log_dir, 'test_pipeline_control', 
                                version=VERSION)

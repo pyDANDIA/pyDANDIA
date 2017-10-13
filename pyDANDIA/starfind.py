@@ -29,7 +29,7 @@ from astropy import units as u
 from photutils import background, detection, DAOStarFinder
 from photutils import CircularAperture
 import matplotlib.pyplot as plt
-from reduction_control import ReductionSetup
+import pipeline_setup
 import time
 from datetime import datetime
 import sys
@@ -295,20 +295,25 @@ def detect_sources(meta, scidata, log):
 
 
 ###############################################################################
-# Command line section
-if __name__ == '__main__':
-    path_to_image = '../trials/data/lsc1m005-fl15-20170614-0130-e91.fits'
-    path_to_image = '../trials/data/lsc1m005-fl15-20170614-0188-e91.fits'
+def run_starfind(setup):
+    """Function to enable starfind to be run from the commandline"""
+
+    params = {}
+            
+    params['ref_image'] = raw_input('Please enter the path to the image to be analyzed: ')
+    opt = raw_input('Do you want diagnosic plots output? T or F [default: F]: ')
+    if 'T' in str(opt).upper():
+        params['plot'] = True
+    else:
+        params['plot'] = False
     
-    setup = ReductionSetup()
-    setup.red_dir = os.path.join(os.getcwd(),'tests','data')
-    setup.log_dir = os.getcwd()
-    setup.pipeline_config_dir = os.path.join(os.getcwd(),'tests','data','proc','config')
-    setup.software_dir = os.getcwd()
+    log = logs.start_pipeline_log(params['red_dir'], 'starfind')
+
+    setup = pipeline_setup(params)    
     
-    log = logs.start_pipeline_log(setup.red_dir, 'starfind')
-                         
-    (status, report, params) = starfind(setup, path_to_image, plot_it=False, 
+    (status, report, params) = starfind(setup, params['ref_image'], 
+                                        plot_it=params['plot'], 
                                         log=log)
     logs.close_log(log)
     
+    return status, report

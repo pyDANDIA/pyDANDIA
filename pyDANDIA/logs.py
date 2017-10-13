@@ -72,12 +72,14 @@ def start_stage_log( log_dir, stage_name, version=None ):
         
     return log
 
-def ifverbose(log,metadata,string):
+def ifverbose(log,setup,string):
     """Function to write to a logfile only if the verbose parameter in the 
     metadata is set to True"""
     
-    if log != None and metadata.reduction_parameters[1]['VERBOSE'][0] == 1:
+    if log != None and setup.verbosity >= 1:
         log.info(string)
+    if setup.verbosity == 2:
+        print(string)
 
 def close_log(log):
     """Function to cleanly shutdown logging functions with a final timestamped

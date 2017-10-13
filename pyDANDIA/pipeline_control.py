@@ -9,6 +9,7 @@ from sys import argv
 from sys import path as systempath
 cwd = getcwd()
 systempath.append(path.join(cwd,'../'))
+import pipeline_setup
 import glob
 import subprocess
 import logs
@@ -20,7 +21,7 @@ def pipeline_control():
     
     pipeline_version = 'pipeline_control v0.1'
     
-    setup = pipeline_setup()
+    setup = get_pipeline_setup()
 
     log = logs.start_pipeline_log(setup.log_dir, 'pipeline_control', 
                                version=pipeline_version)
@@ -32,42 +33,32 @@ def pipeline_control():
     logs.close_log(log)
     
     
-class PipelineSetup:
-    """Class describing the fundamental parameters needed to identify
-    a single-dataset reduction and trigger its reduction
-    """
-    
-    def __init__(self):
-        self.base_dir = None
-        self.log_dir = None
-        self.pipeline_config_dir = None
-        self.software_dir = getcwd()
-
-
-def pipeline_setup(debug=False):
+def get_args(debug=False):
     """Function to acquire the necessary commandline arguments to run
     pyDANDIA in pipeline mode."""
     
-    setup = PipelineSetup()
+    params = {}
     
     if debug == True:
         
-        setup.base_dir = cwd
+        params['red_dir'] = cwd
         
     elif debug == False and len(argv) == 1:
         
-        setup.base_dir = raw_input('Please enter the path to the base directory: ')
+        params['red_dir'] = raw_input('Please enter the path to the base directory: ')
         
     elif debug == False and len(argv) > 1:
 
-        setup.base_dir = argv[1]
+        params['red_dir'] = argv[1]
     
-    if path.isdir(setup.base_dir) == False:
+    if path.isdir(params['red_dir']) == False:
         
-        print('ERROR: Cannot find reduction base directory '+setup.base_dir)
+        print('ERROR: Cannot find reduction base directory '+params['red_dir'])
     
-    setup.log_dir = path.join(setup.base_dir,'logs')
-    setup.pipeline_config_dir = path.join(setup.base_dir,'configs')
+    params['log_dir'] = path.join(params['red_dir'],'logs')
+    params['pipeline_config_dir'] = path.join(params['red_dir'],'configs')
+    
+    setup = pipeline_setup.PipelineSetup(params)
     
     return setup
     
