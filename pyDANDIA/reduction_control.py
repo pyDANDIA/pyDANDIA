@@ -30,7 +30,7 @@ def reduction_control():
 
     setup = get_args()
     
-    log = logs.start_pipeline_log(setup.red_dir, 'reduction_control', 
+    log = logs.start_pipeline_log(setup.red_dir, 'reduction_control',
                                   version=reduction_version)
 
     (status,report,meta_data) = stage0.run_stage0(setup)
