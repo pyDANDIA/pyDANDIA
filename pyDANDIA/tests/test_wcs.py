@@ -34,14 +34,14 @@ def test_reference_astrometry():
     
     detected_sources = catalog_utils.read_source_catalog(detected_sources_file)
     
-    wcs.reference_astrometry(log,image_path,detected_sources)
+    ref_source_catalog = wcs.reference_astrometry(log,image_path,detected_sources)
     
     assert path.isfile(path.join(TEST_DATA,'reference_detected_sources_pixels.png')) == True
     assert path.isfile(path.join(TEST_DATA,'reference_detected_sources_world.png')) == True
     assert path.isfile(path.join(TEST_DATA,'astrometry_separations.png')) == True
     assert path.isfile(path.join(TEST_DATA,'star_catalog.fits')) == True
     
-    logs.close_stage_log(log)
+    logs.close_log(log)
     
 
 def test_search_vizier_for_objects_in_fov():
