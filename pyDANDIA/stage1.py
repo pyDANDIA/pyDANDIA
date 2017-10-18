@@ -32,7 +32,7 @@ def run_stage1(setup):
     background for each image.
     Input: setup - is an instance of the ReductionSetup class. See 
            reduction_control.py
-    Output: updates the 'data_inventory' layer in the metadata file
+    Output: updates the 'image_stats' layer in the metadata file
     """
 
     stage1_version = 'stage1 v0.1'
@@ -40,15 +40,27 @@ def run_stage1(setup):
     log = logs.start_stage_log(setup.red_dir, 'stage1', version=stage1_version)
     log.info('Setup:\n' + setup.summary() + '\n')
 
-    # Create or load the metadata file
-    reduction_metadata = stage0.create_or_load_the_reduction_metadata(setup,
-                                                                      setup.red_dir,
-                                                                      metadata_name='pyDANDIA_metadata.fits',
-                                                                      log=log)
+    # Load the metadata file
+
+    reduction_metadata = metadata.MetaData()
+    try:
+        reduction_metadata.load_all_metadata(metadata_directory=setup.red_dir,
+                                             metadata_name='pyDANDIA_metadata.fits')
+        
+        logs.ifverbose(log,setup,'Successfully loaded the reduction metadata')
+    except:
+        logs.ifverbose(log,setup,'No metadata loaded : check this!')
+        
+        sys.exit(1)
 
     # Collect the image files
-    images = glob.glob(os.path.join(setup.red_dir, 'data', '*fits'))
+    #images = glob.glob(os.path.join(setup.red_dir, 'data', '*fits'))
 
+    images = reduction_metadata.find_images_need_to_be_process(setup,
+                                     reduction_metadata=reduction_metadata,
+                                     list_of_images=setup.red_dir,
+                                     log=None)
+    
     log.info('Analyzing ' + str(len(images)) + ' images')
 
     # The configuration file specifies the header information for
@@ -58,7 +70,7 @@ def run_stage1(setup):
     gain = conf_dict['gain']['value']
     read_noise = conf_dict['ron']['value']
 
-    # Create new layer called 'data_inventory' in the metadata file
+    # Create new layer called 'image_stats' in the metadata file
     # (if it doesn't already exist)
     table_structure = [
         ['IM_NAME', 'FWHM_X', 'FWHM_Y', 'SKY', 'CORR_XY'],
@@ -66,11 +78,11 @@ def run_stage1(setup):
         [None, 'arcsec', 'arcsec', 'ADU_counts', None]
     ]
 
-    reduction_metadata.create_a_new_layer(layer_name='data_inventory',
+    reduction_metadata.create_a_new_layer(layer_name='image_stats',
                                           data_structure=table_structure,
                                           data_columns=None)
 
-    log.info('Created data inventory table in metadata')
+    log.info('Created image_stats table in metadata')
     log.info('Running starfind on all images')
 
     # For the set of given images, set the metadata information
@@ -83,7 +95,7 @@ def run_stage1(setup):
 
         logs.ifverbose(log,setup,'Processing image %s' % imname)
 
-        # Add a new row to the data_inventory layer
+        # Add a new row to the image_stats layer
         # (if it doesn't already exist)
         entry = [
             imname,
@@ -93,15 +105,15 @@ def run_stage1(setup):
             params['corr_xy']
         ]
 
-        reduction_metadata.add_row_to_layer(key_layer='data_inventory',
+        reduction_metadata.add_row_to_layer(key_layer='image_stats',
                                             new_row=entry)
 
     # Save the updated layer to the metadata file
     reduction_metadata.save_a_layer_to_file(metadata_directory=setup.red_dir,
                                             metadata_name='pyDANDIA_metadata.fits',
-                                            key_layer='data_inventory')
+                                            key_layer='image_stats')
 
-    log.info('Updated the data inventory table in metadata')
+    log.info('Updated the image_stats table in metadata')
 
     status = 'OK'
     report = 'Completed successfully'

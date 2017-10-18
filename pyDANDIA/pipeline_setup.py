@@ -42,8 +42,22 @@ def pipeline_setup(params):
         
         if key in params.keys():
         
-            setup.log_dir = params[key]
-    
+            if key == 'log_dir':
+                
+                setup.log_dir = params[key]
+            
+            elif key == 'pipeline_config_dir':
+                
+                setup.pipeline_config_dir = params[key]
+            
+            elif key == 'software_dir':
+                
+                setup.software_dir = params[key]
+            
+            elif key == 'verbosity':
+            
+                setup.verbosity = params[key]
+        
         else:
             
             if key == 'log_dir':
@@ -54,7 +68,7 @@ def pipeline_setup(params):
                 
                 setup.pipeline_config_dir = path.join(setup.red_dir,
                                                               '..','configs')
-        
+            
             elif key == 'software_dir':
                 
                 setup.software_dir = getcwd()
