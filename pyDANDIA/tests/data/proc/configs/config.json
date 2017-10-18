@@ -1,7 +1,7 @@
 {
     "proc_data": {
         "comment": "proc_data - STRING - The full path to the reduction directory.", 
-        "value": "/nethome/ebachelet/Desktop/pyDANDIA/pyDANDIA/tests/data/proc",
+        "value": "/home/Tux/ytsapras/Programs/Workspace/pyDANDIA/pyDANDIA/tests/data/proc",
 	"format":"S200",
 	"unit":""
     },
@@ -29,18 +29,6 @@
 	"format":"S200",
 	"unit":""
     }, 
-    "datekey": {
-        "comment": "datekey - STRING - Header keyword recording the date (universal time) at the start of the observation. The value of this keyword should be a STRING of the format YYYY-MM-DDxxx...xxx where YYYY-MM-DD is a valid date and xxx...xxx represents a string of arbitrary characters of any length.", 
-        "value": "DATE-OBS",
-	"format":"S200",
-	"unit":"day"
-    }, 
-    "deckey": {
-        "comment": "deckey - STRING - Header keyword recording the declination (J2000) of the observation. The value of this keyword should be a STRING of the format pDD:MM:SS.SSS, where pDD:MM:SS.SSS is an angle between +-90 degrees in sexagesimal format.", 
-        "value": "DEC",
-	"format":"S200",
-	"unit":"deg"
-    }, 
     "det_thresh": {
         "comment": "det_thresh - DOUBLE - Detection threshold used to detect stars in units of image sky sigma. This parameter should be positive (Default value = 3.0).", 
         "value": 3.0,
@@ -59,35 +47,11 @@
 	"format":"float",
 	"unit":""
     }, 
-    "expkey": {
-        "comment": "expkey - STRING - Header keyword recording the image exposure time in seconds. The value of this keyword should be a NUMBER with a non-negative value, or a STRING that represents a valid non-negative number.", 
-        "value": "EXPTIME",
-	"format":"S200",
-	"unit":""
-    }, 
-    "filtkey": {
-        "comment": "filtkey - STRING - Header keyword recording the filter employed. The value of this keyword should be a STRING.", 
-        "value": "FILTER2",
-	"format":"S200",
-	"unit":""
-    }, 
     "flim": {
         "comment": "flim - DOUBLE - Minimum contrast between the Laplacian image and the fine structure image. This parameter should be positive (Default value = 2.0).", 
         "value": 2.0,
 	"format":"float",
 	"unit":""
-    }, 
-    "fov": {
-        "comment": "fov - DOUBLE - Field of view of the CCD camera (deg). This parameter should be positive and less than or equal to 90.0 (Default value = 0.1).", 
-        "value": 0.1,
-	"format":"float",
-	"unit":"deg"
-    }, 
-    "gain": {
-        "comment": "gain - DOUBLE - CCD gain (e-/ADU). This parameter should be positive (Default value = 1.0)", 
-        "value": 1.0,
-	"format":"float",
-	"unit":"e/adu"
     }, 
     "grow": {
         "comment": "grow - DOUBLE - Controls the amount of overlap between the image regions used for the kernel solutions (Default value = 0.0).", 
@@ -112,30 +76,6 @@
         "value": 0,
 	"format":"int",
 	"unit":""
-    }, 
-    "imagex1": {
-        "comment": "imagex1 - INT - Image region bottom left hand corner (x1,y1) and top right hand corner (x2,y2) in pixel number coordinates.", 
-        "value": 1,
-	"format":"int",
-	"unit":"pixel"
-    }, 
-    "imagex2": {
-        "comment": "imagex2 - INT - Image region bottom left hand corner (x1,y1) and top right hand corner (x2,y2) in pixel number coordinates.", 
-        "value": 1000,
-	"format":"int",
-	"unit":"pixel"
-    }, 
-    "imagey1": {
-        "comment": "imagey1 - INT - Image region bottom left hand corner (x1,y1) and top right hand corner (x2,y2) in pixel number coordinates.", 
-        "value": 1,
-	"format":"int",
-	"unit":"pixel"
-    }, 
-    "imagey2": {
-        "comment": "imagey2 - INT - Image region bottom left hand corner (x1,y1) and top right hand corner (x2,y2) in pixel number coordinates.", 
-        "value": 1000,
-	"format":"int",
-	"unit":"pixel"
     }, 
     "init_mthresh": {
         "comment": "init_mthresh - DOUBLE - Initial distance threshold (pix) to reject false star matches. This parameter should be positive (Default value = 1.0).", 
@@ -170,12 +110,6 @@
     "max_sky": {
         "comment": "max_sky - DOUBLE - Largest acceptable value of the sky background for an image to be used in the combined reference image (ADU : Default value = 5000).", 
         "value": 5000,
-	"format":"float",
-	"unit":"adu"
-    }, 
-    "maxval": {
-        "comment": "maxval - DOUBLE - Maximum useful pixel value in a raw image (ADU).", 
-        "value": 80000.0,
 	"format":"float",
 	"unit":"adu"
     }, 
@@ -245,12 +179,6 @@
 	"format":"float",
 	"unit":""
     }, 
-    "minval": {
-        "comment": "minval - DOUBLE - Minimum useful pixel value in a raw image (ADU).", 
-        "value": 1.0,
-	"format":"float",
-	"unit":""
-    }, 
     "niter_cos": {
         "comment": "niter_cos - INT - Maximum number of iterations to perform. This parameter should be positive (Default value = 4).", 
         "value": 4,
@@ -261,36 +189,6 @@
         "comment": "niter_ker - INT - Maximum number of iterations to perform when determining the kernel solution (Default value = 3),", 
         "value": 3,
 	"format":"int",
-	"unit":""
-    }, 
-    "obskey": {
-        "comment": "obskey - STRING  - Header keyword recording the observation type.", 
-        "value": "OBSTYPE",
-	"format":"S200",
-	"unit":""
-    }, 
-    "obskeyb": {
-        "comment": "obskeyb - STRING - Value of the observation type header keyword for a bias frame.", 
-        "value": "BIAS",
-	"format":"S200",
-	"unit":""
-    }, 
-    "obskeyd": {
-        "comment": "obskeyd - STRING - Value of the observation type header keyword for a dark frame.", 
-        "value": "DARK",
-	"format":"S200",
-	"unit":""
-    }, 
-    "obskeyf": {
-        "comment": "obskeyf - STRING - Value of the observation type header keyword for a flat frame.", 
-        "value": "SKYFLAT",
-	"format":"S200",
-	"unit":""
-    }, 
-    "obskeys": {
-        "comment": "obskeys - STRING - Value of the observation type header keyword for a science frame.", 
-        "value": "EXPOSE",
-	"format":"S200",
 	"unit":""
     }, 
     "oscanauto": {
@@ -308,30 +206,6 @@
     "oscanpro": {
         "comment": "oscanpro - INT - Switch for bias level correction (0 = No bias level correction : 1 = Single constant bias level correction : 2 = Per-image constant overscan correction : 3 = Vector overscan correction per image row : 4 = Vector overscan correction per image column : Default value = 0).", 
         "value": 0,
-	"format":"int",
-	"unit":""
-    }, 
-    "oscanx1": {
-        "comment": "oscanx1 - INT - Overscan region bottom left hand corner (x1,y1) and top right hand corner (x2,y2) in pixel number coordinates.", 
-        "value": 1,
-	"format":"int",
-	"unit":""
-    }, 
-    "oscanx2": {
-        "comment": "oscanx2 - INT - Overscan region bottom left hand corner (x1,y1) and top right hand corner (x2,y2) in pixel number coordinates.", 
-        "value": 1,
-	"format":"int",
-	"unit":""
-    }, 
-    "oscany1": {
-        "comment": "oscany1 - INT - Overscan region bottom left hand corner (x1,y1) and top right hand corner (x2,y2) in pixel number coordinates.", 
-        "value": 1,
-	"format":"int",
-	"unit":""
-    }, 
-    "oscany2": {
-        "comment": "oscany2 - INT - Overscan region bottom left hand corner (x1,y1) and top right hand corner (x2,y2) in pixel number coordinates.", 
-        "value": 1,
 	"format":"int",
 	"unit":""
     }, 
@@ -377,23 +251,11 @@
 	"format":"float",
 	"unit":""
     }, 
-    "rakey": {
-        "comment": "rakey - STRING - Header keyword recording the right ascension (J2000) of the observation. The value of this keyword should be a STRING of the format HH:MM:SS.SSS, where HH:MM:SS.SSS is a valid time.", 
-        "value": "RA",
-	"format":"S200",
-	"unit":"h"
-    }, 
     "replace_cr": {
         "comment": "replace_cr - INT - Switch for replacing pixel values that have been contaminated by cosmic ray events (0 = NO : 1 = YES : Default value = 0).", 
         "value": 0,
 	"format":"int",
 	"unit":""
-    }, 
-    "ron": {
-        "comment": "ron - DOUBLE - CCD readout noise (ADU). This parameter should be non-negative (Default value = 0.0)", 
-        "value": 0.0,
-	"format":"float",
-	"unit":"adu"
     }, 
     "sigclip": {
         "comment": "sigclip - DOUBLE - Threshold in units of sigma for cosmic ray detection on the Laplacian image. This parameter should be positive (Default value = 4.5).", 
@@ -437,12 +299,6 @@
 	"format":"int",
 	"unit":""
     }, 
-    "timekey": {
-        "comment": "timekey - STRING - Header keyword recording the universal time at the start of the observation. The value of this keyword should be a NUMBER in hours, or a STRING of the format HH:MM:SS.SSS, where HH:MM:SS.SSS is a valid time.", 
-        "value": "UTSTART",
-	"format":"S200",
-	"unit":""
-    }, 
     "trans_auto": {
         "comment": "trans_auto - INT - Switch for automatic determination of the coordinate transformation type when fitting a coordinate transformation between two images (0 = Pre-defined transformation type : 1 = Automatic transformation type : Default value = 0).", 
         "value": 0,
@@ -465,12 +321,6 @@
         "comment": "var_deg - INT - Polynomial degree of the spatial variation of the model used to represent the image PSF (0 = Constant : 1 = Linear : 2 = Quadratic : 3 = Cubic : Default value = 0).", 
         "value": 1,
 	"format":"int",
-	"unit":""
-    },
-    "pixeL_scale": {
-        "comment": "pixeL_scale - STRING - The pixel scale header keyword", 
-        "value": "PIXSCALE",
-	"format":"S200",
 	"unit":""
     }
 }

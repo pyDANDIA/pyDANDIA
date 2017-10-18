@@ -34,12 +34,14 @@ def stage3(red_dir):
     
         sources = starfind.detect_sources(meta,scidata,log)
         
-        ref_source_catalog = wcs.reference_astrometry(log,\
-                                                    meta.reference_image_path,\
-                                                    detected_sources,\
+        ref_source_catalog = wcs.reference_astrometry(log,
+                                                    meta.reference_image_path,
+                                                    detected_sources,
                                                     diagnostics=True)
     
-    # Select PSF stars
+    psf_stars_idx = psf_selection.psf_star_selection(setup,reduction_metadata,
+                                                     log,ref_star_catalog,
+                                                    diagnostics=True)
     
     # In subregions: generate PSF models
     
