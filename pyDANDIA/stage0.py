@@ -660,6 +660,8 @@ def update_reduction_metadata_headers_summary_with_new_images(setup,
     '''
 
     for image_name in new_images:
+        layer = reduction_metadata.headers_summary[1]
+
         open_image = open_an_image(setup, reduction_metadata.data_architecture[1]['IMAGES_PATH'][0],
                                    image_name, log=log)
 
@@ -668,9 +670,15 @@ def update_reduction_metadata_headers_summary_with_new_images(setup,
         names = np.append('IMAGES', header_infos[:, 0])
         values = np.append(image_name, header_infos[:, 1])
         formats = np.append('S200', header_infos[:, 2])
+       
+        if layer:
+            if image_name in layer['IMAGES']:
+                index_image = np.where(image_name == layer['IMAGES'])[0][0]
+                reduction_metadata.update_row_to_layer('headers_summary', index_image, values)
 
-        if reduction_metadata.headers_summary[1]:
-            reduction_metadata.add_row_to_layer('headers_summary', values)
+            else:
+
+                reduction_metadata.add_row_to_layer('headers_summary', values)
 
         else:
 
