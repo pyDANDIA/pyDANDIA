@@ -77,11 +77,11 @@
 	"format":"S200",
 	"unit":""
     },
-    "pixeL_scale": {
-        "comment": "pixeL_scale - STRING - The pixel scale header keyword", 
-        "value": "PIXSCALE",
-	"format":"S200",
-	"unit":""
+    "pix_scale": {
+        "comment": "pix_scale - DOUBLE - The pixel scale in arcsec per pixel", 
+        "value": 0.389,
+	"format":"float",
+	"unit":"arcsec/pixel"
     },    
     "fov": {
         "comment": "fov - DOUBLE - Field of view of the CCD camera (deg). This parameter should be positive and less than or equal to 90.0 (Default value = 0.1).", 
