@@ -268,6 +268,7 @@ class MetaData:
 
 
         '''
+            
         metadata = fits.open(path.join(metadata_directory,metadata_name), mmap=True)
 
         layer = metadata[key_layer]

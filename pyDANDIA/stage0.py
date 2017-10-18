@@ -161,21 +161,23 @@ def create_or_load_the_reduction_metadata(setup,output_metadata_directory,
     try:
 
         meta_data_exist = [i for i in os.listdir(output_metadata_directory) if (i == metadata_name)]
-
+    
         if meta_data_exist == []:
-
+    
             reduction_metadata = metadata.MetaData()
-
+    
             reduction_metadata.create_metadata_file(output_metadata_directory, metadata_name)
-
+    
             logs.ifverbose(log,setup,
-                           'Successfully created the reduction metadata file')
-
+                           'Successfully created the reduction metadata file at:'+\
+                           os.path.join(output_metadata_directory, metadata_name))
+    
         else:
-
+    
             reduction_metadata = metadata.MetaData()
             reduction_metadata.load_all_metadata(output_metadata_directory, metadata_name)
-            logs.ifverbose(log,setup,'Successfully found the reduction metadata')
+            logs.ifverbose(log,setup,'Successfully found the reduction metadata at:'+\
+                           os.path.join(output_metadata_directory, metadata_name))
     except:
 
         logs.ifverbose(log,setup,'No metadata created or loaded : check this!')
