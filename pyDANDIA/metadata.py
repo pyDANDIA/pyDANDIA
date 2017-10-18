@@ -552,7 +552,14 @@ class MetaData:
             log.info('Updated the reduction status layer')
 
     def set_all_reduction_status_to_0(self, log=None):
+        '''
+            Update the reduction_status layer with all image of the stage set to status
 
+            :param object reduction_metadata: the metadata object
+            :param list new_images: list of string with the new images names
+            :param int status: status of stage0 reducitonfor a frame. 0 : not done
+                                                                      1 : done
+        '''
 
 
         if self.reduction_status:
