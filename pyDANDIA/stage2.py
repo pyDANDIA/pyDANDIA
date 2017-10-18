@@ -44,12 +44,9 @@ def run_stage2(setup):
     log = logs.start_stage_log(setup.red_dir, 'stage2', version=stage2_version)
     log.info('Setup:\n' + setup.summary() + '\n')
 
-    # Create or load the metadata file
-    reduction_metadata = stage0.create_or_load_the_reduction_metadata(
-        setup.red_dir,
-        metadata_name='pyDANDIA_metadata.fits',
-        verbose=True, log=log)
-
+    # Load all metadata
+    reduction_metadata = metadata.load_all_metadata(
+        setup.red_dir, 'pyDANDIA_metadata.fits')
     # Check data inventory on metadata
 
     try:
@@ -58,21 +55,14 @@ def run_stage2(setup):
         log.info('stage2: data inventory missing.')
         status = 'FAILED'
         report = 'Data inventory (stage1) missing.'
+        logs.close_log(log)
         return status, report, reduction_metadata
 
-    # The configuration file should specify basic parameters for the selection
-    config_file_path = os.path.join(setup.pipeline_config_dir, 'config.json')
-    conf_dict = config_utils.read_config(config_file_path)
-    print conf_dict['gain']['value']
-    print conf_dict['ron']['value']
-
-    gain = conf_dict['gain']['value']
-    read_noise = conf_dict['ron']['value']
+    # All parameters are part of metadata
 
     table_structure = [
-        ['INSTRUMENT', 'FILTER', 'MOONDIST',
-            'MOONFRAC', 'MOONSTATUS', 'RANKING_KEY'],
-        ['S100', 'S100', 'float', 'float', 'S100'],
+        ['IMAGE_NAME', 'MOON_STATUS', 'RANKING_KEY'],
+        ['S100', 'S100', 'float'],
         ['degree', None,  None]
     ]
 
@@ -82,67 +72,24 @@ def run_stage2(setup):
 
     log.info('Create reference frame inventory table in metadata')
 
-    #  Iterate over images, check that theyhave been processed by stage1
-    #  open image header, open corresponding config
-    #  prepare reference for each instrument, filter and binning
+    # Iterate over images that are in the stage inventory
 
-    filename_images = glob.glob(os.path.join(setup.red_dir, 'data', '*fits'))
-    reference_ranking = {}
+    reference_ranking = []
 
-    # dictionary for accessing inventory entries with a filename as key
-    filename_dict = {key: i for i, key in enumerate(
-        reduction_metadata.data_inventory[1]['IM_NAME'])}
+    # taking filenames from headers_summary (stage1 change pending)
+    filename_images = reduction_metadata.headers_summary[1]['IMAGES']
 
-    instrument_config_dictionary = {}
+    for stats_entry in reduction_metadata.imagestats[1]:
+        image_filename = stats_entry[0]
+        moon_status = 'dark'
+        # to be reactivated as soon as it is part of metadata
+        # if 'MOONFRAC' in header and 'MOONDIST' in header:
+        #    moon_status = moon_brightness_header(header)
 
-    for image_filename in filename_images:
-
-        # The name of the image
-        rootname = image_filename.split('/')[-1]
-        if rootname in reduction_metadata.data_inventory[1]['IM_NAME']:
-
-            hdulist = fits.open(
-                path.join(image_filename, setup.red_dir, 'data', '*fits'))
-            header = hdulist[0].header
-            hdulist.closed()
-
-            if 'MOONFRAC' in header and 'MOONDIST' in header:
-                moon = moon_brightness_header(header)
-            else:
-                moon = 'dark'
-
-            # extract data inventory row for image and calculate sorting key
-            inventory_entry = reduction_metadata.data_inventory[1][filename_dict[image_filename]]
-            instrument_file_path = os.path.join(
-                setup.pipeline_config_dir, 'config_fl03.json')
-            instrument_dict = config_utils.read_config(config_file_path)
-
-            ranking_key = add_stage1_rank(inventory_entry, conf_dict)
-
-            instrument_filter_key = header['INSTRUME'] + \
-                '_' + header['FILTER2']
-            if not instrument_filter_key in reference_ranking:
-                reference_ranking[instrument_filter_key] = [ranking_key]
-            else:
-                reference_ranking[instrument_filter_key].append(ranking_key)
-
-            if not header['INSTRUME'] in instrument_config_dictionary:
-                instrument_file_path = os.path.join(
-                    setup.pipeline_config_dir, 'config_' + header['INSTRUME'] + '.json')
-                instrument_dict = config_utils.read_config(config_file_path)
-            # Add a new row to the reference inventory layer
-            # instrument and filter keyword should come from config, tbfixed...
-
-                entry = [image_filename,
-                         header['INSTRUME'],
-                         header['FILTER2'],
-                         header['MOONDIST'],
-                         header['MOONFRAC'],
-                         header['MOONSTATUS'],
-                         ranking_key
-                         ]
-
-        print(entry)
+        # extract data inventory row for image and calculate sorting key
+        ranking_key = add_stage1_rank(reduction_metadata, stats_entry)
+        reference_ranking.append([image_filename, ranking_key])
+        entry = [image_filename, moon_status, ranking_key]
         reduction_metadata.add_row_to_layer(key_layer='reference_inventory',
                                             new_row=entry)
 
@@ -160,13 +107,27 @@ def run_stage2(setup):
     if reference_ranking != []:
         best_image = sorted(reference_ranking, key=itemgetter(1))[-1]
         print best_image
+        ref_directory_path = os.path.join(setup.red_dir, 'ref')
+        if not os.path.exists(ref_directory_path):
+            os.mkdir(ref_directory_path)
 
-        # reduction_metadata.save_updated_metadata(
-        # reduction_metadata.data_architecture[1]['REF_DIRECTORY_'][0],
-        # log=log)
+        ref_img_path = os.path.join(
+            reduction_metadata.data_architecture[1]['IMAGES_PATH'], best_image)
+
+        reduction_metadata.add_column_to_layer('data_architecture',
+                                               'REF_PATH', [
+                                                   ref_directory_path],
+                                               new_column_format=None,
+                                               new_column_unit=None)
+        reduction_metadata.add_column_to_layer('data_architecture',
+                                               'REF_IMAGE', [ref_image_path],
+                                               new_column_format=None,
+                                               new_column_unit=None)
+
         status = 'OK'
         report = 'Completed successfully'
         log.info('Updating metadata with info on new images...')
+        logs.close_log(log)
         return status, report, reduction_metadata
 
     else:
@@ -195,41 +156,25 @@ def moon_brightness_header(header):
             return 'bright'
 
 
-def add_header_rank(image_name, header, data_inventory):
-    '''Image ranking based on header values
-    '''
-    magzero_electrons = 1.47371235e+09
-    if check_header_thresholds(header) == True:
-        signal_electrons = 10.0**(-0.4 * electrons_per_second_sinistro(
-            target_magnitude)) * header['EXPTIME'] * header['GAIN']
-        sky = header['L1MEDIAN']
-        sky_electrons = sky * header['GAIN']
-        # Simplified number of pixels for optimal aperture photometry
-        npix = np.pi * header['PIXSCALE'] * (0.67 * header['L1FWHM'])**2
-        readout_noise = header['RDNOISE']
-        signal_to_noise_metric.append([image_name, (signal_electrons) / (
-            signal_electrons + npix * (sky_electrons + readout_noise**2))**0.5])
-
-
-def add_stage1_rank(data_inventory_entry, instrument_dict):
+def add_stage1_rank(reduction_metadata, image_stats_entry):
     '''Image ranking based on the data_inventory (stage1 metadata)
     '''
-    target_magnitude = 17.  # TO BE PART OF CONF DICT
+    target_magnitude = 17.  # to be defined in metadata
     magzero_electrons = 1.47371235e+09
     # needs to be updated so that the corresponding values
     # can be configured
     signal_electrons = 10.0**(-0.4 * electrons_per_second_sinistro(
-        magzero_electrons, target_magnitude)) * instrument_dict['gain']['value']  # * exptime tbd
-    sky = data_inventory_entry['SKY']
-    sky_electrons = sky * instrument_dict['gain']['value']
+        magzero_electrons, target_magnitude)) * reduction_metadata.reduction_parameters[1]['GAIN'] * reduction_metadata.headers_summary[1]['EXPKEY']
+    sky = image_stats_entry['SKY']
+    sky_electrons = sky * reduction_metadata.reduction_parameters[1]['GAIN']
     # Simplified number of pixels for optimal aperture photometry
-    fwhm_avg = (data_inventory_entry['FWHM_X'] **
-                2 + data_inventory_entry['FWHM_Y']**2)**0.5
+    fwhm_avg = (image_stats_entry['FWHM_X'] **
+                2 + image_stats_entry['FWHM_Y']**2)**0.5
     npix = np.pi * \
-        instrument_dict['pixeL_scale']['value'] * (0.67 * fwhm_avg)**2
-    readout_noise = instrument_dict['ron']['value']
-    signal_to_noise_metric.append([data_inventory_entry['IM_NAME'], (signal_electrons) / (
-        signal_electrons + npix * (sky_electrons + readout_noise**2))**0.5])
+        reduction_metadata.reduction_paramters[1]['PIXEL_SCALE'] * (
+            0.67 * fwhm_avg)**2
+    readout_noise = reduction_metadata.reduction_parameters[1]['RON']
+    return (signal_electrons) / (signal_electrons + npix * (sky_electrons + readout_noise**2))**0.5
 
 
 def electrons_per_second_sinistro(mag, magzero_electrons):
@@ -246,5 +191,4 @@ def check_header_thresholds(moon_status, stage1_entry):
     Check for images that cannot be used as reference image
     however small the FWHM was. 
     '''
-    criteria = [moon_brightness_header != 'bright', int(
-        header['NPFWHM']) > 25, float(header['ELLIP']) > 0.9]
+    criteria = [moon_brightness_header != 'bright']
