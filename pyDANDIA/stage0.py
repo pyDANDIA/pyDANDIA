@@ -103,7 +103,7 @@ def run_stage0(setup):
                                      log=log)
 
         logs.ifverbose(log, setup, 'Updating metadata with info on new images...')
-       
+
         for new_image in new_images:
             open_image = open_an_image(setup, reduction_metadata.data_architecture[1]['IMAGES_PATH'][0],
                                        new_image, image_index=0, log=log)
