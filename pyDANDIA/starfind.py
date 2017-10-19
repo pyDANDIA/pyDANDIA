@@ -280,12 +280,20 @@ def starfind(setup, path_to_image, plot_it=False, log=None):
 
 
 ###############################################################################
-def detect_sources(meta, scidata, log):
-    """Function to detect all sources in the given image"""
+def build_star_finder(reduction_metadata, scidata, log):
+    """Function to construct a DAOStarFinder object to detect point sources
+    in an image"""
     
     det_threshold = 5.0 * meta.sky_bkgd_sig
     
     daofind = DAOStarFinder(fwhm=meta.avg_fwhm, threshold=det_threshold)
+    
+    return daofind
+
+def detect_sources(reduction_metadata, scidata, log):
+    """Function to detect all sources in the given image"""
+        
+    daofind = build_star_finder(reduction_metadata, scidata, log)
     
     sources = daofind(scidata)
     
