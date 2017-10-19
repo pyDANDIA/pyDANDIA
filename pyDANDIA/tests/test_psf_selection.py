@@ -133,6 +133,8 @@ def test_id_crowded_stars():
         
         assert j not in star_index
     
+    logs.close_log(log)
+    
 if __name__ == '__main__':
     
     test_id_crowded_stars()

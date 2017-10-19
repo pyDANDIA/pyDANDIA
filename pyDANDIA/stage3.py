@@ -27,6 +27,7 @@ def stage3(red_dir):
     log = logs.start_stage_log(meta.log_dir, 'stage3', version=VERSION)
     
     status = sanity_checks(meta,log)
+    
     if status == True:
         
         scidata = fits.getdata(meta.reference_image_path)
@@ -39,7 +40,7 @@ def stage3(red_dir):
                                                     detected_sources,
                                                     diagnostics=True)
     
-    psf_stars_idx = psf_selection.psf_star_selection(setup,reduction_metadata,
+        psf_stars_idx = psf_selection.psf_star_selection(setup,reduction_metadata,
                                                      log,ref_star_catalog,
                                                     diagnostics=True)
     
