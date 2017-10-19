@@ -40,13 +40,32 @@ import config_utils
 import psf
 
 ###############################################################################
-def starfind(setup, path_to_image, plot_it=False, log=None):
-    '''
-    The routine will quickly identify stars in a given image and return
+def starfind(setup, path_to_image, reduction_metadata, plot_it=False,
+                                                           log=None):
+    """
+    The routine will quickly identify stars in a given image and return 
     a star list and image quality parameters. The output is to be used
     to select suitable candidate images for constructing a template
     reference image.
-    '''
+    
+    :param object setup: this is an instance of the ReductionSetup class. See
+                         reduction_control.py
+    
+    :param string path_to_image: The full path to the image to be processed.
+    
+    :param object reduction_metadata: The reduction metadata object from
+                         which to extract the saturation value.
+    
+    :param boolean plot_it: Do you want to plot the selected stars?
+    
+    :param string log: Full The full path to the log file.
+    
+    :return status, report, params: the first two are strings reporting whether
+                          the stage was completed successfully. params is 
+                          a dictionary with the image quality parameters.
+    
+    :rtype string, string, dictionary
+    """
     
     imname = path_to_image.split('/')[-1]
     
@@ -62,20 +81,6 @@ def starfind(setup, path_to_image, plot_it=False, log=None):
     
     # Get size of image
     ymax, xmax = scidata.shape
-    
-    # Read metadata file and get saturation limit
-    reduction_metadata = metadata.MetaData()
-    
-    try:
-        reduction_metadata.load_all_metadata(metadata_directory=setup.red_dir,
-                                             metadata_name='pyDANDIA_metadata.fits')
-        
-        logs.ifverbose(log,setup,'Successfully loaded the reduction metadata')
-    except:
-        
-        logs.ifverbose(log,setup,'No metadata loaded : check this!')
-        
-        sys.exit(1)
     
     # If it is a large image, consider 250x250 pixel subregions and
     # choose the one with the fewest saturated pixels to evaluate stats
@@ -306,9 +311,19 @@ def detect_sources(meta, scidata, log):
 
 
 ###############################################################################
-def run_starfind(setup):
-    """Function to enable starfind to be run from the commandline"""
-
+def run_starfind(setup, reduction_metadata):
+    """
+    Function to enable starfind to be run from the commandline
+    
+    :param object setup: this is an instance of the ReductionSetup class. See
+                         reduction_control.py
+    :param object reduction_metadata: the metadata object
+    
+    :return status, report: two strings reporting whether the stage was 
+                            completed successfully
+    :rtype string, string
+    """
+    
     params = {}
             
     params['ref_image'] = raw_input('Please enter the path to the image to be analyzed: ')
@@ -322,7 +337,8 @@ def run_starfind(setup):
 
     setup = pipeline_setup(params)    
     
-    (status, report, params) = starfind(setup, params['ref_image'], 
+    (status, report, params) = starfind(setup, params['ref_image'],
+                                        reduction_metadata,
                                         plot_it=params['plot'], 
                                         log=log)
     logs.close_log(log)
