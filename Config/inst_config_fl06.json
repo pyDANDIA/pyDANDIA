@@ -137,6 +137,18 @@
 	"format":"float",
 	"unit":""
     }, 
+    "moondkey": {
+        "comment": "moondkey - STRING - Header keyword recording the Lunar distance from target (deg).", 
+        "value": "MOONDIST",
+	"format":"S200",
+	"unit":""
+    },     
+    "moonfkey": {
+        "comment": "moonfkey - STRING - Header keyword recording the Lunar distance from target (deg).", 
+        "value": "MOONFRAC",
+	"format":"S200",
+	"unit":""
+    },     
     "oscanx1": {
         "comment": "oscanx1 - INT - Overscan region bottom left hand corner (x1,y1) and top right hand corner (x2,y2) in pixel number coordinates.", 
         "value": 1,
