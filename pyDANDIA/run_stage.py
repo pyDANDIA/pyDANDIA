@@ -32,8 +32,17 @@ def run_stage_stand_alone():
         (status, report) = stage1.run_stage1(setup)
 
     elif params['stage'] == 'starfind':
+        reduction_metadata = metadata.MetaData()
+        try:
+            reduction_metadata.load_all_metadata(metadata_directory=setup.red_dir,
+                                                 metadata_name='pyDANDIA_metadata.fits')
         
-        (status, report) = starfind.run_starfind(setup)
+        except:
+            status = 'ERROR'
+            report = 'Could not load the metadata file.'
+            return status, report
+
+        (status, report) = starfind.run_starfind(setup, reduction_metadata)
 
     else:
         
