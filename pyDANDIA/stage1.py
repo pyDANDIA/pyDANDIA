@@ -57,7 +57,7 @@ def run_stage1(setup, rerun_all=None):
         logs.ifverbose(
             log, setup, 'Successfully loaded the reduction metadata')
     except:
-        logs.info(log, setup, 'No metadata loaded : check this!')
+        log.info('No metadata loaded : check this!')
         status = 'ERROR'
         report = 'Could not load the metadata file.'
         return status, report
@@ -79,8 +79,7 @@ def run_stage1(setup, rerun_all=None):
     if len(images) != 0:
         log.info('Analyzing ' + str(len(images)) + ' images')
     else:
-        logs.info(
-            log, setup, 'No new images for stage1 to process. Exiting stage1.')
+        log.info('No new images for stage1 to process. Exiting stage1.')
         status = 'OK'
         report = 'Completed successfully'
         return status, report
