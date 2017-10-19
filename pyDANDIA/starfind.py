@@ -16,7 +16,7 @@
 #
 # version 0.1a (development)
 #
-# Last update: 11 Oct 2017
+# Last update: 19 Oct 2017
 ###############################################################################
 
 import numpy as np
@@ -29,6 +29,7 @@ from astropy import units as u
 from photutils import background, detection, DAOStarFinder
 from photutils import CircularAperture
 import matplotlib.pyplot as plt
+import metadata
 import pipeline_setup
 import time
 from datetime import datetime
@@ -62,23 +63,33 @@ def starfind(setup, path_to_image, plot_it=False, log=None):
     # Get size of image
     ymax, xmax = scidata.shape
     
-    # Read configuration file and get saturation limit
-    config_file_path = os.path.join(setup.pipeline_config_dir, 'config.json')
-    config = config_utils.read_config(config_file_path)
+    # Read metadata file and get saturation limit
+    reduction_metadata = metadata.MetaData()
+    
+    try:
+        reduction_metadata.load_all_metadata(metadata_directory=setup.red_dir,
+                                             metadata_name='pyDANDIA_metadata.fits')
+        
+        logs.ifverbose(log,setup,'Successfully loaded the reduction metadata')
+    except:
+        
+        logs.ifverbose(log,setup,'No metadata loaded : check this!')
+        
+        sys.exit(1)
     
     # If it is a large image, consider 250x250 pixel subregions and
     # choose the one with the fewest saturated pixels to evaluate stats
     try:
-
-        saturation = config['maxval']['value']
+        
+        saturation = reduction_metadata.reduction_parameters[1]['MAXVAL']
         
     except:
-
+        
         if log != None:
             
             status = 'ERROR'
             report = ('Could not extract the saturation parameter '
-	              'from the configuration file.')
+                      'from the configuration file.')
             
             log.info(report)
             
@@ -120,7 +131,7 @@ def starfind(setup, path_to_image, plot_it=False, log=None):
     daofind = DAOStarFinder(fwhm=3.0, threshold=5.*std)
     
     sources = daofind(scidata[besty1:besty2,bestx1:bestx2] - median)
-
+    
     # Write steps to a log file
     if log != None:
         log.info("Identifying sources on image %s ...\n" % path_to_image.split('/')[-1])
@@ -263,7 +274,7 @@ def starfind(setup, path_to_image, plot_it=False, log=None):
         positions = (sources['xcentroid'], sources['ycentroid'])
         apertures = CircularAperture(positions, r=4.)    
         norm = ImageNormalize(interval=AsymmetricPercentileInterval(10,40), 
-	                      stretch=SqrtStretch())
+                              stretch=SqrtStretch())
         plt.imshow(temp, cmap='gray', origin='lower', norm=norm)
         plt.title("Data")
         #plt.colorbar()
