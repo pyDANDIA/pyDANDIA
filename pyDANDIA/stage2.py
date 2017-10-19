@@ -10,19 +10,16 @@
 
 import numpy as np
 import os
-from astropy.io import fits
 import sys
+from astropy.io import fits
 
 import config_utils
 from astropy.table import Table
-from astropy.nddata import Cutout2D
 from operator import itemgetter
 
 import metadata
 import pixelmasks
 import logs
-import stage0
-
 
 def run_stage2(setup):
     """Main driver function to run stage 2: reference selection.
@@ -37,6 +34,7 @@ def run_stage2(setup):
 
     If stage1 has failed to produce output it selects a reference
     based on header information.
+    
     """
 
     stage2_version = 'stage2 v0.1'
@@ -50,7 +48,7 @@ def run_stage2(setup):
     # Check data inventory on metadata
 
     try:
-        n_images = len(reduction_metadata.data_inventory)
+        n_images = len(reduction_metadata.images_stats)
     except AttributeError:
         log.info('stage2: data inventory missing.')
         status = 'FAILED'
@@ -77,9 +75,9 @@ def run_stage2(setup):
     reference_ranking = []
 
     # taking filenames from headers_summary (stage1 change pending)
-    filename_images = reduction_metadata.headers_summary[1]['IMAGES']
+    filename_images = reduction_metadata.images_stats[1]['IM_NAME']
 
-    for stats_entry in reduction_metadata.imagestats[1]:
+    for stats_entry in reduction_metadata.images_stats[1]:
         image_filename = stats_entry[0]
         moon_status = 'dark'
         # to be reactivated as soon as it is part of metadata
@@ -98,11 +96,6 @@ def run_stage2(setup):
                                             metadata_name='pyDANDIA_metadata.fits',
                                             key_layer='reference_inventory')
 
-    # to be completed
-    # add ranking for data_inventory images
-    for instrument_key in reference_ranking:
-        for img_data in reduction_metadata.data_inventory[1]:
-            reference_ranking.append(add_stage0_rank(img_data, conf_dict))
 
     if reference_ranking != []:
         best_image = sorted(reference_ranking, key=itemgetter(1))[-1]
@@ -131,7 +124,7 @@ def run_stage2(setup):
         return status, report, reduction_metadata
 
     else:
-        status = 'OK'
+        status = 'FAILED'
         report = 'No suitable image found.'
 
         log.info('No reference image found...')
@@ -141,12 +134,15 @@ def run_stage2(setup):
 
 
 def moon_brightness_header(header):
-    '''
+    """
     Based on header information, determine if image was
     taken with bright/gray or dark moon
     roughly following the ESO definitions
     https://www.eso.org/sci/observing/phase2/ObsConditions.html
-    '''
+    
+    :param list header: header or metadata dictionary
+    
+    """
     if float(header['MOONFRAC']) < 0.4:
         return 'dark'
     else:
@@ -157,8 +153,12 @@ def moon_brightness_header(header):
 
 
 def add_stage1_rank(reduction_metadata, image_stats_entry):
-    '''Image ranking based on the data_inventory (stage1 metadata)
-    '''
+    """
+    Image ranking based on the data_inventory (stage1 metadata)
+
+    :param object reduction_metadata: the metadata object
+    
+    """
     target_magnitude = 17.  # to be defined in metadata
     magzero_electrons = 1.47371235e+09
     # needs to be updated so that the corresponding values
@@ -178,17 +178,18 @@ def add_stage1_rank(reduction_metadata, image_stats_entry):
 
 
 def electrons_per_second_sinistro(mag, magzero_electrons):
-    '''
+    """
     Temporary definition of electrons per second for a given
     camera. Ideally, the coefficients used here should be
-     provided in each instrument file.
-    '''
+    provided in each instrument file.
+    :param object mag: the metadata object
+    """
     return magzero_electrons * 10.**(-0.4 * mag)
 
 
 def check_header_thresholds(moon_status, stage1_entry):
-    '''
+    """
     Check for images that cannot be used as reference image
     however small the FWHM was. 
-    '''
+    """
     criteria = [moon_brightness_header != 'bright']
