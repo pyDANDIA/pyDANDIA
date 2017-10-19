@@ -11,10 +11,9 @@ cwd = os.getcwd()
 sys.path.append(os.path.join(cwd,'../'))
 import numpy as np
 import logs
-import psf_selection
-import random
 import pipeline_setup
 import metadata
+import photometry
 
 TEST_DIR = os.path.join(cwd,'data','proc','ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip')
 
@@ -32,8 +31,12 @@ def test_run_iterative_PSF_photometry():
                                               'reduction_parameters' )
 
     log.info('Read metadata')
-
-    ref_image_path = reduction_metadata.reduction_parameters[1]['REF_IMAGE_PATH'][0]
+    
+    # NOTE: Once stage 2 is complete, the reference image path should be
+    # extracted directly from the metadata.
+    reduction_metadata.reference_image_path = os.path.join(TEST_DIR,'ref',
+                                                           'ref_image.fits')
+    ref_image_path = reduction_metadata.reference_image_path
     
     log.info('Performing PSF fitting photometry on '+ref_image_path)
 
