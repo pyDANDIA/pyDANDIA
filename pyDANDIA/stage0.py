@@ -15,7 +15,6 @@ from astropy.io import fits
 import sys
 
 import config_utils
-from astropy.table import Table
 from astropy.nddata import Cutout2D
 
 # from pyDANDIA import metadata
@@ -39,8 +38,7 @@ def run_stage0(setup):
     log = logs.start_stage_log(setup.red_dir, 'stage0', version=stage0_version)
     log.info('Setup:\n' + setup.summary() + '\n')
 
-
-    #find and update the pipeline config
+    # find and update the pipeline config
     pipeline_config = read_the_config_file(setup.pipeline_config_dir, log=log)
 
     reduction_metadata = create_or_load_the_reduction_metadata(setup,
@@ -51,12 +49,12 @@ def run_stage0(setup):
     update_reduction_metadata_with_config_file(reduction_metadata,
                                                pipeline_config, log=log)
 
-    #find all images
+    # find all images
 
     all_images = reduction_metadata.find_all_images(setup, reduction_metadata,
                                                     os.path.join(setup.red_dir, 'data'), log=log)
 
-    #find and update the inst pipeline config
+    # find and update the inst pipeline config
 
     image_name = all_images[0]
 
@@ -71,11 +69,11 @@ def run_stage0(setup):
     # as testing purpose, set alwayds the reduction status to 0, i.e rerun_all
     reduction_metadata.set_all_reduction_status_to_0(log=log)
 
-    #find images need to be run, based on the metadata file, if any. If rerun_all = True, force a rereduction
+    # find images need to be run, based on the metadata file, if any. If rerun_all = True, force a rereduction
 
     new_images = reduction_metadata.find_images_need_to_be_process(setup, all_images,
                                                                    stage_number=0, rerun_all=None, log=log)
-    #create new rows on reduction status for new images
+    # create new rows on reduction status for new images
 
     reduction_metadata.update_reduction_metadata_reduction_status(new_images, stage_number=0, status=0, log=log)
 
@@ -112,9 +110,9 @@ def run_stage0(setup):
                                            new_image, image_index=2, log=log)
 
             master_mask = construct_the_pixel_mask(open_image, bad_pixel_mask, [1, 3],
-                                            saturation_level=65535, low_level=0, log=log)
+                                                   saturation_level=65535, low_level=0, log=log)
 
-            save_the_pixel_mask_in_image(reduction_metadata, new_image, open_image, master_mask)
+            save_the_pixel_mask_in_image(reduction_metadata, new_image, master_mask)
             logs.ifverbose(log, setup, ' -> ' + new_image)
 
     reduction_metadata.update_reduction_metadata_reduction_status(new_images, stage_number=0, status=1, log=log)
@@ -410,7 +408,7 @@ def construct_the_bad_pixel_mask(image_bad_pixel_mask, integers_to_flag):
 
         for flag in integers_to_flag:
             # BANZAI definition of bp == 1 or bp == 3
-            index_saturation = np.where((bad_pixel_mask == flag))
+            index_saturation = np.where((image_bad_pixel_mask == flag))
             bad_pixel_mask[index_saturation] = 1
 
 
@@ -549,20 +547,19 @@ def construct_the_pixel_mask(open_image, bad_pixel_mask, integers_to_flag,
     return master_mask
 
 
-def save_the_pixel_mask_in_image(reduction_metadata,image_name, open_image, master_mask):
+def save_the_pixel_mask_in_image(reduction_metadata, image_name, master_mask):
     '''
     Construct the global pixel mask  using a bitmask approach.
 
     :param object reduction_metadata: the metadata object
     :param string image_name: the name of the image
-    :param astropy.image open_image: the opened image
     :param array_like master_mask: the master mask which needs to be kept
 
     '''
     master_pixels_mask = fits.ImageHDU(master_mask)
     master_pixels_mask.name = 'pyDANDIA_PIXEL_MASK'
 
-    open_image = fits.open(os.path.join(reduction_metadata.data_architecture[1]['IMAGES_PATH'][0],image_name))
+    open_image = fits.open(os.path.join(reduction_metadata.data_architecture[1]['IMAGES_PATH'][0], image_name))
 
     try:
         open_image['pyDANDIA_PIXEL_MASK'] = master_pixels_mask
@@ -570,8 +567,7 @@ def save_the_pixel_mask_in_image(reduction_metadata,image_name, open_image, mast
 
         open_image.append(master_pixels_mask)
 
-
-    open_image.writeto(os.path.join(reduction_metadata.data_architecture[1]['IMAGES_PATH'][0],image_name),
+    open_image.writeto(os.path.join(reduction_metadata.data_architecture[1]['IMAGES_PATH'][0], image_name),
                        overwrite=True)
 
 
@@ -660,6 +656,8 @@ def update_reduction_metadata_headers_summary_with_new_images(setup,
     '''
 
     for image_name in new_images:
+        layer = reduction_metadata.headers_summary[1]
+
         open_image = open_an_image(setup, reduction_metadata.data_architecture[1]['IMAGES_PATH'][0],
                                    image_name, log=log)
 
@@ -669,8 +667,14 @@ def update_reduction_metadata_headers_summary_with_new_images(setup,
         values = np.append(image_name, header_infos[:, 1])
         formats = np.append('S200', header_infos[:, 2])
 
-        if reduction_metadata.headers_summary[1]:
-            reduction_metadata.add_row_to_layer('headers_summary', values)
+        if layer:
+            if image_name in layer['IMAGES']:
+                index_image = np.where(image_name == layer['IMAGES'])[0][0]
+                reduction_metadata.update_row_to_layer('headers_summary', index_image, values)
+
+            else:
+
+                reduction_metadata.add_row_to_layer('headers_summary', values)
 
         else:
 
@@ -682,7 +686,7 @@ def update_reduction_metadata_headers_summary_with_new_images(setup,
         log.info('Added data on new images to the metadata')
 
 
-def construct_the_stamps(reduction_metadata, open_image, stamp_size=None, arcseconds_stamp_size=(60, 60),
+def construct_the_stamps(open_image, stamp_size=None, arcseconds_stamp_size=(60, 60),
                          pixel_scale=None,
                          number_of_overlaping_pixels=25, log=None):
     '''
@@ -743,7 +747,8 @@ def construct_the_stamps(reduction_metadata, open_image, stamp_size=None, arcsec
     mask = stamps_x_max > full_image_x_size
     stamps_x_min[mask] = full_image_x_size
 
-    stamps = [[j * (i + 1), stamps_y_min[i, j], stamps_y_max[i, j], stamps_x_min[i, j], stamps_x_max[i, j]]
+    stamps = [[stamps_x_min.shape[1] * i + j, stamps_y_min[i, j], stamps_y_max[i, j], stamps_x_min[i, j],
+               stamps_x_max[i, j]]
               for i in range(stamps_x_min.shape[0]) for j in range(stamps_x_min.shape[1])]
 
     status = 'OK'
@@ -772,8 +777,7 @@ def update_reduction_metadata_stamps(setup, reduction_metadata, open_image,
     else:
         pixel_scale = float(reduction_metadata.reduction_parameters[1]['PIX_SCALE'][0])
 
-    (status, report, stamps) = construct_the_stamps(reduction_metadata,
-                                                    open_image, stamp_size, arcseconds_stamp_size,
+    (status, report, stamps) = construct_the_stamps(open_image, stamp_size, arcseconds_stamp_size,
                                                     pixel_scale, number_of_overlaping_pixels, log=log)
 
     names = ['PIXEL_INDEX', 'Y_MIN', 'Y_MAX', 'X_MIN', 'X_MAX']
