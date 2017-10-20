@@ -384,7 +384,18 @@ class MetaData:
 
         '''
         layer = getattr(self, key_layer)
-        layer[1].add_row(new_row)
+        layer_keys = layer[1].keys()
+
+        first_column = layer[1][layer_keys[0]]
+
+        if new_row[0] in first_column:
+            #update the row, not creating a new one
+            row_index = np.where(new_row[0]==first_column)[0]
+            self.update_row_to_layer(key_layer, row_index, new_row)
+
+        else:
+
+            layer[1].add_row(new_row)
 
     def add_column_to_layer(self, key_layer, new_column_name, new_column_data, new_column_format=None,
                             new_column_unit=None):
@@ -401,7 +412,17 @@ class MetaData:
         '''
 
         layer = getattr(self, key_layer)
-        new_column = Column(new_column_data, name=new_column_name.upper(),
+        layer_keys = layer[1].keys()
+
+        if new_column_name in layer_keys:
+
+            # update the column, not creating a new one
+            self.update_column_to_layer(key_layer, new_column_name, new_column_data)
+
+        else:
+
+
+            new_column = Column(new_column_data, name=new_column_name.upper(),
                             dtype=new_column_format, unit=new_column_unit)
         layer[1].add_column(new_column)
 
@@ -414,6 +435,7 @@ class MetaData:
         :param list new_row: the new line content
 
         '''
+
         layer = getattr(self, key_layer)
         layer[1][row_index] = new_row
 

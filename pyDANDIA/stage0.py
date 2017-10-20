@@ -66,8 +66,7 @@ def run_stage0(setup):
     update_reduction_metadata_with_inst_config_file(reduction_metadata,
                                                     inst_config, log=log)
 
-    # as testing purpose, set alwayds the reduction status to 0, i.e rerun_all
-    reduction_metadata.set_all_reduction_status_to_0(log=log)
+
 
     # find images need to be run, based on the metadata file, if any. If rerun_all = True, force a rereduction
 
@@ -668,13 +667,9 @@ def update_reduction_metadata_headers_summary_with_new_images(setup,
         formats = np.append('S200', header_infos[:, 2])
 
         if layer:
-            if image_name in layer['IMAGES']:
-                index_image = np.where(image_name == layer['IMAGES'])[0][0]
-                reduction_metadata.update_row_to_layer('headers_summary', index_image, values)
 
-            else:
+            reduction_metadata.add_row_to_layer('headers_summary',  values)
 
-                reduction_metadata.add_row_to_layer('headers_summary', values)
 
         else:
 
