@@ -12,6 +12,7 @@ systempath.append(path.join(cwd,'../'))
 import pipeline_setup
 import stage0
 import stage1
+import stage2
 import logs
 
 def reduction_control():
@@ -38,6 +39,9 @@ def reduction_control():
     
     (status, report) = stage1.run_stage1(setup)
     log.info('Completed stage 1 with status '+repr(status)+': '+report)
+
+    (status, report) = stage2.run_stage2(setup)
+    log.info('Completed stage 2with status '+repr(status)+': '+report)
     
     logs.close_log(log)
 

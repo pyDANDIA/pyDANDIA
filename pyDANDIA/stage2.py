@@ -1,3 +1,7 @@
+# -*- coding: utf-8 -*-
+"""
+
+"""
 ######################################################################
 #
 # stage2.py - Second stage of the pipeline.
@@ -8,33 +12,36 @@
 #      astropy 1.0+
 ######################################################################
 
-import numpy as np
+from operator import itemgetter
 import os
 import sys
+import numpy as np
+
 from astropy.io import fits
+from astropy.table import Table
 
 import config_utils
-from astropy.table import Table
-from operator import itemgetter
 
 import metadata
 import pixelmasks
 import logs
 
+
 def run_stage2(setup):
     """Main driver function to run stage 2: reference selection.
 
-    This stage is processing the metadata file, looks for the output of 
+    This stage is processing the metadata file, looks for the output of
     stages0 and stage1 and checks if a reference file already
     exists.
 
     It creates a reference frame based on the selection criteria
-    defined in the configuration. If no such configuration exists, it 
+    defined in the configuration. If no such configuration exists, it
     falls back to a standard configuration.
 
     If stage1 has failed to produce output it selects a reference
     based on header information.
-    
+
+    It always re-runs when called, since it is a lightweight function
     """
 
     stage2_version = 'stage2 v0.1'
@@ -42,10 +49,20 @@ def run_stage2(setup):
     log = logs.start_stage_log(setup.red_dir, 'stage2', version=stage2_version)
     log.info('Setup:\n' + setup.summary() + '\n')
 
+    reduction_metadata = metadata.MetaData()
+
     # Load all metadata
-    reduction_metadata = metadata.load_all_metadata(
-        setup.red_dir, 'pyDANDIA_metadata.fits')
+    try:
+        reduction_metadata.load_all_metadata(metadata_directory=setup.red_dir,
+                                             metadata_name='pyDANDIA_metadata.fits')
+
     # Check data inventory on metadata
+        log.info('stage2 has loaded the reduction metadata')
+    except Exception as estr:
+        log.info('Could not load metadata!' + repr(estr))
+        status = 'FAILED'
+        report = 'Loading metadata failed:' + repr(estr)
+        return status, report
 
     try:
         n_images = len(reduction_metadata.images_stats)
@@ -54,14 +71,14 @@ def run_stage2(setup):
         status = 'FAILED'
         report = 'Data inventory (stage1) missing.'
         logs.close_log(log)
-        return status, report, reduction_metadata
+        return status, report
 
     # All parameters are part of metadata
 
     table_structure = [
         ['IMAGE_NAME', 'MOON_STATUS', 'RANKING_KEY'],
         ['S100', 'S100', 'float'],
-        ['degree', None,  None]
+        ['degree', None, None]
     ]
 
     reduction_metadata.create_a_new_layer(layer_name='reference_inventory',
@@ -96,24 +113,22 @@ def run_stage2(setup):
                                             metadata_name='pyDANDIA_metadata.fits',
                                             key_layer='reference_inventory')
 
-
     if reference_ranking != []:
         best_image = sorted(reference_ranking, key=itemgetter(1))[-1]
-        print best_image
         ref_directory_path = os.path.join(setup.red_dir, 'ref')
         if not os.path.exists(ref_directory_path):
             os.mkdir(ref_directory_path)
 
         ref_img_path = os.path.join(
-            reduction_metadata.data_architecture[1]['IMAGES_PATH'], best_image)
-
+            str(reduction_metadata.data_architecture[1]['IMAGES_PATH'][0]), best_image[0])
+        print 'New reference ', best_image[0], ' in ', ref_img_path
         reduction_metadata.add_column_to_layer('data_architecture',
                                                'REF_PATH', [
                                                    ref_directory_path],
                                                new_column_format=None,
                                                new_column_unit=None)
         reduction_metadata.add_column_to_layer('data_architecture',
-                                               'REF_IMAGE', [ref_image_path],
+                                               'REF_IMAGE', [ref_img_path],
                                                new_column_format=None,
                                                new_column_unit=None)
 
@@ -121,7 +136,7 @@ def run_stage2(setup):
         report = 'Completed successfully'
         log.info('Updating metadata with info on new images...')
         logs.close_log(log)
-        return status, report, reduction_metadata
+        return status, report
 
     else:
         status = 'FAILED'
@@ -130,7 +145,7 @@ def run_stage2(setup):
         log.info('No reference image found...')
         logs.close_log(log)
 
-        return status, report, reduction_metadata
+        return status, report
 
 
 def moon_brightness_header(header):
@@ -139,14 +154,14 @@ def moon_brightness_header(header):
     taken with bright/gray or dark moon
     roughly following the ESO definitions
     https://www.eso.org/sci/observing/phase2/ObsConditions.html
-    
+
     :param list header: header or metadata dictionary
-    
     """
+
     if float(header['MOONFRAC']) < 0.4:
         return 'dark'
     else:
-        if (float(header['MOONFRAC']) > 0.4 and float(header['MOONFRAC']) < 0.7 and float(header['MOONDIST']) > 90.0):
+        if float(header['MOONFRAC']) > 0.4 and float(header['MOONFRAC']) < 0.7 and float(header['MOONDIST']) > 90.0:
             return 'gray'
         else:
             return 'bright'
@@ -157,23 +172,28 @@ def add_stage1_rank(reduction_metadata, image_stats_entry):
     Image ranking based on the data_inventory (stage1 metadata)
 
     :param object reduction_metadata: the metadata object
-    
+
     """
     target_magnitude = 17.  # to be defined in metadata
     magzero_electrons = 1.47371235e+09
+
+    # finding the index of the stats_entry image in the headers
+    header_idx = list(reduction_metadata.headers_summary[1]['IMAGES']).index(
+        image_stats_entry['IM_NAME'])
     # needs to be updated so that the corresponding values
     # can be configured
     signal_electrons = 10.0**(-0.4 * electrons_per_second_sinistro(
-        magzero_electrons, target_magnitude)) * reduction_metadata.reduction_parameters[1]['GAIN'] * reduction_metadata.headers_summary[1]['EXPKEY']
-    sky = image_stats_entry['SKY']
-    sky_electrons = sky * reduction_metadata.reduction_parameters[1]['GAIN']
+        magzero_electrons, target_magnitude)) * float(reduction_metadata.reduction_parameters[1]['GAIN']) * float(reduction_metadata.headers_summary[1][header_idx]['EXPKEY'])
+    sky = float(image_stats_entry['SKY'])
+    sky_electrons = sky * \
+        float(reduction_metadata.reduction_parameters[1]['GAIN'])
     # Simplified number of pixels for optimal aperture photometry
-    fwhm_avg = (image_stats_entry['FWHM_X'] **
-                2 + image_stats_entry['FWHM_Y']**2)**0.5
+    fwhm_avg = (float(image_stats_entry['FWHM_X']) **
+                2 + float(image_stats_entry['FWHM_Y'])**2)**0.5
     npix = np.pi * \
-        reduction_metadata.reduction_paramters[1]['PIXEL_SCALE'] * (
+        float(reduction_metadata.reduction_parameters[1]['PIX_SCALE']) * (
             0.67 * fwhm_avg)**2
-    readout_noise = reduction_metadata.reduction_parameters[1]['RON']
+    readout_noise = float(reduction_metadata.reduction_parameters[1]['RON'])
     return (signal_electrons) / (signal_electrons + npix * (sky_electrons + readout_noise**2))**0.5
 
 
