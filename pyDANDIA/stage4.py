@@ -23,9 +23,11 @@ import logs
 def run_stage4(setup):
     """Main driver function to run stage 4: image alignement.
     This stage align the images to the reference frame!
-    Input: setup - is an instance of the ReductionSetup class. See
-           reduction_control.py
-    Output: prepares the metadata file
+    :param object setup : an instance of the ReductionSetup class. See reduction_control.py
+
+    :return: [status, report, reduction_metadata], the stage4 status, the report, the metadata file
+    :rtype: array_like
+
     """
 
     stage4_version = 'stage4 v0.1'
@@ -57,7 +59,11 @@ def run_stage4(setup):
         except KeyError:
             logs.ifverbose(log, setup,
                            'I can not find any reference image! Aboard stage4')
-            sys.exit(1)
+
+            status = 'KO'
+            report = 'No reference frame found!'
+
+            return status, report, reduction_metadata
 
         data = []
         for new_image in new_images:
@@ -72,17 +78,20 @@ def run_stage4(setup):
 
                 data.append([target_image, x_shift, y_shift])
                 logs.ifverbose(log, setup,
-                           'I found the image translation to the reference for frame:' +new_image)
+                               'I found the image translation to the reference for frame:' + new_image)
 
             except:
 
                 logs.ifverbose(log, setup,
-                   'I can not find the image translation to the reference for frame:' + new_image+'. Aboard stage4!')
-                sys.exit(1)
+                               'I can not find the image translation to the reference for frame:' + new_image + '. Aboard stage4!')
 
+                status = 'KO'
+                report = 'No shift  found for image:' + new_image + ' !'
+
+                return status, report, reduction_metadata
 
         if ('SHIFT_X' in reduction_metadata.images_stats[1].keys()) and (
-                'SHIFT_Y' in reduction_metadata.images_stats[1].keys()):
+                    'SHIFT_Y' in reduction_metadata.images_stats[1].keys()):
 
             for index in range(len(data)):
                 target_image = data[index][0]
@@ -92,7 +101,7 @@ def run_stage4(setup):
                 reduction_metadata.update_a_cell_to_layer('images_stats', row_index, 'SHIFT_X', x_shift)
                 reduction_metadata.update_a_cell_to_layer('images_stats', row_index, 'SHIFT_Y', y_shift)
                 logs.ifverbose(log, setup,
-                       'Updated metadata for image: '+target_image)
+                               'Updated metadata for image: ' + target_image)
         else:
             logs.ifverbose(log, setup,
                            'I have to construct SHIFT_X and SHIFT_Y columns')
@@ -169,24 +178,30 @@ def open_an_image(setup, image_directory, image_name,
 
 
 def find_x_y_shifts_from_the_reference_image(setup, reference_image, target_image, edgefraction=0.5, log=None):
-    '''
-    For a given reference image path pathref
-    and a given image path pathimg
-    the central part with an edge length of
-    edgefraction times full edge length is used
-    to correlate a revised central pixel position
-    '''
+    """
+    Found the pixel offset of the target image with the reference image
+
+    :param object setup: the setup object
+    :param object reference_image: the reference image data (i.e image.data)
+    :param object target_image: the image data of interest (i.e image.data)
+    :param float edgefraction: the percentage of images use for the shift computation (smaller = faster, [0,1])
+    :param object log: the log object
+
+
+    :return: [x_new_center, y_new_center, x_shift, y_shift], the new center and the correspondind shift of this image
+    :rtype: array_like
+    """
 
     reference_shape = reference_image.shape
     if reference_shape != target_image.shape:
         logs.ifverbose(log, setup, 'The reference image and the target image dimensions does not match! Aboard stage4')
         sys.exit(1)
 
-    x_center = reference_shape[0] / 2
-    y_center = reference_shape[1] / 2
+    x_center = int(reference_shape[0] / 2)
+    y_center = int(reference_shape[1] / 2)
 
-    half_x = int(edgefraction * float(reference_shape[0])) / 2
-    half_y = int(edgefraction * float(reference_shape[1])) / 2
+    half_x = int(edgefraction * float(reference_shape[0]) / 2)
+    half_y = int(edgefraction * float(reference_shape[1]) / 2)
 
     reduce_template = reference_image[
                       x_center - half_x:x_center + half_x, y_center - half_y:y_center + half_y]
@@ -202,15 +217,23 @@ def find_x_y_shifts_from_the_reference_image(setup, reference_image, target_imag
 
 
 def correlation_shift(reference_image, target_image):
-    ''' This function calculates the revised
-    central pixel coordinate for imgdata based
-    on a cross correlation with refdata
-    '''
+    """
+    Found the pixel offset of the target image with the reference image
+
+
+    :param object reference_image: the reference image data (i.e image.data)
+    :param object target_image: the image data of interest (i.e image.data)
+
+
+
+    :return: [good_shift_y, good_shift_x], the shifts of this image
+    :rtype: array_like
+    """
 
     reference_shape = reference_image.shape
 
-    x_center = reference_shape[0] / 2
-    y_center = reference_shape[1] / 2
+    x_center = int(reference_shape[0] / 2)
+    y_center = int(reference_shape[1] / 2)
 
     correlation = convolve_image_with_a_psf(np.matrix(reference_image),
                                             np.matrix(target_image), correlate=1)
@@ -225,51 +248,23 @@ def correlation_shift(reference_image, target_image):
 def convolve_image_with_a_psf(image, psf, fourrier_transform_psf=None, fourrier_transform_image=None,
                               correlate=None, auto_correlation=None):
     """
-     NAME:
-           CONVOLVE
-     PURPOSE:
-           Convolution of an image with a Point Spread Function (PSF)
-     EXPLANATION:
-           The default is to compute the convolution using a product of
-           Fourier transforms (for speed).
-
-     CALLING SEQUENCE:
-
-           imconv = convolve( image1, psf, FT_PSF = psf_FT )
-      or:
-           correl = convolve( image1, image2, /CORREL )
-      or:
-           correl = convolve( image, /AUTO )
-
-     INPUTS:
-           image = 2-D np.array (matrix) to be convolved with psf
-           psf = the Point Spread Function, (size < or = to size of image).
-
-     OPTIONAL INPUT KEYWORDS:
-
-           fourrier_transform_psf = passes out/in the Fourier transform of the PSF,
-                   (so that it can be re-used the next time function is called).
-           fourrier_transform_image= passes out/in the Fourier transform of image.
-
-           correlate uses the np.conjugate of the Fourier transform of PSF,
-                   to compute the cross-correlation of image and PSF,
-                   (equivalent to IDL function convol() with NO rotation of PSF)
-
-           auto_correlation computes the auto-correlation function of image using FFT.
+    Efficient convolution in Fourrier Space
 
 
-     METHOD:
-           When using FFT, PSF is centered & expanded to size of image.
-     HISTORY:
-           written, Frank Varosi, NASA/GSFC 1992.
-           Appropriate precision type for result depending on input image
-                                   Markus Hundertmark February 2006
-           Fix the bug causing the recomputation of FFT(psf) and/or FFT(image)
-                                   Sergey Koposov     December 2006
+    :param object image: the image data (i.e image.data)
+    :param object psf: the kernel which gonna be convolve
+    :param object fourrier_transform_psf: the kernel in fourrier space
+    :param object fourrier_transform_image: the imagein fourrier space
+    :param boolean correlate: ???
+    :param boolean auto_correlation: ???
+
+
+    :return: ??
+    :rtype: ??
     """
 
     image_shape = np.array(image.shape)
-    half_image_shape = image_shape / 2
+    half_image_shape = (image_shape / 2).astype(int)
     number_of_pixels = image.size
 
     if (fourrier_transform_image == None) or (fourrier_transform_image.ndim != 2):
@@ -278,7 +273,7 @@ def convolve_image_with_a_psf(image, psf, fourrier_transform_psf=None, fourrier_
     if (auto_correlation is not None):
         return np.roll(
             np.roll(number_of_pixels * np.real(
-                np.fft.ifft2(fourrier_transform_image * np.conjugate(fourrier_transform_image))),
+                np.fft.fft2(fourrier_transform_image * np.conjugate(fourrier_transform_image))),
                     half_image_shape[0], 0), half_image_shape[1], 1)
 
     if (fourrier_transform_psf == None) or (
@@ -286,22 +281,22 @@ def convolve_image_with_a_psf(image, psf, fourrier_transform_psf=None, fourrier_
                 fourrier_transform_psf.dtype != image.dtype):
         psf_shape = np.array(psf.shape)
 
-    location_maxima = np.maximum((half_image_shape - psf_shape / 2), 0)  # center PSF in new np.array,
-    superior = np.maximum((psf_shape / 2 - half_image_shape), 0)  # handle all cases: smaller or bigger
-    lower = np.minimum((s + image_shape - 1), (psf_shape - 1))
+        location_maxima = np.maximum((half_image_shape - psf_shape / 2).astype(int), 0)  # center PSF in new np.array,
+        superior = np.maximum((psf_shape / 2 - half_image_shape).astype(int), 0)  # handle all cases: smaller or bigger
+        lower = np.minimum((superior + image_shape - 1).astype(int), (psf_shape - 1))
 
-    fourrier_transform_psf = np.conjugate(image) * 0  # initialise with correct size+type according
-    # to logic of conj and set values to 0 (type of ft_psf is conserved)
-    fourrier_transform_psf[location_maxima[1]:location_maxima[1] + lower[1] - superior[1] + 1,
-    location_maxima[0]:location_maxima[0] + lower[0] - superior[0] + 1] = psf[superior[1]:(lower[1]) + 1,
-                                                                          superior[0]:(lower[0]) + 1]
-    fourrier_transform_psf = np.fft.ifft2(fourrier_transform_psf)
+        fourrier_transform_psf = np.conjugate(image) * 0  # initialise with correct size+type according
+        # to logic of conj and set values to 0 (type of ft_psf is conserved)
+        fourrier_transform_psf[location_maxima[1]:location_maxima[1] + lower[1] - superior[1] + 1,
+        location_maxima[0]:location_maxima[0] + lower[0] - superior[0] + 1] = psf[superior[1]:(lower[1]) + 1,
+                                                                              superior[0]:(lower[0]) + 1]
+        fourrier_transform_psf = np.fft.ifft2(fourrier_transform_psf)
 
     if (correlate is not None):
         convolution = number_of_pixels * np.real(
-            np.fft.ifft2(fourrier_transform_image * np.conjugate(fourrier_transform_psf)))
+            np.fft.fft2(fourrier_transform_image * np.conjugate(fourrier_transform_psf)))
     else:
-        convolution = number_of_pixels * np.real(np.fft.ifft2(fourrier_transform_image * fourrier_transform_psf))
+        convolution = number_of_pixels * np.real(np.fft.fft2(fourrier_transform_image * fourrier_transform_psf))
 
     half_image_shape += (image_shape % 2)  # shift correction for odd size images.
 
