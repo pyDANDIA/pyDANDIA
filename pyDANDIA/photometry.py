@@ -16,6 +16,7 @@ from photutils.detection import IRAFStarFinder
 from photutils.psf import IntegratedGaussianPRF, DAOGroup
 from photutils.background import SigmaClip, MMMBackground, MADStdBackgroundRMS
 from photutils import DAOStarFinder, IterativelySubtractedPSFPhotometry
+from photutils import BasicPSFPhotometry
 from astropy.modeling.fitting import LevMarLSQFitter
 import starfind
 
@@ -24,6 +25,8 @@ def run_iterative_PSF_photometry(setup,reduction_metadata,image_path,log,
     """Function to perform PSF-fitting photometry to all objects detected
     in an image, using DAOphot-standard routines from photutils.
     """
+    
+    iterate = False
     
     log.info('Performing PSF-fitting photometry on '+os.path.basename(image_path))
     
@@ -62,16 +65,24 @@ def run_iterative_PSF_photometry(setup,reduction_metadata,image_path,log,
     
     psf_x = calc_psf_dimensions(psf_size,fwhm,log)
     
-    photometer = IterativelySubtractedPSFPhotometry(finder=star_finder,
+    if iterate:
+        photometer = IterativelySubtractedPSFPhotometry(finder=star_finder,
                                                     group_maker=daogroup,
                                                     bkg_estimator=mmm_bkg,
                                                     psf_model=psf_model,
                                                     fitter=fitter,
                                                     niters=3, 
                                                     fitshape=(psf_x,psf_x))
-
+    else:
+        photometer = BasicPSFPhotometry(finder=star_finder,
+                                                    group_maker=daogroup,
+                                                    bkg_estimator=mmm_bkg,
+                                                    psf_model=psf_model,
+                                                    fitter=fitter,
+                                                    fitshape=(psf_x,psf_x))
     photometry = photometer(image=image_data)
     print photometry.colnames
+    print photometry['flux_unc'].data
     
     log.info('Photometry warnings, if any: '+repr(fitter.fit_info['message']))
     

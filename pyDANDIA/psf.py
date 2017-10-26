@@ -303,6 +303,48 @@ class ConstantBackground(BackgroundModel):
         # background constant
         return [0]
 
+class GradientBackground(BackgroundModel):
+
+    def background_type(self):
+
+        return 'Gradient'
+
+    def define_background_parameters(self):
+
+        self.model = ['a0','a1','a2']
+        self.background_parameters = collections.namedtuple(
+            'parameters', self.model)
+
+        for index, key in enumerate(self.model):
+
+            setattr(self.background_parameters, key, None)
+
+    def update_background_parameters(self, parameters):
+
+        self.background_parameters = collections.namedtuple(
+            'parameters', self.model)
+
+        for key, value in parameters.items():
+
+            setattr(self.background_parameters, key, value)
+
+    def background_model(self, Y_background, X_background, parameters):
+
+        self.update_background_parameters(parameters)
+
+        model = np.ones(Y_background.shape) * self.background_parameters.a0
+        model = model + ( self.background_parameters.a1 * X_background ) + \
+                    + ( self.background_parameters.a2 * Y_background )
+        
+        return model
+
+    def background_guess(self):
+        """Method to return an initial estimate of the parameters of a 2D
+        gradient sky background model.  The parameters returned represent 
+        a flat, constant background of zero."""
+        
+        return [0.0, 0.0, 0.0]
+
 
 class Image(object):
 
@@ -438,7 +480,6 @@ def error_star_fit_function(params, data, psf, background, Y_data, X_data):
     residuals = np.ravel(data - psf_model - back_model)
 
     return residuals
-
 
 def fit_multiple_stars(data_stamps, Y_data, X_data, psf_model='Moffat2D', background_model='Constant'):
 
