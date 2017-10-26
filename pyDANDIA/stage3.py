@@ -9,24 +9,29 @@ from sys import exit
 import logs
 import metadata
 import starfind
+import pipeline_setup
 from astropy.io import fits
 
 VERSION = 'pyDANDIA_stage3_v0.2'
 CODE_DIR = '/Users/rstreet/software/pyDANDIA/'
 
-def stage3(red_dir):
+def run_stage3(setup):
     """Driver function for pyDANDIA Stage 3: 
     Detailed star find and PSF modeling
     """
+        
+    log = logs.start_stage_log( cwd, 'stage3', version=VERSION )
     
-    # How do we find the metadata to read what we need for a given reduction?
-    # From reduction_control?
-    # Switched off until metadata code completed
-    meta = get_meta_data(red_dir)
+    reduction_metadata = metadata.MetaData()
+    reduction_metadata.load_a_layer_from_file( setup.red_dir, 
+                                              'pyDANDIA_metadata.fits', 
+                                              'reduction_parameters' )
+    reduction_metadata.load_a_layer_from_file( setup.red_dir, 
+                                              'pyDANDIA_metadata.fits', 
+                                              'images_stats' )
 
-    log = logs.start_stage_log(meta.log_dir, 'stage3', version=VERSION)
-    
-    status = sanity_checks(meta,log)
+
+    status = sanity_checks(reduction_metadata,log)
     
     if status == True:
         
@@ -36,19 +41,22 @@ def stage3(red_dir):
         sources = starfind.detect_sources(meta,scidata,log)
         
         ref_source_catalog = wcs.reference_astrometry(log,
-                                                    meta.reference_image_path,
+                                                    reduction_metadata.reference_image_path,
                                                     detected_sources,
                                                     diagnostics=True)
     
+        reduction_metadata.create_star_catalog_layer(ref_source_catalog,log=log)
+        
         psf_stars_idx = psf_selection.psf_star_selection(setup,reduction_metadata,
                                                      log,ref_star_catalog,
-                                                    diagnostics=True)
+                                                     diagnostics=True)
     
     # In subregions: generate PSF models
     
     # In subregions: measure PSF flux for all stars
     
     # Output data products and message reduction_control
+    
     
 class TmpMeta(object):
     """Temporary metadata object for use in code development until code

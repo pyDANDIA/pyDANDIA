@@ -34,7 +34,7 @@ def read_source_catalog(catalog_file):
     
     return np.array(data)
 
-def output_ref_catalog(catalog_file,ref_catalog):
+def output_ref_catalog_file(catalog_file,ref_catalog):
     """Function to output a catalog of the information on sources detected
     within the reference image
 
@@ -50,8 +50,8 @@ def output_ref_catalog(catalog_file,ref_catalog):
             [fits.Column(name='Index', format='I', array=ref_catalog[:,0]),\
             fits.Column(name='X_pixel', format='E', array=ref_catalog[:,1]),\
             fits.Column(name='Y_pixel', format='E', array=ref_catalog[:,2]),\
-            fits.Column(name='RA_J2000_deg]', format='D', array=ref_catalog[:,3]),\
-            fits.Column(name='Dec_J2000_deg]', format='D', array=ref_catalog[:,4]),\
+            fits.Column(name='RA_J2000_deg', format='D', array=ref_catalog[:,3]),\
+            fits.Column(name='Dec_J2000_deg', format='D', array=ref_catalog[:,4]),\
             fits.Column(name='Instr_mag', format='E', array=ref_catalog[:,5]),\
             fits.Column(name='Instr_mag_err', format='E', array=ref_catalog[:,6]),\
             fits.Column(name='J_mag', format='E', array=ref_catalog[:,7]),\
@@ -65,7 +65,32 @@ def output_ref_catalog(catalog_file,ref_catalog):
     thdulist = fits.HDUList([prihdu, tbhdu])
     
     thdulist.writeto(catalog_file,overwrite=True)
+
+def read_ref_star_catalog_file(catalog_file):
+    """Function to read an external star_catalog file in FITS binary table
+    format
     
+    If the star_cat_file cannot be found, a unit-length array is returned. 
+    """
+    
+    if path.isfile(catalog_file) == False:
+        
+        return np.zeros(1)
+    
+    hdulist = fits.open(catalog_file)
+    
+    data = hdulist[1].data
+    
+    ref_star_catalog = []
+
+    for i in range(0,len(data),1):
+        
+        ref_star_catalog.append( list( data[i] ) )
+    
+    ref_star_catalog = np.array( ref_star_catalog )
+    
+    return ref_star_catalog
+
 def extract_star_catalog(star_cat_file, ra_min=None, dec_min=None, 
                                       ra_max=None, dec_max=None):
     """Function to read a catalogue of stars in standard FITS binary table 

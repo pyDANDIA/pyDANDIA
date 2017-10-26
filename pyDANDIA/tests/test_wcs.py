@@ -30,7 +30,8 @@ def test_reference_astrometry():
                'star_catalog.fits']    
     
     for item in outputs:
-        remove(path.join(TEST_DATA,item))
+        if path.isfile(path.join(TEST_DATA,item)):
+            remove(path.join(TEST_DATA,item))
     
     detected_sources = catalog_utils.read_source_catalog(detected_sources_file)
     
