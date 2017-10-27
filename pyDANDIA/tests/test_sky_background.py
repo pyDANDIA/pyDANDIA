@@ -17,6 +17,7 @@ import metadata
 import psf
 import sky_background
 import catalog_utils
+from astropy.io import fits
 
 TEST_DIR = os.path.join(cwd,'data','proc',
                         'ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip')
@@ -75,15 +76,17 @@ def test_sky_model():
 
     fig = plt.figure(2)
     
-    fig, axarr = plt.subplots(2, sharex=True)
+    plt.subplot(2, 1, 1)
     
-    axarr[0].imshow(sky_model1, origin='lower', cmap=plt.cm.viridis)
+    plt.imshow(sky_model1, origin='lower', cmap=plt.cm.viridis)
     
-    axarr[0].set_title('Constant background model')
-            
-    axarr[1].imshow(sky_model2, origin='lower', cmap=plt.cm.viridis)
+    plt.title('Constant background model')
     
-    axarr[1].set_title('2D gradient background model')
+    plt.subplot(2, 1, 2)
+    
+    plt.imshow(sky_model2, origin='lower', cmap=plt.cm.viridis)
+    
+    plt.title('2D gradient background model')
     
     plt.savefig(os.path.join(setup.red_dir,'sky_background_model_test.png'))
 
@@ -197,11 +200,46 @@ def test_model_sky_background():
             log.info('a'+str(i)+' = '+str(p))
     
     logs.close_log(log)
-   
+
+def test_mask_saturated_pixels():
+    """Function to test the masking of saturated pixels in a FITS image."""
+    
+    setup = pipeline_setup.pipeline_setup({'red_dir': TEST_DIR})
+    
+    log = logs.start_stage_log( cwd, 'test_sky_background' )
+    
+    test_image_file = os.path.join(cwd,'data',
+                                       'lsc1m005-fl15-20170701-0144-e91_cropped.fits')
+    
+    hdulist = fits.open(test_image_file)
+    
+    saturation_value = hdulist[0].header['SATURATE']
+
+    image = hdulist[0].data
+    
+    masked_image = sky_background.mask_saturated_pixels(setup,image,
+                                                        saturation_value,log)
+
+    fig = plt.figure(4)
+    
+    plt.imshow(masked_image, origin='lower', cmap=plt.cm.viridis)
+    
+    plt.title('Masked image')
+    
+    plt.savefig(os.path.join(cwd, 'data','masked_image_test.png'))
+
+    plt.close(4)
+    
+    assert (os.path.isfile(os.path.join(cwd, 'data','masked_image_test.png')))
+
+    logs.close_log(log)
+
 if __name__ == '__main__':
     
     test_gradient_background()
     test_sky_model()
     test_error_sky_fit_function()
     test_fit_model_sky_background()
+    test_mask_saturated_pixels()
     test_model_sky_background()
+    

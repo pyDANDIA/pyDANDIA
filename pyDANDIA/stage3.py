@@ -47,10 +47,13 @@ def run_stage3(setup):
     
         reduction_metadata.create_star_catalog_layer(ref_source_catalog,log=log)
         
+        # Mask reference frame here to avoid selecting saturated stars?
+        
         psf_stars_idx = psf_selection.psf_star_selection(setup,reduction_metadata,
                                                      log,ref_star_catalog,
                                                      diagnostics=True)
     
+        
     # In subregions: generate PSF models
     
     # In subregions: measure PSF flux for all stars

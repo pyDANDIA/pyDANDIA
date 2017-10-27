@@ -29,10 +29,24 @@ def model_sky_background(setup,reduction_metadata,log,ref_star_catalog):
     
     psf_size = reduction_metadata.reduction_parameters[1]['PSF_SIZE'][0]
     
+    sat_value = reduction_metadata.reduction_parameters[1]['MAXVAL'][0]
+    sat_value = 120000.0
+    
     psf_mask = build_psf_mask(setup,psf_size,diagnostics=True)
     
     star_masked_image = mask_stars(setup,ref_image,ref_star_catalog, psf_mask, 
                            diagnostics=True)
+    
+    sat_masked_image = mask_saturated_pixels(setup,ref_image,sat_value,log)
+    
+    star_masked_image.mask = star_masked_image.mask + sat_masked_image.mask
+    
+    log.info('Statistics of masked reference image: ')
+    log.info('Minimum = '+str(star_masked_image.min()))
+    log.info('Maximum = '+str(star_masked_image.max()))
+    log.info('Mean = '+str(star_masked_image.mean()))
+    log.info('Std. dev = '+str(star_masked_image.std()))
+    log.info('Median = '+str(np.median(star_masked_image)))
     
     if reduction_metadata.background_type == 'constant':
         
@@ -48,9 +62,8 @@ def model_sky_background(setup,reduction_metadata,log,ref_star_catalog):
           
     sky_model = generate_sky_model(sky_params)
     
-    sky_fit = fit_sky_background(star_masked_image,
-                                                sky_model,
-                                                'constant')
+    sky_fit = fit_sky_background(star_masked_image,sky_model,'constant',log=log)
+    
     return sky_fit
     
 def build_psf_mask(setup,psf_size,diagnostics=False):
@@ -59,13 +72,13 @@ def build_psf_mask(setup,psf_size,diagnostics=False):
     zero everywhere outside it."""
     
     pxmin = 0
-    pxmax = int(psf_size)
+    pxmax = int(psf_size)*2
     pymin = 0
-    pymax = int(psf_size)
+    pymax = int(psf_size)*2
     
-    half_psf = int(psf_size/2.0)
+    half_psf = int(pxmax/2.0)
     
-    psf_mask = np.zeros([int(psf_size),int(psf_size)])
+    psf_mask = np.zeros([pymax,pxmax])
     
     for x in range(pxmin,pxmax,1):
         
@@ -151,10 +164,19 @@ def mask_stars(setup,ref_image,ref_star_catalog, psf_mask, diagnostics=False):
         star_mask[ymin:ymax,xmin:xmax] = star_mask[ymin:ymax,xmin:xmax] + \
                                             psf_mask[py1:py2,px1:px2]
         
-    idx = np.where(star_mask > 1.0)
+    idx_mask = np.where(star_mask > 1.0)
+    star_mask[idx_mask] = np.nan
+    
+    idx = np.isnan(star_mask)
+    idx = np.where(idx == False)
+    
     star_mask[idx] = 0.0
+    star_mask[idx_mask] = 1.0
+    
+    masked_ref_image = np.ma.masked_array(ref_image,mask=star_mask)
     
     if diagnostics == True:
+        
         fig = plt.figure(2)
     
         norm = visualization.ImageNormalize(star_mask, \
@@ -173,22 +195,66 @@ def mask_stars(setup,ref_image,ref_star_catalog, psf_mask, diagnostics=False):
         plt.savefig(path.join(setup.red_dir,'ref_star_mask.png'))
 
         plt.close(2)
+    
+    
+        fig = plt.figure(3)
+    
+        norm = visualization.ImageNormalize(masked_ref_image, \
+                            interval=visualization.ZScaleInterval())
+        
+        plt.imshow(masked_ref_image, origin='lower', 
+                   cmap=plt.cm.viridis, norm=norm)
+    
+        plt.plot(ref_star_catalog[:,1],ref_star_catalog[:,2],'r+')
+        
+        plt.xlabel('X pixel')
 
-    ### THIS NEEDS TO OUTPUT real image without the stars
+        plt.ylabel('Y pixel')
 
-    return star_mask
+        plt.colorbar()
 
-def fit_sky_background(image,sky_model,background_type):
+        plt.savefig(path.join(setup.red_dir,'masked_ref_image.png'))
+
+        plt.close(3)
+    
+    return masked_ref_image
+
+def mask_saturated_pixels(setup,image,saturation_value,log):
+    """Function to mask saturated pixels in an image"""
+    
+    idx = np.where(image >= saturation_value)
+
+    sat_mask = np.zeros(image.shape)
+
+    sat_mask[idx] = 1.0    
+    
+    masked_image = np.ma.masked_array(image, mask=sat_mask)
+    
+    return masked_image
+
+def fit_sky_background(image,sky_model,background_type,log=None):
     """Function to perform a Least Squares Fit of a given background 
     model to a 2D image where the stars have been masked out"""
     
     init_pars = sky_model.background_guess()
+    
+    if log != None:
+        
+        log.info('Fitting '+background_type+' sky background model')
     
     params = get_model_param_dict(init_pars,background_type,
                                   image.shape[1],image.shape[0])
     
     fit = optimize.leastsq(error_sky_fit_function, init_pars, args=(
         image, background_type), full_output=1)
+    
+    if log != None:
+        
+        log.info('Fitted parameters: ')
+        
+        for p in enumerate(fit[0]):
+            
+            log.info(str(p))
     
     return fit
     

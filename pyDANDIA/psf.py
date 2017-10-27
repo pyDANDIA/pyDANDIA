@@ -14,7 +14,10 @@ import numpy as np
 from scipy import optimize
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
-
+from astropy.nddata import Cutout2D
+from astropy.io import fits
+import logs
+import os
 
 class PSFModel(object):
 
@@ -483,13 +486,13 @@ def error_star_fit_function(params, data, psf, background, Y_data, X_data):
 
 def fit_multiple_stars(data_stamps, Y_data, X_data, psf_model='Moffat2D', background_model='Constant'):
 
-    fits = []
+    model_fits = []
     for stamp in data_stamps:
 
-        fits.append(fit_star(stamp, Y_data, X_data,
+        model_fits.append(fit_star(stamp, Y_data, X_data,
                              psf_model, background_model))
 
-    return fits
+    return model_fits
 
 
 def plot3d(xdata, ydata, zdata):
@@ -510,3 +513,161 @@ def plot3d(xdata, ydata, zdata):
     ax1.set_ylabel('y')
     ax1.set_zlabel('z')
     plt.show()
+
+def build_psf(setup, reduction_metadata, log, image, ref_star_catalog, 
+              psf_stars_idx, diagnostics=True):
+    """Function to build a PSF model based on the PSF stars
+    selected from a reference image."""
+    
+    log.info('Building a PSF model based on the reference image')
+    
+    # Cut large stamps around selected PSF stars
+    psf_size = reduction_metadata.reduction_parameters[1]['PSF_SIZE'][0]
+    logs.ifverbose(log,setup,' -> Applying PSF size='+str(psf_size))
+
+    idx = np.where(psf_stars_idx == 1.0)
+    psf_star_centres = ref_star_catalog[idx[0],1:3]
+    
+    log.info('Cutting stamps for '+str(len(psf_star_centres))+' PSF stars')
+    
+    stamp_dims = (int(psf_size)*4, int(psf_size)*4)
+    logs.ifverbose(log,setup,' -> Stamp dimensions='+repr(stamp_dims))
+
+    stamps = cut_image_stamps(image, psf_star_centres, stamp_dims, log)
+    
+    # Combine stamps into a single, high-signal-to-noise PSF
+    master_stamp = coadd_stamps(setup, stamps, diagnostics=diagnostics)
+    
+    # Build initial PSF: fit a PSF model to the high S/N stamp
+    fit_psf_model(setup,log,psf_model_type,sky_model_type,stamp_image, 
+                  diagnostics=diagnostics)
+    
+    # Identify all stars neighbouring the PSF stars within the large stamps.
+    
+    # Remove the companion stars from the PSF stamps
+    
+    # Re-combine the companion-subtracted stamps to re-generate the 
+    # high S/N stamp
+    
+    # Re-build the final PSF by fitting a PSF model to the updated high 
+    # S/N stamp
+    
+    # Output diagnostic plots of high S/N stamps and PSF model.
+    
+    # return PSF model parameters
+
+def cut_image_stamps(image, stamp_centres, stamp_dims, log=None):
+    """Function to extract a set of stamps (2D image sections) at the locations
+    given and with the dimensions specified in pixels.
+    
+    No stamp will be returned for stars that are too close to the edge of the
+    frame, that is, where the stamp would overlap with the edge of the frame. 
+    
+    :param array image: the image data array from which to take stamps
+    :param array stamp_centres: 2-col array with the x, y centres of the stamps
+    :param tuple stamp_dims: the width and height of the stamps
+    
+    Returns
+    
+    :param list Cutout2D objects
+    """
+
+    stamps = []
+    
+    dx = int(stamp_dims[1]/2.0)
+    dy = int(stamp_dims[0]/2.0)
+    
+    for j in range(0,len(stamp_centres),1):
+        xcen = stamp_centres[j,0]
+        ycen = stamp_centres[j,1]
+        
+        corners = calc_stamp_corners(xcen, ycen, dx, dy, 
+                                     image.shape[1], image.shape[0])
+                                     
+        if None not in corners:
+            cutout = Cutout2D(image, (xcen,ycen), stamp_dims)
+            
+            stamps.append(cutout)
+    
+    if log != None:
+        
+        log.info('Made stamps for '+str(len(stamps))+' out of '+\
+                    str(len(stamp_centres))+' locations')
+        
+    return stamps
+
+def calc_stamp_corners(xcen, ycen, dx, dy, maxx, maxy):
+    
+    xmin = int(xcen) - dx
+    xmax = int(xcen) + dx
+    ymin = int(ycen) - dy
+    ymax = int(ycen) + dy
+    
+    if xmin >= 0 and xmax <= maxx and ymin >= 0 and ymax <= maxy:
+        
+        return (xmin, xmax, ymin, ymax)
+        
+    else:
+        
+        return (None, None, None, None)
+        
+def coadd_stamps(setup, stamps, diagnostics=True):
+    """Function to combine a set of identically-sized image cutout2D objects,
+    by co-adding to generate a single high signal-to-noise stamp."""
+    
+    master_stamp = np.zeros(stamps[0].shape)
+    
+    for s in stamps:
+        
+        if s != None:
+            
+            master_stamp += s.data
+        
+    if diagnostics:
+        
+        hdu = fits.PrimaryHDU(master_stamp)
+        hdulist = fits.HDUList([hdu])
+        hdulist.writeto(os.path.join(setup.red_dir,
+                                     'ref','master_stamp.fits'),
+                                     overwrite=True)
+        
+    return master_stamp
+
+def fit_psf_model(setup,log,psf_model_type,sky_model_type,stamp_image, 
+                  diagnostics=False):
+    """Function to fit a PSF model to a stamp image"""
+    
+    psf_model_type = 'Moffat2D'
+    sky_model_type = 'Constant'
+    Y_data, X_data = np.indices(stamp_image.shape)
+    
+    psf_fit = fit_star(stamp_image, Y_data, X_data, 
+                                      psf_model_type, sky_model_type)
+    
+    log.info('Initial PSF model parameters using a '+psf_model_type+\
+            ' PSF and '+sky_model_type.lower()+' sky background model')
+    for p in psf_fit[0]:
+        log.info(str(p))
+    
+    if diagnostics:
+        
+        psf_stamp = generate_psf_image(psf_model_type,psf_fit[0],stamp_image.shape)
+        
+        hdu = fits.PrimaryHDU(psf_stamp)
+        hdulist = fits.HDUList([hdu])
+        hdulist.writeto(os.path.join(setup.red_dir,
+                                     'ref','psf.fits'),
+                                     overwrite=True)
+    
+    return psf_fit
+
+def generate_psf_image(psf_model_type,psf_model_pars,stamp_dims):
+    
+    psf = Image(np.zeros(stamp_dims),psf_model_type)
+    
+    Y_data, X_data = np.indices(stamp_dims)
+    
+    psf_image = psf.psf_model.psf_model(Y_data, X_data, psf_model_params)
+    
+    return psf_image
+    
