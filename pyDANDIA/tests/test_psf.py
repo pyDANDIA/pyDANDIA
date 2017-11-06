@@ -85,8 +85,43 @@ def test_cut_image_stamps():
     
     assert got_stamp == True
 
+def test_extract_sub_stamp():
+    """Function to test the extraction of substamps from an existing stamp"""
+
+    stamp_dims = (20,20)
+    
+    image_file = os.path.join(TEST_DATA, 
+                            'lsc1m005-fl15-20170701-0144-e91_cropped.fits')
+                              
+    image = fits.getdata(image_file)
+    
+    stamp_centres = np.array([[250,250]])
+    
+    stamps = psf.cut_image_stamps(image, stamp_centres, stamp_dims)
+        
+    substamp_centres = [ [5,5], [18,18], [5,18], [18,5], [10,10] ]
+    
+    dx = 10
+    dy = 10
+    
+    for i,location in enumerate(substamp_centres):
+        
+        xcen = location[0]
+        ycen = location[1]
+        
+        substamp = psf.extract_sub_stamp(stamps[0],xcen,ycen,dx,dy)
+
+        assert type(substamp) == type(stamps[0])
+        
+        hdu = fits.PrimaryHDU(substamp.data)
+        hdulist = fits.HDUList([hdu])
+        hdulist.writeto(os.path.join(TEST_DATA,'substamp'+str(i)+'.fits'),
+                                     overwrite=True)
+        
+
 if __name__ == '__main__':
     
     test_cut_image_stamps()
-    test_build_psf()
+    #test_build_psf()
+    test_extract_sub_stamp()
     
