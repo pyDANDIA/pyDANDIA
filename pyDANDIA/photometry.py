@@ -12,12 +12,6 @@ import logs
 import metadata
 import matplotlib.pyplot as plt
 from astropy.io import fits
-from photutils.detection import IRAFStarFinder
-from photutils.psf import IntegratedGaussianPRF, DAOGroup
-from photutils.background import SigmaClip, MMMBackground, MADStdBackgroundRMS
-from photutils import DAOStarFinder, IterativelySubtractedPSFPhotometry
-from photutils import BasicPSFPhotometry
-from astropy.modeling.fitting import LevMarLSQFitter
 import starfind
 
 def run_iterative_PSF_photometry(setup,reduction_metadata,image_path,log,

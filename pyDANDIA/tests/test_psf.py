@@ -345,11 +345,11 @@ def test_fit_psf_model():
 
 if __name__ == '__main__':
     
-#    test_cut_image_stamps()
-#    test_extract_sub_stamp()
-#    test_fit_star_existing_model()
-#    test_find_psf_companion_stars()
-#    test_subtract_companions_from_psf_stamps()
-#    test_fit_psf_model()
+    test_cut_image_stamps()
+    test_extract_sub_stamp()
+    test_fit_star_existing_model()
+    test_find_psf_companion_stars()
+    test_subtract_companions_from_psf_stamps()
+    test_fit_psf_model()
     test_build_psf()
     
