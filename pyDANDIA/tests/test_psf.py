@@ -10,6 +10,7 @@ import sys
 cwd = os.getcwd()
 sys.path.append(os.path.join(cwd,'../'))
 import matplotlib.pyplot as plt
+from astropy import visualization
 import numpy as np
 import logs
 import pipeline_setup
@@ -104,6 +105,16 @@ def test_extract_sub_stamp():
     dx = 10
     dy = 10
     
+    substamp_dims = []
+    for centre in substamp_centres:
+        
+        xmin = max(0,(centre[0] - int(float(dx)/2.0)))
+        xmax = min(stamp_dims[0], (centre[0] + int(float(dx)/2.0)) )
+        ymin = max(0,(centre[1] - int(float(dy)/2.0)))
+        ymax = min(stamp_dims[1], (centre[1] + int(float(dy)/2.0)) )
+        
+        substamp_dims.append( (ymax-ymin, xmax-xmin) )
+    
     for i,location in enumerate(substamp_centres):
         
         xcen = location[0]
@@ -112,6 +123,8 @@ def test_extract_sub_stamp():
         (substamp,corners) = psf.extract_sub_stamp(stamps[0],xcen,ycen,dx,dy)
 
         assert type(substamp) == type(stamps[0])
+        
+        assert substamp.data.shape == substamp_dims[i]
         
         hdu = fits.PrimaryHDU(substamp.data)
         hdulist = fits.HDUList([hdu])
@@ -129,8 +142,8 @@ def test_fit_star_existing_model():
     image = fits.getdata(image_file)
     
     psf_model = psf.Moffat2D()
-    x_cen = 195.0
-    y_cen = 181.0
+    x_cen = 194.654006958
+    y_cen = 180.184967041
     psf_radius = 8.0
     psf_params = [ 103301.241291, x_cen, y_cen, 226.750731765,
                   13004.8930993, 103323.763627 ]
@@ -173,12 +186,30 @@ def test_subtract_companions_from_psf_stamps():
                               
     image = fits.getdata(image_file)
     
-    stamp_centres = np.array([[258,122]])
+    stamp_centres = np.array([[194.654006958, 180.184967041]])
     
     stamp_dims = (20,20)
         
     stamps = psf.cut_image_stamps(image, stamp_centres, stamp_dims)
 
+    for i, s in enumerate(stamps):
+        
+        fig = plt.figure(1)
+            
+        norm = visualization.ImageNormalize(s.data, \
+                        interval=visualization.ZScaleInterval())
+    
+        plt.imshow(s.data, origin='lower', cmap=plt.cm.viridis, 
+                       norm=norm)
+            
+        plt.xlabel('X pixel')
+    
+        plt.ylabel('Y pixel')
+
+        plt.savefig(os.path.join(setup.red_dir,'psf_star_stamp'+str(i)+'.png'))
+
+        plt.close(1)
+        
     psf_model = psf.Moffat2D()
     x_cen = 195.0
     y_cen = 181.0
@@ -190,23 +221,90 @@ def test_subtract_companions_from_psf_stamps():
     sky_model = psf.ConstantBackground()
     sky_model.constant = 1345.0
     
-    clean_stamps = subtract_companions_from_psf_stamps(setup, reduction_metadata, log, 
-                                        ref_star_catalog, stamps,
-                                        psf_model,sky_model)
+    clean_stamps = psf.subtract_companions_from_psf_stamps(setup, reduction_metadata, log, 
+                                        ref_star_catalog, stamps,stamp_centres,
+                                        psf_model,sky_model,diagnostics=True)
     
-    for i, s in enumerate(clean_stamps):
-        
-        hdu = fits.PrimaryHDU(s.data)
-        hdulist = fits.HDUList([hdu])
-        hdulist.writeto(os.path.join(TEST_DATA,'clean_stamp'+str(i)+'.fits'),
-                                     overwrite=True)
-
     logs.close_log(log)
 
 
+def test_find_psf_companion_stars():
+    """Function to test the identification of stars that neighbour a PSF star 
+    from the reference catalogue."""
+    
+    setup = pipeline_setup.pipeline_setup({'red_dir': TEST_DIR})
+    
+    log = logs.start_stage_log( cwd, 'test_find_psf_companions' )
+    
+    log.info(setup.summary())
+    
+    reduction_metadata = metadata.MetaData()
+    reduction_metadata.load_a_layer_from_file( setup.red_dir, 
+                                              'pyDANDIA_metadata.fits', 
+                                              'reduction_parameters' )
+
+    star_catalog_file = os.path.join(TEST_DATA,'star_catalog.fits')
+                            
+    ref_star_catalog = catalog_utils.read_ref_star_catalog_file(star_catalog_file)
+    
+    log.info('Read in catalog of '+str(len(ref_star_catalog))+' stars')
+    
+    psf_idx = 1
+    psf_x = 194.654006958
+    psf_y = 180.184967041
+    
+    stamp_dims = (20,20)
+            
+    comps_list = psf.find_psf_companion_stars(setup,psf_idx, psf_x, psf_y, 
+                                          ref_star_catalog,
+                                          log, stamp_dims)
+            
+    assert len(comps_list) > 0
+    
+    for l in comps_list:
+        log.info(repr(l))
+    
+    image_file = os.path.join(TEST_DATA, 
+                            'lsc1m005-fl15-20170701-0144-e91_cropped.fits')
+                              
+    image = fits.getdata(image_file)
+    
+    stamps = psf.cut_image_stamps(image, np.array([[psf_x, psf_y]]), stamp_dims)
+    
+    fig = plt.figure(1)
+    
+    norm = visualization.ImageNormalize(stamps[0].data, \
+                interval=visualization.ZScaleInterval())
+
+    plt.imshow(stamps[0].data, origin='lower', cmap=plt.cm.viridis, 
+               norm=norm)
+    
+    x = []
+    y = []
+    for j in range(0,len(comps_list),1):
+        x.append(comps_list[j][1])
+        y.append(comps_list[j][2])
+    
+    plt.plot(x,y,'r+')
+    
+    plt.xlabel('X pixel')
+
+    plt.ylabel('Y pixel')
+
+    plt.savefig(os.path.join(TEST_DATA,'companion_stars_psf.png'))
+
+    plt.close(1)
+    
+    
+    logs.close_log(log)
+
+    
 if __name__ == '__main__':
     
     test_cut_image_stamps()
     #test_build_psf()
     test_extract_sub_stamp()
     test_fit_star_existing_model()
+    test_find_psf_companion_stars()
+    test_subtract_companions_from_psf_stamps()
+    

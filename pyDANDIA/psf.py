@@ -13,6 +13,7 @@ import collections
 import numpy as np
 from scipy import optimize
 import matplotlib.pyplot as plt
+from astropy import visualization
 from mpl_toolkits.mplot3d import Axes3D
 from astropy.nddata import Cutout2D
 from astropy.io import fits
@@ -780,7 +781,7 @@ def cut_image_stamps(image, stamp_centres, stamp_dims, log=None):
                                      image.shape[1], image.shape[0])
                                      
         if None not in corners:
-            cutout = Cutout2D(image, (xcen,ycen), stamp_dims)
+            cutout = Cutout2D(image, (xcen,ycen), stamp_dims, copy=True)
             
             stamps.append(cutout)
     
@@ -914,7 +915,9 @@ def generate_psf_image(psf_model_type,psf_model_pars,stamp_dims):
     
 def subtract_companions_from_psf_stamps(setup, reduction_metadata, log, 
                                         ref_star_catalog, stamps,
-                                        psf_model,sky_model):
+                                        psf_star_locations,
+                                        psf_model,sky_model,
+                                        diagnostics=False):
     """Function to perform a PSF fit to all companions in the PSF star stamps,
     so that these companion stars can be subtracted from the stamps.
     
@@ -924,8 +927,11 @@ def subtract_companions_from_psf_stamps(setup, reduction_metadata, log,
     :param array ref_star_catalog: positions and magnitudes of stars in the 
                                 reference image
     :param list stamps: list of Cutout2D image stamps around the PSF stars
+    :param array psf_star_locations: x,y pixel locations of PSF stars in the
+                                    full reference frame
     :param PSFModel object psf_model: the PSF model to be fitted
     :param BackgroundModel object sky_model: Model of the image background
+    :param boolean diagnostics: Switch for optional output
     
     Returns
     
@@ -935,31 +941,64 @@ def subtract_companions_from_psf_stamps(setup, reduction_metadata, log,
     
     dx = reduction_metadata.reduction_parameters[1]['PSF_SIZE'][0]
     dy = reduction_metadata.reduction_parameters[1]['PSF_SIZE'][0]
-    
+
     clean_stamps = []
-    for s in stamps:
+    for i,s in enumerate(stamps):
+        comps_list = find_psf_companion_stars(setup,i,psf_star_locations[i,0], 
+                                              psf_star_locations[i,1],
+                                              ref_star_catalog,log,
+                                              s.shape)
+                
+        x_psf_box = psf_star_locations[i,0] - int(float(s.shape[1])/2.0)
+        y_psf_box = psf_star_locations[i,1] - int(float(s.shape[0])/2.0)
         
-        comps_list = find_psf_companion_stars(psf_x, psf_y,ref_star_catalog,log)
-    
-        Y_data, X_data = np.indices(stamp.shape)
-    
         for star_data in comps_list:
-        
-            (substamp,corners) = extract_sub_stamp(stamp,star_data[1],star_data[2],dx,dy)
             
-            comp_psf = fit_star_existing_model(substamp, substamp.position[1],
-                                               substamp.position[0], dx,
+            (substamp,corners) = extract_sub_stamp(s,star_data[1],
+                                                    star_data[2],dx,dy)
+
+            comp_psf = fit_star_existing_model(substamp.data, substamp.position_cutout[1],
+                                               substamp.position_cutout[0], dx,
                                                psf_model, sky_model)
+            
+            Y_data, X_data = np.indices(substamp.shape)
             
             comp_psf_stamp = comp_psf.psf_model(Y_data, X_data, comp_psf.get_parameters())
             
-            stamp[corners[2]:corners[3],corners[0],corners[1]] -= comp_psf_stamp
+            s.data[corners[2]:corners[3],corners[0]:corners[1]] -= comp_psf_stamp
                 
-        clean_stamps.append(stamp)
+        clean_stamps.append(s)
+        
+        if diagnostics:
+            
+            fig = plt.figure(1)
+            
+            norm = visualization.ImageNormalize(s.data, \
+                        interval=visualization.ZScaleInterval())
     
+            plt.imshow(s.data, origin='lower', cmap=plt.cm.viridis, 
+                       norm=norm)
+            
+            x = []
+            y = []
+            for j in range(0,len(comps_list),1):
+                x.append(comps_list[j][1])
+                y.append(comps_list[j][2])
+            
+            plt.plot(x,y,'r+')
+            
+            plt.xlabel('X pixel')
+    
+            plt.ylabel('Y pixel')
+
+            plt.savefig(os.path.join(setup.red_dir,'clean_stamp'+str(i)+'.png'))
+
+            plt.close(1)
+    
+
     return clean_stamps
     
-def find_psf_companion_stars(psf_idx, psf_x, psf_y, ref_star_catalog,
+def find_psf_companion_stars(setup,psf_idx, psf_x, psf_y, ref_star_catalog,
                              log, stamp_dims):
     """Function to identify stars in close proximity to a selected PSF star, 
     that lie within the image stamp used to build the PSF. 
@@ -977,14 +1016,20 @@ def find_psf_companion_stars(psf_idx, psf_x, psf_y, ref_star_catalog,
                                 the ref_star_catalog
     """
     
-    x_psf_box = psf_x - int(float(stamp_dims[1])/2.0)
-    y_psf_box = psf_y - int(float(stamp_dims[0])/2.0)
+    dx_psf_box = int(float(stamp_dims[1])/2.0)
+    dy_psf_box = int(float(stamp_dims[0])/2.0)
+    x_psf_box = psf_x - dx_psf_box
+    y_psf_box = psf_y - dy_psf_box
     
     dx = ref_star_catalog[:,1] - psf_x
     dy = ref_star_catalog[:,2] - psf_y
     max_radius = np.sqrt( (float(stamp_dims[1])/2.0)**2 + \
                             (float(stamp_dims[0])/2.0)**2 )
-                            
+    
+    logs.ifverbose(log,setup,'Searching for PSF star companions within PSF box: '+\
+                    'xmin='+str(x_psf_box)+', ymin='+str(y_psf_box)+\
+                    ' dims='+repr(stamp_dims))
+                        
     separations = np.sqrt( dx*dx + dy*dy )
     
     idx = separations.argsort()
@@ -992,20 +1037,30 @@ def find_psf_companion_stars(psf_idx, psf_x, psf_y, ref_star_catalog,
     comps_list = []
     
     jdx = np.where(separations[idx] < max_radius)
+
+    logs.ifverbose(log,setup,' -> Identified '+str(len(jdx[0]))+\
+            ' possible companions within max radius='+str(max_radius))
     
-    for j in jdx:
+    for j in jdx[0]:
         i = idx[j]
-        
-        if abs(dx[j]) <= stamp_dims[1] and abs(dy[j]) <= stamp_dims[0]:
+                
+        if abs(dx[i]) <= dx_psf_box and abs(dy[i]) <= dy_psf_box and \
+            abs(dx[i]) > 0.01 and abs(dy[i]) > 0.01:
             
-            xc = ref_star_catalog[j,1] - x_psf_box
-            xy = ref_star_catalog[j,2] - y_psf_box 
+            xc = ref_star_catalog[i,1] - x_psf_box
+            yc = ref_star_catalog[i,2] - y_psf_box 
             
-            comps_list.append([j, xc, xy, 
-                               ref_star_catalog[j,1], ref_star_catalog[j,2]])
-    
-    log.info(' -> Found '+str(len(comps_list))+' near ('+str(psf_x)+\
+            if xc > 0.0 and yc > 0.0:
+                comps_list.append([i, xc, yc, 
+                               ref_star_catalog[i,1], ref_star_catalog[i,2]])
+            
+                logs.ifverbose(log,setup,' -> Near neighbour: '+str(i)+' '+str(xc)+\
+                            ' '+str(yc)+' '+str(ref_star_catalog[i,1])+' '+\
+                            str(ref_star_catalog[i,2])+' '+str(dx[i])+' '+str(dy[i]))
+                            
+    logs.ifverbose(log,setup,' -> Found '+str(len(comps_list))+' near ('+str(psf_x)+\
             ', '+str(psf_y)+') for PSF star '+str(psf_idx))
+            
     
     return comps_list
     
@@ -1043,8 +1098,8 @@ def extract_sub_stamp(stamp,xcen,ycen,dx,dy):
     
     xmidss = (x2-x1)/2
     ymidss = (y2-y1)/2
-        
-    substamp = Cutout2D(stamp.data[y1:y2,x1:x2], (xmidss,ymidss), (x2-x1,y2-y1))
+    
+    substamp = Cutout2D(stamp.data[y1:y2,x1:x2], (xmidss,ymidss), (y2-y1,x2-x1), copy=True)
     
     return substamp, corners
     
