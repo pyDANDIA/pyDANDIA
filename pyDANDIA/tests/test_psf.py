@@ -109,7 +109,7 @@ def test_extract_sub_stamp():
         xcen = location[0]
         ycen = location[1]
         
-        substamp = psf.extract_sub_stamp(stamps[0],xcen,ycen,dx,dy)
+        (substamp,corners) = psf.extract_sub_stamp(stamps[0],xcen,ycen,dx,dy)
 
         assert type(substamp) == type(stamps[0])
         
@@ -118,10 +118,95 @@ def test_extract_sub_stamp():
         hdulist.writeto(os.path.join(TEST_DATA,'substamp'+str(i)+'.fits'),
                                      overwrite=True)
         
+def test_fit_star_existing_model():
+    """Function to test the function of fitting a pre-existing PSF and sky-
+    background model to an image at a stars known location, optimizing just for
+    the star's intensity rather than for all parameters."""
+    
+    image_file = os.path.join(TEST_DATA, 
+                            'lsc1m005-fl15-20170701-0144-e91_cropped.fits')
+                              
+    image = fits.getdata(image_file)
+    
+    psf_model = psf.Moffat2D()
+    x_cen = 195.0
+    y_cen = 181.0
+    psf_radius = 8.0
+    psf_params = [ 103301.241291, x_cen, y_cen, 226.750731765,
+                  13004.8930993, 103323.763627 ]
+    psf_model.update_psf_parameters(psf_params)
+    
+    sky_model = psf.ConstantBackground()
+    sky_model.constant = 1345.0
+    
+    fitted_model = psf.fit_star_existing_model(image, x_cen, y_cen, psf_radius, 
+                                psf_model, sky_model)
+    fitted_params = fitted_model.get_parameters()
+       
+    for i in range(3,5,1):
+        
+        assert fitted_params[i] == psf_params[i]
+
+def test_subtract_companions_from_psf_stamps():
+    """Function to test the function which removes companion stars from the 
+    surrounds of a PSF star in a PSF star stamp image."""
+
+    setup = pipeline_setup.pipeline_setup({'red_dir': TEST_DIR})
+    
+    log = logs.start_stage_log( cwd, 'test_subtract_companions' )
+    
+    log.info(setup.summary())
+    
+    reduction_metadata = metadata.MetaData()
+    reduction_metadata.load_a_layer_from_file( setup.red_dir, 
+                                              'pyDANDIA_metadata.fits', 
+                                              'reduction_parameters' )
+
+    star_catalog_file = os.path.join(TEST_DATA,'star_catalog.fits')
+                            
+    ref_star_catalog = catalog_utils.read_ref_star_catalog_file(star_catalog_file)
+    
+    log.info('Read in catalog of '+str(len(ref_star_catalog))+' stars')
+    
+    image_file = os.path.join(TEST_DATA, 
+                            'lsc1m005-fl15-20170701-0144-e91_cropped.fits')
+                              
+    image = fits.getdata(image_file)
+    
+    stamp_centres = np.array([[258,122]])
+    
+    stamp_dims = (20,20)
+        
+    stamps = psf.cut_image_stamps(image, stamp_centres, stamp_dims)
+
+    psf_model = psf.Moffat2D()
+    x_cen = 195.0
+    y_cen = 181.0
+    psf_radius = 8.0
+    psf_params = [ 103301.241291, x_cen, y_cen, 226.750731765,
+                  13004.8930993, 103323.763627 ]
+    psf_model.update_psf_parameters(psf_params)
+    
+    sky_model = psf.ConstantBackground()
+    sky_model.constant = 1345.0
+    
+    clean_stamps = subtract_companions_from_psf_stamps(setup, reduction_metadata, log, 
+                                        ref_star_catalog, stamps,
+                                        psf_model,sky_model)
+    
+    for i, s in enumerate(clean_stamps):
+        
+        hdu = fits.PrimaryHDU(s.data)
+        hdulist = fits.HDUList([hdu])
+        hdulist.writeto(os.path.join(TEST_DATA,'clean_stamp'+str(i)+'.fits'),
+                                     overwrite=True)
+
+    logs.close_log(log)
+
 
 if __name__ == '__main__':
     
     test_cut_image_stamps()
     #test_build_psf()
     test_extract_sub_stamp()
-    
+    test_fit_star_existing_model()

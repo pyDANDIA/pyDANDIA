@@ -54,6 +54,11 @@ class PSFModel(object):
 
         pass
 
+    @abc.abstractproperty
+    def get_parameters(self):
+        
+        pass
+
 
 class Moffat2D(PSFModel):
 
@@ -86,6 +91,18 @@ class Moffat2D(PSFModel):
 
         return model
 
+    def psf_model_star(self, Y_star, X_star, star_params):
+
+        params = self.get_parameters()
+        
+        params[0] = star_params[0]
+        params[1] = star_params[1]
+        params[2] = star_params[2]
+
+        model = self.psf_model(Y_star,X_star,params)
+        
+        return model
+
     def psf_guess(self):
 
         #gamma, alpha
@@ -96,6 +113,15 @@ class Moffat2D(PSFModel):
         fwhm = gamma * 2 * (2**(1 / alpha) - 1)**0.5 * pix_scale
         return fwhm
 
+    def get_parameters(self):
+        
+        params = []
+        
+        for par in self.model:
+            
+            params.append(getattr(self.psf_parameters,par))
+        
+        return params
 
 class Gaussian2D(PSFModel):
 
@@ -129,6 +155,18 @@ class Gaussian2D(PSFModel):
 
         return model
 
+    def psf_model_star(self, Y_star, X_star, star_params):
+
+        params = self.get_parameters()
+        
+        params[0] = star_params[0]
+        params[1] = star_params[1]
+        params[2] = star_params[2]
+
+        model = self.psf_model(Y_star,X_star,params)
+        
+        return model
+
     def psf_guess(self):
 
         # width_x, width_y
@@ -140,6 +178,16 @@ class Gaussian2D(PSFModel):
         fwhm = (width_x + width_y) * 1.1774100225154747 * pixel_scale
 
         return fwhm
+
+    def get_parameters(self):
+        
+        params = []
+        
+        for par in self.model:
+            
+            params.append(getattr(self.psf_parameters,par))
+        
+        return params
 
 
 class BivariateNormal(PSFModel):
@@ -177,6 +225,18 @@ class BivariateNormal(PSFModel):
 
         return model
 
+    def psf_model_star(self, Y_star, X_star, star_params):
+
+        params = self.get_parameters()
+        
+        params[0] = star_params[0]
+        params[1] = star_params[1]
+        params[2] = star_params[2]
+
+        model = self.psf_model(Y_star,X_star,params)
+        
+        return model
+        
     def psf_guess(self):
 
         # width_x, width_y, corr_xy
@@ -188,6 +248,16 @@ class BivariateNormal(PSFModel):
         fwhm = (width_x + width_y) * 1.1774100225154747 * pixel_scale
 
         return fwhm
+
+    def get_parameters(self):
+        
+        params = []
+        
+        for par in self.model:
+            
+            params.append(getattr(self.psf_parameters,par))
+        
+        return params
 
 
 class Lorentzian2D(PSFModel):
@@ -219,6 +289,18 @@ class Lorentzian2D(PSFModel):
                                                                               (Y_star - self.psf_parameters.y_center)**2 + self.psf_parameters.gamma**2)**(1.5))
         return model
 
+    def psf_model_star(self, Y_star, X_star, star_params):
+
+        params = self.get_parameters()
+        
+        params[0] = star_params[0]
+        params[1] = star_params[1]
+        params[2] = star_params[2]
+
+        model = self.psf_model(Y_star,X_star,params)
+        
+        return model
+        
     def psf_guess(self):
 
         # width_x
@@ -229,6 +311,16 @@ class Lorentzian2D(PSFModel):
         fwhm = 2 * gamma * pixel_scale
 
         return fwhm
+
+    def get_parameters(self):
+        
+        params = []
+        
+        for par in self.model:
+            
+            params.append(getattr(self.psf_parameters,par))
+        
+        return params
 
 
 class BackgroundModel(object):
@@ -267,6 +359,10 @@ class BackgroundModel(object):
 
         pass
 
+    @abc.abstractproperty
+    def get_parameters(self):
+        
+        pass
 
 class ConstantBackground(BackgroundModel):
 
@@ -305,6 +401,17 @@ class ConstantBackground(BackgroundModel):
 
         # background constant
         return [0]
+
+
+    def get_parameters(self):
+        
+        params = []
+        
+        for par in self.model:
+            
+            params.append(getattr(self,par))
+        
+        return params
 
 class GradientBackground(BackgroundModel):
 
@@ -347,6 +454,16 @@ class GradientBackground(BackgroundModel):
         a flat, constant background of zero."""
         
         return [0.0, 0.0, 0.0]
+
+    def get_parameters(self):
+        
+        params = []
+        
+        for par in self.model:
+            
+            params.append(getattr(self,par))
+        
+        return params
 
 
 class Image(object):
@@ -470,6 +587,19 @@ def fit_star(data, Y_data, X_data, psf_model='Moffat2D', background_model='Const
         data, psf_model, back_model, Y_data, X_data), full_output=1)
 
     return fit
+    
+def error_star_fit_function(params, data, psf, background, Y_data, X_data):
+
+    psf_params = params[:len(psf.psf_parameters._fields)]
+    back_params = params[len(psf.psf_parameters._fields):]
+
+    psf_model = psf.psf_model(Y_data, X_data, psf_params)
+    back_model = background.background_model(Y_data, X_data, back_params)
+
+    residuals = np.ravel(data - psf_model - back_model)
+
+    return residuals
+
 
 def fit_star_existing_model(data, x_cen, y_cen, psf_radius, psf_model, sky_model):
     """Function to fit an existing PSF and sky model to a star at a given 
@@ -487,31 +617,62 @@ def fit_star_existing_model(data, x_cen, y_cen, psf_radius, psf_model, sky_model
     
     Returns
     
+    :param PSFModel fitted_model: PSF model for the star with optimized intensity
     """
     
     Y_data, X_data = np.indices(data.shape)
     
-    sep = np.sqrt((X_data - x_cen)**2 + (Y_data - y_cen)**2)
+    #sep = np.sqrt((X_data - x_cen)**2 + (Y_data - y_cen)**2)
     
-    idx = np.where(sep <= psf_radius)
+    #idx = np.where(sep <= psf_radius)
     
-    Y_data = Y_data[idx]
-    X_data = X_data[idx]
+    #Y_data = Y_data[idx]
+    #X_data = X_data[idx]
     
-    init_par = psf_model.XXX
+    sky_bkgd = sky_model.background_model(X_data,Y_data,
+                                          sky_model.get_parameters())
     
-    fit = optimize.leastsq(error_star_fit_existing_model, guess, args=(
-        data, psf_model, back_model, Y_data, X_data), full_output=1)
+    init_par = [ psf_model.get_parameters()[0], x_cen, y_cen ]
+    
+    fit = optimize.leastsq(error_star_fit_existing_model, init_par, args=(
+        data, psf_model, sky_bkgd, Y_data, X_data), full_output=1)
 
-def error_star_fit_function(params, data, psf, background, Y_data, X_data):
+    if psf_model.psf_type() == 'Moffat2D':
 
-    psf_params = params[:len(psf.psf_parameters._fields)]
-    back_params = params[len(psf.psf_parameters._fields):]
+        fitted_model = Moffat2D()
 
-    psf_model = psf.psf_model(Y_data, X_data, psf_params)
-    back_model = background.background_model(Y_data, X_data, back_params)
+    elif psf_model.psf_type() == 'Gaussian2D':
 
-    residuals = np.ravel(data - psf_model - back_model)
+        fitted_model = Gaussian2D()
+
+    elif psf_model.psf_type() == 'BivariateNormal':
+
+        fitted_model = BivariateNormal()
+
+    elif psf_model.psf_type() == 'Lorentzian2D':
+
+        fitted_model = Lorentzian2D()
+
+    else:
+        
+        fitted_model = Gaussian2D()
+        
+    psf_params = psf_model.get_parameters()
+    psf_params[0] = fit[0][0]
+    psf_params[1] = fit[0][1]
+    psf_params[2] = fit[0][2]
+    
+    fitted_model.update_psf_parameters(psf_params)
+    
+    return fitted_model
+
+def error_star_fit_existing_model(params, data, psf_model, sky_bkgd, Y_data, X_data):
+
+    sky_subtracted_data = data - sky_bkgd
+
+    psf_image = psf_model.psf_model_star(Y_data, X_data, params)
+    
+    residuals = np.ravel(sky_subtracted_data - psf_image)
 
     return residuals
 
@@ -697,6 +858,50 @@ def fit_psf_model(setup,log,psf_model_type,sky_model_type,stamp_image,
     
     return psf_fit
 
+def fit_existing_psf_model(setup,log,psf_model,sky_model,image,xstar, ystar,
+                           diagnostics=False):
+    """Function to fit a PSF model to a stamp image
+    
+    :param Setup object setup: Pipeline fundamental configuration parameters
+    :param logging object log: Pipeline log object
+    :param PSFModel psf_model: Existing PSF model object
+    :param BackgroundModel sky_model: Existing sky model object
+    :param array image: Image data to be fitted
+    :param float xstar: Star centroid position in x-direction pixels
+    :param float ystar: Star centroid position in y-direction pixels
+    :param bool diagnostics: Switch for optional diagnostic output
+    
+    Returns:
+    
+    :param PSFModel star_psf_model: Fitted star PSF model
+    :param BackgroundModel star_sky_model: Fitted stellar sky model object
+    """
+    
+    psf_model_type = 'Moffat2D'
+    sky_model_type = 'Constant'
+    Y_data, X_data = np.indices(stamp_image.shape)
+    
+    psf_fit = fit_star(stamp_image, Y_data, X_data, 
+                                      psf_model_type, sky_model_type)
+    
+    log.info('Initial PSF model parameters using a '+psf_model_type+\
+            ' PSF and '+sky_model_type.lower()+' sky background model')
+    for p in psf_fit[0]:
+        log.info(str(p))
+    
+    if diagnostics:
+        
+        psf_stamp = generate_psf_image(psf_model_type,psf_fit[0],stamp_image.shape)
+        
+        hdu = fits.PrimaryHDU(psf_stamp)
+        hdulist = fits.HDUList([hdu])
+        hdulist.writeto(os.path.join(setup.red_dir,
+                                     'ref','psf.fits'),
+                                     overwrite=True)
+    
+    return psf_fit
+
+
 def generate_psf_image(psf_model_type,psf_model_pars,stamp_dims):
     
     psf = Image(np.zeros(stamp_dims),psf_model_type)
@@ -709,7 +914,7 @@ def generate_psf_image(psf_model_type,psf_model_pars,stamp_dims):
     
 def subtract_companions_from_psf_stamps(setup, reduction_metadata, log, 
                                         ref_star_catalog, stamps,
-                                        psf_model):
+                                        psf_model,sky_model):
     """Function to perform a PSF fit to all companions in the PSF star stamps,
     so that these companion stars can be subtracted from the stamps.
     
@@ -720,7 +925,7 @@ def subtract_companions_from_psf_stamps(setup, reduction_metadata, log,
                                 reference image
     :param list stamps: list of Cutout2D image stamps around the PSF stars
     :param PSFModel object psf_model: the PSF model to be fitted
-    :param str sky_model_type: Name of the type of sky model to be used
+    :param BackgroundModel object sky_model: Model of the image background
     
     Returns
     
@@ -731,6 +936,7 @@ def subtract_companions_from_psf_stamps(setup, reduction_metadata, log,
     dx = reduction_metadata.reduction_parameters[1]['PSF_SIZE'][0]
     dy = reduction_metadata.reduction_parameters[1]['PSF_SIZE'][0]
     
+    clean_stamps = []
     for s in stamps:
         
         comps_list = find_psf_companion_stars(psf_x, psf_y,ref_star_catalog,log)
@@ -739,15 +945,20 @@ def subtract_companions_from_psf_stamps(setup, reduction_metadata, log,
     
         for star_data in comps_list:
         
-            substamp = extract_sub_stamp(stamp,star_data[1],star_data[2],dx,dy)
+            (substamp,corners) = extract_sub_stamp(stamp,star_data[1],star_data[2],dx,dy)
             
-        # Fit the existing psf_model to the sub-stamp, returning a model
-        # PSF sub-stamp image
-        
-        # Subtract the model sub-stamp image from the image stamp.
-            pass
-                          
-        
+            comp_psf = fit_star_existing_model(substamp, substamp.position[1],
+                                               substamp.position[0], dx,
+                                               psf_model, sky_model)
+            
+            comp_psf_stamp = comp_psf.psf_model(Y_data, X_data, comp_psf.get_parameters())
+            
+            stamp[corners[2]:corners[3],corners[0],corners[1]] -= comp_psf_stamp
+                
+        clean_stamps.append(stamp)
+    
+    return clean_stamps
+    
 def find_psf_companion_stars(psf_idx, psf_x, psf_y, ref_star_catalog,
                              log, stamp_dims):
     """Function to identify stars in close proximity to a selected PSF star, 
@@ -828,11 +1039,12 @@ def extract_sub_stamp(stamp,xcen,ycen,dx,dy):
     y1 = max(y1,0)
     x2 = min(x2,xmax_stamp)
     y2 = min(y2,ymax_stamp)
+    corners = [x1,x2,y1,y2]
     
     xmidss = (x2-x1)/2
     ymidss = (y2-y1)/2
         
     substamp = Cutout2D(stamp.data[y1:y2,x1:x2], (xmidss,ymidss), (x2-x1,y2-y1))
     
-    return substamp
+    return substamp, corners
     
