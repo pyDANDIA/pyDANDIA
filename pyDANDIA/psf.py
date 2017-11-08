@@ -410,7 +410,7 @@ class ConstantBackground(BackgroundModel):
         
         for par in self.model:
             
-            params.append(getattr(self,par))
+            params.append(getattr(self.background_parameters,par))
         
         return params
 
@@ -676,9 +676,11 @@ def plot3d(xdata, ydata, zdata):
     plt.show()
 
 def build_psf(setup, reduction_metadata, log, image, ref_star_catalog, 
-              psf_stars_idx, sky_model, diagnostics=True):
+              sky_model, diagnostics=True):
     """Function to build a PSF model based on the PSF stars
     selected from a reference image."""
+    
+    status = 'OK'
     
     log.info('Building a PSF model based on the reference image')
     
@@ -689,8 +691,16 @@ def build_psf(setup, reduction_metadata, log, image, ref_star_catalog,
 
     logs.ifverbose(log,setup,' -> Applying PSF size='+str(psf_size))
 
-    idx = np.where(psf_stars_idx == 1.0)
+    idx = np.where(ref_star_catalog[:,13] == 1)
     psf_star_centres = ref_star_catalog[idx[0],1:3]
+    
+    if len(psf_star_centres) == 0:
+        
+        status = 'ERROR: No PSF stars selected'
+        
+        log.info(status)
+        
+        return None, status
     
     log.info('Cutting stamps for '+str(len(psf_star_centres))+' PSF stars')
     
@@ -765,9 +775,9 @@ def build_psf(setup, reduction_metadata, log, image, ref_star_catalog,
     hdulist.writeto(os.path.join(setup.red_dir,'ref','psf_model.fits'),
                                      overwrite=True)
     
-    log.info('Completed build of PSF model')
+    log.info('Completed build of PSF model with status '+status)
     
-    return psf_model
+    return psf_model, status
 
 def cut_image_stamps(image, stamp_centres, stamp_dims, log=None):
     """Function to extract a set of stamps (2D image sections) at the locations
@@ -796,11 +806,17 @@ def cut_image_stamps(image, stamp_centres, stamp_dims, log=None):
         
         corners = calc_stamp_corners(xcen, ycen, dx, dy, 
                                      image.shape[1], image.shape[0])
-                                     
+        
         if None not in corners:
-            cutout = Cutout2D(image, (xcen,ycen), stamp_dims, copy=True)
             
-            stamps.append(cutout)
+            dxc = corners[1] - corners[0]
+            dyc = corners[3] - corners[2]
+            
+            if 2*dx == dxc and 2*dy == dyc:
+                
+                cutout = Cutout2D(image, (xcen,ycen), stamp_dims, copy=True)
+                
+                stamps.append(cutout)
     
     if log != None:
         
@@ -816,7 +832,7 @@ def calc_stamp_corners(xcen, ycen, dx, dy, maxx, maxy):
     ymin = int(ycen) - dy
     ymax = int(ycen) + dy
         
-    if xmin >= 0 and xmax <= maxx and ymin >= 0 and ymax <= maxy:
+    if xmin >= 0 and xmax < maxx and ymin >= 0 and ymax < maxy:
         
         return (xmin, xmax, ymin, ymax)
         
@@ -833,7 +849,7 @@ def coadd_stamps(setup, stamps, log, diagnostics=True):
     xc = coadd.shape[1]/2
     yc = coadd.shape[0]/2
     
-    for s in stamps:
+    for i,s in enumerate(stamps):
         
         if s != None:
             

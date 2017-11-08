@@ -183,21 +183,15 @@ def test_model_sky_background():
     
     log.info('Read reference image star catalog from '+ref_star_catalog_file)
         
-    sky_fit = sky_background.model_sky_background(setup,reduction_metadata,
+    sky_model = sky_background.model_sky_background(setup,reduction_metadata,
                                                   log,ref_star_catalog)
     
     log.info('Fit image sky background with '+\
             reduction_metadata.background_type+' model, parameters:')
     
-    if reduction_metadata.background_type == 'constant':
+    for key in sky_model.model:
         
-        log.info('constant = '+str(sky_fit[0][0]))
-        
-    else:
-        
-        for i, p in enumerate(sky_fit[0]):
-            
-            log.info('a'+str(i)+' = '+str(p))
+        log.info(key+' = '+str(getattr(sky_model.background_parameters,key)))
     
     logs.close_log(log)
 

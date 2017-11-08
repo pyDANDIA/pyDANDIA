@@ -48,19 +48,20 @@ def test_build_psf():
     log.info('Read in catalog of '+str(len(ref_star_catalog))+' stars')
     
     psf_stars_idx = np.zeros(len(ref_star_catalog))
-    psf_stars_idx[400:500] = 1.0
-    
+    psf_stars_idx[400:500] = 1
+    ref_star_catalog[:,13] = psf_stars_idx
+
     ref_image = fits.getdata(reduction_metadata.reference_image_path)
     
     log.info('Loaded reference image')
     
     sky_model = psf.ConstantBackground()
     sky_model.constant = 1345.0
+    sky_model.background_parameters.constant = 1345.0
 
-    psf_model = psf.build_psf(setup, reduction_metadata, log, ref_image, 
-                              ref_star_catalog, psf_stars_idx, 
-                              sky_model, diagnostics=True)
-
+    (psf_model, status) = psf.build_psf(setup, reduction_metadata, log, ref_image, 
+                              ref_star_catalog, sky_model, diagnostics=True)
+    
     logs.close_log(log)
     
 def test_cut_image_stamps():
@@ -155,6 +156,7 @@ def test_fit_star_existing_model():
     
     sky_model = psf.ConstantBackground()
     sky_model.constant = 1345.0
+    sky_model.background_parameters.constant = 1345.0
     
     fitted_model = psf.fit_star_existing_model(image, x_cen, y_cen, psf_radius, 
                                 psf_model, sky_model)
@@ -224,6 +226,7 @@ def test_subtract_companions_from_psf_stamps():
     
     sky_model = psf.ConstantBackground()
     sky_model.constant = 1345.0
+    sky_model.background_parameters.constant = 1345.0
     
     clean_stamps = psf.subtract_companions_from_psf_stamps(setup, reduction_metadata, log, 
                                         ref_star_catalog, stamps,stamp_centres,

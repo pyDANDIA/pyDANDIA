@@ -322,16 +322,32 @@ def build_star_finder(reduction_metadata, image_path, log):
     
     return daofind
 
-def detect_sources(reduction_metadata, image_path, log):
-    """Function to detect all sources in the given image"""
+def detect_sources(reduction_metadata, image_path, scidata, log):
+    """Function to detect all sources in the given image
+    
+    :param MetaData reduction_metadata: pipeline metadata for this dataset
+    :param str image_path: path to image file to be analyzed
+    :param array scidata: image pixel data
+    :param logging log: Open reduction log object
+
+    Returns:
+    
+    :param array detected_sources: position information on all objects in the image
+    """
         
     daofind = build_star_finder(reduction_metadata, image_path, log)
     
     sources = daofind(scidata)
+        
+    detected_sources = np.zeros([len(sources),len(sources.colnames)])
+    
+    for i, col in enumerate(sources.colnames):
+                
+        detected_sources[:,i] = sources[col].data
     
     log.info('Detected '+str(len(sources)))
     
-    return sources
+    return detected_sources
 
 
 ###############################################################################

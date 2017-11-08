@@ -63,8 +63,20 @@ def model_sky_background(setup,reduction_metadata,log,ref_star_catalog):
     sky_model = generate_sky_model(sky_params)
     
     sky_fit = fit_sky_background(star_masked_image,sky_model,'constant',log=log)
-    
-    return sky_fit
+
+    if reduction_metadata.background_type == 'constant':
+        
+        sky_params['constant'] = sky_fit[0][0]
+          
+    elif reduction_metadata.background_type == 'gradient':
+        
+        sky_params['a0'] = sky_fit[0][0]
+        sky_params['a1'] = sky_fit[0][1]
+        sky_params['a2'] = sky_fit[0][2]
+          
+    sky_model = generate_sky_model(sky_params)
+        
+    return sky_model
     
 def build_psf_mask(setup,psf_size,diagnostics=False):
     """Function to construct a mask for the PSF of a single star, which

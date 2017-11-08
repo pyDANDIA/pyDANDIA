@@ -247,7 +247,8 @@ class MetaData:
                 'Instr_mag', 'Instr_mag_err',
                 'J_mag', 'J_mag_err',
                 'H_mag', 'H_mag_err', 
-                'Ks_mag', 'Ks_mag_err']
+                'Ks_mag', 'Ks_mag_err',
+                'psf_star']
         
         formats = [ 'int',
                    'float', 'float',
@@ -256,6 +257,7 @@ class MetaData:
                    'float', 'float',
                    'float', 'float',
                    'float', 'float',
+                   'int'
                    ]
                    
         units = [ None, 
@@ -265,6 +267,7 @@ class MetaData:
                  'mag', 'mag',
                  'mag', 'mag',
                  'mag', 'mag',
+                 None
                  ]
                  
         data_structure = [ names, 

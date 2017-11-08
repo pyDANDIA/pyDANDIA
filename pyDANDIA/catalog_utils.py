@@ -39,7 +39,7 @@ def output_ref_catalog_file(catalog_file,ref_catalog):
     within the reference image
 
     Format of output is a FITS binary table with the following columns:
-    idx x  y  ra  dec  inst_mag inst_mag_err J  Jerr  H Herr   K   Kerr
+    idx x  y  ra  dec  inst_mag inst_mag_err J  Jerr  H Herr   K   Kerr psf_star
     """
     
     header = fits.Header()
@@ -60,6 +60,7 @@ def output_ref_catalog_file(catalog_file,ref_catalog):
             fits.Column(name='H_mag_err', format='E', array=ref_catalog[:,10]),\
             fits.Column(name='Ks_mag', format='E', array=ref_catalog[:,11]),\
             fits.Column(name='Ks_mag_err', format='E', array=ref_catalog[:,12]),\
+            fits.Column(name='psf_star', format='I', array=ref_catalog[:,13]),\
             ])
     
     thdulist = fits.HDUList([prihdu, tbhdu])
