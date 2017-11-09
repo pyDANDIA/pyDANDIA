@@ -342,17 +342,23 @@ def test_fit_psf_model():
                                    stamps[0],diagnostics=True)
     
     assert type(fitted_psf) == type(psf.Moffat2D())
+    
+    log.info('Parameters of fitted PSF model:')
+    
+    for key in fitted_psf.model:
+        
+        log.info(key+' = '+str(getattr(fitted_psf.psf_parameters,key)))
         
     logs.close_log(log)
 
 
 if __name__ == '__main__':
     
-    test_cut_image_stamps()
-    test_extract_sub_stamp()
-    test_fit_star_existing_model()
-    test_find_psf_companion_stars()
-    test_subtract_companions_from_psf_stamps()
+    #test_cut_image_stamps()
+    #test_extract_sub_stamp()
+    #test_fit_star_existing_model()
+    #test_find_psf_companion_stars()
+    #test_subtract_companions_from_psf_stamps()
     test_fit_psf_model()
-    test_build_psf()
+    #test_build_psf()
     

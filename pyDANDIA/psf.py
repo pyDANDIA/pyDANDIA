@@ -19,6 +19,7 @@ from astropy.nddata import Cutout2D
 from astropy.io import fits
 import logs
 import os
+import sys
 
 class PSFModel(object):
 
@@ -78,15 +79,15 @@ class Moffat2D(PSFModel):
             setattr(self.psf_parameters, key, None)
 
     def update_psf_parameters(self, parameters):
-
+        
         for index, key in enumerate(self.model):
-
+            
             setattr(self.psf_parameters, key, parameters[index])
-
+                        
     def psf_model(self, Y_star, X_star, parameters):
 
         self.update_psf_parameters(parameters)
-
+            
         model = self.psf_parameters.intensity * (1 + ((X_star - self.psf_parameters.x_center)**2 +\
                                                       (Y_star - self.psf_parameters.y_center)**2) / self.psf_parameters.gamma**2)**(-self.psf_parameters.alpha)
 
@@ -96,11 +97,10 @@ class Moffat2D(PSFModel):
 
         params = self.get_parameters()
         
-        if len(star_params) > 0:
-            params[0] = star_params[0]
-            params[1] = star_params[1]
-            params[2] = star_params[2]
-
+        for i in range(0,len(star_params),1):
+            
+            params[i] = star_params[i]
+            
         model = self.psf_model(Y_star,X_star,params)
         
         return model
@@ -171,10 +171,9 @@ class Gaussian2D(PSFModel):
 
         params = self.get_parameters()
         
-        if len(star_params) > 0:
-            params[0] = star_params[0]
-            params[1] = star_params[1]
-            params[2] = star_params[2]
+        for i in range(0,len(star_params),1):
+            
+            params[i] = star_params[i]
 
         model = self.psf_model(Y_star,X_star,params)
         
@@ -251,11 +250,10 @@ class BivariateNormal(PSFModel):
 
         params = self.get_parameters()
         
-        if len(star_params) > 0:
-            params[0] = star_params[0]
-            params[1] = star_params[1]
-            params[2] = star_params[2]
-
+        for i in range(0,len(star_params),1):
+            
+            params[i] = star_params[i]
+            
         model = self.psf_model(Y_star,X_star,params)
         
         return model
@@ -325,11 +323,10 @@ class Lorentzian2D(PSFModel):
 
         params = self.get_parameters()
         
-        if len(star_params) > 0:
-            params[0] = star_params[0]
-            params[1] = star_params[1]
-            params[2] = star_params[2]
-
+        for i in range(0,len(star_params),1):
+            
+            params[i] = star_params[i]
+            
         model = self.psf_model(Y_star,X_star,params)
         
         return model
@@ -629,7 +626,10 @@ def error_star_fit_function(params, data, psf, background, Y_data, X_data):
     return residuals
 
 
-def fit_star_existing_model(data, x_cen, y_cen, psf_radius, psf_model, sky_model):
+def fit_star_existing_model(data, x_cen, y_cen, psf_radius, 
+                            input_psf_model, sky_model,
+                            centroiding=True,
+                            diagnostics=False):
     """Function to fit an existing PSF and sky model to a star at a given 
     location in an image, optimizing only the peak intensity of the PSF rather 
     than all parameters.
@@ -640,43 +640,94 @@ def fit_star_existing_model(data, x_cen, y_cen, psf_radius, psf_model, sky_model
     :param float x_cen: the x-pixel location of the PSF to be fitted in the 
                         coordinates of the image
     :param float psf_radius: the radius of data to fit the PSF to
-    :param PSFModel psf_model: existing psf model
+    :param PSFModel input_psf_model: existing psf model
     :param BackgroundModel sky_model: existing model for the image sky background
+    :param boolean centroiding: Switch to (dis)-allow re-fitting of each star's
+                                x, y centroid.  Default=allowed (True)
+    :param boolean diagnostics: optional switch for diagnostic output
     
     Returns
     
     :param PSFModel fitted_model: PSF model for the star with optimized intensity
     """
     
-    Y_data, X_data = np.indices(data.shape)
+    psf_model = get_psf_object(input_psf_model.psf_type())
+    psf_model.update_psf_parameters(input_psf_model.get_parameters())
     
-    #sep = np.sqrt((X_data - x_cen)**2 + (Y_data - y_cen)**2)
+    stamps = cut_image_stamps(data, np.array([[x_cen,y_cen]]), 
+                              (2.0*psf_radius, 2.0*psf_radius), log=None, 
+                                over_edge=True)
     
-    #idx = np.where(sep <= psf_radius)
+    stamp_centre = ( (x_cen - stamps[0].xmin_original), 
+                    (y_cen - stamps[0].ymin_original) )
     
-    #Y_data = Y_data[idx]
-    #X_data = X_data[idx]
+    if diagnostics:
+        
+        hdu = fits.PrimaryHDU(stamps[0].data)
+        hdulist = fits.HDUList([hdu])
+        hdulist.writeto(os.path.join('psf_stamp.fits'),overwrite=True)
+
+    
+    Y_data, X_data = np.indices(stamps[0].data.shape)
     
     sky_bkgd = sky_model.background_model(X_data,Y_data,
                                           sky_model.get_parameters())
     
-    init_par = [ psf_model.get_parameters()[0], x_cen, y_cen ]
     
-    fit = optimize.leastsq(error_star_fit_existing_model, init_par, args=(
-        data, psf_model, sky_bkgd, Y_data, X_data), full_output=1)
+    # Recenter the PSF temporarily to the middle of the stamp to be fitted
+    # NOTE PSF parameters in order intensity, Y, X
+    psf_params = psf_model.get_parameters()
+    psf_params[1] = stamp_centre[1]
+    psf_params[2] = stamp_centre[0]
+    psf_model.update_psf_parameters(psf_params)
+    
+    if centroiding:
+        
+        init_par = [ psf_model.get_parameters()[0], 
+                    stamp_centre[1], stamp_centre[0] ]
+    else:
+        
+        init_par = [ psf_model.get_parameters()[0] ]
+    
+    fit = optimize.leastsq(error_star_fit_existing_model, init_par, 
+        args=(stamps[0].data, psf_model, sky_bkgd, Y_data, X_data), 
+        full_output=1)
 
     fitted_model = get_psf_object( psf_model.psf_type() )
-        
+    
     psf_params = psf_model.get_parameters()
     psf_params[0] = fit[0][0]
-    psf_params[1] = fit[0][1]
-    psf_params[2] = fit[0][2]
+    
+    if centroiding:
+        psf_params[1] = fit[0][1]
+        psf_params[2] = fit[0][2]
+    
+    fitted_model.update_psf_parameters(psf_params)
+    
+    if diagnostics:
+        
+        Y_data, X_data = np.indices(stamps[0].data.shape)
+        
+        pars = fitted_model.get_parameters()
+        
+        model_data = fitted_model.psf_model_star(Y_data, X_data, star_params=pars)
+        
+        hdu = fits.PrimaryHDU(model_data)
+        hdulist = fits.HDUList([hdu])
+        hdulist.writeto(os.path.join('psf_model_stamp.fits'),overwrite=True)
+    
+    # Add the stamp x,y offset back to the star centroid:
+    psf_params = fitted_model.get_parameters()
+    psf_params[0] = fit[0][0]
+    psf_params[1] = stamps[0].ymin_original + psf_params[1]
+    psf_params[2] = stamps[0].xmin_original + psf_params[2]
     
     fitted_model.update_psf_parameters(psf_params)
     
     return fitted_model
 
-def error_star_fit_existing_model(params, data, psf_model, sky_bkgd, Y_data, X_data):
+def error_star_fit_existing_model(params, data, psf_model, sky_bkgd, 
+                                  Y_data, X_data):
 
     sky_subtracted_data = data - sky_bkgd
 
@@ -820,7 +871,7 @@ def build_psf(setup, reduction_metadata, log, image, ref_star_catalog,
     
     return psf_model, status
 
-def cut_image_stamps(image, stamp_centres, stamp_dims, log=None):
+def cut_image_stamps(image, stamp_centres, stamp_dims, log=None, over_edge=False):
     """Function to extract a set of stamps (2D image sections) at the locations
     given and with the dimensions specified in pixels.
     
@@ -830,7 +881,11 @@ def cut_image_stamps(image, stamp_centres, stamp_dims, log=None):
     :param array image: the image data array from which to take stamps
     :param array stamp_centres: 2-col array with the x, y centres of the stamps
     :param tuple stamp_dims: the width and height of the stamps
-    
+    :param boolean over_edge: switch to allow the stamps to be smaller than
+                            specified if a stamp_centre lies close to the edge
+                            of the image.  Code will then return a Cutout2D of 
+                            that portion of the image within the stamp
+                            boundaries.
     Returns
     
     :param list Cutout2D objects
@@ -846,19 +901,26 @@ def cut_image_stamps(image, stamp_centres, stamp_dims, log=None):
         ycen = stamp_centres[j,1]
         
         corners = calc_stamp_corners(xcen, ycen, dx, dy, 
-                                     image.shape[1], image.shape[0])
+                                     image.shape[1], image.shape[0],
+                                    over_edge=over_edge)
         
         if None not in corners:
             
             dxc = corners[1] - corners[0]
             dyc = corners[3] - corners[2]
             
-            if 2*dx == dxc and 2*dy == dyc:
+            if over_edge==False and 2*dx == dxc and 2*dy == dyc:
                 
-                cutout = Cutout2D(image, (xcen,ycen), stamp_dims, copy=True)
+                cutout = Cutout2D(image, (xcen,ycen), (dxc, dyc), copy=True)
                 
                 stamps.append(cutout)
-    
+                
+            elif over_edge==True:
+                
+                cutout = Cutout2D(image, (xcen,ycen), (dxc, dyc), copy=True)
+                
+                stamps.append(cutout)
+                
     if log != None:
         
         log.info('Made stamps for '+str(len(stamps))+' out of '+\
@@ -866,21 +928,32 @@ def cut_image_stamps(image, stamp_centres, stamp_dims, log=None):
         
     return stamps
 
-def calc_stamp_corners(xcen, ycen, dx, dy, maxx, maxy):
+def calc_stamp_corners(xcen, ycen, dx, dy, maxx, maxy, over_edge=False):
     
     xmin = int(xcen) - dx
     xmax = int(xcen) + dx
     ymin = int(ycen) - dy
     ymax = int(ycen) + dy
-        
+    
     if xmin >= 0 and xmax < maxx and ymin >= 0 and ymax < maxy:
         
         return (xmin, xmax, ymin, ymax)
         
     else:
         
-        return (None, None, None, None)
+        if over_edge == False:
+            
+            return (None, None, None, None)
         
+        else:
+            
+            xmin = max(0,xmin)
+            ymin = max(0,ymin)
+            xmax = min(maxx,xmax)
+            ymax = min(maxy,ymax)
+            
+            return (xmin, xmax, ymin, ymax)
+            
 def coadd_stamps(setup, stamps, log, diagnostics=True):
     """Function to combine a set of identically-sized image cutout2D objects,
     by co-adding to generate a single high signal-to-noise stamp."""

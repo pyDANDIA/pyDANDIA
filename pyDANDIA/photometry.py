@@ -16,7 +16,7 @@ import starfind
 import psf
 
 def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
-                       image_path,psf_model,sky_model):
+                       image_path,psf_model,sky_model,centroiding=True):
     """Function to perform PSF fitting photometry on all stars for a single
     image.
     
@@ -27,6 +27,8 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
     :param str image_path: Path to image to be photometered
     :param PSFModel object psf_model: PSF to be fitted to each star
     :param BackgroundModel object sky_model: Model for the image sky background
+    :param boolean centroiding: Switch to (dis)-allow re-fitting of each star's
+                                x, y centroid.  Default=allowed (True)
     
     Returns:
     
@@ -38,8 +40,10 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
     data = fits.getdata(image_path)
     
     psf_size = reduction_metadata.reduction_parameters[1]['PSF_SIZE'][0]
+    half_psf = int(float(psf_size)/2.0)
     
-    logs.ifverbose(log,setup,'Applying PSF size='+str(psf_size))
+    logs.ifverbose(log,setup,'Applying '+psf_model.psf_type()+\
+                    ' PSF of size='+str(psf_size))
     
     Y_data, X_data = np.indices((int(psf_size),int(psf_size)))
     
@@ -48,10 +52,21 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
         xstar = ref_star_catalog[j,1]
         ystar = ref_star_catalog[j,2]
         
-        fitted_model = psf.fit_star_existing_model(data, xstar, ystar, psf_size, 
-                                               psf_model, sky_model)
+        X_grid = X_data + (int(xstar) - half_psf)
+        Y_grid = Y_data + (int(ystar) - half_psf)
         
-        (flux, flux_err) = fitted_model.calc_flux(Y_data, X_data)
+        logs.ifverbose(log,setup,' -> Star '+str(j)+' at position ('+\
+        str(xstar)+', '+str(ystar)+')')
+        
+        fitted_model = psf.fit_star_existing_model(data, xstar, ystar, psf_size, 
+                                               psf_model, sky_model, 
+                                               centroiding=centroiding,
+                                               diagnostics=True)
+        
+        logs.ifverbose(log, setup,' -> Star '+str(j)+
+        ' fitted model parameters = '+repr(fitted_model.get_parameters()))
+                
+        (flux, flux_err) = fitted_model.calc_flux(Y_grid, X_grid)
         
         (mag, mag_err) = convert_flux_to_mag(flux, flux_err)
         
@@ -59,9 +74,9 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
         ref_star_catalog[j,6] = mag_err
         
         logs.ifverbose(log,setup,' -> Star '+str(j)+
-                ' flux='+str(flux)+' +/- '+str(flux_err)+' ADU, '
+        ' flux='+str(flux)+' +/- '+str(flux_err)+' ADU, '
         'mag='+str(mag)+' +/- '+str(mag_err)+' mag')
-    
+        
     log.info('Completed photometry')
     
     return ref_star_catalog
@@ -79,18 +94,24 @@ def convert_flux_to_mag(flux, flux_err):
     :param float mag: Measured star magnitude
     :param float flux_mag: Uncertainty in measured magnitude
     """
-    
     def flux2mag(ZP, flux):
         
         return ZP - 2.5 * np.log10(flux)
+    
+    if flux < 0.0 or flux_err < 0.0:
         
-    ZP = 25.0
-    
-    mag = flux2mag(ZP, flux)
-    
-    m1 = flux2mag(ZP, (flux - flux_err))
-    m2 = flux2mag(ZP, (flux + flux_err))
-    
-    mag_err = (m2 - m1)/2.0
+        mag = 0.0
+        mag_err = 0.0
+
+    else:        
+
+        ZP = 25.0
+        
+        mag = flux2mag(ZP, flux)
+        
+        m1 = flux2mag(ZP, (flux + flux_err))
+        m2 = flux2mag(ZP, (flux - flux_err))
+        
+        mag_err = (m2 - m1)/2.0
     
     return mag, mag_err

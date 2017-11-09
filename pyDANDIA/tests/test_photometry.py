@@ -51,26 +51,30 @@ def test_run_psf_photometry():
                             
     ref_star_catalog = catalog_utils.read_ref_star_catalog_file(star_catalog_file)
     
-    psf_model = psf.Moffat2D()
+    psf_model = psf.get_psf_object('Moffat2D')
+    
     x_cen = 194.654006958
     y_cen = 180.184967041
     psf_radius = 8.0
-    psf_params = [ 103301.241291, x_cen, y_cen, 226.750731765,
-                  13004.8930993, 103323.763627 ]
+    psf_params = [ 5807.59961215, x_cen, y_cen, 7.02930822229, 11.4997891585 ]
+    
     psf_model.update_psf_parameters(psf_params)
 
     sky_model = psf.ConstantBackground()
     sky_model.background_parameters.constant = 1345.0
 
-    
-    
     log.info('Performing PSF fitting photometry on '+os.path.basename(image_path))
 
     ref_star_catalog = photometry.run_psf_photometry(setup,reduction_metadata,
                                                      log,ref_star_catalog,
-                                                     image_path,psf_model,sky_model)
+                                                     image_path,
+                                                     psf_model,sky_model,
+                                                     centroiding=True)
     
-    print ref_star_catalog
+    assert ref_star_catalog[:,5].max() > 0.0
+    assert ref_star_catalog[:,6].max() > 0.0
+    assert ref_star_catalog[:,5].max() <= 25.0
+    assert ref_star_catalog[:,6].max() <= 10.0
     
     logs.close_log(log)
     
