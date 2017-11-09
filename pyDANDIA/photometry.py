@@ -13,114 +13,84 @@ import metadata
 import matplotlib.pyplot as plt
 from astropy.io import fits
 import starfind
+import psf
 
-def run_iterative_PSF_photometry(setup,reduction_metadata,image_path,log,
-                                 diagnostics=False):
-    """Function to perform PSF-fitting photometry to all objects detected
-    in an image, using DAOphot-standard routines from photutils.
+def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
+                       image_path,psf_model,sky_model):
+    """Function to perform PSF fitting photometry on all stars for a single
+    image.
+    
+    :param SetUp object setup: Essential reduction parameters
+    :param MetaData reduction_metadata: pipeline metadata for this dataset
+    :param logging log: Open reduction log object
+    :param array ref_star_catalog: catalog of objects detected in the image
+    :param str image_path: Path to image to be photometered
+    :param PSFModel object psf_model: PSF to be fitted to each star
+    :param BackgroundModel object sky_model: Model for the image sky background
+    
+    Returns:
+    
+    :param array ref_star_catalog: catalog of objects detected in the image
     """
     
-    iterate = False
+    log.info('Starting photometry of '+os.path.basename(image_path))
     
-    log.info('Performing PSF-fitting photometry on '+os.path.basename(image_path))
-    
-    image_data = fits.getdata(image_path)
+    data = fits.getdata(image_path)
     
     psf_size = reduction_metadata.reduction_parameters[1]['PSF_SIZE'][0]
     
-    image_idx = reduction_metadata.images_stats[1]['IM_NAME'].tolist().index(os.path.basename(image_path))
+    logs.ifverbose(log,setup,'Applying PSF size='+str(psf_size))
     
-    fwhm = reduction_metadata.images_stats[1]['FWHM_X'][image_idx]
+    Y_data, X_data = np.indices((int(psf_size),int(psf_size)))
     
-    log.info('Applying psf size = '+str(psf_size))
-    log.info('         fwhm = '+str(fwhm))
-
-    psf_radius = psf_size * fwhm
-    
-    log.info('         psf size = '+str(psf_radius))
-    
-    star_finder = starfind.build_star_finder(reduction_metadata, image_path, log)
-    
-    daogroup = DAOGroup(2.0*fwhm)
-    
-    log.info(' -> Build star grouping object')
-    
-    sigma_clip = SigmaClip(sigma=3.0)
-
-    mmm_bkg = MMMBackground(sigma_clip=sigma_clip)
-    
-    log.info(' -> Build sky background model')
-    
-    fitter = LevMarLSQFitter()
-    
-    psf_model = IntegratedGaussianPRF(sigma=fwhm)
-    
-    log.info(' -> Build PSF model')
-    
-    psf_x = calc_psf_dimensions(psf_size,fwhm,log)
-    
-    if iterate:
-        photometer = IterativelySubtractedPSFPhotometry(finder=star_finder,
-                                                    group_maker=daogroup,
-                                                    bkg_estimator=mmm_bkg,
-                                                    psf_model=psf_model,
-                                                    fitter=fitter,
-                                                    niters=3, 
-                                                    fitshape=(psf_x,psf_x))
-    else:
-        photometer = BasicPSFPhotometry(finder=star_finder,
-                                                    group_maker=daogroup,
-                                                    bkg_estimator=mmm_bkg,
-                                                    psf_model=psf_model,
-                                                    fitter=fitter,
-                                                    fitshape=(psf_x,psf_x))
-    photometry = photometer(image=image_data)
-    print photometry.colnames
-    print photometry['flux_unc'].data
-    
-    log.info('Photometry warnings, if any: '+repr(fitter.fit_info['message']))
-    
-    log.info('Executed photometry of '+str(len(photometry))+' stars')
-    
-    if diagnostics:
-        store_residual_image(setup,photometer,image_path,log)
-    
-    return photometry
-
-def calc_psf_dimensions(psf_size,fwhm,log):
-    """Function to calculate the image stamp dimensions to be used for each 
-    PSF.  This has to be an odd number to work with photutils. """
-    
-    psf_x = psf_size * fwhm
-    if np.mod(int(psf_x),2.0) == 0.0:
-        psf_x = int(psf_x) + 1
-    else:
-        psf_x = int(psf_x)
-    
-    log.info(' -> Calculated PSF stamp pixel dimensions = '+\
-            str(psf_x)+'x'+str(psf_x))
-    
-    return psf_x
-
-def store_residual_image(setup,photometer,image_path,log):
-    """Function to store the residual image produced following PSF-fitting
-    photometry to the filesystem."""
-    
-    try:
-        residual_image = photometer.get_residual_image()
-    
-        hdu = fits.PrimaryHDU(residual_image)
+    for j in range(0,len(ref_star_catalog),1):
         
-        hdulist = fits.HDUList([hdu])
+        xstar = ref_star_catalog[j,1]
+        ystar = ref_star_catalog[j,2]
         
-        res_image_name = os.path.basename(image_path).replace('.fits','_res.fits')
-        res_image_path = os.path.join(os.path.dirname(image_path),res_image_name)
+        fitted_model = psf.fit_star_existing_model(data, xstar, ystar, psf_size, 
+                                               psf_model, sky_model)
         
-        hdulist.writeto(res_image_path,overwrite=True)
-
-        log.info('Output PSF-photometry residual image to '+res_image_path)
+        (flux, flux_err) = fitted_model.calc_flux(Y_data, X_data)
         
-    except:
+        (mag, mag_err) = convert_flux_to_mag(flux, flux_err)
         
-        log.info('Error: fault occurred during output of PSF-photometry residual image')
+        ref_star_catalog[j,5] = mag
+        ref_star_catalog[j,6] = mag_err
         
+        logs.ifverbose(log,setup,' -> Star '+str(j)+
+                ' flux='+str(flux)+' +/- '+str(flux_err)+' ADU, '
+        'mag='+str(mag)+' +/- '+str(mag_err)+' mag')
+    
+    log.info('Completed photometry')
+    
+    return ref_star_catalog
+    
+    
+def convert_flux_to_mag(flux, flux_err):
+    """Function to convert the flux of a star from its fitted PSF model 
+    and its uncertainty onto the magnitude scale.
+    
+    :param float flux: Total star flux
+    :param float flux_err: Uncertainty in star flux
+    
+    Returns:
+    
+    :param float mag: Measured star magnitude
+    :param float flux_mag: Uncertainty in measured magnitude
+    """
+    
+    def flux2mag(ZP, flux):
+        
+        return ZP - 2.5 * np.log10(flux)
+        
+    ZP = 25.0
+    
+    mag = flux2mag(ZP, flux)
+    
+    m1 = flux2mag(ZP, (flux - flux_err))
+    m2 = flux2mag(ZP, (flux + flux_err))
+    
+    mag_err = (m2 - m1)/2.0
+    
+    return mag, mag_err

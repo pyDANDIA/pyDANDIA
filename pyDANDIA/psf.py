@@ -11,7 +11,7 @@
 import abc
 import collections
 import numpy as np
-from scipy import optimize
+from scipy import optimize, integrate
 import matplotlib.pyplot as plt
 from astropy import visualization
 from mpl_toolkits.mplot3d import Axes3D
@@ -92,13 +92,14 @@ class Moffat2D(PSFModel):
 
         return model
 
-    def psf_model_star(self, Y_star, X_star, star_params):
+    def psf_model_star(self, Y_star, X_star, star_params=[]):
 
         params = self.get_parameters()
         
-        params[0] = star_params[0]
-        params[1] = star_params[1]
-        params[2] = star_params[2]
+        if len(star_params) > 0:
+            params[0] = star_params[0]
+            params[1] = star_params[1]
+            params[2] = star_params[2]
 
         model = self.psf_model(Y_star,X_star,params)
         
@@ -123,6 +124,16 @@ class Moffat2D(PSFModel):
             params.append(getattr(self.psf_parameters,par))
         
         return params
+
+    def calc_flux(self,Y_star, X_star):
+        
+        model = self.psf_model_star(Y_star, X_star)
+        
+        flux = model.sum()
+        
+        flux_err = np.sqrt(flux)
+        
+        return flux, flux_err
 
 class Gaussian2D(PSFModel):
 
@@ -156,13 +167,14 @@ class Gaussian2D(PSFModel):
 
         return model
 
-    def psf_model_star(self, Y_star, X_star, star_params):
+    def psf_model_star(self, Y_star, X_star, star_params=[]):
 
         params = self.get_parameters()
         
-        params[0] = star_params[0]
-        params[1] = star_params[1]
-        params[2] = star_params[2]
+        if len(star_params) > 0:
+            params[0] = star_params[0]
+            params[1] = star_params[1]
+            params[2] = star_params[2]
 
         model = self.psf_model(Y_star,X_star,params)
         
@@ -190,7 +202,16 @@ class Gaussian2D(PSFModel):
         
         return params
 
-
+    def calc_flux(self,Y_star, X_star):
+        
+        model = self.psf_model_star(Y_star, X_star)
+        
+        flux = model.sum()
+        
+        flux_err = np.sqrt(flux)
+        
+        return flux, flux_err
+        
 class BivariateNormal(PSFModel):
     def psf_type():
 
@@ -226,13 +247,14 @@ class BivariateNormal(PSFModel):
 
         return model
 
-    def psf_model_star(self, Y_star, X_star, star_params):
+    def psf_model_star(self, Y_star, X_star, star_params=[]):
 
         params = self.get_parameters()
         
-        params[0] = star_params[0]
-        params[1] = star_params[1]
-        params[2] = star_params[2]
+        if len(star_params) > 0:
+            params[0] = star_params[0]
+            params[1] = star_params[1]
+            params[2] = star_params[2]
 
         model = self.psf_model(Y_star,X_star,params)
         
@@ -260,6 +282,15 @@ class BivariateNormal(PSFModel):
         
         return params
 
+    def calc_flux(self,Y_star, X_star):
+        
+        model = self.psf_model_star(Y_star, X_star)
+        
+        flux = model.sum()
+        
+        flux_err = np.sqrt(flux)
+        
+        return flux, flux_err
 
 class Lorentzian2D(PSFModel):
 
@@ -290,13 +321,14 @@ class Lorentzian2D(PSFModel):
                                                                               (Y_star - self.psf_parameters.y_center)**2 + self.psf_parameters.gamma**2)**(1.5))
         return model
 
-    def psf_model_star(self, Y_star, X_star, star_params):
+    def psf_model_star(self, Y_star, X_star, star_params=[]):
 
         params = self.get_parameters()
         
-        params[0] = star_params[0]
-        params[1] = star_params[1]
-        params[2] = star_params[2]
+        if len(star_params) > 0:
+            params[0] = star_params[0]
+            params[1] = star_params[1]
+            params[2] = star_params[2]
 
         model = self.psf_model(Y_star,X_star,params)
         
@@ -323,6 +355,15 @@ class Lorentzian2D(PSFModel):
         
         return params
 
+    def calc_flux(self,Y_star, X_star):
+        
+        model = self.psf_model_star(Y_star, X_star)
+        
+        flux = model.sum()
+        
+        flux_err = np.sqrt(flux)
+        
+        return flux, flux_err
 
 class BackgroundModel(object):
 
@@ -639,7 +680,7 @@ def error_star_fit_existing_model(params, data, psf_model, sky_bkgd, Y_data, X_d
 
     sky_subtracted_data = data - sky_bkgd
 
-    psf_image = psf_model.psf_model_star(Y_data, X_data, params)
+    psf_image = psf_model.psf_model_star(Y_data, X_data, star_params=params)
     
     residuals = np.ravel(sky_subtracted_data - psf_image)
 

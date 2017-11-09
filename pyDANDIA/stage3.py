@@ -16,9 +16,9 @@ import sky_background
 import wcs
 import psf
 import psf_selection
+import photometry
 
 VERSION = 'pyDANDIA_stage3_v0.2'
-CODE_DIR = '/Users/rstreet/software/pyDANDIA/'
 
 def run_stage3(setup):
     """Driver function for pyDANDIA Stage 3: 
@@ -41,9 +41,9 @@ def run_stage3(setup):
     
     meta_pars = extract_parameters_stage3(reduction_metadata)
     
-    status = sanity_checks(reduction_metadata,log,meta_pars)
+    sane = sanity_checks(reduction_metadata,log,meta_pars)
     
-    if status == True:
+    if sane == True:
         
         scidata = fits.getdata(meta_pars['ref_image_path'])
         
@@ -71,12 +71,19 @@ def run_stage3(setup):
         psf_model = psf.build_psf(setup, reduction_metadata, log, scidata, 
                               ref_star_catalog, sky_model)
                               
-        
-    # In subregions: measure PSF flux for all stars
-    
-    # Output data products and message reduction_control
-    
+        ref_star_catalog = photometry.run_psf_photometry(setup, 
+                                                         reduction_metadata, 
+                                                         log, 
+                                                         ref_star_catalog,
+                                                         meta_pars['ref_image_path'],
+                                                         psf_model,
+                                                         sky_model)
+                                                         
         reduction_metadata.create_star_catalog_layer(ref_star_catalog,log=log)
+        
+        reduction_metadata.save_a_layer_to_file(setup.red_dir, 
+                                                'pyDANDIA_metadata.fits',
+                                                'star_catalog', log=log)
         
     logs.close_log(log)
     
@@ -109,7 +116,9 @@ def sanity_checks(reduction_metadata,log,meta_pars):
             log.info('ERROR: Stage 3 cannot access essential metadata parameter '+key)
             
             return False
-            
+    
+    log.info('Passed stage 3 sanity checks')
+    
     return True
 
 def extract_parameters_stage3(reduction_metadata):
