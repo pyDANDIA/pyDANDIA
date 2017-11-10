@@ -4,85 +4,162 @@ Created on Thu Jul 20 12:35:17 2017
 
 @author: rstreet
 """
-from os import path, getcwd
-from sys import exit
+import os
+import sys
+from astropy.io import fits
+import numpy as np
 import logs
 import metadata
 import starfind
-from astropy.io import fits
+import pipeline_setup
+import sky_background
+import wcs
+import psf
+import psf_selection
+import photometry
 
 VERSION = 'pyDANDIA_stage3_v0.2'
-CODE_DIR = '/Users/rstreet/software/pyDANDIA/'
 
-def stage3(red_dir):
+def run_stage3(setup):
     """Driver function for pyDANDIA Stage 3: 
     Detailed star find and PSF modeling
     """
-    
-    # How do we find the metadata to read what we need for a given reduction?
-    # From reduction_control?
-    # Switched off until metadata code completed
-    meta = get_meta_data(red_dir)
-
-    log = logs.start_stage_log(meta.log_dir, 'stage3', version=VERSION)
-    
-    status = sanity_checks(meta,log)
-    
-    if status == True:
         
-        scidata = fits.getdata(meta.reference_image_path)
-        scidata = scidata - meta.sky_bkgd
+    log = logs.start_stage_log( setup.red_dir, 'stage3', version=VERSION )
     
-        sources = starfind.detect_sources(meta,scidata,log)
+    reduction_metadata = metadata.MetaData()
+    reduction_metadata.load_a_layer_from_file( setup.red_dir, 
+                                              'pyDANDIA_metadata.fits', 
+                                              'reduction_parameters' )
+    reduction_metadata.load_a_layer_from_file( setup.red_dir, 
+                                              'pyDANDIA_metadata.fits', 
+                                              'images_stats' )
+                                            
+    reduction_metadata.reference_image_path = os.path.join(setup.red_dir,'data',
+                        reduction_metadata.images_stats[1]['IM_NAME'].data[0])
+    reduction_metadata.background_type = 'constant'
+    
+    meta_pars = extract_parameters_stage3(reduction_metadata)
+    
+    sane = sanity_checks(reduction_metadata,log,meta_pars)
+    
+    if sane == True:
         
-        ref_source_catalog = wcs.reference_astrometry(log,
-                                                    meta.reference_image_path,
-                                                    detected_sources,
-                                                    diagnostics=True)
+        scidata = fits.getdata(meta_pars['ref_image_path'])
+        
+        detected_sources = starfind.detect_sources(reduction_metadata,
+                                        meta_pars['ref_image_path'],
+                                        (scidata-meta_pars['ref_sky_bkgd']),
+                                        log)
+                                        
+        ref_star_catalog = wcs.reference_astrometry(log,
+                                        reduction_metadata.reference_image_path,
+                                        detected_sources,
+                                        diagnostics=True)        
+                                                    
+        sky_model = sky_background.model_sky_background(setup,
+                                        reduction_metadata,log,ref_star_catalog)
+                
+        ref_star_catalog = psf_selection.psf_star_selection(setup,
+                                        reduction_metadata,
+                                        log,ref_star_catalog,
+                                        diagnostics=True)
+                                                     
+        reduction_metadata.create_star_catalog_layer(ref_star_catalog,log=log)
+        
+                                                    
+        (psf_model,psf_status) = psf.build_psf(setup, reduction_metadata, 
+                                            log, scidata, 
+                                            ref_star_catalog, sky_model)
+                              
+        ref_star_catalog = photometry.run_psf_photometry(setup, 
+                                                         reduction_metadata, 
+                                                         log, 
+                                                         ref_star_catalog,
+                                                         meta_pars['ref_image_path'],
+                                                         psf_model,
+                                                         sky_model,
+                                                         centroiding=True)
+                                                         
+        reduction_metadata.create_star_catalog_layer(ref_star_catalog,log=log)
+        
+        reduction_metadata.save_a_layer_to_file(setup.red_dir, 
+                                                'pyDANDIA_metadata.fits',
+                                                'star_catalog', log=log)
+        
+    logs.close_log(log)
     
-        psf_stars_idx = psf_selection.psf_star_selection(setup,reduction_metadata,
-                                                     log,ref_star_catalog,
-                                                    diagnostics=True)
     
-    # In subregions: generate PSF models
+def sanity_checks(reduction_metadata,log,meta_pars):
+    """Function to check that stage 3 has all the information that it needs 
+    from the reduction metadata and reduction products from earlier stages 
+    before continuing.
     
-    # In subregions: measure PSF flux for all stars
+    :param MetaData reduction_metadata: pipeline metadata for this dataset
+    :param logging log: Open reduction log object
+    :param dict meta_pars: Essential parameters from the metadata
     
-    # Output data products and message reduction_control
+    Returns:
     
-class TmpMeta(object):
-    """Temporary metadata object for use in code development until code
-    development of the pipeline metadata is complete"""
-    
-    def __init__(self, red_dir):
-        self.log_dir = red_dir
-        self.reference_image_path = path.join(CODE_DIR,'pyDANDIA','tests','data',
-                                'lsc1m005-fl15-20170701-0144-e91_cropped.fits')
-        self.sky_bkgd = 1200.0
-        self.sky_bkgd_sig = 100.0
-        self.avg_fwhm = 6.0
-
-def get_meta_data(red_dir):
-    """Function to access those aspects of the pipeline metadata which Stage 3
-    needs to operate
+    :param boolean status: Status parameter indicating if conditions are OK 
+                            to continue the stage.
     """
-    use_meta = False
-    if use_meta == True:
-        meta = metadata.MetaData()
-        meta_file = path.basename(red_dir)+'_meta.fits'
-        meta.load_a_layer_from_file(red_dir,meta_file,'data_architecture')
-        meta.load_a_layer_from_file(red_dir,meta_file,'reduction_parameters')
-    else:
-        meta = TmpMeta(red_dir)
     
-    return meta
-    
-def sanity_checks(meta,log):
-    """Function to check that stage 3 has everything that it needs before
-    continuing."""
-    
-    if path.isfile(meta.reference_image_path) == False:
+    if os.path.isfile(reduction_metadata.reference_image_path) == False:
         # Message reduction_control?  Return error code?
         log.info('ERROR: Stage 3 cannot access reference image at '+\
-                        meta.reference_image_path)
+                        reduction_metadata.reference_image_path)
         return False
+
+    for key, value in meta_pars.items():
+        
+        if value == None:
+            
+            log.info('ERROR: Stage 3 cannot access essential metadata parameter '+key)
+            
+            return False
+    
+    log.info('Passed stage 3 sanity checks')
+    
+    return True
+
+def extract_parameters_stage3(reduction_metadata):
+    """Function to extract the metadata parameters necessary for this stage.
+    
+    :param MetaData reduction_metadata: pipeline metadata for this dataset
+
+    Returns:
+
+    :param dict meta_params: Dictionary of parameters and their values    
+    """
+    
+    meta_pars = {}
+    
+    try:
+        
+        meta_pars['ref_image_path'] = reduction_metadata.reference_image_path
+    
+    except AttributeError:
+        
+        meta_pars['ref_image_path'] = None
+    
+    idx = np.where(reduction_metadata.images_stats[1]['IM_NAME'].data == os.path.basename(reduction_metadata.reference_image_path))
+    
+    if len(idx[0]) > 0:
+    
+        meta_pars['ref_sky_bkgd'] = reduction_metadata.images_stats[1]['SKY'].data[idx[0][0]]
+
+    else:
+        
+        meta_pars['ref_sky_bkgd'] = None
+        
+    try:
+        
+        meta_pars['sky_model_type'] = reduction_metadata.background_type
+    
+    except AttributeError:
+        
+        meta_pars['sky_model_type'] = 'constant'
+        
+    return meta_pars
+    

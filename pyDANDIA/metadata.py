@@ -231,6 +231,55 @@ class MetaData:
                           units]
         self.create_a_new_layer(layer_name, data_structure, data)
 
+    def create_star_catalog_layer(self,data=None,log=None):
+        """Function to create the layer in the reduction metadata file
+        containing the star catalogue of objects detected within the reference
+        image.
+        
+        :param array_like: the data need to fill the astropy.table
+        """
+        
+        layer_name = 'star_catalog'
+        
+        names = [ 'star_index', 
+                'x_pixel', 'y_pixel', 
+                'RA_J2000', 'DEC_J2000',
+                'Instr_mag', 'Instr_mag_err',
+                'J_mag', 'J_mag_err',
+                'H_mag', 'H_mag_err', 
+                'Ks_mag', 'Ks_mag_err',
+                'psf_star']
+        
+        formats = [ 'int',
+                   'float', 'float',
+                   'float', 'float',
+                   'float', 'float',
+                   'float', 'float',
+                   'float', 'float',
+                   'float', 'float',
+                   'int'
+                   ]
+                   
+        units = [ None, 
+                 'pixel', 'pixel',
+                 'deg', 'deg',
+                 'mag', 'mag',
+                 'mag', 'mag',
+                 'mag', 'mag',
+                 'mag', 'mag',
+                 None
+                 ]
+                 
+        data_structure = [ names, 
+                         formats, 
+                         units]
+        
+        self.create_a_new_layer(layer_name, data_structure, data)
+
+        if log != None:
+            
+            log.info('Output reference source catalogue to reduction metadata')
+
     def load_a_layer_from_file(self, metadata_directory, metadata_name, key_layer):
         '''
         Load into the metadata object the layer from the metadata file.

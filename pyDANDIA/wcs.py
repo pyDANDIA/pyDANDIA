@@ -65,7 +65,7 @@ def reference_astrometry(log,image_path,detected_sources,diagnostics=True):
                                                     matched_stars,image_wcs)
     log.info('Build reference image source catalogue of '+str(len(ref_source_catalog))+' objects')
     
-    catalog_utils.output_ref_catalog(catalog_file,ref_source_catalog)
+    catalog_utils.output_ref_catalog_file(catalog_file,ref_source_catalog)
     log.info('-> Output reference source catalogue')
     
     log.info('Completed astrometry of reference image')
@@ -225,7 +225,7 @@ def build_ref_source_catalog(detected_sources,catalog_sources,\
     information from the 2MASS Point Source Catalogue where available.
     
     Output catalog is in numpy array format with columns:
-    idx x  y  ra  dec  inst_mag inst_mag_err J  Jerr  H Herr   K   Kerr
+    idx x  y  ra  dec  inst_mag inst_mag_err J  Jerr  H Herr   K   Kerr psf_star
     
     J, H, K magnitudes and their photometric errors are added if a given 
     star has been matched with the 2MASS PSC.  Similarly, instrumental 
@@ -246,7 +246,7 @@ def build_ref_source_catalog(detected_sources,catalog_sources,\
         
     world_coords = image_wcs.wcs_pix2world(detected_sources[:,1:3], 1)
     
-    data = np.zeros([len(detected_sources),13])
+    data = np.zeros([len(detected_sources),14])
         
     data[:,0] = detected_sources[:,0]
     data[:,1] = detected_sources[:,1]
@@ -255,6 +255,7 @@ def build_ref_source_catalog(detected_sources,catalog_sources,\
     data[:,4] = world_coords[:,1]
     data[:,5] = detected_sources[:,10]
     data[:,6] = -99.999
+    data[:,13] = 0
     
     for j in range(0,len(matched_stars),1):
         idx = int(matched_stars[j,0])

@@ -39,13 +39,15 @@ def psf_star_selection(setup,reduction_metadata,log,ref_star_catalog,
     psf_stars_idx = id_crowded_stars(setup,reduction_metadata,log,
                                       ref_star_catalog,psf_stars_idx)
     
+    ref_star_catalog[:,13] = psf_stars_idx
+    
     # [Optionally] plot selection
     if diagnostics == True:
         
         plot_ref_star_catalog_positions(setup,reduction_metadata,log,
                                     ref_star_catalog, psf_stars_idx)
     
-    return psf_stars_idx
+    return ref_star_catalog
     
 def id_mid_range_stars(setup,reduction_metadata,log,ref_star_catalog,psf_stars_idx):
     """Function to identify those stars which fall in the middle of the 
@@ -209,13 +211,15 @@ def plot_ref_star_catalog_positions(setup,reduction_metadata,log,
     
     fig = plt.figure(1)
     
-    mag_min = ref_star_catalog[:,5].min()
-    mag_max = ref_star_catalog[:,5].max()
-    mag_incr = (mag_max - mag_min)/10.0
+    mag_data = ref_star_catalog[:,5]
     
-    colours = np.arange(mag_min, mag_max, mag_incr)
+    if mag_data.mean() < 0:
+        
+        mag_data = mag_data + 20.0
     
-    area = ref_star_catalog[:,5]
+    colours = mag_data
+    
+    area = mag_data
     
     plt.scatter(ref_star_catalog[:,1],ref_star_catalog[:,2],marker='o',\
                                 s=area, c=colours, alpha=0.5)
@@ -231,7 +235,7 @@ def plot_ref_star_catalog_positions(setup,reduction_metadata,log,
 
     plt.ylabel('Y pixel')
     
-    if mag_min == mag_max:
+    if mag_data.min() == mag_data.max():
         
         log.info('''Warning: Insufficient range of star magnitudes to plot a 
         colourbar for the PSF star selection''')

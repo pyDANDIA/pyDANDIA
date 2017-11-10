@@ -296,26 +296,58 @@ def starfind(setup, path_to_image, reduction_metadata, plot_it=False,
 
 
 ###############################################################################
-def build_star_finder(reduction_metadata, scidata, log):
+def build_star_finder(reduction_metadata, image_path, log):
     """Function to construct a DAOStarFinder object to detect point sources
     in an image"""
     
-    det_threshold = 5.0 * meta.sky_bkgd_sig
+    log.info('Building star finder for '+os.path.basename(image_path))
     
-    daofind = DAOStarFinder(fwhm=meta.avg_fwhm, threshold=det_threshold)
+    image_idx = reduction_metadata.images_stats[1]['IM_NAME'].tolist().index(os.path.basename(image_path))
+    
+    fwhm = reduction_metadata.images_stats[1]['FWHM_X'][image_idx]
+    sky_bkgd = reduction_metadata.images_stats[1]['SKY'][image_idx]
+    
+    sky_bkgd_sig = np.sqrt(sky_bkgd)
+
+    log.info('FWHM = '+str(fwhm))
+    log.info('Sky background = '+str(sky_bkgd))
+    
+    det_threshold = 5.0 * sky_bkgd_sig
+    
+    log.info('Sky background sigma = '+str(sky_bkgd_sig))
+    
+    daofind = DAOStarFinder(fwhm=fwhm, threshold=det_threshold)
+    
+    log.info('Completed star finder object')
     
     return daofind
 
-def detect_sources(reduction_metadata, scidata, log):
-    """Function to detect all sources in the given image"""
+def detect_sources(reduction_metadata, image_path, scidata, log):
+    """Function to detect all sources in the given image
+    
+    :param MetaData reduction_metadata: pipeline metadata for this dataset
+    :param str image_path: path to image file to be analyzed
+    :param array scidata: image pixel data
+    :param logging log: Open reduction log object
+
+    Returns:
+    
+    :param array detected_sources: position information on all objects in the image
+    """
         
-    daofind = build_star_finder(reduction_metadata, scidata, log)
+    daofind = build_star_finder(reduction_metadata, image_path, log)
     
     sources = daofind(scidata)
+        
+    detected_sources = np.zeros([len(sources),len(sources.colnames)])
+    
+    for i, col in enumerate(sources.colnames):
+                
+        detected_sources[:,i] = sources[col].data
     
     log.info('Detected '+str(len(sources)))
     
-    return sources
+    return detected_sources
 
 
 ###############################################################################
