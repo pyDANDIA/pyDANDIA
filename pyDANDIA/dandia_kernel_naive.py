@@ -2,7 +2,7 @@ from __future__ import division
 import numpy as np
 from numpy.linalg import inv
 from astropy.io import fits
-
+import scipy.ndimage as ndimage
 
 def read_images():
     data_image = fits.open('data_image.fits')
@@ -11,7 +11,10 @@ def read_images():
 
 # Depends on model_image
 
-def noise_model(model_image, gain, readout_noise, flat=None):
+def noise_model(model_image, gain, readout_noise,  flat=None, initialize=None):
+    if initialize == True:
+        model_image = ndimage.gaussian_filter(np.copy(model_image),sigma=2,order=0)
+
     variance = np.copy(model_image)
     variance = variance / gain
     if flat != None:
@@ -55,16 +58,15 @@ def naive_u_matrix(data_image, reference_image, ker_size, weights=None):
             kernel_size = ker_size
 
     if weights == None:
-        weights = noise_model(reference_image, 1., 0., flat=None)
-        weights = weights**2
+        weights = noise_model(reference_image, 1., 0., flat=None, initialize=True)
         weights = 1. / weights
 
     
     #Prepare/initialize indices, vectors and matrices
     pandq = []
     n_kernel = kernel_size * kernel_size
-    for lidx in range(0, n_kernel):
-        for midx in range(0, n_kernel):
+    for lidx in range(0, kernel_size):
+        for midx in range(0, kernel_size):
             pandq.append((lidx, midx))
     b_vector = np.zeros(n_kernel + 1, dtype=float)
     u_matrix = np.zeros((n_kernel + 1, n_kernel + 1))
@@ -73,7 +75,6 @@ def naive_u_matrix(data_image, reference_image, ker_size, weights=None):
     # main matrix - squared reference pixels...
     # naive for loop implementation preped for cython et al.
     for idx_p in range(n_kernel):
-        print idx_p,' of ',n_kernel
         for idx_q in range(idx_p,n_kernel):
             idx_l, idx_m = pandq[idx_p]
             idx_l_prime, idx_m_prime = pandq[idx_q]
@@ -86,13 +87,13 @@ def naive_u_matrix(data_image, reference_image, ker_size, weights=None):
                         u_matrix[idx_p, idx_q] += reference_image[idx_i + idx_l, idx_j + idx_m] * \
                             reference_image[idx_i + idx_l_prime,
                                             idx_j + idx_m_prime] * weights[idx_i, idx_j]
-                        u_matrix[idx_q,idx_p] = u_matrix[idx_p, idx_q]
+                u_matrix[idx_q,idx_p] = u_matrix[idx_p, idx_q]
 
     # upper edge ( reference pixels / variance )
 
     for idx_p in [n_kernel]:
         for idx_q in range(n_kernel):
-            idx_l, idx_m = pandq[idx_p]
+            idx_l, idx_m = kernel_size, kernel_size
             idx_l_prime, idx_m_prime = pandq[idx_q]
             for idx_i in range(ni_image):
                 for idx_j in range(nj_image):
@@ -101,10 +102,10 @@ def naive_u_matrix(data_image, reference_image, ker_size, weights=None):
 
     # lower edge ( reference pixels / variance )
 
-    for idx_p in range(n_kernel):
+    for idx_p in range(n_kernel-1):
         for idx_q in [n_kernel]:
             idx_l, idx_m = pandq[idx_p]
-            idx_l_prime, idx_m_prime = pandq[idx_q]
+            idx_l_prime, idx_m_prime = kernel_size,kernel_size
             for idx_i in range(ni_image):
                 for idx_j in range(nj_image):
                     if idx_i + idx_l < ni_image  and  idx_j + idx_m < nj_image :
@@ -119,7 +120,7 @@ def naive_u_matrix(data_image, reference_image, ker_size, weights=None):
         for idx_i in range(ni_image):
             for idx_j in range(nj_image):
                 if idx_i + idx_l < ni_image  and  idx_j + idx_m < nj_image :
-                    b_vector[idx_p] = data_image[idx_i, idx_j] * reference_image[idx_i + idx_l, idx_j + idx_m] * weights[idx_i, idx_j]
+                    b_vector[idx_p] += data_image[idx_i, idx_j] * reference_image[idx_i + idx_l, idx_j + idx_m] * weights[idx_i, idx_j]
 
     # last entry for background
     b_vector[-1] = np.sum(data_image * weights)
@@ -129,19 +130,17 @@ def naive_u_matrix(data_image, reference_image, ker_size, weights=None):
 if __name__ == '__main__':
     ref_image,data_image = read_images()
 
+    kernel_size = 7
     #construct U matrix
-    u_matrix,b_vector = naive_u_matrix(data_image, ref_image, 7, weights=None)
+    u_matrix,b_vector = naive_u_matrix(data_image, ref_image, kernel_size, weights=None)
 
     kernel_image = np.dot(inv(u_matrix),b_vector)[:-1]
-    kernel_image = kernel_image.reshape((7,7))
-    
-
+    kernel_image = np.roll(kernel_image[:-1],int(kernel_image.size/2))
+    kernel_image = kernel_image.reshape((kernel_size,kernel_size))
+   
     hl = fits.PrimaryHDU(np.abs(u_matrix))
     hl.writeto('tst_umatrix.fits',overwrite=True)
    
-    kernel_image = np.dot(inv(u_matrix),b_vector)[:-1]
-    kernel_image = kernel_image.reshape((5,5))
-
     hl2 = fits.PrimaryHDU(np.abs(kernel_image))
     hl2.writeto('kernel_image.fits',overwrite=True)
 
