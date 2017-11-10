@@ -53,9 +53,11 @@ def test_run_psf_photometry():
     
     psf_model = psf.get_psf_object('Moffat2D')
     
-    x_cen = 194.654006958
-    y_cen = 180.184967041
-    psf_radius = 8.0
+    xstar = 194.654006958
+    ystar = 180.184967041
+    psf_size = 8.0
+    x_cen = psf_size + (xstar-int(xstar))
+    y_cen = psf_size + (ystar-int(ystar))
     psf_params = [ 5807.59961215, x_cen, y_cen, 7.02930822229, 11.4997891585 ]
     
     psf_model.update_psf_parameters(psf_params)

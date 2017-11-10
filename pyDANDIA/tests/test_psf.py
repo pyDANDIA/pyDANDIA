@@ -192,8 +192,11 @@ def test_subtract_companions_from_psf_stamps():
                               
     image = fits.getdata(image_file)
     
-    stamp_centres = np.array([[194.654006958, 180.184967041]])
+    xstar = 194.654006958
+    ystar = 180.184967041
+    stamp_centres = np.array([[xstar,ystar]])
     
+    psf_size = 10.0
     stamp_dims = (20,20)
         
     stamps = psf.cut_image_stamps(image, stamp_centres, stamp_dims)
@@ -217,18 +220,18 @@ def test_subtract_companions_from_psf_stamps():
         plt.close(1)
         
     psf_model = psf.Moffat2D()
-    x_cen = 195.0
-    y_cen = 181.0
+    x_cen = psf_size + (xstar-int(xstar))
+    y_cen = psf_size + (ystar-int(ystar))
     psf_radius = 8.0
     psf_params = [ 103301.241291, x_cen, y_cen, 226.750731765,
                   13004.8930993, 103323.763627 ]
     psf_model.update_psf_parameters(psf_params)
     
     sky_model = psf.ConstantBackground()
-    sky_model.constant = 1345.0
     sky_model.background_parameters.constant = 1345.0
     
-    clean_stamps = psf.subtract_companions_from_psf_stamps(setup, reduction_metadata, log, 
+    clean_stamps = psf.subtract_companions_from_psf_stamps(setup, 
+                                        reduction_metadata, log, 
                                         ref_star_catalog, stamps,stamp_centres,
                                         psf_model,sky_model,diagnostics=True)
     
@@ -351,14 +354,43 @@ def test_fit_psf_model():
         
     logs.close_log(log)
 
+def test_subtract_psf_from_image():
+    """Function to test the subtraction of a stellar image from an image"""
+    
+    image_file = os.path.join(TEST_DATA, 
+                            'lsc1m005-fl15-20170701-0144-e91_cropped.fits')
+                              
+    image = fits.getdata(image_file)
+    
+    psf_model = psf.get_psf_object('Moffat2D')
+    
+    xstar = 194.654006958
+    ystar = 180.184967041
+    psf_size = 8.0
+    x_cen = psf_size + (xstar-int(xstar))
+    y_cen = psf_size + (ystar-int(ystar))
+    psf_params = [ 5807.59961215, y_cen, x_cen, 7.02930822229, 11.4997891585 ]
+    
+    psf_model.update_psf_parameters(psf_params)
+    
+    residuals =  psf.subtract_psf_from_image(image,psf_model,xstar,ystar,
+                                             psf_size,psf_size)
 
+    assert type(residuals) == type(image)
+    
+    hdu = fits.PrimaryHDU(residuals)
+    hdulist = fits.HDUList([hdu])
+    hdulist.writeto(image_file.replace('.fits','_res.fits'),
+                                 overwrite=True)
+    
 if __name__ == '__main__':
     
     #test_cut_image_stamps()
     #test_extract_sub_stamp()
     #test_fit_star_existing_model()
     #test_find_psf_companion_stars()
-    #test_subtract_companions_from_psf_stamps()
-    test_fit_psf_model()
+    test_subtract_companions_from_psf_stamps()
+    #test_fit_psf_model()
     #test_build_psf()
+    #test_subtract_psf_from_image()
     

@@ -68,8 +68,9 @@ def run_stage3(setup):
         reduction_metadata.create_star_catalog_layer(ref_star_catalog,log=log)
         
                                                     
-        psf_model = psf.build_psf(setup, reduction_metadata, log, scidata, 
-                              ref_star_catalog, sky_model)
+        (psf_model,psf_status) = psf.build_psf(setup, reduction_metadata, 
+                                            log, scidata, 
+                                            ref_star_catalog, sky_model)
                               
         ref_star_catalog = photometry.run_psf_photometry(setup, 
                                                          reduction_metadata, 
@@ -77,7 +78,8 @@ def run_stage3(setup):
                                                          ref_star_catalog,
                                                          meta_pars['ref_image_path'],
                                                          psf_model,
-                                                         sky_model)
+                                                         sky_model,
+                                                         centroiding=True)
                                                          
         reduction_metadata.create_star_catalog_layer(ref_star_catalog,log=log)
         

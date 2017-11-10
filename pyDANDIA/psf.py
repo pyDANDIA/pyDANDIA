@@ -928,13 +928,17 @@ def cut_image_stamps(image, stamp_centres, stamp_dims, log=None, over_edge=False
         
     return stamps
 
-def calc_stamp_corners(xcen, ycen, dx, dy, maxx, maxy, over_edge=False):
+def calc_stamp_corners(xcen, ycen, dx, dy, maxx, maxy, over_edge=False,
+                       diagnostics=False):
     
-    xmin = int(xcen) - dx
-    xmax = int(xcen) + dx
-    ymin = int(ycen) - dy
-    ymax = int(ycen) + dy
+    xmin = int(xcen) - int(dx)
+    xmax = int(xcen) + int(dx)
+    ymin = int(ycen) - int(dy)
+    ymax = int(ycen) + int(dy)
     
+    if diagnostics:
+        print('CORNERS: ',xcen,ycen,xmin, xmax, ymin, ymax, maxx, maxy)
+        
     if xmin >= 0 and xmax < maxx and ymin >= 0 and ymax < maxy:
         
         return (xmin, xmax, ymin, ymax)
@@ -952,6 +956,9 @@ def calc_stamp_corners(xcen, ycen, dx, dy, maxx, maxy, over_edge=False):
             xmax = min(maxx,xmax)
             ymax = min(maxy,ymax)
             
+            if diagnostics:
+                print('CORNERS: ',xmin, xmax, ymin, ymax)
+                
             return (xmin, xmax, ymin, ymax)
             
 def coadd_stamps(setup, stamps, log, diagnostics=True):
@@ -1103,12 +1110,13 @@ def subtract_companions_from_psf_stamps(setup, reduction_metadata, log,
                                                substamp.position_cutout[0], dx,
                                                psf_model, sky_model)
             
-            Y_data, X_data = np.indices(substamp.shape)
+            substamp.data = subtract_psf_from_image(substamp.data,comp_psf,
+                                             star_data[1]-corners[0],
+                                             star_data[2]-corners[2],
+                                             2.0*dx,2.0*dy)
+                                             
+            s.data[corners[2]:corners[3],corners[0]:corners[1]] = substamp.data
             
-            comp_psf_stamp = comp_psf.psf_model(Y_data, X_data, comp_psf.get_parameters())
-            
-            s.data[corners[2]:corners[3],corners[0]:corners[1]] -= comp_psf_stamp
-                
         clean_stamps.append(s)
         
         if diagnostics:
@@ -1120,6 +1128,40 @@ def subtract_companions_from_psf_stamps(setup, reduction_metadata, log,
 
     return clean_stamps
 
+def subtract_psf_from_image(image,psf_model,xstar,ystar,dx,dy):
+    """Function to subtract a PSF Model from an array of image pixel data
+    at a specified location.
+    
+    :param array image: Image pixel data
+    :param PSFModel psf_model: PSF model object to be subtracted
+    :param float xstar: x-centre of stellar PSF to be subtracted
+    :param float ystar: y-centre of stellar PSF to be subtracted
+    :param float dx: width of PSF stamp
+    :param float dy: height of PSF stamp
+    
+    Returns:
+    
+    :param array residuals: Image pixel data with star subtracted
+    """
+
+    corners = calc_stamp_corners(xstar, ystar, dx, dy, 
+                                    image.shape[1], image.shape[0],
+                                    over_edge=True)
+    
+    dxc = corners[1] - corners[0]
+    dyc = corners[3] - corners[2]
+    
+    Y_data, X_data = np.indices([int(dyc),int(dxc)])
+    
+    psf_image = psf_model.psf_model(Y_data, X_data, psf_model.get_parameters())
+    
+    residuals = np.copy(image)
+    
+    residuals[corners[2]:corners[3],corners[0]:corners[1]] -= psf_image
+    
+    return residuals
+    
+    
 def output_stamp_image(image,file_path,comps_list=None):
     """Function to output a PNG image of a stamp"""
     
