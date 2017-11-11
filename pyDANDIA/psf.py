@@ -626,7 +626,7 @@ def error_star_fit_function(params, data, psf, background, Y_data, X_data):
     return residuals
 
 
-def fit_star_existing_model(data, x_cen, y_cen, psf_radius, 
+def fit_star_existing_model(setup,data, x_cen, y_cen, psf_radius, 
                             input_psf_model, sky_model,
                             centroiding=True,
                             diagnostics=False):
@@ -634,6 +634,7 @@ def fit_star_existing_model(data, x_cen, y_cen, psf_radius,
     location in an image, optimizing only the peak intensity of the PSF rather 
     than all parameters.
     
+    :param SetUp setup: Fundamental reduction parameters
     :param array data: image data to be fitted
     :param float x_cen: the x-pixel location of the PSF to be fitted in the 
                         coordinates of the image
@@ -654,7 +655,7 @@ def fit_star_existing_model(data, x_cen, y_cen, psf_radius,
     psf_model = get_psf_object(input_psf_model.psf_type())
     psf_model.update_psf_parameters(input_psf_model.get_parameters())
     
-    stamps = cut_image_stamps(data, np.array([[x_cen,y_cen]]), 
+    stamps = cut_image_stamps(setup, data, np.array([[x_cen,y_cen]]), 
                               (2.0*psf_radius, 2.0*psf_radius), log=None, 
                                 over_edge=True)
     
@@ -783,7 +784,8 @@ def build_psf(setup, reduction_metadata, log, image, ref_star_catalog,
 
     logs.ifverbose(log,setup,' -> Applying PSF size='+str(psf_size))
 
-    idx = np.where(ref_star_catalog[:,13] == 1)
+    idx = np.where(ref_star_catalog[:,13] == 1.0)
+    psf_idx = ref_star_catalog[idx[0],0]
     psf_star_centres = ref_star_catalog[idx[0],1:3]
     
     if len(psf_star_centres) == 0:
@@ -800,7 +802,8 @@ def build_psf(setup, reduction_metadata, log, image, ref_star_catalog,
 
     logs.ifverbose(log,setup,' -> Stamp dimensions='+repr(stamp_dims))
 
-    stamps = cut_image_stamps(image, psf_star_centres, stamp_dims, log)
+    stamps = cut_image_stamps(setup, image, psf_star_centres, 
+                              stamp_dims, log=log)
     
     # Combine stamps into a single, high-signal-to-noise PSF
     master_stamp = coadd_stamps(setup, stamps, log, diagnostics=diagnostics)
@@ -808,7 +811,8 @@ def build_psf(setup, reduction_metadata, log, image, ref_star_catalog,
     if diagnostics:
         
         output_stamp_image(master_stamp.data,
-                           os.path.join(setup.red_dir,'ref','initial_psf_master_stamp.png'))
+                           os.path.join(setup.red_dir,'ref',
+                           'initial_psf_master_stamp.png'))
         
     # Build an initial PSF: fit a PSF model to the high S/N stamp
     init_psf_model = fit_psf_model(setup,log,psf_model_type,
@@ -822,23 +826,26 @@ def build_psf(setup, reduction_metadata, log, image, ref_star_catalog,
                                     stamp_dims)
                                     
         output_stamp_image(psf_image,
-                           os.path.join(setup.red_dir,'ref','initial_psf_model.png'))
+                           os.path.join(setup.red_dir,'ref',
+                           'initial_psf_model.png'))
     
     clean_stamps = subtract_companions_from_psf_stamps(setup, 
                                         reduction_metadata, log, 
-                                        ref_star_catalog, stamps,
+                                        ref_star_catalog, psf_idx, stamps,
                                         psf_star_centres,
                                         init_psf_model,sky_model,
                                         diagnostics=diagnostics)
     
     # Re-combine the companion-subtracted stamps to re-generate the 
     # high S/N stamp
-    master_stamp = coadd_stamps(setup, clean_stamps, log, diagnostics=diagnostics)
+    master_stamp = coadd_stamps(setup, clean_stamps, log, 
+                                        diagnostics=diagnostics)
     
     if diagnostics:
         
         output_stamp_image(master_stamp.data,
-                           os.path.join(setup.red_dir,'ref','final_psf_master_stamp.png'))
+                           os.path.join(setup.red_dir,'ref',
+                                        'final_psf_master_stamp.png'))
         
     # Re-build the final PSF by fitting a PSF model to the updated high 
     # S/N stamp
@@ -871,14 +878,17 @@ def build_psf(setup, reduction_metadata, log, image, ref_star_catalog,
     
     return psf_model, status
 
-def cut_image_stamps(image, stamp_centres, stamp_dims, log=None, over_edge=False):
+def cut_image_stamps(setup, image, stamp_centres, stamp_dims, log=None, 
+                     over_edge=False):
     """Function to extract a set of stamps (2D image sections) at the locations
     given and with the dimensions specified in pixels.
     
     No stamp will be returned for stars that are too close to the edge of the
     frame, that is, where the stamp would overlap with the edge of the frame. 
     
+    :param SetUp object setup: Fundamental reduction parameters
     :param array image: the image data array from which to take stamps
+    :param list psf_idx: the indices of the PSF stars in the ref_star_catalog
     :param array stamp_centres: 2-col array with the x, y centres of the stamps
     :param tuple stamp_dims: the width and height of the stamps
     :param boolean over_edge: switch to allow the stamps to be smaller than
@@ -889,27 +899,34 @@ def cut_image_stamps(image, stamp_centres, stamp_dims, log=None, over_edge=False
     Returns
     
     :param list Cutout2D objects
+            If a PSF star is too close to the edge to have a complete stamp
+            cut for it, this list will contain a None entry for that PSF star
     """
-
-    stamps = []
     
-    dx = int(stamp_dims[1]/2.0)
-    dy = int(stamp_dims[0]/2.0)
+    if log != None:
+        
+        log.info('Cutting PSF stamp images')
+        
+    stamps = []
     
     for j in range(0,len(stamp_centres),1):
         xcen = stamp_centres[j,0]
         ycen = stamp_centres[j,1]
         
-        corners = calc_stamp_corners(xcen, ycen, dx, dy, 
+        corners = calc_stamp_corners(xcen, ycen, stamp_dims[1], stamp_dims[0], 
                                      image.shape[1], image.shape[0],
                                     over_edge=over_edge)
+        
+        logs.ifverbose(log,setup,str(j)+'th PSF Star at ('+str(xcen)+', '+str(ycen)+
+                        ') has stamp x,y ranges: '+repr(corners))
         
         if None not in corners:
             
             dxc = corners[1] - corners[0]
             dyc = corners[3] - corners[2]
             
-            if over_edge==False and 2*dx == dxc and 2*dy == dyc:
+            if over_edge == False and \
+                dxc == stamp_dims[1] and dyc == stamp_dims[0]:
                 
                 cutout = Cutout2D(image, (xcen,ycen), (dxc, dyc), copy=True)
                 
@@ -920,7 +937,11 @@ def cut_image_stamps(image, stamp_centres, stamp_dims, log=None, over_edge=False
                 cutout = Cutout2D(image, (xcen,ycen), (dxc, dyc), copy=True)
                 
                 stamps.append(cutout)
-                
+        
+        else:
+            
+            stamps.append(None)
+            
     if log != None:
         
         log.info('Made stamps for '+str(len(stamps))+' out of '+\
@@ -930,11 +951,35 @@ def cut_image_stamps(image, stamp_centres, stamp_dims, log=None, over_edge=False
 
 def calc_stamp_corners(xcen, ycen, dx, dy, maxx, maxy, over_edge=False,
                        diagnostics=False):
+    """Function to calculate the pixel coordinates of the x- and y- ranges 
+    spanned by a box in an image or an image stamps.
     
-    xmin = int(xcen) - int(dx)
-    xmax = int(xcen) + int(dx)
-    ymin = int(ycen) - int(dy)
-    ymax = int(ycen) + int(dy)
+    :param float xcen: x-pixel location of the box centre in the wider image
+                        reference frame
+    :param float ycen: y-pixel location of the box centre in the wider image
+                        reference frame
+    :param float dx: full width of the box in the x-direction
+    :param float dy: full width of the box in the y-direction
+    :param int maxx: Maximum possible x-dimension, bounded by the edge of the 
+                    original image
+    :param int maxy: Maximum possible y-dimension, bounded by the edge of the 
+                    original image
+    :param boolean over_edge: If True, allow the box to overlap the edge of the
+                    original image by returning the ranges bounded by the edges
+                    of the original image.  Default=False
+    :param boolean diagnostics: Switch for debugging output
+    
+    Return:
+    
+    :param tuple corners: x- and y-pixel ranges spanned by the box;
+                        (xmin, xmax, ymin, ymax)
+                        If over_edge=False, a tuple of None entries will be
+                        returned if a box intersects any edge of the frame.
+    """
+    xmin = int(xcen) - int(float(dx)/2.0)
+    xmax = int(xcen) + int(float(dx)/2.0)
+    ymin = int(ycen) - int(float(dy)/2.0)
+    ymax = int(ycen) + int(float(dy)/2.0)
     
     if diagnostics:
         print('CORNERS: ',xcen,ycen,xmin, xmax, ymin, ymax, maxx, maxy)
@@ -963,9 +1008,30 @@ def calc_stamp_corners(xcen, ycen, dx, dy, maxx, maxy, over_edge=False,
             
 def coadd_stamps(setup, stamps, log, diagnostics=True):
     """Function to combine a set of identically-sized image cutout2D objects,
-    by co-adding to generate a single high signal-to-noise stamp."""
+    by co-adding to generate a single high signal-to-noise stamp.
     
-    coadd = np.zeros(stamps[0].shape)
+    :param SetUp setup: Fundamental reduction parameters
+    :param list stamps: List of Cutout2D image stamps.  May include None entries
+    :param logger log: Open reduction log file object
+    :param boolean diagnostics: Switch for debugging output. Default=False
+    
+    Returns:
+    
+    :param Cutout2D master_stamp: Combined stamp image
+    """
+    
+    i = 0
+    while i < len(stamps):
+        
+        if stamps[i] != None:
+            
+            coadd = np.zeros(stamps[i].shape)
+            
+            i = len(stamps) + 1
+        
+        else:
+        
+            i += 1
     
     xc = coadd.shape[1]/2
     yc = coadd.shape[0]/2
@@ -1018,6 +1084,9 @@ def fit_psf_model(setup,log,psf_model_type,sky_model_type,stamp_image,
     
     fitted_model.update_psf_parameters(psf_fit[0])
     
+    logs.ifverbose(log,setup,' -> Parameters of fitted PSF model: '+\
+                    repr(fitted_model.get_parameters()))
+                    
     return fitted_model
 
 
@@ -1056,7 +1125,7 @@ def get_psf_object(psf_type):
     return model
     
 def subtract_companions_from_psf_stamps(setup, reduction_metadata, log, 
-                                        ref_star_catalog, stamps,
+                                        ref_star_catalog, psf_idx, stamps,
                                         psf_star_locations,
                                         psf_model,sky_model,
                                         diagnostics=False):
@@ -1068,6 +1137,7 @@ def subtract_companions_from_psf_stamps(setup, reduction_metadata, log,
     :param logging object log: an open logging file
     :param array ref_star_catalog: positions and magnitudes of stars in the 
                                 reference image
+    :param list psf_idx: Indices of PSF stars in the ref_star_catalog
     :param list stamps: list of Cutout2D image stamps around the PSF stars
     :param array psf_star_locations: x,y pixel locations of PSF stars in the
                                     full reference frame
@@ -1079,53 +1149,81 @@ def subtract_companions_from_psf_stamps(setup, reduction_metadata, log,
     
     :param list clean_stamps: list of Cutout2D image stamps around the PSF stars
                                 with the companion stars subtracted
+                                May contain None entries where PSF stars are
+                                too close to the edge to generate a complete
+                                stamp image.
     """
+    
+    log.info('Cleaning PSF stamps')
     
     dx = reduction_metadata.reduction_parameters[1]['PSF_SIZE'][0]
     dy = reduction_metadata.reduction_parameters[1]['PSF_SIZE'][0]
 
     clean_stamps = []
-    for i,s in enumerate(stamps):
+    for i,j in enumerate(psf_idx):
         
-        comps_list = find_psf_companion_stars(setup,i,psf_star_locations[i,0], 
-                                              psf_star_locations[i,1],
-                                              ref_star_catalog,log,
-                                              s.shape)
+        istar = j - 1
         
-        if diagnostics:
+        s = stamps[i]
+        
+        if s != None:
             
-            output_stamp_image(s.data,
-                    os.path.join(setup.red_dir,'ref','psf_stamp'+str(i)+'.png'),
+            comps_list = find_psf_companion_stars(setup,istar,
+                                                  psf_star_locations[i,0], 
+                                                  psf_star_locations[i,1],
+                                                  dx, ref_star_catalog, log,
+                                                  s.shape)
+            
+            
+            if diagnostics:
+                
+                output_stamp_image(s.data,
+                        os.path.join(setup.red_dir,'ref','psf_stamp'+str(int(j))+'.png'),
+                        comps_list=comps_list)
+                                   
+            x_psf_box = psf_star_locations[i,0] - int(float(s.shape[1])/2.0)
+            y_psf_box = psf_star_locations[i,1] - int(float(s.shape[0])/2.0)
+            
+            for star_data in comps_list:
+                
+                (substamp,corners) = extract_sub_stamp(setup,log,star_data[0],s,
+                                                        star_data[1],star_data[2],
+                                                        dx,dy,
+                                                        diagnostics=True)
+                
+                if substamp != None:
+                    
+                    comp_psf = fit_star_existing_model(setup, substamp.data, 
+                                                       substamp.position_cutout[1],
+                                                       substamp.position_cutout[0], 
+                                                       dx, psf_model, sky_model)
+                    
+                    logs.ifverbose(log,setup,' -> Fitted PSF parameters for companion '+
+                            str(star_data[0]+1)+': '+repr(comp_psf.get_parameters()))
+                    
+                    substamp.data = subtract_psf_from_image(substamp.data,comp_psf,
+                                                     star_data[1]-corners[0],
+                                                     star_data[2]-corners[2],
+                                                     2.0*dx,2.0*dy)
+                    
+                    s.data[corners[2]:corners[3],corners[0]:corners[1]] = substamp.data
+                
+                    logs.ifverbose(log,setup,' -> Subtracted companion star from PSF stamp')
+                    
+            clean_stamps.append(s)
+            
+            if diagnostics:
+                
+                output_stamp_image(s.data,
+                    os.path.join(setup.red_dir,'ref','clean_stamp'+str(int(j))+'.png'),
                     comps_list=comps_list)
-                               
-        x_psf_box = psf_star_locations[i,0] - int(float(s.shape[1])/2.0)
-        y_psf_box = psf_star_locations[i,1] - int(float(s.shape[0])/2.0)
-        
-        for star_data in comps_list:
+    
+        else:
             
-            (substamp,corners) = extract_sub_stamp(s,star_data[1],
-                                                    star_data[2],dx,dy)
-
-            comp_psf = fit_star_existing_model(substamp.data, substamp.position_cutout[1],
-                                               substamp.position_cutout[0], dx,
-                                               psf_model, sky_model)
+            log.info(' -> No stamp available for PSF star '+str(int(j)))
             
-            substamp.data = subtract_psf_from_image(substamp.data,comp_psf,
-                                             star_data[1]-corners[0],
-                                             star_data[2]-corners[2],
-                                             2.0*dx,2.0*dy)
-                                             
-            s.data[corners[2]:corners[3],corners[0]:corners[1]] = substamp.data
+            clean_stamps.append(None)
             
-        clean_stamps.append(s)
-        
-        if diagnostics:
-            
-            output_stamp_image(s.data,
-                os.path.join(setup.red_dir,'ref','clean_stamp'+str(i)+'.png'),
-                comps_list=comps_list)
-
-
     return clean_stamps
 
 def subtract_psf_from_image(image,psf_model,xstar,ystar,dx,dy):
@@ -1185,22 +1283,32 @@ def output_stamp_image(image,file_path,comps_list=None):
     plt.xlabel('X pixel')
 
     plt.ylabel('Y pixel')
-
+    
+    plt.axis('equal')
+    
     plt.savefig(file_path)
 
     plt.close(1)
     
     
-def find_psf_companion_stars(setup,psf_idx, psf_x, psf_y, ref_star_catalog,
-                             log, stamp_dims):
+def find_psf_companion_stars(setup,psf_idx, psf_x, psf_y, psf_size,
+                             ref_star_catalog,log, stamp_dims):
     """Function to identify stars in close proximity to a selected PSF star, 
     that lie within the image stamp used to build the PSF. 
     
+    This necessarily means searching a box slightly bigger that the stamp
+    dimensions given, in order to identify stars whose centroid may lie slightly
+    outside the PSF box but whose PSF overlaps it. 
+    
+    :param SetUp object setup: Fundamental reduction parameters
+    :param int psf_idx: Index of PSF star in the data array (NOT the PSF star number)
     :param float psf_x: x-pixel position of the PSF star in the full frame image
     :param float psf_y: y-pixel position of the PSF star in the full frame image
+    :param float psf_size: diameter of the stellar PSF
     :param array ref_star_catalog: positions and magnitudes of stars in the 
                                 reference image
     :param logging object log: an open logging file
+    :param tup stamp_dims: Dimension of the stamp image
     
     Returns
     
@@ -1209,70 +1317,90 @@ def find_psf_companion_stars(setup,psf_idx, psf_x, psf_y, ref_star_catalog,
                                 the ref_star_catalog
     """
     
-    dx_psf_box = int(float(stamp_dims[1])/2.0)
-    dy_psf_box = int(float(stamp_dims[0])/2.0)
-    x_psf_box = psf_x - dx_psf_box
-    y_psf_box = psf_y - dy_psf_box
+    psf_radius = int(float(psf_size/2.0))
+    dx_psf_box = int(float(stamp_dims[1])/2.0) + psf_radius
+    dy_psf_box = int(float(stamp_dims[0])/2.0) + psf_radius
+    x_psf_box = psf_x - dx_psf_box + psf_radius
+    y_psf_box = psf_y - dy_psf_box + psf_radius
     
-    dx = ref_star_catalog[:,1] - psf_x
-    dy = ref_star_catalog[:,2] - psf_y
-    max_radius = np.sqrt( (float(stamp_dims[1])/2.0)**2 + \
-                            (float(stamp_dims[0])/2.0)**2 )
+    x_sep = ref_star_catalog[:,1] - psf_x
+    y_sep = ref_star_catalog[:,2] - psf_y
     
-    logs.ifverbose(log,setup,'Searching for PSF star companions within PSF box: '+\
+    logs.ifverbose(log,setup,'Searching for companions to PSF star '+
+                str(psf_idx+1)+' located at ('+str(psf_x)+', '+str(psf_y)+')')
+    logs.ifverbose(log,setup,'PSF box: '+\
                     'xmin='+str(x_psf_box)+', ymin='+str(y_psf_box)+\
-                    ' dims='+repr(stamp_dims))
-                        
-    separations = np.sqrt( dx*dx + dy*dy )
-    
-    idx = separations.argsort()
-    
+                    ' stamp dims='+repr(stamp_dims)+', PSF diameter='+str(psf_size))
+                            
     comps_list = []
     
-    jdx = np.where(separations[idx] < max_radius)
+    idx = np.where(abs(x_sep) < dx_psf_box)
 
+    logs.ifverbose(log,setup,' -> Identified '+str(len(idx[0]))+\
+            ' possible companions with the x-range of the PSF box')
+    
+    jdx = np.where(abs(y_sep) < dy_psf_box)
+    
     logs.ifverbose(log,setup,' -> Identified '+str(len(jdx[0]))+\
-            ' possible companions within max radius='+str(max_radius))
+            ' possible companions with the y-range of the PSF box')
     
-    for j in jdx[0]:
-        i = idx[j]
-                
-        if abs(dx[i]) <= dx_psf_box and abs(dy[i]) <= dy_psf_box and \
-            abs(dx[i]) > 0.01 and abs(dy[i]) > 0.01:
-            
-            xc = ref_star_catalog[i,1] - x_psf_box
-            yc = ref_star_catalog[i,2] - y_psf_box 
-            
-            if xc > 0.0 and yc > 0.0:
-                comps_list.append([i, xc, yc, 
-                               ref_star_catalog[i,1], ref_star_catalog[i,2]])
-            
-                logs.ifverbose(log,setup,' -> Near neighbour: '+str(i)+' '+str(xc)+\
-                            ' '+str(yc)+' '+str(ref_star_catalog[i,1])+' '+\
-                            str(ref_star_catalog[i,2])+' '+str(dx[i])+' '+str(dy[i]))
-                            
-    logs.ifverbose(log,setup,' -> Found '+str(len(comps_list))+' near ('+str(psf_x)+\
-            ', '+str(psf_y)+') for PSF star '+str(psf_idx))
-            
+    comp_idx = list(set(idx[0]) & set(jdx[0]))
     
+    if psf_idx in comp_idx:
+        
+        j = comp_idx.index(psf_idx)
+        
+        i = comp_idx.pop(j)
+    
+    logs.ifverbose(log,setup,' -> Identified '+str(len(comp_idx))+\
+            ' objects within the PSF box (not including the PSF star itself)')
+    
+    xc = ref_star_catalog[comp_idx,1] - x_psf_box
+    yc = ref_star_catalog[comp_idx,2] - y_psf_box 
+
+    comps_list = zip(comp_idx, xc, yc, 
+                     ref_star_catalog[comp_idx,1].tolist(), 
+                     ref_star_catalog[comp_idx,2].tolist())
+    
+    if setup.verbosity == 2:
+        
+        for j in range(0,len(comp_idx),1):
+            
+            (i, x, y, xo, yo) = comps_list[j]
+            
+            logs.ifverbose(log,setup,' -> Near neighbour: '+str(i+1)+' '+str(x)+\
+                            ' '+str(y)+' '+str(xo)+' '+str(yo)+' '+\
+                            str(x_sep[i])+' '+str(y_sep[i]))
+
+    logs.ifverbose(log,setup,' -> Found '+str(len(comps_list))+\
+            ' companions near ('+str(psf_x)+', '+str(psf_y)+\
+            ') for PSF star '+str(psf_idx))
+            
     return comps_list
     
-def extract_sub_stamp(stamp,xcen,ycen,dx,dy):
+def extract_sub_stamp(setup,log,sidx,stamp,xcen,ycen,dx,dy,diagnostics=False):
     """Function to extract the sub-section of an image stamp around a given
     pixel location, taking into account that if the location is close to one
     of the edges of the image, the sub-section returned may be curtailed.
     
+    :param SetUp object setup: Fundamental reduction parameters
+    :param logger object log: Open reduction log file
+    :param int sidx: ARRAY index of star in the ref_star_catalog 
     :param Cutout2D object stamp: Image stamp centred around a PSF star
     :param float xcen: x-pixel position of PSF companion in stamp coordinates
     :param float ycen: y-pixel position of PSF companion in stamp coordinates
     :param int dx: Width of substamp in x-direction in pixels
     :param int dy: Width of substamp in y-direction in pixels
+    :param boolean diagnostics: Switch for debugging output
     
     Returns:
     
     :param Cutout2D object substamp: Image sub-stamp
     """
     
+    logs.ifverbose(log,setup,'Extracting a '+str(dx)+'x'+str(dy)+
+            ' sub stamp image for position ('+str(xcen)+', '+str(ycen)+')')
+            
     (ymax_stamp, xmax_stamp) = stamp.shape
 
     halfdx = int(float(dx)/2.0)
@@ -1289,10 +1417,41 @@ def extract_sub_stamp(stamp,xcen,ycen,dx,dy):
     y2 = min(y2,ymax_stamp)
     corners = [x1,x2,y1,y2]
     
-    xmidss = (x2-x1)/2
-    ymidss = (y2-y1)/2
+    logs.ifverbose(log,setup,'X, Y pixel limits of substamp: '+repr(corners))
     
-    substamp = Cutout2D(stamp.data[y1:y2,x1:x2], (xmidss,ymidss), (y2-y1,x2-x1), copy=True)
+    if (x2-x1) <= 2 or (y2-y1) <= 2:
+        
+        logs.ifverbose(log,setup,' -> companion star too close to the stamp edge to model')
+        
+        substamp = None
+        
+    else:
+        
+        xmidss = (x2-x1)/2
+        ymidss = (y2-y1)/2
+        
+        substamp = Cutout2D(stamp.data[y1:y2,x1:x2], (xmidss,ymidss), (y2-y1,x2-x1), copy=True)
+        
+        if diagnostics:
+            
+            fig = plt.figure(1)
+                    
+            norm = visualization.ImageNormalize(substamp.data, \
+                            interval=visualization.ZScaleInterval())
+        
+            plt.imshow(substamp.data, origin='lower', cmap=plt.cm.viridis, 
+                           norm=norm)
+                
+            plt.xlabel('X pixel')
+        
+            plt.ylabel('Y pixel')
+            
+            plt.axis('equal')
+            
+            plt.savefig(os.path.join(setup.red_dir,'ref',
+                                     'psf_sub_stamp'+str(sidx+1)+'.png'))
+    
+            plt.close(1)
     
     return substamp, corners
     

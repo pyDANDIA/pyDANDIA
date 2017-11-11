@@ -44,7 +44,7 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
     half_psf = int(float(psf_size)/2.0)
     
     logs.ifverbose(log,setup,'Applying '+psf_model.psf_type()+\
-                    ' PSF of size='+str(psf_size))
+                    ' PSF of diameter='+str(psf_size))
     
     Y_data, X_data = np.indices((int(psf_size),int(psf_size)))
     
@@ -59,8 +59,8 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
         logs.ifverbose(log,setup,' -> Star '+str(j)+' at position ('+\
         str(xstar)+', '+str(ystar)+')')
         
-        fitted_model = psf.fit_star_existing_model(data, 
-                                               xstar, ystar, psf_size, 
+        fitted_model = psf.fit_star_existing_model(setup, data, 
+                                               xstar, ystar, half_psf, 
                                                psf_model, sky_model, 
                                                centroiding=centroiding,
                                                diagnostics=True)

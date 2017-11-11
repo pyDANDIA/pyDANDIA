@@ -77,8 +77,11 @@ def ifverbose(log,setup,string):
     metadata is set to True"""
     
     if log != None and setup.verbosity >= 1:
+
         log.info(string)
+        
     if setup.verbosity == 2:
+
         print(string)
 
 def close_log(log):

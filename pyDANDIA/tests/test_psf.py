@@ -65,6 +65,8 @@ def test_build_psf():
     logs.close_log(log)
     
 def test_cut_image_stamps():
+
+    setup = pipeline_setup.pipeline_setup({'red_dir': TEST_DATA})
     
     stamp_dims = (20,20)
     
@@ -78,7 +80,7 @@ def test_cut_image_stamps():
                             
     detected_sources = catalog_utils.read_source_catalog(detected_sources_file)
         
-    stamps = psf.cut_image_stamps(image, detected_sources[0:100,1:3], stamp_dims)
+    stamps = psf.cut_image_stamps(setup, image, detected_sources[0:100,1:3], stamp_dims)
         
     test_stamp = Cutout2D(np.ones([100,100]), (50,50), (10,10))
     
@@ -94,6 +96,8 @@ def test_cut_image_stamps():
 def test_extract_sub_stamp():
     """Function to test the extraction of substamps from an existing stamp"""
 
+    setup = pipeline_setup.pipeline_setup({'red_dir': TEST_DATA})
+    
     stamp_dims = (20,20)
     
     image_file = os.path.join(TEST_DATA, 
@@ -103,7 +107,7 @@ def test_extract_sub_stamp():
     
     stamp_centres = np.array([[250,250]])
     
-    stamps = psf.cut_image_stamps(image, stamp_centres, stamp_dims)
+    stamps = psf.cut_image_stamps(setup, image, stamp_centres, stamp_dims)
         
     substamp_centres = [ [5,5], [18,18], [5,18], [18,5], [10,10] ]
     
@@ -141,6 +145,8 @@ def test_fit_star_existing_model():
     background model to an image at a stars known location, optimizing just for
     the star's intensity rather than for all parameters."""
     
+    setup = pipeline_setup.pipeline_setup({'red_dir': TEST_DATA})
+
     image_file = os.path.join(TEST_DATA, 
                             'lsc1m005-fl15-20170701-0144-e91_cropped.fits')
                               
@@ -158,8 +164,8 @@ def test_fit_star_existing_model():
     sky_model.constant = 1345.0
     sky_model.background_parameters.constant = 1345.0
     
-    fitted_model = psf.fit_star_existing_model(image, x_cen, y_cen, psf_radius, 
-                                psf_model, sky_model)
+    fitted_model = psf.fit_star_existing_model(setup, image, x_cen, y_cen, 
+                                psf_radius, psf_model, sky_model)
     fitted_params = fitted_model.get_parameters()
        
     for i in range(3,5,1):
@@ -192,48 +198,59 @@ def test_subtract_companions_from_psf_stamps():
                               
     image = fits.getdata(image_file)
     
-    xstar = 194.654006958
-    ystar = 180.184967041
-    stamp_centres = np.array([[xstar,ystar]])
+    psf_idx = [ 248 ]
+    psf_x = 257.656
+    psf_y = 121.365
+    
+    stamp_centres = np.array([[psf_x,psf_y]])
     
     psf_size = 10.0
     stamp_dims = (20,20)
+    
+    stamps = psf.cut_image_stamps(setup, image, stamp_centres, stamp_dims)
+    
+    if len(stamps) == 0:
         
-    stamps = psf.cut_image_stamps(image, stamp_centres, stamp_dims)
-
-    for i, s in enumerate(stamps):
+        log.info('ERROR: No PSF stamp images returned.  PSF stars too close to the edge?')
+    
+    else:
         
-        fig = plt.figure(1)
+        for i, s in enumerate(stamps):
             
-        norm = visualization.ImageNormalize(s.data, \
-                        interval=visualization.ZScaleInterval())
-    
-        plt.imshow(s.data, origin='lower', cmap=plt.cm.viridis, 
-                       norm=norm)
-            
-        plt.xlabel('X pixel')
-    
-        plt.ylabel('Y pixel')
-
-        plt.savefig(os.path.join(setup.red_dir,'psf_star_stamp'+str(i)+'.png'))
-
-        plt.close(1)
+            fig = plt.figure(1)
+                
+            norm = visualization.ImageNormalize(s.data, \
+                            interval=visualization.ZScaleInterval())
         
-    psf_model = psf.Moffat2D()
-    x_cen = psf_size + (xstar-int(xstar))
-    y_cen = psf_size + (ystar-int(ystar))
-    psf_radius = 8.0
-    psf_params = [ 103301.241291, x_cen, y_cen, 226.750731765,
-                  13004.8930993, 103323.763627 ]
-    psf_model.update_psf_parameters(psf_params)
+            plt.imshow(s.data, origin='lower', cmap=plt.cm.viridis, 
+                           norm=norm)
+                
+            plt.xlabel('X pixel')
+        
+            plt.ylabel('Y pixel')
+            
+            plt.axis('equal')
+            
+            plt.savefig(os.path.join(setup.red_dir,'psf_star_stamp'+str(i)+'.png'))
     
-    sky_model = psf.ConstantBackground()
-    sky_model.background_parameters.constant = 1345.0
-    
-    clean_stamps = psf.subtract_companions_from_psf_stamps(setup, 
-                                        reduction_metadata, log, 
-                                        ref_star_catalog, stamps,stamp_centres,
-                                        psf_model,sky_model,diagnostics=True)
+            plt.close(1)
+            
+        psf_model = psf.Moffat2D()
+        x_cen = psf_size + (psf_x-int(psf_x))
+        y_cen = psf_size + (psf_x-int(psf_y))
+        psf_radius = 8.0
+        psf_params = [ 103301.241291, x_cen, y_cen, 226.750731765,
+                      13004.8930993, 103323.763627 ]
+        psf_model.update_psf_parameters(psf_params)
+        
+        sky_model = psf.ConstantBackground()
+        sky_model.background_parameters.constant = 1345.0
+        
+        clean_stamps = psf.subtract_companions_from_psf_stamps(setup, 
+                                            reduction_metadata, log, 
+                                            ref_star_catalog, psf_idx, 
+                                            stamps,stamp_centres,
+                                            psf_model,sky_model,diagnostics=True)
     
     logs.close_log(log)
 
@@ -259,16 +276,15 @@ def test_find_psf_companion_stars():
     
     log.info('Read in catalog of '+str(len(ref_star_catalog))+' stars')
     
-    psf_idx = 1
-    psf_x = 194.654006958
-    psf_y = 180.184967041
+    psf_idx = 18
     psf_x = 189.283172607
     psf_y = 9.99084472656
+    psf_size = 8.0
     
     stamp_dims = (20,20)
             
     comps_list = psf.find_psf_companion_stars(setup,psf_idx, psf_x, psf_y, 
-                                          ref_star_catalog,
+                                          psf_size, ref_star_catalog,
                                           log, stamp_dims)
             
     assert len(comps_list) > 0
@@ -281,37 +297,39 @@ def test_find_psf_companion_stars():
                               
     image = fits.getdata(image_file)
     
-    stamps = psf.cut_image_stamps(image, np.array([[psf_x, psf_y]]), stamp_dims)
+    corners = psf.calc_stamp_corners(psf_x, psf_y, stamp_dims[1], stamp_dims[0], 
+                                    image.shape[1], image.shape[0],
+                                    over_edge=True)
+                                    
+    stamp = image[corners[2]:corners[3],corners[0]:corners[1]]
     
-    if len(stamps) == 0:
+    log.info('Extracting PSF stamp image')
         
-        log.info('Error: No stamp images returned.  PSF star too close to the edge?')
-        
-    else:
-        fig = plt.figure(1)
-        
-        norm = visualization.ImageNormalize(stamps[0].data, \
-                    interval=visualization.ZScaleInterval())
+    fig = plt.figure(1)
     
-        plt.imshow(stamps[0].data, origin='lower', cmap=plt.cm.viridis, 
-                   norm=norm)
-        
-        x = []
-        y = []
-        for j in range(0,len(comps_list),1):
-            x.append(comps_list[j][1])
-            y.append(comps_list[j][2])
-        
-        plt.plot(x,y,'r+')
-        
-        plt.xlabel('X pixel')
+    norm = visualization.ImageNormalize(stamp, \
+                interval=visualization.ZScaleInterval())
+
+    plt.imshow(stamp, origin='lower', cmap=plt.cm.viridis, 
+               norm=norm)
     
-        plt.ylabel('Y pixel')
+    x = []
+    y = []
+    for j in range(0,len(comps_list),1):
+        x.append(comps_list[j][1])
+        y.append(comps_list[j][2])
     
-        plt.savefig(os.path.join(TEST_DATA,'companion_stars_psf.png'))
+    plt.plot(x,y,'r+')
     
-        plt.close(1)
+    plt.axis('equal')
     
+    plt.xlabel('X pixel')
+
+    plt.ylabel('Y pixel')
+
+    plt.savefig(os.path.join(TEST_DATA,'psf_companion_stars.png'))
+
+    plt.close(1)
     
     logs.close_log(log)
 
@@ -339,7 +357,7 @@ def test_fit_psf_model():
     
     stamp_dims = (20,20)
         
-    stamps = psf.cut_image_stamps(image, stamp_centres, stamp_dims)
+    stamps = psf.cut_image_stamps(setup, image, stamp_centres, stamp_dims)
     
     fitted_psf = psf.fit_psf_model(setup,log,psf_model_type,sky_model_type,
                                    stamps[0],diagnostics=True)
@@ -359,7 +377,8 @@ def test_subtract_psf_from_image():
     
     image_file = os.path.join(TEST_DATA, 
                             'lsc1m005-fl15-20170701-0144-e91_cropped.fits')
-                              
+                
+                
     image = fits.getdata(image_file)
     
     psf_model = psf.get_psf_object('Moffat2D')

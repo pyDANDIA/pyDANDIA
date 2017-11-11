@@ -40,6 +40,20 @@ def psf_star_selection(setup,reduction_metadata,log,ref_star_catalog,
                                       ref_star_catalog,psf_stars_idx)
     
     ref_star_catalog[:,13] = psf_stars_idx
+    idx = np.where(ref_star_catalog[:,13] == 1.0)
+    
+    psf_idx = ref_star_catalog[idx[0],0]
+    
+    if setup.verbosity >= 1:
+        
+        logs.ifverbose(log,setup,'Selected PSF stars: ')
+        
+        for i in range(0,len(psf_idx),1):
+            
+            j = int(psf_idx[i])
+            
+            logs.ifverbose(log,setup,str(j)+' at ('+
+            str(ref_star_catalog[i,1])+', '+str(ref_star_catalog[i,2])+')')
     
     # [Optionally] plot selection
     if diagnostics == True:
