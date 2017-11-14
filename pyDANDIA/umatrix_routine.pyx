@@ -52,8 +52,9 @@ def umatrix_construction(np.ndarray[DTYPE_t, ndim = 2] reference_image,np.ndarra
             idl_m_prime = kernel_size 
             for idx_i in range(ni_image-kernel_size+1):
                 for idx_j in range(nj_image-kernel_size+1):
-                    sum_acc += u_matrix[idx_p, idx_q] + reference_image[idx_i + idx_l, idx_j + idx_m] * weights[idx_i, idx_j]
-
+                    sum_acc += reference_image[idx_i + idx_l, idx_j + idx_m] * weights[idx_i, idx_j]
+            u_matrix[idx_q, idx_p] = sum_acc
+            
     cdef np.ndarray b_vector = np.zeros([n_kernel + 1], dtype=DTYPE)
     for idx_p in range(n_kernel):
         idx_l, idx_m = pandq[idx_p]
