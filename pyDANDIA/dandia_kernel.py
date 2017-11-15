@@ -73,12 +73,9 @@ def u_matrix_unimproved(data_image, reference_image, ker_size, weights=None):
         for midx in range(0, kernel_size):
             pandq.append((lidx, midx))
 
-    ni_image, nj_image = np.shape(data_image)
     u_matrix, b_vector = umatrix_construction(
         reference_image, data_image, weights, pandq, n_kernel, kernel_size)
 
-    # last entry b_vector
-    b_vector[-1] = np.sum(data_image[1:-1][1:-1] * weights[1:-1][1:-1])
 
     return u_matrix, b_vector
 
