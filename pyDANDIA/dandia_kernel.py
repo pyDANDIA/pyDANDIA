@@ -5,14 +5,16 @@ from astropy.io import fits
 from umatrix_routine import umatrix_construction
 import scipy.ndimage as ndimage
 
-
-def read_images():
+def read_images(kernel_size):
     data_image = fits.open('data_image.fits')
     ref_image = fits.open('ref_image.fits')
-    return np.array(ref_image[0].data, float), np.array(data_image[1].data, float)
-
-# Depends on model_image
-
+    #extend image size for convolution and kernel solution
+    data_extended = np.zeros((np.shape(data_image[0].data)[0]+2*kernel_size,np.shape(data_image[0].data)[1]+2*kernel_size))
+    ref_extended  = np.zeros((np.shape(ref_image[0].data)[0]+2*kernel_size,np.shape(ref_image[0].data)[1]+2*kernel_size))
+    data_extended[kernel_size:-kernel_size,kernel_size:-kernel_size]=np.array(data_image[0].data,float)
+    ref_extended[kernel_size:-kernel_size,kernel_size:-kernel_size]=np.array(ref_image[0].data,float)
+    #NP.ARRAY REQUIRED FOR ALTERED BYTE ORDER (CYTHON CODE)
+    return ref_extended,d ata_extended
 
 def noise_model(model_image, gain, readout_noise,  flat=None, initialize=None):
     if initialize == True:
@@ -69,31 +71,31 @@ def u_matrix_unimproved(data_image, reference_image, ker_size, weights=None):
     # Prepare/initialize indices, vectors and matrices
     pandq = []
     n_kernel = kernel_size * kernel_size
-    for lidx in range(0, kernel_size):
-        for midx in range(0, kernel_size):
-            pandq.append((lidx, midx))
+    ncount=0
+    half_kernel_size = int(kernel_size)/2
+    for lidx in range(kernel_size):
+        for midx in range(kernel_size):
+            pandq.append((lidx - half_kernel_size , midx - half_kernel_size))
 
     u_matrix, b_vector = umatrix_construction(
         reference_image, data_image, weights, pandq, n_kernel, kernel_size)
-
 
     return u_matrix, b_vector
 
 
 if __name__ == '__main__':
-    ref_image, data_image = read_images()
 
-    kernel_size = 7
+    kernel_size = 15
+    ref_image, data_image = read_images(kernel_size)
     # construct U matrix
     u_matrix, b_vector = u_matrix_unimproved(
         data_image, ref_image, kernel_size, weights=None)
 
-    kernel_image = np.dot(inv(u_matrix), b_vector)[:-1]
-    kernel_image = np.roll(kernel_image[:-1], int(kernel_image.size / 2))
-    kernel_image = kernel_image.reshape((kernel_size, kernel_size))
+    output_kernel = np.zeros(kernel_size*kernel_size,dtype=float)
+    output_kernel = a_vector[:-1]
+    output_kernel = output_kernel.reshape((kernel_size, kernel_size))
+    #FLIP KERNEL
+    hl5 = fits.PrimaryHDU(np.flip(np.flip(output_kernel,0),1))
+    hl5.header['BKG'] = a_vector[-1]
+    hl5.writeto('kernel_naive.fits',overwrite=True)
 
-    hl = fits.PrimaryHDU(np.abs(u_matrix))
-    hl.writeto('tst_umatrix.fits', overwrite=True)
-
-    hl2 = fits.PrimaryHDU(np.abs(kernel_image))
-    hl2.writeto('kernel_image.fits', overwrite=True)
