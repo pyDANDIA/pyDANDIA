@@ -135,7 +135,7 @@ if __name__ == '__main__':
     u_matrix,b_vector = naive_u_matrix(data_image, ref_image, kernel_size, weights=None)
 
     kernel_image = np.dot(inv(u_matrix),b_vector)[:-1]
-    kernel_image = np.roll(kernel_image[:-1],int(kernel_image.size/2))
+    kernel_image = np.roll(kernel_image,int(kernel_image.size/2))
     kernel_image = kernel_image.reshape((kernel_size,kernel_size))
    
     hl = fits.PrimaryHDU(np.abs(u_matrix))
