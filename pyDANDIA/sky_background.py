@@ -86,15 +86,15 @@ def build_psf_mask(setup,psf_size,diagnostics=False):
     half_psf = int(psf_size)
     half_psf2 = half_psf*half_psf
 
-    pxmax = 2*half_psf
+    pxmax = 2*half_psf + 1
     pymax = pxmax
     
     psf_mask = np.ones([pymax,pxmax])
     
     pxmin = -half_psf
-    pxmax = pxmax - half_psf
+    pxmax = half_psf + 1
     pymin = -half_psf
-    pymax = pymax - half_psf
+    pymax = half_psf + 1
 
     for dx in range(pxmin,pxmax,1):
         
