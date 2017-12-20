@@ -83,26 +83,27 @@ def build_psf_mask(setup,psf_size,diagnostics=False):
     is a 2D image array with 1.0 at all pixel locations within the PSF and 
     zero everywhere outside it."""
     
-    pxmin = 0
-    pxmax = int(psf_size)*2
-    pymin = 0
-    pymax = int(psf_size)*2
-    
-    half_psf = int(pxmax/2.0)
-    
-    psf_mask = np.zeros([pymax,pxmax])
-    
-    for x in range(pxmin,pxmax,1):
-        
-        for y in range(pymin,pymax,1):
-            
-            dx = x - half_psf
-            dy = y - half_psf
-            r = np.sqrt(dx*dx + dy*dy)
+    half_psf = int(psf_size)
+    half_psf2 = half_psf*half_psf
 
-            if r <= half_psf:
-                
-                psf_mask[x,y] = 1.0
+    pxmax = 2*half_psf + 1
+    pymax = pxmax
+    
+    psf_mask = np.ones([pymax,pxmax])
+    
+    pxmin = -half_psf
+    pxmax = half_psf + 1
+    pymin = -half_psf
+    pymax = half_psf + 1
+
+    for dx in range(pxmin,pxmax,1):
+        
+        dx2 = dx*dx
+
+        for dy in range(pymin,pymax,1):
+            
+            if (dx2 + dy*dy) > half_psf2:
+                psf_mask[dx + half_psf, dy + half_psf] = 0.0
                 
     if diagnostics == True:
         fig = plt.figure(1)
