@@ -6,20 +6,7 @@ from numpy.fft import fft2
 from umatrix_routine import umatrix_construction
 from scipy.signal import convolve2d
 
-def read_images_art(kernel_size):
-    data_image = fits.open('art_data_image.fits')
-    ref_image = fits.open('ref_image.fits')
-    ref_image = ref_image[0].data - np.percentile(ref_image[0].data,0.1)
-    #extend image size for convolution and kernel solution
-    data_extended = np.zeros((np.shape(data_image[0].data)[0]+2*kernel_size,np.shape(data_image[0].data)[1]+2*kernel_size))
-    ref_extended  = np.zeros((np.shape(ref_image[0].data)[0]+2*kernel_size,np.shape(ref_image[0].data)[1]+2*kernel_size))
-    data_extended[kernel_size:-kernel_size,kernel_size:-kernel_size]=np.array(data_image[0].data,float)
-    ref_extended[kernel_size:-kernel_size,kernel_size:-kernel_size]=np.array(ref_image[0].data,float)
-    #NP.ARRAY REQUIRED FOR ALTERED BYTE ORDER (CYTHON CODE)
-    return ref_extended,data_extended
-
-
-def read_images(kernel_size):
+def read_images(ref_image_filename, data_image_filename, kernel_size):
     data_image = fits.open('data_image.fits')
     ref_image = fits.open('ref_image.fits')
     kernel_size_plus = kernel_size + 2
@@ -40,8 +27,8 @@ def read_images(kernel_size):
     data_extended[kernel_size:-kernel_size,kernel_size:-kernel_size]=np.array(data_image[1].data,float)
     ref_extended[kernel_size:-kernel_size,kernel_size:-kernel_size]=np.array(ref_image[0].data,float)
     
-    ref_bright_mask = ref_extended>30000.+ref10pc
-    data_bright_mask = data_extended>30000.   
+    ref_bright_mask = ref_extended>40000.+ref10pc
+    data_bright_mask = data_extended>40000.   
     mask_propagate = np.zeros(np.shape(data_extended))
     mask_propagate[ref_bright_mask] = 1.
     mask_propagate[data_bright_mask] = 1.
@@ -124,11 +111,9 @@ def naive_u_matrix(data_image, reference_image, ker_size, weights=None):
    
     return u_matrix,b_vector
 
-if __name__ == '__main__':
 
-    kernel_size = 15
-    ref_image,data_image,bright_mask = read_images(kernel_size)
-
+def difference_image_single_iteration(ref_imagename, data_imagename, kernel_size, mask = None):
+    ref_image,data_image,bright_mask = read_images(ref_imagename, data_imagename, kernel_size)
     #construct U matrix
     n_kernel = kernel_size * kernel_size
 
@@ -146,19 +131,30 @@ if __name__ == '__main__':
         for jdx in range(kernel_size):
             if (idx-xyc)**2+(jdx-xyc)**2>=radius_square:
                 output_kernel[idx,jdx]  = 0.
-    
-    difference_image = convolve2d(ref_image, output_kernel,mode = 'same') - data_image + a_vector[-1] 
+    output_kernel_2=np.flip(np.flip(output_kernel,0),1)
+    difference_image = convolve2d(ref_image, output_kernel_2,mode = 'same') - data_image + a_vector[-1] 
     difference_image[bright_mask]=np.mean(difference_image)
-    difference_image[-2*kernel_size:,:]=0.
-    difference_image[0:2*kernel_size,:]=0.
-    difference_image[:,-2*kernel_size:]=0.
-    difference_image[:,0:2*kernel_size]=0.
-    
+    difference_image[-kernel_size-2:,:]=0.
+    difference_image[0:kernel_size+2,:]=0.
+    difference_image[:,-kernel_size-2:]=0.
+    difference_image[:,0:kernel_size+2]=0.  
+        
+    return difference_image, output_kernel, a_vector[-1]
+
+
+
+if __name__ == '__main__':
+
+    kernel_size = 17
+    ref_imagename = 'ref_image.fits'
+    data_imagename ='data_image.fits'
+    difference_image, output_kernel, bkg_val = difference_image_single_iteration(ref_imagename, data_imagename, kernel_size)
+      
     hl7 = fits.PrimaryHDU(difference_image)
     hl7.writeto('tst_dif18.fits',overwrite=True)
 
 
-    hl5 = fits.PrimaryHDU(np.flip(np.flip(output_kernel,0),1))
-    hl5.header['BKG'] = a_vector[-1]
+    hl5 = fits.PrimaryHDU(output_kernel)
+    hl5.header['BKG'] = bkg_val
     hl5.writeto('kernel_naive.fits',overwrite=True)
 
