@@ -22,13 +22,13 @@ def read_images_art(kernel_size):
 def read_images(kernel_size):
     data_image = fits.open('data_image.fits')
     ref_image = fits.open('ref_image.fits')
-
-    mask_kernel = np.ones(kernel_size*kernel_size,dtype=float)
-    mask_kernel = mask_kernel.reshape((kernel_size, kernel_size))
-    xyc = kernel_size/2
+    kernel_size_plus = kernel_size + 2
+    mask_kernel = np.ones(kernel_size_plus*kernel_size_plus,dtype=float)
+    mask_kernel = mask_kernel.reshape((kernel_size_plus, kernel_size_plus))
+    xyc = kernel_size_plus/2
     radius_square = (xyc)**2
-    for idx in range(kernel_size):
-        for jdx in range(kernel_size):
+    for idx in range(kernel_size_plus):
+        for jdx in range(kernel_size_plus):
             if (idx-xyc)**2+(jdx-xyc)**2>=radius_square:
                 mask_kernel[idx,jdx]  = 0.
     ref10pc = np.percentile(ref_image[0].data,0.1)
@@ -68,14 +68,9 @@ def noise_model(model_image, gain, readout_noise, flat=None, initialize=None):
     #    ron_term = readout_noise**2 * np.ones(np.shape(model_image))
 
     noise_image[noise_image==0]=1.
-    noise_image = noise_image**2 + readout_noise**2
-    #noise_extended  = np.ones(np.shape(model_image))
+    noise_image = noise_image**2#+ readout_noise**2
     weights = 1./noise_image
     weights[noise_image==1]=0.
-    #hl = fits.PrimaryHDU(weights)
-    #hl.writeto('tst_noise_naive.fits',overwrite=True)
-    #return np.ones(np.shape(model_image))
-
     return weights
                 
 def naive_u_matrix(data_image, reference_image, ker_size, weights=None):
@@ -126,17 +121,12 @@ def naive_u_matrix(data_image, reference_image, ker_size, weights=None):
     u_matrix, b_vector = umatrix_construction(reference_image, data_image, weights, pandq, n_kernel, kernel_size)
 
     # final entry (1px) for background/noise
-    #hlm = fits.PrimaryHDU(np.abs(u_matrix))
-    #hlm.writeto('tst_umatrix_naive2.fits',overwrite=True)
-
-    #hlbb = fits.PrimaryHDU(b_vector)
-    #hlbb.writeto('tst_bvector_naive2.fits',overwrite=True)
    
     return u_matrix,b_vector
 
 if __name__ == '__main__':
 
-    kernel_size = 19
+    kernel_size = 15
     ref_image,data_image,bright_mask = read_images(kernel_size)
 
     #construct U matrix
@@ -157,7 +147,7 @@ if __name__ == '__main__':
             if (idx-xyc)**2+(jdx-xyc)**2>=radius_square:
                 output_kernel[idx,jdx]  = 0.
     
-    difference_image = convolve2d(ref_image, output_kernel,mode = 'same') - data_image 
+    difference_image = convolve2d(ref_image, output_kernel,mode = 'same') - data_image + a_vector[-1] 
     difference_image[bright_mask]=np.mean(difference_image)
     difference_image[-2*kernel_size:,:]=0.
     difference_image[0:2*kernel_size,:]=0.
