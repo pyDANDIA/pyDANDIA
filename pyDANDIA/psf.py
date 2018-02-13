@@ -620,7 +620,8 @@ def error_star_fit_function(params, data, psf, background, Y_data, X_data):
 
     psf_model = psf.psf_model(Y_data, X_data, psf_params)
     back_model = background.background_model(Y_data, X_data, back_params)
-
+    
+    print(data.shape,psf_model.shape,back_model.shape)
     residuals = np.ravel(data - psf_model - back_model)
 
     return residuals
@@ -815,7 +816,7 @@ def build_psf(setup, reduction_metadata, log, image, ref_star_catalog,
                            'initial_psf_master_stamp.png'))
         
     # Build an initial PSF: fit a PSF model to the high S/N stamp
-    init_psf_model = fit_psf_model(setup,log,psf_model_type,
+    init_psf_model = fit_psf_model(setup,log,psf_model_type,psf_size,
                                    sky_model.background_type(),
                                     master_stamp, diagnostics=diagnostics)
     
@@ -849,7 +850,7 @@ def build_psf(setup, reduction_metadata, log, image, ref_star_catalog,
         
     # Re-build the final PSF by fitting a PSF model to the updated high 
     # S/N stamp
-    psf_model = fit_psf_model(setup,log,psf_model_type,
+    psf_model = fit_psf_model(setup,log,psf_model_type,psf_size,
                                    sky_model.background_type(),
                                     master_stamp, diagnostics=diagnostics)
 
@@ -1056,13 +1057,23 @@ def coadd_stamps(setup, stamps, log, diagnostics=True):
         
     return master_stamp
 
-def fit_psf_model(setup,log,psf_model_type,sky_model_type,stamp_image, 
+def fit_psf_model(setup,log,psf_model_type,psf_size,sky_model_type,stamp_image, 
                   diagnostics=False):
     """Function to fit a PSF model to a stamp image"""
     
-    Y_data, X_data = np.indices(stamp_image.shape)
+    half_stamp = stamp_image.shape[0]/2
+    half_psf = int(psf_size / 2.0)
+    xmin = half_stamp - half_psf
+    xmax = half_stamp + half_psf
+    ymin = half_stamp - half_psf
+    ymax = half_stamp + half_psf
+    print('DATA SUBSET: ',xmin,xmax,ymin,ymax)
     
-    psf_fit = fit_star(stamp_image.data, Y_data, X_data, 
+    #Y_data, X_data = np.indices(stamp_image.shape)
+    print('PSF SIZE='+str(psf_size))
+    Y_data, X_data = np.indices([int(round(psf_size,0)),int(round(psf_size,0))])
+    
+    psf_fit = fit_star(stamp_image.data[ymin:ymax,xmin:xmax], Y_data, X_data, 
                                       psf_model_type, sky_model_type)
     
     log.info('Fitted PSF model parameters using a '+psf_model_type+\

@@ -33,6 +33,7 @@ def model_sky_background(setup,reduction_metadata,log,ref_star_catalog):
     sat_value = 120000.0
     
     psf_mask = build_psf_mask(setup,psf_size,diagnostics=True)
+    print(psf_mask.shape)
     
     star_masked_image = mask_stars(setup,ref_image,ref_star_catalog, psf_mask, 
                            diagnostics=True)
@@ -145,35 +146,35 @@ def mask_stars(setup,ref_image,ref_star_catalog, psf_mask, diagnostics=False):
         ystar = int(ref_star_catalog[j,2])
         
         xmin = xstar-half_psf
-        xmax = xstar+half_psf
+        xmax = xstar+half_psf+1
         ymin = ystar-half_psf
-        ymax = ystar+half_psf
+        ymax = ystar+half_psf+1
         
         px1 = pxmin
-        px2 = pxmax
+        px2 = pxmax + 1
         py1 = pymin
-        py2 = pymax
-        
+        py2 = pymax + 1
+
         if xmin < 0:
             
             px1 = abs(xmin)
             xmin = 0
-        
+            
         if ymin < 0:
             
             py1 = abs(ymin)
             ymin = 0
-        
+            
         if xmax > ref_image.shape[0]:
             
-            px2 = px2 - (xmax - ref_image.shape[0])
-            xmax = ref_image.shape[0]
+            px2 = px2 - (xmax - ref_image.shape[0] + 1)
+            xmax = ref_image.shape[0] + 1
             
         if ymax > ref_image.shape[1]:
             
-            py2 = py2 - (ymax - ref_image.shape[1])
-            ymax = ref_image.shape[1]
-            
+            py2 = py2 - (ymax - ref_image.shape[1] + 1)
+            ymax = ref_image.shape[1] + 1
+        
         star_mask[ymin:ymax,xmin:xmax] = star_mask[ymin:ymax,xmin:xmax] + \
                                             psf_mask[py1:py2,px1:px2]
         
