@@ -164,8 +164,10 @@ def test_fit_star_existing_model():
     sky_model.constant = 1345.0
     sky_model.background_parameters.constant = 1345.0
     
-    fitted_model = psf.fit_star_existing_model(setup, image, x_cen, y_cen, 
-                                psf_radius, psf_model, sky_model)
+    (fitted_model,good_fit) = psf.fit_star_existing_model(setup, image, x_cen, y_cen, 
+                                psf_radius, psf_model, sky_model,
+                                diagnostics=True)
+                                
     fitted_params = fitted_model.get_parameters()
        
     for i in range(3,5,1):
@@ -386,13 +388,13 @@ def test_subtract_psf_from_image():
     xstar = 194.654006958
     ystar = 180.184967041
     psf_size = 8.0
-    x_cen = psf_size + (xstar-int(xstar))
-    y_cen = psf_size + (ystar-int(ystar))
+    x_cen = (psf_size/2.0) + (xstar-int(xstar))
+    y_cen = (psf_size/2.0) + (ystar-int(ystar))
     psf_params = [ 5807.59961215, y_cen, x_cen, 7.02930822229, 11.4997891585 ]
     
     psf_model.update_psf_parameters(psf_params)
     
-    residuals =  psf.subtract_psf_from_image(image,psf_model,xstar,ystar,
+    (residuals,corners) =  psf.subtract_psf_from_image(image,psf_model,xstar,ystar,
                                              psf_size,psf_size)
 
     assert type(residuals) == type(image)
@@ -408,8 +410,8 @@ if __name__ == '__main__':
     #test_extract_sub_stamp()
     #test_fit_star_existing_model()
     #test_find_psf_companion_stars()
-    test_subtract_companions_from_psf_stamps()
+    #test_subtract_companions_from_psf_stamps()
     #test_fit_psf_model()
     #test_build_psf()
-    #test_subtract_psf_from_image()
+    test_subtract_psf_from_image()
     

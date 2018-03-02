@@ -621,7 +621,6 @@ def error_star_fit_function(params, data, psf, background, Y_data, X_data):
     psf_model = psf.psf_model(Y_data, X_data, psf_params)
     back_model = background.background_model(Y_data, X_data, back_params)
     
-    print(data.shape,psf_model.shape,back_model.shape)
     residuals = np.ravel(data - psf_model - back_model)
 
     return residuals
@@ -656,8 +655,10 @@ def fit_star_existing_model(setup,data, x_cen, y_cen, psf_radius,
     psf_model = get_psf_object(input_psf_model.psf_type())
     psf_model.update_psf_parameters(input_psf_model.get_parameters())
     
+    stamp_dims = (2.0*psf_radius, 2.0*psf_radius)
+    
     stamps = cut_image_stamps(setup, data, np.array([[x_cen,y_cen]]), 
-                              (2.0*psf_radius, 2.0*psf_radius), log=None, 
+                              stamp_dims, log=None, 
                                 over_edge=True)
     
     stamp_centre = ( (x_cen - stamps[0].xmin_original), 
@@ -666,8 +667,13 @@ def fit_star_existing_model(setup,data, x_cen, y_cen, psf_radius,
     if diagnostics:
         
         hdu = fits.PrimaryHDU(stamps[0].data)
+        
         hdulist = fits.HDUList([hdu])
-        hdulist.writeto(os.path.join('psf_stamp.fits'),overwrite=True)
+
+        file_path = os.path.join(setup.red_dir,'ref',\
+        'psf_star_stamp_'+str(round(x_cen,0))+'_'+str(round(y_cen,0))+'.fits')
+
+        hdulist.writeto(file_path,overwrite=True)
 
     
     Y_data, X_data = np.indices(stamps[0].data.shape)
@@ -715,8 +721,13 @@ def fit_star_existing_model(setup,data, x_cen, y_cen, psf_radius,
         model_data = fitted_model.psf_model_star(Y_data, X_data, star_params=pars)
         
         hdu = fits.PrimaryHDU(model_data)
+        
         hdulist = fits.HDUList([hdu])
-        hdulist.writeto(os.path.join('psf_model_stamp.fits'),overwrite=True)
+
+        file_path = os.path.join(setup.red_dir,'ref',\
+        'psf_star_model_stamp_'+str(round(x_cen,0))+'_'+str(round(y_cen,0))+'.fits')
+        
+        hdulist.writeto(file_path,overwrite=True)
     
     # Add the stamp x,y offset back to the star centroid:
     psf_params = fitted_model.get_parameters()
@@ -726,7 +737,9 @@ def fit_star_existing_model(setup,data, x_cen, y_cen, psf_radius,
     
     fitted_model.update_psf_parameters(psf_params)
     
-    return fitted_model
+    good_fit = check_fit_quality(setup,psf_stamp_data,sky_model,fitted_model)
+    
+    return fitted_model, good_fit
 
 def error_star_fit_existing_model(params, data, psf_model, sky_bkgd, 
                                   Y_data, X_data):
@@ -738,6 +751,21 @@ def error_star_fit_existing_model(params, data, psf_model, sky_bkgd,
     residuals = np.ravel(sky_subtracted_data - psf_image)
 
     return residuals
+
+def check_fit_quality(setup,psf_stamp_data,sky_model,fitted_model):
+    """Function to sanity check the quality of the photometric fit"""
+    
+    good_fit = True
+    
+    model_pars = fitted_model.get_parameters()
+    
+    max_peak_flux = psf_stamp_data.max() + 0.1*psf_stamp_data.max()
+    
+    if model_pars[0] > max_peak_flux:
+        
+        good_fit = False
+    
+    return good_fit
 
 def fit_multiple_stars(data_stamps, Y_data, X_data, psf_model='Moffat2D', background_model='Constant'):
 
@@ -824,7 +852,7 @@ def build_psf(setup, reduction_metadata, log, image, ref_star_catalog,
         
         psf_image = generate_psf_image(init_psf_model.psf_type(),
                                    init_psf_model.get_parameters(),
-                                    stamp_dims)
+                                    stamp_dims, psf_size)
                                     
         output_stamp_image(psf_image,
                            os.path.join(setup.red_dir,'ref',
@@ -856,7 +884,7 @@ def build_psf(setup, reduction_metadata, log, image, ref_star_catalog,
 
     psf_image = generate_psf_image(psf_model.psf_type(),
                                    psf_model.get_parameters(),
-                                    stamp_dims)
+                                    stamp_dims, psf_size)
 
     header = fits.Header()
     
@@ -1063,27 +1091,39 @@ def fit_psf_model(setup,log,psf_model_type,psf_size,sky_model_type,stamp_image,
     
     half_stamp = stamp_image.shape[0]/2
     half_psf = int(psf_size / 2.0)
+    
     xmin = half_stamp - half_psf
     xmax = half_stamp + half_psf
     ymin = half_stamp - half_psf
     ymax = half_stamp + half_psf
-    print('DATA SUBSET: ',xmin,xmax,ymin,ymax)
     
     #Y_data, X_data = np.indices(stamp_image.shape)
-    print('PSF SIZE='+str(psf_size))
+    
     Y_data, X_data = np.indices([int(round(psf_size,0)),int(round(psf_size,0))])
     
-    psf_fit = fit_star(stamp_image.data[ymin:ymax,xmin:xmax], Y_data, X_data, 
+    if diagnostics:
+        
+        hdu = fits.PrimaryHDU(stamp_image.data[ymin:ymax,xmin:xmax])
+        hdulist = fits.HDUList([hdu])
+        hdulist.writeto(os.path.join(setup.red_dir,
+                                     'ref','stamp_image_fitting.fits'),
+                                     overwrite=True)
+                                     
+    substamp = stamp_image.data[ymin:ymax,xmin:xmax]
+    
+    psf_fit = fit_star(substamp, Y_data, X_data, 
                                       psf_model_type, sky_model_type)
     
     log.info('Fitted PSF model parameters using a '+psf_model_type+\
             ' PSF and '+sky_model_type.lower()+' sky background model')
+            
     for p in psf_fit[0]:
         log.info(str(p))
     
     if diagnostics:
         
-        psf_stamp = generate_psf_image(psf_model_type,psf_fit[0],stamp_image.shape)
+        psf_stamp = generate_psf_image(psf_model_type,psf_fit[0],
+                                       substamp.shape, psf_size)
         
         hdu = fits.PrimaryHDU(psf_stamp)
         hdulist = fits.HDUList([hdu])
@@ -1101,13 +1141,26 @@ def fit_psf_model(setup,log,psf_model_type,psf_size,sky_model_type,stamp_image,
     return fitted_model
 
 
-def generate_psf_image(psf_model_type,psf_model_pars,stamp_dims):
+def generate_psf_image(psf_model_type,psf_model_pars,stamp_dims,psf_size):
+    
+    new_psf_model_pars = []
+    new_psf_model_pars = [x for x in psf_model_pars]
+        
+    if stamp_dims[0] != psf_size:
+        
+        (ix,iy) = get_psf_centre_indices(psf_model_type)
+        
+        x_centre = stamp_dims[1] / 2.0
+        y_centre = stamp_dims[0] / 2.0
+    
+        new_psf_model_pars[ix] = x_centre
+        new_psf_model_pars[iy] = y_centre
     
     psf = Image(np.zeros(stamp_dims),psf_model_type)
     
     Y_data, X_data = np.indices(stamp_dims)
     
-    psf_image = psf.psf_model.psf_model(Y_data, X_data, psf_model_pars)
+    psf_image = psf.psf_model.psf_model(Y_data, X_data, new_psf_model_pars)
     
     return psf_image
 
@@ -1134,6 +1187,15 @@ def get_psf_object(psf_type):
         model = Gaussian2D()
     
     return model
+
+def get_psf_centre_indices(psf_model_type):
+    
+    model = get_psf_object(psf_model_type)
+    
+    iy = model.model.index('y_center')
+    ix = model.model.index('x_center')
+    
+    return ix,iy
     
 def subtract_companions_from_psf_stamps(setup, reduction_metadata, log, 
                                         ref_star_catalog, psf_idx, stamps,
@@ -1200,11 +1262,11 @@ def subtract_companions_from_psf_stamps(setup, reduction_metadata, log,
                 (substamp,corners) = extract_sub_stamp(setup,log,star_data[0],s,
                                                         star_data[1],star_data[2],
                                                         dx,dy,
-                                                        diagnostics=True)
+                                                        diagnostics=False)
                 
                 if substamp != None:
                     
-                    comp_psf = fit_star_existing_model(setup, substamp.data, 
+                    (comp_psf,good_fit) = fit_star_existing_model(setup, substamp.data, 
                                                        substamp.position_cutout[1],
                                                        substamp.position_cutout[0], 
                                                        dx, psf_model, sky_model)
@@ -1212,7 +1274,7 @@ def subtract_companions_from_psf_stamps(setup, reduction_metadata, log,
                     logs.ifverbose(log,setup,' -> Fitted PSF parameters for companion '+
                             str(star_data[0]+1)+': '+repr(comp_psf.get_parameters()))
                     
-                    substamp.data = subtract_psf_from_image(substamp.data,comp_psf,
+                    (substamp.data,corner) = subtract_psf_from_image(substamp.data,comp_psf,
                                                      star_data[1]-corners[0],
                                                      star_data[2]-corners[2],
                                                      2.0*dx,2.0*dy)
@@ -1237,7 +1299,8 @@ def subtract_companions_from_psf_stamps(setup, reduction_metadata, log,
             
     return clean_stamps
 
-def subtract_psf_from_image(image,psf_model,xstar,ystar,dx,dy):
+def subtract_psf_from_image(image,psf_model,xstar,ystar,dx,dy,
+                            diagnostics=True):
     """Function to subtract a PSF Model from an array of image pixel data
     at a specified location.
     
@@ -1252,7 +1315,7 @@ def subtract_psf_from_image(image,psf_model,xstar,ystar,dx,dy):
     
     :param array residuals: Image pixel data with star subtracted
     """
-
+    
     corners = calc_stamp_corners(xstar, ystar, dx, dy, 
                                     image.shape[1], image.shape[0],
                                     over_edge=True)
@@ -1266,9 +1329,17 @@ def subtract_psf_from_image(image,psf_model,xstar,ystar,dx,dy):
     
     residuals = np.copy(image)
     
+    output_stamp_image(residuals[corners[2]:corners[3],corners[0]:corners[1]],
+                       '/Users/rstreet/software/pyDANDIA/pyDANDIA/tests/data/subtractions/presubtraction_'+str(round(xstar,0))+'_'+str(round(ystar,0))+'.png')
+    output_stamp_image(psf_image,
+                       '/Users/rstreet/software/pyDANDIA/pyDANDIA/tests/data/subtractions/residuals_psf_model_'+str(round(xstar,0))+'_'+str(round(ystar,0))+'.png')
+    
     residuals[corners[2]:corners[3],corners[0]:corners[1]] -= psf_image
     
-    return residuals
+    output_stamp_image(residuals[corners[2]:corners[3],corners[0]:corners[1]],
+                       '/Users/rstreet/software/pyDANDIA/pyDANDIA/tests/data/subtractions/residuals_'+str(round(xstar,0))+'_'+str(round(ystar,0))+'.png')
+    
+    return residuals,corners
     
     
 def output_stamp_image(image,file_path,comps_list=None):
@@ -1296,6 +1367,8 @@ def output_stamp_image(image,file_path,comps_list=None):
     plt.ylabel('Y pixel')
     
     plt.axis('equal')
+    
+    plt.colorbar()
     
     plt.savefig(file_path)
 

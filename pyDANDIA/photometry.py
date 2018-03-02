@@ -59,42 +59,51 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
         logs.ifverbose(log,setup,' -> Star '+str(j)+' at position ('+\
         str(xstar)+', '+str(ystar)+')')
         
-        fitted_model = psf.fit_star_existing_model(setup, data, 
-                                               xstar, ystar, half_psf, 
+        (fitted_model,good_fit) = psf.fit_star_existing_model(setup, data, 
+                                               xstar, ystar, psf_size, 
                                                psf_model, sky_model, 
                                                centroiding=centroiding,
                                                diagnostics=True)
         
         logs.ifverbose(log, setup,' -> Star '+str(j)+
-        ' fitted model parameters = '+repr(fitted_model.get_parameters()))
+        ' fitted model parameters = '+repr(fitted_model.get_parameters())+
+        ' good fit? '+repr(good_fit))
         
-        sub_psf_model = psf.get_psf_object('Moffat2D')
-        
-        pars = fitted_model.get_parameters()
-        pars[1] = psf_size + (ystar-int(ystar))
-        pars[2] = psf_size + (xstar-int(xstar))
-        
-        sub_psf_model.update_psf_parameters(pars)
-        
-        residuals = psf.subtract_psf_from_image(residuals,sub_psf_model,
-                                                xstar,ystar,
-                                                psf_size, psf_size)
-                                             
-        
-        logs.ifverbose(log, setup,' -> Star '+str(j)+
-        ' subtracted PSF from the residuals')
-                
-        (flux, flux_err) = fitted_model.calc_flux(Y_grid, X_grid)
-        
-        (mag, mag_err) = convert_flux_to_mag(flux, flux_err)
-        
-        ref_star_catalog[j,5] = mag
-        ref_star_catalog[j,6] = mag_err
-        
-        logs.ifverbose(log,setup,' -> Star '+str(j)+
-        ' flux='+str(flux)+' +/- '+str(flux_err)+' ADU, '
-        'mag='+str(mag)+' +/- '+str(mag_err)+' mag')
+        if good_fit == True:
+            
+            sub_psf_model = psf.get_psf_object('Moffat2D')
+            
+            pars = fitted_model.get_parameters()
+            pars[1] = (psf_size/2.0) + (ystar-int(ystar))
+            pars[2] = (psf_size/2.0) + (xstar-int(xstar))
+            
+            sub_psf_model.update_psf_parameters(pars)
+            
+            (res_image,corners) = psf.subtract_psf_from_image(data,sub_psf_model,
+                                                    xstar,ystar,
+                                                    psf_size, psf_size)
+            
+            residuals[corners[2]:corners[3],corners[0]:corners[1]] = res_image[corners[2]:corners[3],corners[0]:corners[1]]
+            
+            logs.ifverbose(log, setup,' -> Star '+str(j)+
+            ' subtracted PSF from the residuals')
+                    
+            (flux, flux_err) = fitted_model.calc_flux(Y_grid, X_grid)
+            
+            (mag, mag_err) = convert_flux_to_mag(flux, flux_err)
+            
+            ref_star_catalog[j,5] = mag
+            ref_star_catalog[j,6] = mag_err
+            
+            logs.ifverbose(log,setup,' -> Star '+str(j)+
+            ' flux='+str(flux)+' +/- '+str(flux_err)+' ADU, '
+            'mag='+str(mag)+' +/- '+str(mag_err)+' mag')
     
+        else:
+            
+            logs.ifverbose(log,setup,' -> Star '+str(j)+
+            ' No photometry possible from poor PSF fit')
+            
     res_image_path = image_path.replace('.fits','_res.fits')
     
     hdu = fits.PrimaryHDU(residuals)

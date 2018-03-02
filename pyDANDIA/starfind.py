@@ -23,6 +23,7 @@ import numpy as np
 from astropy.io import fits
 from astropy.stats import sigma_clipped_stats
 from astropy.visualization import SqrtStretch, AsymmetricPercentileInterval
+from astropy.visualization import ZScaleInterval
 from astropy.visualization.mpl_normalize import ImageNormalize
 from astropy.nddata import Cutout2D
 from astropy import units as u
@@ -322,13 +323,15 @@ def build_star_finder(reduction_metadata, image_path, log):
     
     return daofind
 
-def detect_sources(reduction_metadata, image_path, scidata, log):
+def detect_sources(setup, reduction_metadata, image_path, scidata, log,
+                   diagnostics=False):
     """Function to detect all sources in the given image
     
     :param MetaData reduction_metadata: pipeline metadata for this dataset
     :param str image_path: path to image file to be analyzed
     :param array scidata: image pixel data
     :param logging log: Open reduction log object
+    :param diagnostics Bool: Switch for additional diagnostic plots
 
     Returns:
     
@@ -347,8 +350,40 @@ def detect_sources(reduction_metadata, image_path, scidata, log):
     
     log.info('Detected '+str(len(sources)))
     
+    if diagnostics:
+        
+        file_path = os.path.join(setup.red_dir,'ref','ref_image_detected_sources.png')
+        
+        plot_detected_sources(image_path,file_path,detected_sources)
+    
     return detected_sources
 
+def plot_detected_sources(image_path,file_path,sources):
+    """Function to output a PNG image of an image overplotted with
+    the x,y positions of detected objects"""
+    
+    image = fits.getdata(image_path)
+    
+    fig = plt.figure(1)
+    
+    norm = ImageNormalize(image, \
+                interval=ZScaleInterval())
+
+    plt.imshow(image, origin='lower', cmap=plt.cm.viridis, 
+               norm=norm)
+    
+    plt.plot(sources[:,1],sources[:,2],'r+')
+    
+    plt.xlabel('X pixel')
+
+    plt.ylabel('Y pixel')
+    
+    plt.axis('equal')
+    
+    plt.savefig(file_path)
+
+    plt.close(1)
+    
 
 ###############################################################################
 def run_starfind(setup, reduction_metadata):

@@ -47,10 +47,11 @@ def run_stage3(setup):
         
         scidata = fits.getdata(meta_pars['ref_image_path'])
         
-        detected_sources = starfind.detect_sources(reduction_metadata,
+        detected_sources = starfind.detect_sources(setup, reduction_metadata,
                                         meta_pars['ref_image_path'],
                                         (scidata-meta_pars['ref_sky_bkgd']),
-                                        log)
+                                        log,
+                                        diagnostics=False)
                                         
         ref_star_catalog = wcs.reference_astrometry(log,
                                         reduction_metadata.reference_image_path,
