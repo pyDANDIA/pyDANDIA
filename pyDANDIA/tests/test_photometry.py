@@ -79,8 +79,41 @@ def test_run_psf_photometry():
     assert ref_star_catalog[:,6].max() <= 10.0
     
     logs.close_log(log)
+
+def test_plot_ref_mag_errors():
+    """Function to test the plotting function"""
     
+    setup = pipeline_setup.pipeline_setup({'red_dir': TEST_DIR})
+    
+    reduction_metadata = metadata.MetaData()
+    reduction_metadata.load_a_layer_from_file( setup.red_dir, 
+                                              'pyDANDIA_metadata.fits', 
+                                              'star_catalog' )
+   
+    idx = reduction_metadata.star_catalog[1]['star_index'].data
+    x = reduction_metadata.star_catalog[1]['x_pixel'].data
+    y = reduction_metadata.star_catalog[1]['y_pixel'].data
+    ra = reduction_metadata.star_catalog[1]['RA_J2000'].data
+    dec = reduction_metadata.star_catalog[1]['DEC_J2000'].data
+    mag = reduction_metadata.star_catalog[1]['Instr_mag'].data
+    merr = reduction_metadata.star_catalog[1]['Instr_mag_err'].data
+
+
+    ref_star_catalog = []
+    
+    for i in range(0,len(idx),1):
+
+        ref_star_catalog.append( [idx[i], x[i], y[i], ra[i], dec[i], mag[i], merr[i]] )
+        
+    ref_star_catalog = np.array(ref_star_catalog)
+    
+    photometry.plot_ref_mag_errors(setup,ref_star_catalog)
+    
+    plot_file = os.path.join(setup.red_dir,'ref','ref_image_phot_errors.png')
+    
+    assert os.path.isfile(plot_file)
+
 if __name__ == '__main__':
     
     test_run_psf_photometry()
-    
+    test_plot_ref_mag_errors()

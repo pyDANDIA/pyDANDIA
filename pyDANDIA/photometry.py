@@ -112,6 +112,8 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
     
     logs.ifverbose(log, setup, 'Output residuals image '+res_image_path)
 
+    plot_ref_mag_errors(setup,ref_star_catalog)
+
     log.info('Completed photometry')
     
     return ref_star_catalog
@@ -150,3 +152,30 @@ def convert_flux_to_mag(flux, flux_err):
         mag_err = (m2 - m1)/2.0
     
     return mag, mag_err
+    
+def plot_ref_mag_errors(setup,ref_star_catalog):
+    """Function to output a diagnostic plot of the fitted PSF magnitudes
+    against photometric error"""
+    
+    file_path = os.path.join(setup.red_dir,'ref','ref_image_phot_errors.png')
+    
+    fig = plt.figure(1)
+    
+    idx = np.where(ref_star_catalog[:,5] > 0.0)
+    
+    plt.plot(ref_star_catalog[idx,5], ref_star_catalog[idx,6],'k.')
+
+    plt.yscale('log')    
+    
+    plt.xlabel('Instrumental magnitude')
+
+    plt.ylabel('Photometric uncertainty [mag]')
+    
+    [xmin,xmax,ymin,ymax] = plt.axis()
+    
+    plt.axis([xmax,xmin,ymin,ymax])
+    
+    plt.savefig(file_path)
+
+    plt.close(1)
+    
