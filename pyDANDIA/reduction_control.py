@@ -13,6 +13,8 @@ import pipeline_setup
 import stage0
 import stage1
 import stage2
+import stage3
+import stage4
 import logs
 
 def reduction_control():
@@ -27,7 +29,7 @@ def reduction_control():
                                 dataset
     """
 
-    reduction_version = 'reduction_control v0.1'
+    reduction_version = 'reduction_control v0.2'
 
     setup = get_args()
     
@@ -41,7 +43,13 @@ def reduction_control():
     log.info('Completed stage 1 with status '+repr(status)+': '+report)
 
     (status, report) = stage2.run_stage2(setup)
-    log.info('Completed stage 2with status '+repr(status)+': '+report)
+    log.info('Completed stage 2 with status '+repr(status)+': '+report)
+    
+    (status, report) = stage3.run_stage3(setup)
+    log.info('Completed stage 3 with status '+repr(status)+': '+report)
+    
+    (status, report, metadata) = stage4.run_stage4(setup)
+    log.info('Completed stage 4 with status '+repr(status)+': '+report)
     
     logs.close_log(log)
 

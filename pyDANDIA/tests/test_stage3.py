@@ -22,7 +22,7 @@ def test_run_stage3():
     
     setup = pipeline_setup.pipeline_setup({'red_dir': TEST_DIR})
     
-    stage3.run_stage3(setup)
+    (status, report) = stage3.run_stage3(setup)
     
     
 if __name__ == '__main__':

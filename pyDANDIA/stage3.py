@@ -57,7 +57,7 @@ def run_stage3(setup):
         ref_star_catalog = wcs.reference_astrometry(log,
                                         reduction_metadata.reference_image_path,
                                         detected_sources,
-                                        diagnostics=True)        
+                                        diagnostics=False)        
                                                     
         sky_model = sky_background.model_sky_background(setup,
                                         reduction_metadata,log,ref_star_catalog)
@@ -65,7 +65,7 @@ def run_stage3(setup):
         ref_star_catalog = psf_selection.psf_star_selection(setup,
                                         reduction_metadata,
                                         log,ref_star_catalog,
-                                        diagnostics=True)
+                                        diagnostics=False)
                                                      
         reduction_metadata.create_star_catalog_layer(ref_star_catalog,log=log)
         
@@ -89,8 +89,13 @@ def run_stage3(setup):
                                                 'pyDANDIA_metadata.fits',
                                                 'star_catalog', log=log)
         
+    status = 'OK'
+    report = 'Completed successfully'
+    
+    log.info('Stage 3: '+report)
     logs.close_log(log)
     
+    return status, report
     
 def sanity_checks(reduction_metadata,log,meta_pars):
     """Function to check that stage 3 has all the information that it needs 

@@ -13,6 +13,9 @@ systempath.append(path.join(cwd,'../'))
 import pipeline_setup
 import stage0
 import stage1
+import stage2
+import stage3
+import stage4
 import starfind
 import logs
 
@@ -43,6 +46,19 @@ def run_stage_stand_alone():
             return status, report
 
         (status, report) = starfind.run_starfind(setup, reduction_metadata)
+
+    elif params['stage'] == 'stage2':
+        
+        (status, report) = stage2.run_stage2(setup)
+
+    elif params['stage'] == 'stage3':
+        
+        (status, report) = stage3.run_stage3(setup)
+
+
+    elif params['stage'] == 'stage4':
+        
+        (status, report, metadata) = stage4.run_stage4(setup)
 
     else:
         
