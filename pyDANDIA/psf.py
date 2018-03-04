@@ -737,7 +737,7 @@ def fit_star_existing_model(setup,data, x_cen, y_cen, psf_radius,
     
     fitted_model.update_psf_parameters(psf_params)
     
-    good_fit = check_fit_quality(setup,psf_stamp_data,sky_model,fitted_model)
+    good_fit = check_fit_quality(setup,stamps[0].data,sky_bkgd,fitted_model)
     
     return fitted_model, good_fit
 

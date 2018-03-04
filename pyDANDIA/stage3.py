@@ -37,6 +37,7 @@ def run_stage3(setup):
                                             
     reduction_metadata.reference_image_path = os.path.join(setup.red_dir,'data',
                         reduction_metadata.images_stats[1]['IM_NAME'].data[0])
+    
     reduction_metadata.background_type = 'constant'
     
     meta_pars = extract_parameters_stage3(reduction_metadata)
@@ -105,8 +106,8 @@ def sanity_checks(reduction_metadata,log,meta_pars):
     :param boolean status: Status parameter indicating if conditions are OK 
                             to continue the stage.
     """
-    
-    if os.path.isfile(reduction_metadata.reference_image_path) == False:
+        
+    if not os.path.isfile(reduction_metadata.reference_image_path):
         # Message reduction_control?  Return error code?
         log.info('ERROR: Stage 3 cannot access reference image at '+\
                         reduction_metadata.reference_image_path)
