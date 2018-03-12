@@ -101,15 +101,6 @@ def run_stage5(setup):
 
                 return status, report, reduction_metadata
 
-        if ('KERNEL' in reduction_metadata.images_stats[1].keys())):
-
-            for index in range(len(kernel_list)):
-                
-                logs.ifverbose(log, setup,
-                               'Updated kernel metadata for image: ' + target_image)
-        else:
-            logs.ifverbose(log, setup,
-                           'Introducing new kernel solution')
 
             #append some metric for the kernel, perhaps its scale factor...
             for index in range(len(data)):
@@ -269,12 +260,11 @@ def kernel_preparation_matrix(data_image, reference_image, ker_size, model_image
         for midx in range(kernel_size):
             pandq.append((lidx - half_kernel_size, midx - half_kernel_size))
 
-    u_matrix, b_vector = umatrix_construction(
-        reference_image, data_image, weights, pandq, n_kernel, kernel_size)
+    u_matrix, b_vector = umatrix_construction(reference_image, data_image, weights, pandq, n_kernel, kernel_size)
 
     return u_matrix, b_vector
 
-def kernel_solution(u_matrix, b_vector)
+def kernel_solution(u_matrix, b_vector):
     '''
     reshape kernel solution for convolution
 
@@ -287,7 +277,7 @@ def kernel_solution(u_matrix, b_vector)
     inv_umatrix = np.linalg.inv(u_matrix)
     a_vector = np.dot(inv_umatrix, b_vector)
 
-#    kernel_no_back = kernel_image[0:len(kernel_image)-1]
+    #    kernel_no_back = kernel_image[0:len(kernel_image)-1]
     output_kernel = np.zeros(kernel_size * kernel_size, dtype=float)
     output_kernel = a_vector[:-1]
     output_kernel = output_kernel.reshape((kernel_size, kernel_size))
@@ -298,8 +288,7 @@ def kernel_solution(u_matrix, b_vector)
             if (idx - xyc)**2 + (jdx - xyc)**2 >= radius_square:
                 output_kernel[idx, jdx] = 0.
     output_kernel_2 = np.flip(np.flip(output_kernel, 0), 1)
-
-	return output_kernel_2
+    return output_kernel_2
 
 
 def difference_image_single_iteration(ref_imagename, data_imagename, kernel_size,
@@ -338,5 +327,89 @@ def difference_image_single_iteration(ref_imagename, data_imagename, kernel_size
 
     return difference_image, output_kernel, a_vector[-1]
 
+def read_images_for_substamps(ref_image_filename, data_image_filename, kernel_size, max_adu):
+    data_image = fits.open(data_image_filename)
+    ref_image = fits.open(ref_image_filename)
+    # Masks
+    kernel_size_plus = kernel_size
+    mask_kernel = np.ones(kernel_size_plus * kernel_size_plus, dtype=float)
+    mask_kernel = mask_kernel.reshape((kernel_size_plus, kernel_size_plus))
+    xyc = kernel_size_plus / 2
+    radius_square = (xyc)**2
+    for idx in range(kernel_size_plus):
+        for jdx in range(kernel_size_plus):
+            if (idx - xyc)**2 + (jdx - xyc)**2 >= radius_square:
+                mask_kernel[idx, jdx] = 0.
+    ref10pc = np.percentile(ref_image[0].data, 10)
+    ref_image[0].data = ref_image[0].data - \
+        np.percentile(ref_image[0].data, 0.1)
+
+    # extend image size for convolution and kernel solution
+    data_extended = np.zeros((np.shape(data_image[1].data)))
+    ref_extended = np.zeros((np.shape(ref_image[0].data)))
+    data_extended = np.array(data_image[1].data, float)
+    ref_extended = np.array(ref_image[0].data, float)
+
+    ref_bright_mask = ref_extended > max_adu + ref10pc
+    data_bright_mask = data_extended > max_adu
+    mask_propagate = np.zeros(np.shape(data_extended))
+    mask_propagate[ref_bright_mask] = 1.
+    mask_propagate[data_bright_mask] = 1.
+    mask_propagate = convolve2d(mask_propagate, mask_kernel, mode='same')
+    bright_mask = mask_propagate > 0.
+    ref_extended[bright_mask] = 0.
+    data_extended[bright_mask] = 0.
+    # NP.ARRAY REQUIRED FOR ALTERED BYTE ORDER (CYTHON CODE)
+    return ref_extended, data_extended, bright_mask
+
+def difference_image_subimages(ref_imagename, data_imagename,
+    kernel_size, subimage_shape, overlap=0., mask=None, max_adu=np.inf):
+    '''
+    The overlap parameter follows the original DANDIA definition, i.e.
+    it is applied to each dimension, i.e. 0.1 increases the subimage in
+    x an y direction by (2*overlap + 1) * int(x_image_size/n_divisions)
+    the subimage_element contains 4 entries: [x_divisions, y_divisions,
+    x_selection, y_selection]
+    '''
+
+    ref_image, data_image, bright_mask = read_images_for_substamps(ref_imagename, data_imagename, kernel_size, max_adu)
+    #allocate target image
+    difference_image = np.zeros(np.shape(ref_image))
+
+    #call via multiprocessing    
+    subimages_args = []
+    for idx in range(subimage_shape[0]):
+        for jdx in range(subimage_shape[1]):
+            print 'Solving for subimage ',[idx+1,jdx+1],' of ',subimage_shape
+            x_shape, y_shape = np.shape(ref_image)
+            x_subsize, y_subsize = x_shape/subimage_shape[0], y_shape/subimage_shape[1]
+            subimage_element = subimage_shape+[idx,jdx]
+             
+            ref_image_substamp = ref_image[subimage_element[2] * x_subsize : (subimage_element[2] + 1) * x_subsize,
+                                           subimage_element[3] * y_subsize : (subimage_element[3] + 1) * y_subsize]
+            data_image_substamp = data_image[subimage_element[2] * x_subsize : (subimage_element[2] + 1) * x_subsize, 
+                                             subimage_element[3] * y_subsize : (subimage_element[3] + 1) * y_subsize]
+            bright_mask_substamp = bright_mask[subimage_element[2] * x_subsize : (subimage_element[2] + 1) * x_subsize,
+                                               subimage_element[3] * y_subsize : (subimage_element[3] + 1) * y_subsize]
+            
+            # extend image size for convolution and kernel solution
+            data_substamp_extended = np.zeros((np.shape(data_image_substamp)[0] + 2 * kernel_size,
+            np.shape(data_image_substamp)[1] + 2 * kernel_size))
+            ref_substamp_extended = np.zeros((np.shape(ref_image_substamp)[0] + 2 * kernel_size, 
+            np.shape(ref_image_substamp)[1] + 2 * kernel_size))
+            mask_substamp_extended = np.zeros((np.shape(ref_image_substamp)[0] + 2 * kernel_size,
+            np.shape(ref_image_substamp)[1] + 2 * kernel_size))
+            mask_substamp_extended = mask_substamp_extended >0
+
+            data_substamp_extended[kernel_size:-kernel_size,
+                                   kernel_size:-kernel_size] = np.array(data_image_substamp, float)
+            ref_substamp_extended[kernel_size:-kernel_size,
+                                  kernel_size:-kernel_size] = np.array(ref_image_substamp, float)
+            mask_substamp_extended[kernel_size:-kernel_size,
+                                   kernel_size:-kernel_size] = np.array(bright_mask_substamp, float)
+            #difference_subimage = substamp_difference_image(ref_substamp_extended, data_substamp_extended,
+            #                                                mask_substamp_extended, kernel_size, subimage_element, np.shape(ref_image))
+            difference_image[subimage_element[2] * x_subsize : (subimage_element[2] + 1) * x_subsize,
+                             subimage_element[3] * y_subsize : (subimage_element[3] + 1) * y_subsize] = difference_subimage
 
 
