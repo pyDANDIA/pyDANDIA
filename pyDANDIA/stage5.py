@@ -32,7 +32,6 @@ def run_stage5(setup):
     :return: [status, report, reduction_metadata, umatrix, kernel], stage5 status, report, 
      metadata file, u_matrix (updated?), kernel (single or grid)
     :rtype: array_like
-
     """
 
     stage5_version = 'stage5 v0.1'
@@ -42,7 +41,7 @@ def run_stage5(setup):
 
     # find the metadata
     reduction_metadata = metadata.MetaData()
-    reduction_metadata.load_all_metadata(setup.red_dir, 'pyDANDIA_metadata.fits')var
+    reduction_metadata.load_all_metadata(setup.red_dir, 'pyDANDIA_metadata.fits')
 
     # find the images needed to treat
     all_images = reduction_metadata.find_all_images(setup, reduction_metadata,
@@ -52,20 +51,24 @@ def run_stage5(setup):
                                                                    stage_number=5, rerun_all=None, log=log)
 
     #For a quick image subtraction, pre-calculate a sufficiently large u_matrix
-    #based on the largest FWHM and store it to disk -> need config switch
+    #based on the largest FWHM and store it to disk -> needs config switch
     if len(new_images) > 0:
 
         # find the reference image
         try:
             reference_image_name = reduction_metadata.data_architecture[1]['REFERENCE_NAME']
             reference_image_directory = reduction_metadata.data_architecture[1]['IMAGES_PATH']
-            reference_image = open_an_image(setup, reference_image_directory, reference_image_name, image_index=0,
-                                            log=None)
+            max_adu = reduction_metadata.reduction_parameters[1]['MAXVAL'][0]
+		
+            ##To be updated with full mask from earlier stages and s4 shift
+            #reference_image = open_an_image(setup, reference_image_directory, reference_image_name, image_index=0,
+            #                                log=None)
+            
             logs.ifverbose(log, setup,
                            'Using reference image:' + reference_image_name)
         except KeyError:
             logs.ifverbose(log, setup,
-                           'I can not find any reference image! Abort stage5')
+                           'Reference ! Abort stage5')
 
             status = 'KO'
             report = 'No reference image found!'
@@ -74,13 +77,17 @@ def run_stage5(setup):
 
         kernel_list = []
         for new_image in new_images:
-            target_image = open_an_image(setup, reference_image_directory, new_image, image_index=0, log=None)
+            #rethink how to open reference and data image
+            #reference needs to be opened only once and masks require
+            #methods for readjustment...
+            reference_image, data_image, bright_mask = open_images(setup, ref_image_directory,
+                                                                   image_directory, ref_image_name,
+                                                                   data_image_name, kernel_size, max_adu=max_adu, log=None)
 
             try:
                 u_matrix, b_vector = kernel_preparation_matrix(data_image, reference_image, ker_size, model_image=None)
             	kernel_matrix  = kernel_solution(u_matrix, b_vector)
 
-                data.append([target_image, x_shift, y_shift])
                 logs.ifverbose(log, setup,
                                'u_matrix and b_vector for image can be calculated:' + new_image)
 
@@ -146,28 +153,35 @@ def open_an_image(setup, image_directory, image_name,
 
         return None
 
-def read_images(ref_image_filename, data_image_filename, kernel_size, max_adu):
+def open_images(setup, ref_image_directory, data_image_directory, ref_image_name, data_image_name, kernel_size, max_adu, ref_extension = 0, data_image_extension = 1, log = None):
 	#to be updated with open_an_image ....
     '''
-    The kernel solution is supposed to implement the approach outlined in
-    the Bramich 2008 paper. The data image is indexed using i,j
-    the reference image should have the same shape as the data image
-    the kernel is indexed via l, m. kernel_size requires as input the edge
-    length of the kernel. The kernel matrix k_lm and a background b0 
-    k_lm, where l and m correspond to the kernel pixel indices defines 
-    The resulting vector b is obtained from the matrix U_l,m,l
+    Reference and data image needs to be opened jointly and bright pixels
+    are masked on both images depending on the corresponding kernel size
+    and max_adu
 
+    :param object string: reference imagefilename
+    :param object string: data image filename
     :param object string: reference image filename
     :param object string: data image filename
     :param object integer: kernel size edge length of the kernel in px
     :param object float: index of the maximum adu values
-
-    :return: image
-    :rtype: ??
+    :return: images, mask
     '''
 
-    data_image = fits.open(data_image_filename)
-    ref_image = fits.open(ref_image_filename)
+    image_directory_path = image_directory
+
+    logs.ifverbose(log, setup,
+                   'Attempting to open data image ' + os.path.join(data_image_directory_path, data_image_name))
+
+    data_image = fits.open(os.path.join(data_image_directory_path, data_image_name), mmap=True)
+
+    logs.ifverbose(log, setup,
+                   'Attempting to open ref image ' + os.path.join(ref_directory_path, ref_image_name))
+
+    ref_image = fits.open(os.path.join(ref_image_directory_path, ref_image_name), mmap=True)
+
+	#increase kernel size by 2 and define circular mask
     kernel_size_plus = kernel_size + 2
     mask_kernel = np.ones(kernel_size_plus * kernel_size_plus, dtype=float)
     mask_kernel = mask_kernel.reshape((kernel_size_plus, kernel_size_plus))
@@ -177,25 +191,32 @@ def read_images(ref_image_filename, data_image_filename, kernel_size, max_adu):
         for jdx in range(kernel_size_plus):
             if (idx - xyc)**2 + (jdx - xyc)**2 >= radius_square:
                 mask_kernel[idx, jdx] = 0.
-    ref10pc = np.percentile(ref_image[0].data, 0.1)
-    ref_image[0].data = ref_image[0].data - \
-        np.percentile(ref_image[0].data, 0.1)
+
+    #subtract background estimate based on 10% percentile
+    ref10pc = np.percentile(ref_image[ref_extension].data, 0.1)
+    ref_image[ref_extension].data = ref_image[ref_extension].data - \
+        np.percentile(ref_image[ref_extension].data, 0.1)
+
+    logs.ifverbose(log, setup,
+                   'Background reference= ' + str(ref10pc))
 
     # extend image size for convolution and kernel solution
-    data_extended = np.zeros((np.shape(data_image[1].data)[
-                             0] + 2 * kernel_size, np.shape(data_image[1].data)[1] + 2 * kernel_size))
-    ref_extended = np.zeros((np.shape(ref_image[0].data)[
-                            0] + 2 * kernel_size, np.shape(ref_image[0].data)[1] + 2 * kernel_size))
+    data_extended = np.zeros((np.shape(data_image[data_image_extension].data)[
+                             0] + 2 * kernel_size, np.shape(data_image[data_image_extension].data)[1] + 2 * kernel_size))
+    ref_extended = np.zeros((np.shape(ref_image[ref_image_extension].data)[
+                            0] + 2 * kernel_size, np.shape(ref_image[ref_image_extension].data)[1] + 2 * kernel_size))
     data_extended[kernel_size:-kernel_size, kernel_size:-
-                  kernel_size] = np.array(data_image[1].data, float)
+                  kernel_size] = np.array(data_image[data_image_extension].data, float)
     ref_extended[kernel_size:-kernel_size, kernel_size:-
-                 kernel_size] = np.array(ref_image[0].data, float)
-
+                 kernel_size] = np.array(ref_image[ref_image_extension].data, float)
+    
+    #apply consistent mask
     ref_bright_mask = ref_extended > max_adu + ref10pc
     data_bright_mask = data_extended > max_adu
     mask_propagate = np.zeros(np.shape(data_extended))
     mask_propagate[ref_bright_mask] = 1.
     mask_propagate[data_bright_mask] = 1.
+    #increase mask size to kernel size
     mask_propagate = convolve2d(mask_propagate, mask_kernel, mode='same')
     bright_mask = mask_propagate > 0.
     ref_extended[bright_mask] = 0.
@@ -251,8 +272,6 @@ def kernel_preparation_matrix(data_image, reference_image, ker_size, model_image
     u_matrix, b_vector = umatrix_construction(
         reference_image, data_image, weights, pandq, n_kernel, kernel_size)
 
-    # final entry (1px) for background/noise
-
     return u_matrix, b_vector
 
 def kernel_solution(u_matrix, b_vector)
@@ -263,8 +282,8 @@ def kernel_solution(u_matrix, b_vector)
 	:param object array: b_vector
 
     :return: kernel matrix
-    :rtype: ??
     '''
+
     inv_umatrix = np.linalg.inv(u_matrix)
     a_vector = np.dot(inv_umatrix, b_vector)
 
@@ -297,7 +316,6 @@ def difference_image_single_iteration(ref_imagename, data_imagename, kernel_size
     :param object integer: maximum allowed adu on images
 
     :return: u matrix and b vector
-    :rtype: ??
     '''
 
     ref_image, data_image, bright_mask = read_images(
