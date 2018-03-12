@@ -215,6 +215,19 @@ def open_images(setup, ref_image_directory, data_image_directory, ref_image_name
 
     return ref_extended, data_extended, bright_mask
 
+def noise_model(model_image, gain, readout_noise, flat=None, initialize=None):
+
+    noise_image = np.copy(model_image)
+    noise_image[noise_image == 0] = 1.
+   
+    noise_image = noise_image**2
+    noise_image[noise_image != 1] = noise_image[noise_image !=
+                                                1] + readout_noise * readout_noise
+    weights = 1. / noise_image
+    weights[noise_image == 1] = 0.
+	
+    return weights
+
 def kernel_preparation_matrix(data_image, reference_image, ker_size, model_image=None):
 
     '''
@@ -359,7 +372,7 @@ def read_images_for_substamps(ref_image_filename, data_image_filename, kernel_si
     bright_mask = mask_propagate > 0.
     ref_extended[bright_mask] = 0.
     data_extended[bright_mask] = 0.
-    # NP.ARRAY REQUIRED FOR ALTERED BYTE ORDER (CYTHON CODE)
+
     return ref_extended, data_extended, bright_mask
 
 def difference_image_subimages(ref_imagename, data_imagename,
