@@ -77,3 +77,29 @@ def umatrix_construction(np.ndarray[DTYPE_t, ndim = 2] reference_image,np.ndarra
 
     return u_matrix, b_vector
 
+def bvector_construction(np.ndarray[DTYPE_t, ndim = 2] u_matrix, np.ndarray[DTYPE_t, ndim = 2] reference_image,np.ndarray[DTYPE_t, ndim = 2] data_image,np.ndarray[DTYPE_t, ndim = 2] weights, pandq, n_kernel_np, kernel_size_np):
+
+    cdef int ni_image = np.shape(data_image)[0]
+    cdef int nj_image = np.shape(data_image)[1]
+    cdef double sum_acc = 0.
+    cdef int idx_l,idx_m,idx_l_prime,idx_m_prime,idx_i,idx_j
+    cdef int kernel_size = np.int(kernel_size_np)
+    cdef int kernel_size_half = np.int(kernel_size_np)/2
+    cdef int n_kernel = np.int(n_kernel_np)
+        
+    cdef np.ndarray b_vector = np.zeros([n_kernel + 1], dtype=DTYPE)
+    for idx_p in range(n_kernel):
+        idx_l, idx_m = pandq[idx_p]
+        sum_acc = 0.
+        for idx_i in range(kernel_size_half,ni_image-kernel_size+kernel_size_half):
+           for idx_j in range(kernel_size_half,nj_image-kernel_size+kernel_size_half):
+                   sum_acc += data_image[idx_i, idx_j] * reference_image[idx_i + idx_l , idx_j + idx_m ] * weights[idx_i, idx_j]
+        b_vector[idx_p] = sum_acc
+
+    sum_acc = 0.
+    for idx_i in range(ni_image):
+       for idx_j in range(nj_image):
+            sum_acc += data_image[idx_i, idx_j] * weights[idx_i, idx_j]
+    b_vector[n_kernel] = sum_acc
+
+    return b_vector

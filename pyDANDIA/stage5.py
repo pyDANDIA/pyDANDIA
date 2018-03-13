@@ -53,10 +53,16 @@ def run_stage5(setup):
     new_images = reduction_metadata.find_images_need_to_be_process(setup, all_images,
                                                                    stage_number=5, rerun_all=None, log=log)
 
-   
-    reduction_metadata.update_a_cell_to_layer('data_architecture', 0, 'KERNEL_PATH', bpm_directory_path)
+    kernel_directory_path = os.path.join(setup.red_dir, 'kernel')
+    if not os.path.exists(kernel_directory_path):
+        os.mkdir(kernel_directory_path)
+    if not os.path.exists(diffim_directory_path):
+        os.mkdir(diffim_directory_path)
+
+    reduction_metadata.update_a_cell_to_layer('data_architecture', 0, 'KERNEL_PATH', kernel_directory_path)
     # difference images are written for verbose
-    reduction_metadata.update_a_cell_to_layer('data_architecture', 0, 'DIFFIM_PATH', bpm_directory_path)	                                        
+    reduction_metadata.update_a_cell_to_layer('data_architecture', 0, 'DIFFIM_PATH', diffim_directory_path)	                                        
+	
 
     #For a quick image subtraction, pre-calculate a sufficiently large u_matrix
     #based on the largest FWHM and store it to disk -> needs config switch
@@ -67,11 +73,8 @@ def run_stage5(setup):
             reference_image_name = reduction_metadata.data_architecture[1]['REFERENCE_NAME']
             reference_image_directory = reduction_metadata.data_architecture[1]['IMAGES_PATH']
             max_adu = reduction_metadata.reduction_parameters[1]['MAXVAL'][0]
-		    if not os.path.exists(ref_directory_path):
-               os.mkdir(ref_directory_path)
 
-            ##To be updated with full mask from earlier stages and s4 shift
-            #reference_image = open_an_image(setup, reference_image_directory, reference_image_name, image_index=0,
+
             #                                log=None)            
             logs.ifverbose(log, setup,
                            'Using reference image:' + reference_image_name)
