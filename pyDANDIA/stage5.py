@@ -9,28 +9,24 @@
 #      astropy 1.0+
 #      scipy 1.0+
 ######################################################################
-
 import numpy as np
 import os
 from astropy.io import fits
-from umatrix_routine import umatrix_construction
 from scipy.signal import convolve2d
 import sys
 
 import config_utils
-
 import metadata
 import logs
-
 
 def run_stage5(setup):
     """Main driver function to run stage 5: kernel_solution
     This stage finds the kernel solution and (optionally) subtracts the model
-    image!
+    image
     :param object setup : an instance of the ReductionSetup class. See reduction_control.py
 
-    :return: [status, report, reduction_metadata, umatrix, kernel], stage5 status, report, 
-     metadata file, u_matrix (updated?), kernel (single or grid)
+    :return: [status, report, reduction_metadata], stage5 status, report, 
+     metadata file
     :rtype: array_like
     """
 
@@ -38,17 +34,29 @@ def run_stage5(setup):
 
     log = logs.start_stage_log(setup.red_dir, 'stage5', version=stage5_version)
     log.info('Setup:\n' + setup.summary() + '\n')
+    try:
+        from umatrix_routine import umatrix_construction
+    except ImportError:
+        log.info('Uncompiled cython code, please run setup.py: e.g.\n python setup.py build_ext --inplace')
+        status = 'KO'
+        report = 'Uncompiled cython code, please run setup.py: e.g.\n python setup.py build_ext --inplace'
+        return status, report, reduction_metadata
 
     # find the metadata
     reduction_metadata = metadata.MetaData()
     reduction_metadata.load_all_metadata(setup.red_dir, 'pyDANDIA_metadata.fits')
 
-    # find the images needed to treat
+    # find the images that need to be processed
     all_images = reduction_metadata.find_all_images(setup, reduction_metadata,
                                                     os.path.join(setup.red_dir, 'data'), log=log)
 
     new_images = reduction_metadata.find_images_need_to_be_process(setup, all_images,
                                                                    stage_number=5, rerun_all=None, log=log)
+
+   
+    reduction_metadata.update_a_cell_to_layer('data_architecture', 0, 'KERNEL_PATH', bpm_directory_path)
+    # difference images are written for verbose
+    reduction_metadata.update_a_cell_to_layer('data_architecture', 0, 'DIFFIM_PATH', bpm_directory_path)	                                        
 
     #For a quick image subtraction, pre-calculate a sufficiently large u_matrix
     #based on the largest FWHM and store it to disk -> needs config switch
@@ -59,17 +67,17 @@ def run_stage5(setup):
             reference_image_name = reduction_metadata.data_architecture[1]['REFERENCE_NAME']
             reference_image_directory = reduction_metadata.data_architecture[1]['IMAGES_PATH']
             max_adu = reduction_metadata.reduction_parameters[1]['MAXVAL'][0]
-		
+		    if not os.path.exists(ref_directory_path):
+               os.mkdir(ref_directory_path)
+
             ##To be updated with full mask from earlier stages and s4 shift
             #reference_image = open_an_image(setup, reference_image_directory, reference_image_name, image_index=0,
-            #                                log=None)
-            
+            #                                log=None)            
             logs.ifverbose(log, setup,
                            'Using reference image:' + reference_image_name)
         except KeyError:
             logs.ifverbose(log, setup,
-                           'Reference ! Abort stage5')
-
+                           'Reference/Images ! Abort stage5')
             status = 'KO'
             report = 'No reference image found!'
 
@@ -89,7 +97,7 @@ def run_stage5(setup):
             	kernel_matrix  = kernel_solution(u_matrix, b_vector)
 
                 logs.ifverbose(log, setup,
-                               'u_matrix and b_vector for image can be calculated:' + new_image)
+                               'u_matrix and b_vector calculated for:' + new_image)
 
             except:
 
@@ -144,7 +152,9 @@ def open_an_image(setup, image_directory, image_name,
 
         return None
 
-def open_images(setup, ref_image_directory, data_image_directory, ref_image_name, data_image_name, kernel_size, max_adu, ref_extension = 0, data_image_extension = 1, log = None):
+def open_images(setup, ref_image_directory, data_image_directory, ref_image_name,
+                data_image_name, kernel_size, max_adu, ref_extension = 0, 
+                data_image_extension = 1, log = None):
 	#to be updated with open_an_image ....
     '''
     Reference and data image needs to be opened jointly and bright pixels
@@ -183,10 +193,10 @@ def open_images(setup, ref_image_directory, data_image_directory, ref_image_name
             if (idx - xyc)**2 + (jdx - xyc)**2 >= radius_square:
                 mask_kernel[idx, jdx] = 0.
 
-    #subtract background estimate based on 10% percentile
-    ref10pc = np.percentile(ref_image[ref_extension].data, 0.1)
+    #subtract background estimate using 10% percentile
+    ref10pc = np.percentile(ref_image[ref_extension].data, 10.)
     ref_image[ref_extension].data = ref_image[ref_extension].data - \
-        np.percentile(ref_image[ref_extension].data, 0.1)
+        np.percentile(ref_image[ref_extension].data, 10.)
 
     logs.ifverbose(log, setup,
                    'Background reference= ' + str(ref10pc))
@@ -229,7 +239,6 @@ def noise_model(model_image, gain, readout_noise, flat=None, initialize=None):
     return weights
 
 def kernel_preparation_matrix(data_image, reference_image, ker_size, model_image=None):
-
     '''
     The kernel solution is supposed to implement the approach outlined in
     the Bramich 2008 paper. The data image is indexed using i,j
@@ -247,7 +256,6 @@ def kernel_preparation_matrix(data_image, reference_image, ker_size, model_image
     :return: u matrix and b vector
     :rtype: ??
     '''
-
 
     if np.shape(data_image) != np.shape(reference_image):
         return None
