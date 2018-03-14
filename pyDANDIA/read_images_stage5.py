@@ -61,7 +61,7 @@ def open_an_image(setup, image_directory, image_name,
 
         return None
 
-def open_data_image(setup, ref_image_directory, ref_image_name, kernel_size, max_adu, ref_extension = 0, log = None):
+def open_data_image(setup, data_image_directory, data_image_name, reference_mask, kernel_size, max_adu, data_extension = 1, log = None):
     '''
     reading difference image for constructing u matrix
 
@@ -72,10 +72,9 @@ def open_data_image(setup, ref_image_directory, ref_image_name, kernel_size, max
     :return: images, mask
     '''
 
-    logs.ifverbose(log, setup,
-                   'Attempting to open ref image ' + os.path.join(ref_directory_path, ref_image_name))
+    logs.ifverbose(log, setup, 'Attempting to open data image ' + os.path.join(ref_directory_path, ref_image_name))
 
-    ref_image = fits.open(os.path.join(ref_image_directory_path, ref_image_name), mmap=True)
+    data_image = fits.open(os.path.join(data_image_directory_path, data_image_name), mmap=True)
 
 	#increase kernel size by 2 and define circular mask
     kernel_size_plus = kernel_size + 2
@@ -88,29 +87,15 @@ def open_data_image(setup, ref_image_directory, ref_image_name, kernel_size, max
             if (idx - xyc)**2 + (jdx - xyc)**2 >= radius_square:
                 mask_kernel[idx, jdx] = 0.
 
-    #subtract background estimate using 10% percentile
-    ref10pc = np.percentile(ref_image[ref_extension].data, 10.)
-    ref_image[ref_extension].data = ref_image[ref_extension].data - \
-        np.percentile(ref_image[ref_extension].data, 10.)
-
-    logs.ifverbose(log, setup,
-                   'Background reference= ' + str(ref10pc))
-
     # extend image size for convolution and kernel solution
-    ref_extended = np.zeros((np.shape(ref_image[ref_image_extension].data)[
-                            0] + 2 * kernel_size, np.shape(ref_image[ref_image_extension].data)[1] + 2 * kernel_size))
-    ref_extended[kernel_size:-kernel_size, kernel_size:-
-                 kernel_size] = np.array(ref_image[ref_image_extension].data, float)
-    
-    #apply consistent mask
-    ref_bright_mask = ref_extended > max_adu + ref10pc
-    mask_propagate[ref_bright_mask] = 1.
-    #increase mask size to kernel size
-    mask_propagate = convolve2d(mask_propagate, mask_kernel, mode='same')
-    bright_mask = mask_propagate > 0.
-    ref_extended[bright_mask] = 0.
+    data_extended = np.zeros((np.shape(data_image[data_image_extension].data)[
+                            0] + 2 * kernel_size, np.shape(data_image[data_image_extension].data)[1] + 2 * kernel_size))
+    data_extended[kernel_size:-kernel_size, kernel_size:-
+                 kernel_size] = np.array(data_image[data_image_extension].data, float)
+    #apply consistent mask    
+    data_extended[reference_mask] = 0.
 
-    return ref_extended, bright_mask
+    return data_extended
 
 def open_reference(setup, ref_image_directory, ref_image_name, kernel_size,
                    max_adu, ref_extension = 0, log = None):
@@ -149,8 +134,8 @@ def open_reference(setup, ref_image_directory, ref_image_name, kernel_size,
                    'Background reference= ' + str(ref10pc))
 
     # extend image size for convolution and kernel solution
-    ref_extended = np.zeros((np.shape(ref_image[ref_image_extension].data)[
-                            0] + 2 * kernel_size, np.shape(ref_image[ref_image_extension].data)[1] + 2 * kernel_size))
+    ref_extended = np.zeros((np.shape(ref_image[ref_image_extension].data)[0] + 2 * kernel_size,
+                             np.shape(ref_image[ref_image_extension].data)[1] + 2 * kernel_size))
     ref_extended[kernel_size:-kernel_size, kernel_size:-
                  kernel_size] = np.array(ref_image[ref_image_extension].data, float)
     
