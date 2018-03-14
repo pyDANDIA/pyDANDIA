@@ -46,6 +46,16 @@ def run_stage5(setup):
     reduction_metadata = metadata.MetaData()
     reduction_metadata.load_all_metadata(setup.red_dir, 'pyDANDIA_metadata.fits')
 
+    #determine kernel size based on maximum FWHM
+    fwhm_max = 0. 
+    for stats_entry in reduction_metadata.images_stats[1]:
+        if float(stats_entry['FWHM_X'])> fwhm_max:
+            fwhm_max = stats_entry['FWHM_X']
+        if float(stats_entry['FWHM_Y'])> fwhm_max:
+            fwhm_max = stats_entry['FWHM_Y']
+    
+    kernel_size = 2. * fwhm_max #multiplicative factor to use s0 ker_rad...
+    
     # find the images that need to be processed
     all_images = reduction_metadata.find_all_images(setup, reduction_metadata,
                                                     os.path.join(setup.red_dir, 'data'), log=log)
@@ -63,9 +73,12 @@ def run_stage5(setup):
     # difference images are written for verbose
     reduction_metadata.update_a_cell_to_layer('data_architecture', 0, 'DIFFIM_PATH', diffim_directory_path)	                                        
 	
+    ref_extended, bright_mask = open_reference(setup, ref_image_directory, ref_image_name, kernel_size,
+                   max_adu, ref_extension = 0, log = None)
 
     #For a quick image subtraction, pre-calculate a sufficiently large u_matrix
     #based on the largest FWHM and store it to disk -> needs config switch
+
     if len(new_images) > 0:
 
         # find the reference image
@@ -87,6 +100,10 @@ def run_stage5(setup):
             return status, report, reduction_metadata
 
         kernel_list = []
+
+
+
+
         for new_image in new_images:
             #rethink how to open reference and data image
             #reference needs to be opened only once and masks require
@@ -97,7 +114,7 @@ def run_stage5(setup):
 
             try:
                 u_matrix, b_vector = kernel_preparation_matrix(data_image, reference_image, ker_size, model_image=None)
-            	kernel_matrix  = kernel_solution(u_matrix, b_vector)
+            	kernel_matrix  = kernel_solution(u_matrix, b_vector, ker_size)
 
                 logs.ifverbose(log, setup,
                                'u_matrix and b_vector calculated for:' + new_image)
@@ -155,6 +172,59 @@ def open_an_image(setup, image_directory, image_name,
 
         return None
 
+def open_reference(setup, ref_image_directory, ref_image_name, kernel_size,
+                   max_adu, ref_extension = 0, log = None):
+    '''
+    reading difference image for constructing u matrix
+
+    :param object string: reference imagefilename
+    :param object string: reference image filename
+    :param object integer: kernel size edge length of the kernel in px
+    :param object float: index of the maximum adu values
+    :return: images, mask
+    '''
+
+    logs.ifverbose(log, setup,
+                   'Attempting to open ref image ' + os.path.join(ref_directory_path, ref_image_name))
+
+    ref_image = fits.open(os.path.join(ref_image_directory_path, ref_image_name), mmap=True)
+
+	#increase kernel size by 2 and define circular mask
+    kernel_size_plus = kernel_size + 2
+    mask_kernel = np.ones(kernel_size_plus * kernel_size_plus, dtype=float)
+    mask_kernel = mask_kernel.reshape((kernel_size_plus, kernel_size_plus))
+    xyc = kernel_size_plus / 2
+    radius_square = (xyc)**2
+    for idx in range(kernel_size_plus):
+        for jdx in range(kernel_size_plus):
+            if (idx - xyc)**2 + (jdx - xyc)**2 >= radius_square:
+                mask_kernel[idx, jdx] = 0.
+
+    #subtract background estimate using 10% percentile
+    ref10pc = np.percentile(ref_image[ref_extension].data, 10.)
+    ref_image[ref_extension].data = ref_image[ref_extension].data - \
+        np.percentile(ref_image[ref_extension].data, 10.)
+
+    logs.ifverbose(log, setup,
+                   'Background reference= ' + str(ref10pc))
+
+    # extend image size for convolution and kernel solution
+    ref_extended = np.zeros((np.shape(ref_image[ref_image_extension].data)[
+                            0] + 2 * kernel_size, np.shape(ref_image[ref_image_extension].data)[1] + 2 * kernel_size))
+    ref_extended[kernel_size:-kernel_size, kernel_size:-
+                 kernel_size] = np.array(ref_image[ref_image_extension].data, float)
+    
+    #apply consistent mask
+    ref_bright_mask = ref_extended > max_adu + ref10pc
+    mask_propagate[ref_bright_mask] = 1.
+    #increase mask size to kernel size
+    mask_propagate = convolve2d(mask_propagate, mask_kernel, mode='same')
+    bright_mask = mask_propagate > 0.
+    ref_extended[bright_mask] = 0.
+
+    return ref_extended, bright_mask
+
+
 def open_images(setup, ref_image_directory, data_image_directory, ref_image_name,
                 data_image_name, kernel_size, max_adu, ref_extension = 0, 
                 data_image_extension = 1, log = None):
@@ -172,8 +242,6 @@ def open_images(setup, ref_image_directory, data_image_directory, ref_image_name
     :param object float: index of the maximum adu values
     :return: images, mask
     '''
-
-    image_directory_path = image_directory
 
     logs.ifverbose(log, setup,
                    'Attempting to open data image ' + os.path.join(data_image_directory_path, data_image_name))
@@ -241,6 +309,43 @@ def noise_model(model_image, gain, readout_noise, flat=None, initialize=None):
 	
     return weights
 
+def umatrix_constant(reference_image, ker_size, model_image=None):
+    '''
+    The kernel solution is supposed to implement the approach outlined in
+    the Bramich 2008 paper. It generates the u matrix which is required
+    for finding the best kernel and assumes it can be calculated
+    sufficiently if the noise model either is neglected or similar on all
+    model images. In order to run, it needs the largest possible kernel size
+    and carefully masked regions which are expected to be affected on all
+    data images.
+
+    :param object image: reference image
+    :param integer kernel size: edge length of the kernel in px
+
+    :return: u matrix
+    '''
+
+    if ker_size:
+        if ker_size % 2 == 0:
+            kernel_size = ker_size + 1
+        else:
+            kernel_size = ker_size
+
+    weights = np.ones(np.shape(refernce_image))
+
+    # Prepare/initialize indices, vectors and matrices
+    pandq = []
+    n_kernel = kernel_size * kernel_size
+    ncount = 0
+    half_kernel_size = int(kernel_size) / 2
+    for lidx in range(kernel_size):
+        for midx in range(kernel_size):
+            pandq.append((lidx - half_kernel_size, midx - half_kernel_size))
+
+    u_matrix = umatrix_construction(reference_image, data_image, weights, pandq, n_kernel, kernel_size)
+
+    return u_matrix, b_vector
+
 def kernel_preparation_matrix(data_image, reference_image, ker_size, model_image=None):
     '''
     The kernel solution is supposed to implement the approach outlined in
@@ -257,7 +362,6 @@ def kernel_preparation_matrix(data_image, reference_image, ker_size, model_image
     :param string model: the image index of the astropy fits object
 
     :return: u matrix and b vector
-    :rtype: ??
     '''
 
     if np.shape(data_image) != np.shape(reference_image):
@@ -284,11 +388,12 @@ def kernel_preparation_matrix(data_image, reference_image, ker_size, model_image
         for midx in range(kernel_size):
             pandq.append((lidx - half_kernel_size, midx - half_kernel_size))
 
-    u_matrix, b_vector = umatrix_construction(reference_image, data_image, weights, pandq, n_kernel, kernel_size)
+    u_matrix, b_vector = umatrix_bvector_construction(reference_image, data_image,
+                                                      weights, pandq, n_kernel, kernel_size)
 
     return u_matrix, b_vector
 
-def kernel_solution(u_matrix, b_vector):
+def kernel_solution(u_matrix, b_vector, kernel_size):
     '''
     reshape kernel solution for convolution
 
@@ -339,7 +444,7 @@ def difference_image_single_iteration(ref_imagename, data_imagename, kernel_size
     u_matrix, b_vector = naive_u_matrix(
         data_image, ref_image, kernel_size, model_image=None)
    
-    output_kernel_2 = kernel_solution(u_matrix, b_vector)
+    output_kernel_2 = kernel_solution(u_matrix, b_vector, kernel_size)
     model_image = convolve2d(ref_image, output_kernel_2, mode='same')
 
     difference_image = model_image - data_image + a_vector[-1]
