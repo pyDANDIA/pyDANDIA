@@ -1,9 +1,24 @@
-# export PHOTDB_PATH=/home/msdemlei/photdb
+"""
+Common code to access the photometry database.
+
+Essentially, you call get_connection and pass whatever you get back
+to functions like feed_exposure, ...
+
+Or, call conn.execute directly.
+
+This will need the location of the database file in an environment variable
+PHOTDB_PATH; e.g.,
+
+export PHOTDB_PATH=~/photdb
+"""
+
 
 import os
-import random
 import re
 import sqlite3
+
+import numpy as np
+
 
 telescopes = {'Australia':[10.5,20.3,1235.6],'Chile':[40.1,60.4,2235.6]}
 instruments = {'camera1':[1,2,3,'blah'],'camera2':[4,5,6,'bleh']}
@@ -82,10 +97,10 @@ class Stars(TableDef):
 	c_020_dec = 'DOUBLE PRECISION'
 	c_030_x_pix = 'REAL'
 	c_040_y_pix = 'REAL'
-	c_050_reference_image = 'INTEGER REFERENCES ReferenceImages(refimg_id)'
+#	c_050_reference_image = 'INTEGER REFERENCES reference_images(refimg_id)'
 	c_060_reference_flux = 'DOUBLE PRECISION'
 	c_070_reference_flux_err= 'DOUBLE PRECISION'
-	c_100_type = 'TEXT'
+#	c_100_type = 'TEXT'
 
 
 class PhotometryPoints(TableDef):
@@ -133,7 +148,7 @@ def ensure_tables(conn, *table_defs):
 		ensure_table(conn, table_def)
 
 
-def get_connection(dsn=os.environ["PHOTDB_PATH"]):
+def get_connection(dsn=os.path.expanduser(os.environ["PHOTDB_PATH"])):
 	conn = sqlite3.connect(dsn,
 		detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES)
 	conn.execute("PRAGMA foreign_keys=ON")
@@ -142,7 +157,7 @@ def get_connection(dsn=os.environ["PHOTDB_PATH"]):
 	return conn
 
 
-def _feed_to_table(conn, table_name, names, values):
+def feed_to_table(conn, table_name, names, values):
 	"""makes a row out of names and values and inserts it into table_name.
 
 	This returns the value of last_insert_rowid(), whether or not that
@@ -158,12 +173,22 @@ def _feed_to_table(conn, table_name, names, values):
 		cursor.close()
 
 
-def _feed_to_table_many(conn, table_name, rows):
-	"""dumps a list of (structurally identical!) dictionary to the database.
+def feed_to_table_many(conn, table_name, names, tuples):
+	"""dumps a sequence of tuples into table_name.
+
+	names gives the sequence of column names per tuple element.
 	"""
-	names = rows[0].keys()
+	print [type(t) for t in tuples[0]]
 	conn.executemany("INSERT OR REPLACE INTO %s (%s) VALUES (%s)"%(
 		table_name, ",".join(names), ",".join("?"*len(names))),
+		tuples)
+
+
+def feed_to_table_many_dict(conn, table_name, rows):
+	"""dumps a list of (structurally identical!) dictionaries to the database.
+	"""
+	feed_to_table_many(conn, table_name,
+		rows[0].keys(),
 		[[d[n] for n in names] for d in rows])
 
 
@@ -176,69 +201,17 @@ def feed_exposure(conn, exp_properties, photometry_points):
 	photometry_points is a list of dicts with keys from PhotometryPoints.
 	Leave empty exposure field.
 	"""
-	exposure_id = _feed_to_table(conn, "exposures", 
+	exposure_id = feed_to_table(conn, "exposures", 
 		exp_properties.keys(), exp_properties.values())
 	
 	for row in photometry_points:
 		row["exposure_id"] = exposure_id
 	
-	_feed_to_table_many(conn, "phot",
+	feed_to_table_many(conn, "phot",
 		photometry_points)
 
 
-def create_stars_if_necessary(conn, n):
-	"""stuffs n random stars into the stars table if there's less rows in 
-	there.
-
-	(warning: minimal star id is 1!)
-	"""
-	if list(conn.execute("SELECT COUNT(*) FROM stars"))[0][0]<n:
-		for i in range(n):
-			_feed_to_table(conn, "stars", [
-					"ra", 
-					"dec"
-				], [
-					random.normalvariate(266.4, 15), 
-					random.normalvariate(-29, 15),
-			])
-
-def get_test_data():
-	"""returns fake data for test and demo purposes.
-
-	It's an exposure row and a sequence of photometry records.
-	"""
-	return {
-			'jd': 2540000+random.random()*500,
-			'telescope_id': ['fred', 'joe'][random.randint(0, 1)],
-			'instrument_id': ['cam1','cam2'][random.randint(0, 1)],
-			'filter_id': ['filt1','filt2'][random.randint(0, 1)],
-			'airmass': random.random()+0.1,
-			'name': '/foo/bar/baz%0d.fz'%random.randint(0, 100000000),
-			'fwhm' : random.random()+0.1,
-			'fwhm_err' : random.random()+0.1,
-			'ellipticity' : random.random()+0.1,
-			'ellipticity_err' : random.random()+0.1,
-			'exposure_time' : random.randint(0, 1)
-			'moon_phase' : random.random()+0.1,
-			'moon_separation' : np.random.uniform(0,60)+0.1
-		}, [{
-				'star_id': i+1,
-				'diff_flux': random.random()*10,
-				'diff_flux_err': random.random()*0.1,
-				'phot_scale_factor': 0.14+random.random()*0.1,
-				'phot_scale_factor_error': 0.014+random.random()*0.01,
-				'magnitude': random.uniform(14,19),
-				'magnitude_error': 0.014+random.random()*0.01,
-				'local_background': random.random(),
-				'local_background_error': random.random()/100,
-				'delta_x': 0.1*random.random(),
-				'delta_y': 0.1*random.random(),
-				'residual_x': 0.01*random.random(),
-				'residual_y': 0.01*random.random(),
-				} for i in range(random.randint(5, 15))]
-
-if __name__=="__main__":
-	conn = get_connection()
-	with conn:
-		create_stars_if_necessary(conn, 20)
-		feed_exposure(conn, *get_test_data())
+def _adaptFloat(f):
+	return float(f)
+sqlite3.register_adapter(np.float32, _adaptFloat)
+sqlite3.register_adapter(np.float64, _adaptFloat)
