@@ -78,11 +78,20 @@ def run_stage5(setup):
     #For a quick image subtraction, pre-calculate a sufficiently large u_matrix
     #based on the largest FWHM and store it to disk -> needs config switch
 
-    ref_extended, bright_mask = open_reference(setup, ref_image_directory, ref_image_name, kernel_size,
-                   max_adu, ref_extension = 0, log = None)
+    ref_extended, bright_mask = open_reference(setup, ref_image_directory, ref_image_name, kernel_size, max_adu, ref_extension = 0, log = None)
 
-    umatrix = umatrix_construction(reference_image, ker_size, model_image=None)
-
+    #check if umatrix exists
+    if os.path.exists(os.path.join(kernel_directory_path,'unweighted_u_matrix.npy')):
+        umatrix, kernel_size_u = np.load(os.path.join(kernel_directory_path,'unweighted_u_matrix.npy'))
+        if kernel_size_u != kernel_size:
+            #calculate and store unweighted umatrix
+            umatrix = umatrix_construction(reference_image, kernel_size, model_image=None)
+            np.save(os.path.join(kernel_directory_path,'unweighted_u_matrix.npy'), [umatrix, kernel_size])
+    else:
+        #calculate and store unweighted umatrix 
+        umatrix = umatrix_construction(reference_image, kernel_size, model_image=None)
+        np.save(os.path.join(kernel_directory_path,'unweighted_u_matrix.npy'), [umatrix, kernel_size])
+	
     if len(new_images) > 0:
 
         # find the reference image
@@ -208,6 +217,47 @@ def umatrix_constant(reference_image, ker_size, model_image=None):
 
     return u_matrix
 
+
+def bvector_constant(reference_image, data_image, ker_size, model_image=None):
+    '''
+    The kernel solution is supposed to implement the approach outlined in
+    the Bramich 2008 paper. It generates the b_vector which is required
+    for finding the best kernel and assumes it can be calculated
+    sufficiently if the noise model either is neglected or similar on all
+    model images. In order to run, it needs the largest possible kernel size
+    and carefully masked regions on both - data and reference image
+
+    :param object image: reference image
+    :param integer kernel size: edge length of the kernel in px
+
+    :return: b_vector
+    '''
+    try:
+        from umatrix_routine import umatrix_construction, umatrix_bvector_construction, bvector_construction
+    except ImportError:
+        print('cannot import cython module umatrix_routine')
+        return []
+
+    if ker_size:
+        if ker_size % 2 == 0:
+            kernel_size = ker_size + 1
+        else:
+            kernel_size = ker_size
+
+    weights = np.ones(np.shape(reference_image))
+
+    # Prepare/initialize indices, vectors and matrices
+    pandq = []
+    n_kernel = kernel_size * kernel_size
+    ncount = 0
+    half_kernel_size = int(kernel_size) / 2
+    for lidx in range(kernel_size):
+        for midx in range(kernel_size):
+            pandq.append((lidx - half_kernel_size, midx - half_kernel_size))
+
+    b_vector = bvector_construction(reference_image, data_image, weights, pandq, n_kernel, kernel_size)
+    return b_vector
+
 def kernel_preparation_matrix(data_image, reference_image, ker_size, model_image=None):
     '''
     The kernel solution is supposed to implement the approach outlined in
@@ -286,7 +336,6 @@ def kernel_solution(u_matrix, b_vector, kernel_size):
 
 def difference_image_single_iteration(ref_imagename, data_imagename, kernel_size,
                                       mask=None, max_adu=np.inf):
-
     '''
     Finding the difference image for a given refernce and data image
     for a defined kernel size without iteration or image subdivision

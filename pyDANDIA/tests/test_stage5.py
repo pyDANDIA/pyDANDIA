@@ -6,27 +6,24 @@ from os import getcwd, path
 from sys import path as systempath
 import collections
 from astropy.io import fits
-from umatrix_routine import umatrix_construction
 
 cwd = getcwd()
 systempath.append(path.join(cwd, '../'))
-
+from umatrix_routine import umatrix_construction
 import stage5
 import metadata
+import numpy as np
 
 
 def test_umatrix_constant():
     setup = mock.MagicMock()
   
-    u_matrix = stage5.umatrix_constant(reference_image, 5)
     reference_image = np.zeros((15, 15))                                  
     reference_image[7, 7] = 1                                             
     reference_image[8, 8] = 2                                       
     reference_image[9,9] = 1                                              
-    data_image = np.zeros((15, 15))                                                                                                   
-    data_image[8,8] =  1              
     u_matrix = stage5.umatrix_constant(reference_image, 5)        
-    expected  = array([[   6.,    0.,    0.,    0.,    0.,    0.,    4.,    0.,    0.,
+    expected  = np.array([[   6.,    0.,    0.,    0.,    0.,    0.,    4.,    0.,    0.,
            0.,    0.,    0.,    1.,    0.,    0.,    0.,    0.,    0.,
            0.,    0.,    0.,    0.,    0.,    0.,    0.,    4.],
        [   0.,    6.,    0.,    0.,    0.,    0.,    0.,    4.,    0.,
@@ -108,3 +105,18 @@ def test_umatrix_constant():
 
     np.allclose(u_matrix,expected)
 
+
+
+def test_bvector_constant():
+    setup = mock.MagicMock()
+  
+    reference_image = np.zeros((15, 15))                                  
+    reference_image[7, 7] = 1                                             
+    reference_image[8, 8] = 2                                       
+    reference_image[9,9] = 1                                              
+    data_image = np.zeros((15, 15))                                                                                             
+    data_image[8,8] =  1              
+    bvector = stage5.bvector_constant(reference_image,data_image, 5)      
+    expected  = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 2.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0])
+
+    np.allclose(bvector,expected)

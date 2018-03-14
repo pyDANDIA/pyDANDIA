@@ -129,7 +129,7 @@ def umatrix_bvector_construction(np.ndarray[DTYPE_t, ndim = 2] reference_image,n
 
     return u_matrix, b_vector
 
-def bvector_construction(np.ndarray[DTYPE_t, ndim = 2] u_matrix, np.ndarray[DTYPE_t, ndim = 2] reference_image,np.ndarray[DTYPE_t, ndim = 2] data_image,np.ndarray[DTYPE_t, ndim = 2] weights, pandq, n_kernel_np, kernel_size_np):
+def bvector_construction(np.ndarray[DTYPE_t, ndim = 2] reference_image,np.ndarray[DTYPE_t, ndim = 2] data_image,np.ndarray[DTYPE_t, ndim = 2] weights, pandq, n_kernel_np, kernel_size_np):
 
     cdef int ni_image = np.shape(data_image)[0]
     cdef int nj_image = np.shape(data_image)[1]
