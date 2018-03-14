@@ -1,3 +1,8 @@
+"""
+A tiny script to dump the mock star catalog in here into the
+prototype database as of, roughly, march 2018.
+"""
+
 from pyDANDIA import db
 
 from astropy import table

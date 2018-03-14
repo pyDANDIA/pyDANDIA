@@ -102,6 +102,10 @@ class Stars(TableDef):
 	c_070_reference_flux_err= 'DOUBLE PRECISION'
 #	c_100_type = 'TEXT'
 
+	pc_000_raindex = (
+		'CREATE INDEX IF NOT EXISTS stars_ra ON stars (ra)')
+	pc_010_decindex = (
+		'CREATE INDEX IF NOT EXISTS stars_dec ON stars (dec)')
 
 class PhotometryPoints(TableDef):
 	"""The table storing the primary information on the measurements taken.
@@ -178,7 +182,6 @@ def feed_to_table_many(conn, table_name, names, tuples):
 
 	names gives the sequence of column names per tuple element.
 	"""
-	print [type(t) for t in tuples[0]]
 	conn.executemany("INSERT OR REPLACE INTO %s (%s) VALUES (%s)"%(
 		table_name, ",".join(names), ",".join("?"*len(names))),
 		tuples)
@@ -187,8 +190,9 @@ def feed_to_table_many(conn, table_name, names, tuples):
 def feed_to_table_many_dict(conn, table_name, rows):
 	"""dumps a list of (structurally identical!) dictionaries to the database.
 	"""
+	names = rows[0].keys()
 	feed_to_table_many(conn, table_name,
-		rows[0].keys(),
+		names,
 		[[d[n] for n in names] for d in rows])
 
 
@@ -207,8 +211,7 @@ def feed_exposure(conn, exp_properties, photometry_points):
 	for row in photometry_points:
 		row["exposure_id"] = exposure_id
 	
-	feed_to_table_many(conn, "phot",
-		photometry_points)
+	feed_to_table_many_dict(conn, "phot", photometry_points)
 
 
 def _adaptFloat(f):
