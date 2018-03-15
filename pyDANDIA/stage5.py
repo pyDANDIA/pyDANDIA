@@ -84,9 +84,8 @@ def run_stage5(setup):
     try:
         # reference image path needs to be harmonized
         reference_image_name = str(reduction_metadata.data_architecture[1]['REF_IMAGE'][0])
-        print(reference_image_name)
         reference_image_directory = '.'#reduction_metadata.data_architecture[1]['IMAGES_PATH']
-        max_adu = reduction_metadata.reduction_parameters[1]['MAXVAL'][0]
+        max_adu = float(reduction_metadata.reduction_parameters[1]['MAXVAL'][0])
         logs.ifverbose(log, setup,'Using reference image:' + reference_image_name)
     except KeyError:
         log.ifverbose(log, setup,'Reference/Images ! Abort stage5')
@@ -117,18 +116,18 @@ def run_stage5(setup):
             #reference needs to be opened only once and masks require
             #methods for readjustment...
             data_image = open_data_image(setup, data_image_directory, new_image, bright_reference_mask, kernel_size, max_adu)
-#            try:
-            if True:
+            try:
                 b_vector = bvector_constant(reference_image, data_image, kernel_size, model_image=None)
             	kernel_matrix, bkg_kernel  = kernel_solution(umatrix, b_vector, kernel_size)
                 pscale = np.sum(kernel_matrix)
                 np.save(os.path.join(kernel_directory_path,'kernel_'+new_image),kernel_matrix)
                 logs.ifverbose(log, setup, 'b_vector calculated for:' + new_image)
-                difference_image = subtract_images(data_image, reference_image, kernel, kernel_size, bkg_kernel)
+                #CROP EDGE!
+                difference_image = subtract_images(data_image, reference_image, kernel_matrix, kernel_size, bkg_kernel)
                 difference_image_hdu = fits.PrimaryHDU(difference_image)
-                difference_image_hdu.writeto(os.path.join(kernel_directory_path,'diff_'+new_image),overwrite = True)
-            #except:
-            #    logs.ifverbose(log, setup,'kernel matrix computation failed:' + new_image + '. skipping!')
+                difference_image_hdu.writeto(os.path.join(diffim_directory_path,'diff_'+new_image),overwrite = True)
+            except:
+                logs.ifverbose(log, setup,'kernel matrix computation failed:' + new_image + '. skipping!')
 
             #append some metric for the kernel, perhaps its scale factor...
     reduction_metadata.update_reduction_metadata_reduction_status(new_images, stage_number=5, status=1, log=log)
@@ -317,10 +316,10 @@ def kernel_solution(u_matrix, b_vector, kernel_size):
 
 def subtract_images(data_image, reference_image, kernel, kernel_size, bkg_kernel):
 
-    model_image = convolve2d(ref_image, output_kernel_2, mode='same')
+    model_image = convolve2d(reference_image, kernel, mode='same')
 
     difference_image = model_image - data_image + bkg_kernel
-    difference_image[bright_mask] = 0.
+#    difference_image[bright_mask] = 0.
     difference_image[-kernel_size - 2:, :] = 0.
     difference_image[0:kernel_size + 2, :] = 0.
     difference_image[:, -kernel_size - 2:] = 0.
