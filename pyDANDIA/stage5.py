@@ -113,31 +113,24 @@ def run_stage5(setup):
             #rethink how to open reference and data image
             #reference needs to be opened only once and masks require
             #methods for readjustment...
-            data_image = open_data_image(setup, data_image_directory, data_image_name, bright_reference_mask, kernel_size, max_adu)
+            data_image = open_data_image(setup, data_image_directory, new_image, bright_reference_mask, kernel_size, max_adu)
             try:
                 b_vector = bvector_constant(reference_image, data_image, kernel_size, model_image=None)
             	kernel_matrix  = kernel_solution(u_matrix, b_vector, ker_size)
-                logs.ifverbose(log, setup,
-                               'u_matrix and b_vector calculated for:' + new_image)
+                pscale = np.sum(kernel_matrix)
+                np.save(os.path.join(kernel_directory_path,'kernel_'+new_image),kernel_matrix)
+                logs.ifverbose(log, setup, 'b_vector calculated for:' + new_image)
             except:
                 logs.ifverbose(log, setup,
-                               'kernel matrix computation failed:' + new_image + '. Abort stage5!')
-                status = 'KO'
-                report = 'Kernel can not be determined for image:' + new_image + ' !'
-
-                return status, report, reduction_metadata
-
+                               'kernel matrix computation failed:' + new_image + '. skipping!')
 
             #append some metric for the kernel, perhaps its scale factor...
-            for index in range(len(data)):
-                target_image = data[index][0]
-                row_index = np.where(reduction_metadata.images_stats[1]['IMAGES'] == target_image)[0][0]
 
     reduction_metadata.update_reduction_metadata_reduction_status(new_images, stage_number=5, status=1, log=log)
-    reduction_metadata.save_updated_metadata(
-        reduction_metadata.data_architecture[1]['OUTPUT_DIRECTORY'][0],
-        reduction_metadata.data_architecture[1]['METADATA_NAME'][0],
-        log=log)
+#    reduction_metadata.save_updated_metadata(
+#        reduction_metadata.data_architecture[1]['OUTPUT_DIRECTORY'][0],
+#        reduction_metadata.data_architecture[1]['METADATA_NAME'][0],
+#        log=log)
     logs.close_log(log)
     status = 'OK'
     report = 'Completed successfully'
