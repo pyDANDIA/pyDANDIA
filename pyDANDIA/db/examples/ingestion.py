@@ -2,11 +2,17 @@
 from astropy import table
 from astropy import coordinates
 import numpy as np
+import os
+from os import getcwd, path
+from sys import path as systempath
+cwd = getcwd()
+systempath.append(path.join(cwd, '../../'))
+systempath.append(path.join(cwd, '../'))
 
 from phot_db import *
 
-
-ensure_tables()
+conn = get_connection()
+ensure_tables(conn)
 #sc would now be extractrion result
 with open("/home/Tux/ytsapras/Programs/Workspace/pyDANDIA/pyDANDIA/tests/data/star_catalog.fits") as f:
     extracted_objects = table.Table.read(f)
@@ -15,7 +21,6 @@ with open("/home/Tux/ytsapras/Programs/Workspace/pyDANDIA/pyDANDIA/tests/data/st
 #extracted_objects["Dec_J2000_deg"] += np.random.uniform(
 #    -1e-5, 1e-5, len(extracted_objects))
 
-conn = get_connection()
 reference_catalog = query_to_astropy_table(
     conn, 
     "select * from stars") # or restrict to field in question

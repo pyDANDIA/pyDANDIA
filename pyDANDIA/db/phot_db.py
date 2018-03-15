@@ -61,7 +61,6 @@ class TableDef(object):
         for statement in self._iter_post_create_statements():
             yield statement%macros
 
-
 class ReferenceImages(TableDef):
     """A table with the (stacked) reference image.
     """
@@ -73,6 +72,10 @@ class ReferenceImages(TableDef):
     c_060_fwhm_err = 'REAL'
     c_070_ellipticity = 'REAL'
     c_080_ellipticity_err = 'REAL'
+    c_090_slope = 'REAL' #The slope of the photometric calibration: VPHAS mags vs instr mags
+    c_095_slope_err = 'REAL'
+    c_100_intercept = 'REAL' #The intercept of the photometric calibration: VPHAS mags vs instr mags
+    c_105_intercept_err = 'REAL'
     c_120_name = 'TEXT'
 
 class Exposures(TableDef):

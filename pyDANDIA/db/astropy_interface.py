@@ -5,8 +5,14 @@ Read and write tables to astropy tables.
 """
 
 from astropy import table
+import random
+import os
+from os import getcwd, path
+from sys import path as systempath
+cwd = getcwd()
+systempath.append(path.join(cwd, '../'))
 
-from phot_db import feed_to_table_many,
+from phot_db import feed_to_table_many
 
 def load_astropy_table(conn, db_table_name, table):
     """ingests the astropy table table into db_table_name via conn.

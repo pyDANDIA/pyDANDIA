@@ -3,8 +3,14 @@ Produce some mockup data to fill the database with test data.
 """
 
 import random
+import os
+from os import getcwd, path
+from sys import path as systempath
+cwd = getcwd()
+systempath.append(path.join(cwd, '../'))
 
-from phot_db import feed_to_table
+from phot_db import *
+conn = get_connection()
 
 def create_stars_if_necessary(conn, n):
     """stuffs n random stars into the stars table if there's less rows in 
