@@ -1,24 +1,24 @@
 """
 Common code to access the photometry database.
 
-Essentially, you call get_connection and pass whatever you get back
-to functions like feed_exposure, ...
+Essentially, you call <get_connection> and pass whatever you get back
+to functions like feed_exposure etc
 
-Or, call conn.execute directly.
+Alternatively, call conn.execute directly.
 
-This will need the location of the database file in an environment variable
+This requires the location of the database file in an environment variable
 PHOTDB_PATH; e.g.,
 
 export PHOTDB_PATH=~/photdb
 """
 
-
-import os
 import re
 import sqlite3
-
+from os import getcwd, path, remove, environ
 import numpy as np
 
+environ["PHOTDB_PATH"] = '/home/Tux/ytsapras/Programs/Workspace/pyDANDIA/pyDANDIA/db/phot_db'
+database_file_path = path.expanduser(environ["PHOTDB_PATH"])
 
 telescopes = {'Australia':[10.5,20.3,1235.6],'Chile':[40.1,60.4,2235.6]}
 instruments = {'camera1':[1,2,3,'blah'],'camera2':[4,5,6,'bleh']}
@@ -62,14 +62,25 @@ class TableDef(object):
             yield statement%macros
 
 
+class ReferenceImages(TableDef):
+    """A table with the (stacked) reference image.
+    """
+    c_000_refimg_id = 'INTEGER PRIMARY KEY'
+    c_020_telescope_id = 'TEXT'
+    c_030_instrument_id = 'TEXT'
+    c_040_filter_id = 'TEXT'
+    c_050_fwhm = 'REAL'
+    c_060_fwhm_err = 'REAL'
+    c_070_ellipticity = 'REAL'
+    c_080_ellipticity_err = 'REAL'
+    c_120_name = 'TEXT'
+
 class Exposures(TableDef):
     """The table storing individual sky exposures.
     """
     c_000_exposure_id = 'INTEGER PRIMARY KEY'
+    c_005_reference_image = 'INTEGER REFERENCES reference_images(refimg_id)'
     c_010_jd = 'DOUBLE PRECISION'
-    c_020_telescope_id = 'TEXT'
-    c_030_instrument_id = 'TEXT'
-    c_040_filter_id = 'TEXT'
     c_050_fwhm = 'REAL'
     c_060_fwhm_err = 'REAL'
     c_050_ellipticity = 'REAL'
@@ -78,16 +89,9 @@ class Exposures(TableDef):
     c_120_exposure_time = 'INTEGER'
     c_130_moon_phase = 'REAL'
     c_140_moon_separation = 'REAL'
-    c_150_name = 'TEXT'
-
-
-class ReferenceImages(TableDef):
-    """A table with the (stacked) reference image.
-    """
-    c_000_refimg_id = 'INTEGER PRIMARY KEY'
-    c_010_astrometric_reference = 'INTEGER REFERENCES exposures(id)'
-    c_120_name = 'TEXT'
-
+    c_150_delta_x = 'REAL'
+    c_160_delta_y = 'REAL'    
+	c_170_name = 'TEXT'
 
 class Stars(TableDef):
     """The object list.
@@ -95,12 +99,7 @@ class Stars(TableDef):
     c_000_star_id = 'INTEGER PRIMARY KEY'
     c_010_ra = 'DOUBLE PRECISION'
     c_020_dec = 'DOUBLE PRECISION'
-    c_030_x_pix = 'REAL'
-    c_040_y_pix = 'REAL'
-#    c_050_reference_image = 'INTEGER REFERENCES reference_images(refimg_id)'
-    c_060_reference_flux = 'DOUBLE PRECISION'
-    c_070_reference_flux_err= 'DOUBLE PRECISION'
-#    c_100_type = 'TEXT'
+    c_100_type = 'TEXT'
 
     pc_000_raindex = (
         'CREATE INDEX IF NOT EXISTS stars_ra ON stars (ra)')
@@ -113,16 +112,18 @@ class PhotometryPoints(TableDef):
     c_000_phot_id = 'INTEGER PRIMARY KEY'
     c_010_exposure_id = 'INTEGER REFERENCES exposures(exposure_id)'
     c_020_star_id ='INTEGER REFERENCES stars(star_id)'
-    c_030_diff_flux = 'REAL'
-    c_040_diff_flux_err = 'REAL'
+    c_022_reference_mag = 'REAL'
+    c_025_reference_mag_err= 'REAL'
+    c_022_reference_flux = 'DOUBLE PRECISION'
+    c_025_reference_flux_err= 'DOUBLE PRECISION'
+    c_030_diff_flux = 'DOUBLE PRECISION'
+    c_040_diff_flux_err = 'DOUBLE PRECISION'
     c_050_magnitude = 'REAL'
     c_060_magnitude_err = 'REAL'
     c_070_phot_scale_factor = 'REAL'
     c_080_phot_scale_factor_error = 'REAL'
-    c_090_local_background = 'REAL'
-    c_100_local_background_error = 'REAL'
-    c_110_delta_x = 'REAL'
-    c_120_delta_y = 'REAL'
+    c_090_local_background = 'DOUBLE PRECISION'
+    c_100_local_background_error = 'DOUBLE PRECISION'
     c_130_residual_x = 'REAL'
     c_140_residual_y = 'REAL'
 
@@ -152,7 +153,7 @@ def ensure_tables(conn, *table_defs):
         ensure_table(conn, table_def)
 
 
-def get_connection(dsn=os.path.expanduser(os.environ["PHOTDB_PATH"])):
+def get_connection(dsn=database_file_path):
     conn = sqlite3.connect(dsn,
         detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES)
     conn.execute("PRAGMA foreign_keys=ON")

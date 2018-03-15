@@ -4,7 +4,7 @@ Produce some mockup data to fill the database with test data.
 
 import random
 
-from . import common
+from phot_db import feed_to_table
 
 def create_stars_if_necessary(conn, n):
     """stuffs n random stars into the stars table if there's less rows in 
@@ -16,7 +16,7 @@ def create_stars_if_necessary(conn, n):
     """
     if list(conn.execute("SELECT COUNT(*) FROM stars"))[0][0]<n:
         for i in range(n):
-            common.feed_to_table(conn, "stars", [
+            feed_to_table(conn, "stars", [
                     "ra", 
                     "dec",
                 ], [

@@ -6,13 +6,12 @@ Read and write tables to astropy tables.
 
 from astropy import table
 
-from . import common
-
+from phot_db import feed_to_table_many,
 
 def load_astropy_table(conn, db_table_name, table):
     """ingests the astropy table table into db_table_name via conn.
     """
-    common.feed_to_table_many(
+    feed_to_table_many(
         conn,
         db_table_name,
         table.colnames,
@@ -27,10 +26,10 @@ def query_to_astropy_table(conn, query, args=()):
     cursor.execute(query, args)
     keys = [cd[0] for cd in cursor.description]
     tuples = list(cursor)
-
+    
     def getColumn(index):
         return [t[index] for t in tuples]
-
+    
     data = [
         table.Column(name=k,
             data=getColumn(i))
