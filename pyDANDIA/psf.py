@@ -20,6 +20,7 @@ from astropy.io import fits
 import logs
 import os
 import sys
+import convolution
 
 class PSFModel(object):
 
@@ -134,6 +135,18 @@ class Moffat2D(PSFModel):
         flux_err = np.sqrt(flux)
         
         return flux, flux_err
+
+    def calc_flux_with_kernel(self,Y_star, X_star, kernel):
+        
+        model = self.psf_model_star(Y_star, X_star)
+                
+        model_with_kernel = convolution.convolve_image_with_a_psf(model, kernel, fourrier_transform_psf=None, fourrier_transform_image=None,
+                              correlate=None, auto_correlation=None)
+        flux = model_with_kernel.sum()
+        
+        flux_err = np.sqrt(flux)
+        
+        return flux, flux_err	
 
 class Gaussian2D(PSFModel):
 
@@ -741,6 +754,127 @@ def fit_star_existing_model(setup,data, x_cen, y_cen, psf_radius,
     
     return fitted_model, good_fit
 
+
+
+def fit_star_existing_model_with_kernel(setup,data, x_cen, y_cen, psf_radius, 
+                            input_psf_model, sky_model, kernel,
+                            centroiding=True,
+                            diagnostics=False):
+    """Function to fit an existing PSF and sky model to a star at a given 
+    location in an image, optimizing only the peak intensity of the PSF rather 
+    than all parameters.
+    
+    :param SetUp setup: Fundamental reduction parameters
+    :param array data: image data to be fitted
+    :param float x_cen: the x-pixel location of the PSF to be fitted in the 
+                        coordinates of the image
+    :param float x_cen: the x-pixel location of the PSF to be fitted in the 
+                        coordinates of the image
+    :param float psf_radius: the radius of data to fit the PSF to
+    :param PSFModel input_psf_model: existing psf model
+    :param BackgroundModel sky_model: existing model for the image sky background
+    :param array_like kernel: the kernel data in 2d np.array
+    :param boolean centroiding: Switch to (dis)-allow re-fitting of each star's
+                                x, y centroid.  Default=allowed (True)
+    :param boolean diagnostics: optional switch for diagnostic output
+    
+    Returns
+    
+    :param PSFModel fitted_model: PSF model for the star with optimized intensity
+    """
+    
+    psf_model = get_psf_object(input_psf_model.psf_type())
+    psf_model.update_psf_parameters(input_psf_model.get_parameters())
+    
+    stamp_dims = (2.0*psf_radius, 2.0*psf_radius)
+    
+    stamps = cut_image_stamps(setup, data, np.array([[x_cen,y_cen]]), 
+                              stamp_dims, log=None, 
+                                over_edge=True)
+    
+    stamp_centre = ( (x_cen - stamps[0].xmin_original), 
+                    (y_cen - stamps[0].ymin_original) )
+    
+    if diagnostics:
+        
+        hdu = fits.PrimaryHDU(stamps[0].data)
+        
+        hdulist = fits.HDUList([hdu])
+
+        file_path = os.path.join(setup.red_dir,'ref',\
+        'psf_star_stamp_'+str(round(x_cen,0))+'_'+str(round(y_cen,0))+'.fits')
+
+        hdulist.writeto(file_path,overwrite=True)
+
+    
+    Y_data, X_data = np.indices(stamps[0].data.shape)
+    
+    sky_bkgd = sky_model.background_model(X_data,Y_data,
+                                          sky_model.get_parameters())
+    
+    
+    # Recenter the PSF temporarily to the middle of the stamp to be fitted
+    # NOTE PSF parameters in order intensity, Y, X
+    psf_params = psf_model.get_parameters()
+    psf_params[1] = stamp_centre[1]
+    psf_params[2] = stamp_centre[0]
+    psf_model.update_psf_parameters(psf_params)
+    
+    if centroiding:
+        
+        init_par = [ psf_model.get_parameters()[0], 
+                    stamp_centre[1], stamp_centre[0] ]
+    else:
+        
+        init_par = [ psf_model.get_parameters()[0] ]
+    
+    fit = optimize.leastsq(error_star_fit_existing_model_with_kernel, init_par, 
+        args=(stamps[0].data, psf_model, sky_bkgd, Y_data, X_data,kernel), 
+        full_output=1)
+
+    fitted_model = get_psf_object( psf_model.psf_type() )
+    
+    psf_params = psf_model.get_parameters()
+    psf_params[0] = fit[0][0]
+    
+    if centroiding:
+        psf_params[1] = fit[0][1]
+        psf_params[2] = fit[0][2]
+    
+    fitted_model.update_psf_parameters(psf_params)
+    
+    if diagnostics:
+        
+        Y_data, X_data = np.indices(stamps[0].data.shape)
+        
+        pars = fitted_model.get_parameters()
+        
+        model_data = fitted_model.psf_model_star(Y_data, X_data, star_params=pars)
+        model_data_with_kernel = convolution.convolve_image_with_a_psf(model_data, kernel, fourrier_transform_psf=None, fourrier_transform_image=None,
+                              correlate=None, auto_correlation=None)	
+        hdu = fits.PrimaryHDU(model_data_with_kernel)
+        
+        hdulist = fits.HDUList([hdu])
+
+        file_path = os.path.join(setup.red_dir,'ref',\
+        'psf_star_model_stamp_'+str(round(x_cen,0))+'_'+str(round(y_cen,0))+'.fits')
+        
+        hdulist.writeto(file_path,overwrite=True)
+    
+    # Add the stamp x,y offset back to the star centroid:
+    psf_params = fitted_model.get_parameters()
+    psf_params[0] = fit[0][0]
+    psf_params[1] = stamps[0].ymin_original + psf_params[1]
+    psf_params[2] = stamps[0].xmin_original + psf_params[2]
+    
+    fitted_model.update_psf_parameters(psf_params)
+    
+    good_fit = check_fit_quality(setup,stamps[0].data,sky_bkgd,fitted_model)
+    
+    return fitted_model, good_fit
+
+
+
 def error_star_fit_existing_model(params, data, psf_model, sky_bkgd, 
                                   Y_data, X_data):
 
@@ -749,6 +883,21 @@ def error_star_fit_existing_model(params, data, psf_model, sky_bkgd,
     psf_image = psf_model.psf_model_star(Y_data, X_data, star_params=params)
     
     residuals = np.ravel(sky_subtracted_data - psf_image)
+
+    return residuals
+
+
+def error_star_fit_existing_model_with_kernel(params, data, psf_model, sky_bkgd, 
+                                  Y_data, X_data,kernel):
+
+    sky_subtracted_data = data - sky_bkgd
+
+    psf_image = psf_model.psf_model_star(Y_data, X_data, star_params=params)
+    
+    psf_image_with_kernel = convolution.convolve_image_with_a_psf(psf_image, kernel, fourrier_transform_psf=None, fourrier_transform_image=None,
+                              correlate=None, auto_correlation=None)	
+
+    residuals = np.ravel(sky_subtracted_data - psf_image_with_kernel)
 
     return residuals
 
@@ -1340,7 +1489,52 @@ def subtract_psf_from_image(image,psf_model,xstar,ystar,dx,dy,
                        '/Users/rstreet/software/pyDANDIA/pyDANDIA/tests/data/subtractions/residuals_'+str(round(xstar,0))+'_'+str(round(ystar,0))+'.png')
     
     return residuals,corners
+
+def subtract_psf_from_image_with_kernel(image,psf_model,xstar,ystar,dx,dy, kernel
+                            diagnostics=True):
+    """Function to subtract a PSF Model from an array of image pixel data
+    at a specified location.
     
+    :param array image: Image pixel data
+    :param PSFModel psf_model: PSF model object to be subtracted
+    :param float xstar: x-centre of stellar PSF to be subtracted
+    :param float ystar: y-centre of stellar PSF to be subtracted
+    :param float dx: width of PSF stamp
+    :param float dy: height of PSF stamp
+    :param array_like kernel: the kernel data in 2d np.array
+    
+    Returns:
+    
+    :param array residuals: Image pixel data with star subtracted
+    """
+    
+    corners = calc_stamp_corners(xstar, ystar, dx, dy, 
+                                    image.shape[1], image.shape[0],
+                                    over_edge=True)
+    
+    dxc = corners[1] - corners[0]
+    dyc = corners[3] - corners[2]
+    
+    Y_data, X_data = np.indices([int(dyc),int(dxc)])
+    
+    psf_image = psf_model.psf_model(Y_data, X_data, psf_model.get_parameters())
+	    
+    psf_image_with_kernel = convolution.convolve_image_with_a_psf(psf_image, kernel, fourrier_transform_psf=None, fourrier_transform_image=None,
+                              correlate=None, auto_correlation=None)	
+
+    residuals = np.copy(image)
+    
+    output_stamp_image(residuals[corners[2]:corners[3],corners[0]:corners[1]],
+                       '/Users/rstreet/software/pyDANDIA/pyDANDIA/tests/data/subtractions/presubtraction_'+str(round(xstar,0))+'_'+str(round(ystar,0))+'.png')
+    output_stamp_image(psf_image,
+                       '/Users/rstreet/software/pyDANDIA/pyDANDIA/tests/data/subtractions/residuals_psf_model_'+str(round(xstar,0))+'_'+str(round(ystar,0))+'.png')
+    
+    residuals[corners[2]:corners[3],corners[0]:corners[1]] -= psf_image_with_kernel
+    
+    output_stamp_image(residuals[corners[2]:corners[3],corners[0]:corners[1]],
+                       '/Users/rstreet/software/pyDANDIA/pyDANDIA/tests/data/subtractions/residuals_'+str(round(xstar,0))+'_'+str(round(ystar,0))+'.png')
+    
+    return residuals,corners    
     
 def output_stamp_image(image,file_path,comps_list=None):
     """Function to output a PNG image of a stamp"""

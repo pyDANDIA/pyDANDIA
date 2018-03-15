@@ -11,8 +11,10 @@
 
 import numpy as np
 import os
-from astropy.io import fits
 import sys
+from astropy.io import fits
+from astropy.table import Table
+from astropy.table import Column
 
 import config_utils
 
@@ -187,3 +189,37 @@ def find_the_associated_kernel(setup, kernels_directory, image_name):
                            image_index=0, log=None)
 
     return kernel
+
+
+def photometry_on_the_difference_image(setup, difference_image, list_of_stars, psf_model, psf_parameters, kernel):
+    '''
+    Find the appropriate kernel associated to an image
+    :param object reduction_metadata: the metadata object
+    :param string kernels_directory: the path to the kernels
+    :param string image_name: the image name
+
+    :return: the associated kernel to the image
+    :rtype: array_like
+    '''
+
+
+    differential_photometry = photometry.run_psf_photometry_on_difference_image(setup,reduction_metadata,log,ref_star_catalog,
+                       								difference_image,psf_model,sky_model, kernel, centroiding=True)
+	
+    	
+
+
+def produce_photometric_file():
+	import pdb; pdb.set_trace()
+	metadata = fits.HDUList()
+	layer_table = Table(np.array([0]*20))
+
+	table = fits.BinTableHDU(data = layer_table,header = fits.Header())
+	for i in range(180000):
+		
+
+		table.name = str(i)
+
+		metadata.append(table)
+	metadata.writeto(os.path.join('./', 'dummy.phot'), overwrite=True)
+
