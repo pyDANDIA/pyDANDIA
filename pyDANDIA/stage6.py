@@ -107,9 +107,10 @@ def run_stage6(setup):
 
             difference_image = image_substraction(setup, reference_image, kernel_image, target_image)
 
-            photometry_on_the_difference_image()
 
-
+	    photometric_table = photometry_on_the_difference_image(setup, difference_image, list_of_stars, psf_model, psf_parameters, kernel)
+	     
+            ingest_photometric_table_in_db(setup, photometric_table)
 
     return status, report
 
@@ -205,21 +206,16 @@ def photometry_on_the_difference_image(setup, difference_image, list_of_stars, p
 
     differential_photometry = photometry.run_psf_photometry_on_difference_image(setup,reduction_metadata,log,ref_star_catalog,
                        								difference_image,psf_model,sky_model, kernel, centroiding=True)
-	
-    	
+    
+    column_names = ('Exposure_id','Star_id','Ref_mag','Ref_mag_err','Ref_flux','Ref_flux_err','Delta_flux','Delta_flux_err','Mag','Mag_err',
+                    'Phot_scale_factor','Phot_scale_factor_err','Back','Back_err','delta_x','delta_y')
+   
+    table = Table(differential_photometry, names = column_names)
 
 
-def produce_photometric_file():
-	import pdb; pdb.set_trace()
-	metadata = fits.HDUList()
-	layer_table = Table(np.array([0]*20))
+    return table	
 
-	table = fits.BinTableHDU(data = layer_table,header = fits.Header())
-	for i in range(180000):
-		
 
-		table.name = str(i)
+def ingest_photometric_table_in_db(setup, photometric_table):
 
-		metadata.append(table)
-	metadata.writeto(os.path.join('./', 'dummy.phot'), overwrite=True)
-
+	pass
