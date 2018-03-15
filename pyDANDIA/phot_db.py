@@ -91,7 +91,7 @@ class Exposures(TableDef):
     c_140_moon_separation = 'REAL'
     c_150_delta_x = 'REAL'
     c_160_delta_y = 'REAL'    
-	c_170_name = 'TEXT'
+    c_170_name = 'TEXT'
 
 class Stars(TableDef):
     """The object list.
