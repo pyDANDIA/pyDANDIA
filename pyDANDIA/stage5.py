@@ -55,8 +55,11 @@ def run_stage5(setup):
             fwhm_max = stats_entry['FWHM_X']
         if float(stats_entry['FWHM_Y'])> fwhm_max:
             fwhm_max = stats_entry['FWHM_Y']
-    
-    kernel_size = reduction_metadata.reduction_parameters[1]['KERRAD'] * fwhm_max
+    kernel_size = int(float(reduction_metadata.reduction_parameters[1]['KER_RAD'][0]) * fwhm_max)
+    if kernel_size:
+        if kernel_size % 2 == 0:
+            kernel_size = kernel_size + 1
+
     # find the images that need to be processed
     all_images = reduction_metadata.find_all_images(setup, reduction_metadata,
                                                     os.path.join(setup.red_dir, 'data'), log=log)
@@ -65,44 +68,44 @@ def run_stage5(setup):
                                                                    stage_number=5, rerun_all=None, log=log)
 
     kernel_directory_path = os.path.join(setup.red_dir, 'kernel')
+    diffim_directory_path = os.path.join(setup.red_dir, 'diffim')
     if not os.path.exists(kernel_directory_path):
         os.mkdir(kernel_directory_path)
     if not os.path.exists(diffim_directory_path):
         os.mkdir(diffim_directory_path)
-
-    reduction_metadata.update_a_cell_to_layer('data_architecture', 0, 
-                                              'KERNEL_PATH', kernel_directory_path)
+    reduction_metadata.update_column_to_layer('data_architecture', 'KERNEL_PATH', kernel_directory_path)
     # difference images are written for verbosity level > 0 
-    reduction_metadata.update_a_cell_to_layer('data_architecture', 0,
-                                              'DIFFIM_PATH', diffim_directory_path)	                                        
-	
+    reduction_metadata.update_column_to_layer('data_architecture', 'DIFFIM_PATH', diffim_directory_path)
+    data_image_directory = reduction_metadata.data_architecture[1]['IMAGES_PATH'][0]
+    ref_directory_path = '.'
     #For a quick image subtraction, pre-calculate a sufficiently large u_matrix
     #based on the largest FWHM and store it to disk -> needs config switch
+
     try:
-        reference_image_name = reduction_metadata.data_architecture[1]['REFERENCE_NAME']
-        reference_image_directory = reduction_metadata.data_architecture[1]['IMAGES_PATH']
+        # reference image path needs to be harmonized
+        reference_image_name = str(reduction_metadata.data_architecture[1]['REF_IMAGE'][0])
+        print(reference_image_name)
+        reference_image_directory = '.'#reduction_metadata.data_architecture[1]['IMAGES_PATH']
         max_adu = reduction_metadata.reduction_parameters[1]['MAXVAL'][0]
-        logs.ifverbose(log, setup,
-                       'Using reference image:' + reference_image_name)
+        logs.ifverbose(log, setup,'Using reference image:' + reference_image_name)
     except KeyError:
-        logs.ifverbose(log, setup,
-                       'Reference/Images ! Abort stage5')
+        log.ifverbose(log, setup,'Reference/Images ! Abort stage5')
         status = 'KO'
         report = 'No reference image found!'
         return status, report, reduction_metadata
 
-    ref_extended, bright_reference_mask = open_reference(setup, reference_image_directory, reference_image_name, kernel_size, max_adu, ref_extension = 0, log = None)
+    reference_image, bright_reference_mask = open_reference(setup, reference_image_directory, reference_image_name, kernel_size, max_adu, ref_extension = 0, log = log)
 
     #check if umatrix exists
     if os.path.exists(os.path.join(kernel_directory_path,'unweighted_u_matrix.npy')):
         umatrix, kernel_size_u = np.load(os.path.join(kernel_directory_path,'unweighted_u_matrix.npy'))
         if kernel_size_u != kernel_size:
             #calculate and store unweighted umatrix
-            umatrix = umatrix_construction(reference_image, kernel_size, model_image=None)
+            umatrix = umatrix_constant(reference_image, kernel_size, model_image=None)
             np.save(os.path.join(kernel_directory_path,'unweighted_u_matrix.npy'), [umatrix, kernel_size])
     else:
         #calculate and store unweighted umatrix 
-        umatrix = umatrix_construction(reference_image, kernel_size, model_image=None)
+        umatrix = umatrix_constant(reference_image, kernel_size, model_image=None)
         np.save(os.path.join(kernel_directory_path,'unweighted_u_matrix.npy'), [umatrix, kernel_size])
 	
     if len(new_images) > 0:
@@ -114,23 +117,21 @@ def run_stage5(setup):
             #reference needs to be opened only once and masks require
             #methods for readjustment...
             data_image = open_data_image(setup, data_image_directory, new_image, bright_reference_mask, kernel_size, max_adu)
-            try:
+#            try:
+            if True:
                 b_vector = bvector_constant(reference_image, data_image, kernel_size, model_image=None)
-            	kernel_matrix  = kernel_solution(u_matrix, b_vector, ker_size)
+            	kernel_matrix, bkg_kernel  = kernel_solution(umatrix, b_vector, kernel_size)
                 pscale = np.sum(kernel_matrix)
                 np.save(os.path.join(kernel_directory_path,'kernel_'+new_image),kernel_matrix)
                 logs.ifverbose(log, setup, 'b_vector calculated for:' + new_image)
-            except:
-                logs.ifverbose(log, setup,
-                               'kernel matrix computation failed:' + new_image + '. skipping!')
+                difference_image = subtract_images(data_image, reference_image, kernel, kernel_size, bkg_kernel)
+                difference_image_hdu = fits.PrimaryHDU(difference_image)
+                difference_image_hdu.writeto(os.path.join(kernel_directory_path,'diff_'+new_image),overwrite = True)
+            #except:
+            #    logs.ifverbose(log, setup,'kernel matrix computation failed:' + new_image + '. skipping!')
 
             #append some metric for the kernel, perhaps its scale factor...
-
     reduction_metadata.update_reduction_metadata_reduction_status(new_images, stage_number=5, status=1, log=log)
-#    reduction_metadata.save_updated_metadata(
-#        reduction_metadata.data_architecture[1]['OUTPUT_DIRECTORY'][0],
-#        reduction_metadata.data_architecture[1]['METADATA_NAME'][0],
-#        log=log)
     logs.close_log(log)
     status = 'OK'
     report = 'Completed successfully'
@@ -248,6 +249,14 @@ def kernel_preparation_matrix(data_image, reference_image, ker_size, model_image
 
     :return: u matrix and b vector
     '''
+    try:
+        from umatrix_routine import umatrix_construction, umatrix_bvector_construction, bvector_construction
+         
+    except ImportError:
+        log.info('Uncompiled cython code, please run setup.py: e.g.\n python setup.py build_ext --inplace')
+        status = 'KO'
+        report = 'Uncompiled cython code, please run setup.py: e.g.\n python setup.py build_ext --inplace'
+        return status, report, reduction_metadata
 
     if np.shape(data_image) != np.shape(reference_image):
         return None
@@ -304,8 +313,20 @@ def kernel_solution(u_matrix, b_vector, kernel_size):
             if (idx - xyc)**2 + (jdx - xyc)**2 >= radius_square:
                 output_kernel[idx, jdx] = 0.
     output_kernel_2 = np.flip(np.flip(output_kernel, 0), 1)
-    return output_kernel_2
+    return output_kernel_2, a_vector[-1]
 
+def subtract_images(data_image, reference_image, kernel, kernel_size, bkg_kernel):
+
+    model_image = convolve2d(ref_image, output_kernel_2, mode='same')
+
+    difference_image = model_image - data_image + bkg_kernel
+    difference_image[bright_mask] = 0.
+    difference_image[-kernel_size - 2:, :] = 0.
+    difference_image[0:kernel_size + 2, :] = 0.
+    difference_image[:, -kernel_size - 2:] = 0.
+    difference_image[:, 0:kernel_size + 2] = 0.
+
+    return difference_image
 
 def difference_image_single_iteration(ref_imagename, data_imagename, kernel_size,
                                       mask=None, max_adu=np.inf):
@@ -330,17 +351,17 @@ def difference_image_single_iteration(ref_imagename, data_imagename, kernel_size
     u_matrix, b_vector = naive_u_matrix(
         data_image, ref_image, kernel_size, model_image=None)
    
-    output_kernel_2 = kernel_solution(u_matrix, b_vector, kernel_size)
+    output_kernel_2, bkg_kernel = kernel_solution(u_matrix, b_vector, kernel_size)
     model_image = convolve2d(ref_image, output_kernel_2, mode='same')
 
-    difference_image = model_image - data_image + a_vector[-1]
+    difference_image = model_image - data_image + bkg_kernel
     difference_image[bright_mask] = 0.
     difference_image[-kernel_size - 2:, :] = 0.
     difference_image[0:kernel_size + 2, :] = 0.
     difference_image[:, -kernel_size - 2:] = 0.
     difference_image[:, 0:kernel_size + 2] = 0.
 
-    return difference_image, output_kernel, a_vector[-1]
+    return difference_image, output_kernel, bkg_kernel
 
 
 def difference_image_subimages(ref_imagename, data_imagename,
