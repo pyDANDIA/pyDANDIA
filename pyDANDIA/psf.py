@@ -1478,7 +1478,7 @@ def subtract_psf_from_image(image,psf_model,xstar,ystar,dx,dy,
     
     return residuals,corners
 
-def subtract_psf_from_image_with_kernel(image,psf_model,xstar,ystar,dx,dy, kernel
+def subtract_psf_from_image_with_kernel(image,psf_model,xstar,ystar,dx,dy, kernel, 
                             diagnostics=True):
     """Function to subtract a PSF Model from an array of image pixel data
     at a specified location.

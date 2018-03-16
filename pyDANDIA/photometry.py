@@ -155,7 +155,7 @@ def run_psf_photometry_on_difference_image(setup,reduction_metadata,log,star_cat
     list_ref_mag = []
     list_ref_mag_error = []
     list_ref_flux = []
-    list_ref_flux_error  []
+    list_ref_flux_error = []
     
     list_delta_flux = []
     list_delta_flux_error = []
@@ -235,7 +235,7 @@ def run_psf_photometry_on_difference_image(setup,reduction_metadata,log,star_cat
 
 			control_zone = np.c_[control_zone, residuals]
 
-		 except:
+		except:
 
 			control_zone = residuals
 		
@@ -290,7 +290,7 @@ def run_psf_photometry_on_difference_image(setup,reduction_metadata,log,star_cat
     list_ref_mag = []
     list_ref_mag_error = []
     list_ref_flux = []
-    list_ref_flux_error  []
+    list_ref_flux_error = []
     
     list_delta_flux = []
     list_delta_flux_error = []
