@@ -42,7 +42,7 @@ def run_stage5(setup):
         log.info('Uncompiled cython code, please run setup.py: e.g.\n python setup.py build_ext --inplace')
         status = 'KO'
         report = 'Uncompiled cython code, please run setup.py: e.g.\n python setup.py build_ext --inplace'
-        return status, report, reduction_metadata
+        return status, report
 
     # find the metadata
     reduction_metadata = metadata.MetaData()
@@ -91,7 +91,7 @@ def run_stage5(setup):
         log.ifverbose(log, setup,'Reference/Images ! Abort stage5')
         status = 'KO'
         report = 'No reference image found!'
-        return status, report, reduction_metadata
+        return status, report
 
     reference_image, bright_reference_mask = open_reference(setup, reference_image_directory, reference_image_name, kernel_size, max_adu, ref_extension = 0, log = log)
     print(np.trace(bright_reference_mask))
@@ -139,7 +139,7 @@ def run_stage5(setup):
     status = 'OK'
     report = 'Completed successfully'
 
-    return status, report, reduction_metadata
+    return status, report
 
 def noise_model(model_image, gain, readout_noise, flat=None, initialize=None):
 
