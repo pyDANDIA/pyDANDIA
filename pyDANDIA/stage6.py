@@ -114,14 +114,13 @@ def run_stage6(setup):
 
             difference_image = image_substraction(setup, reference_image, kernel_image, target_image)
 
-	    save_control_stars_of_the_difference_image(setup, image_name, difference_image, star_coordinates)
+            save_control_stars_of_the_difference_image(setup, image_name, difference_image, star_coordinates)
 
-	    photometric_table, control_zone = photometry_on_the_difference_image(setup, difference_image, list_of_stars, psf_model, psf_parameters, kernel)
+            photometric_table, control_zone = photometry_on_the_difference_image(setup, difference_image, list_of_stars, psf_model, psf_parameters, kernel)
 	     
-	    save_control_zone_of_residuals(setup, image_name, control_zone)	
+            save_control_zone_of_residuals(setup, image_name, control_zone)	
 
             ingest_photometric_table_in_db(setup, photometric_table)
-
     return status, report
 
 
@@ -199,19 +198,19 @@ def save_control_stars_of_the_difference_image(setup, image_name, difference_ima
     
     for star in star_coordinates :
 
-		 ind_i = int(np.round(star[1]))
-		 ind_j = int(np.round(star[2]))
+        ind_i = int(np.round(star[1]))
+        ind_j = int(np.round(star[2]))
 
-		 stamp = difference_image[ind_i-control_size/2:ind_i+control_size/2,
-                                          ind_j-control_size/2:ind_i+control_size/2]
-		
-		 try :
+        stamp = difference_image[ind_i-control_size/2:ind_i+control_size/2,
+		          ind_j-control_size/2:ind_i+control_size/2]
 
-			control_zone = np.c_[control_zone, stamp]
+        try :
 
-		 except:
+             control_zone = np.c_[control_zone, stamp]
 
-			control_zone = stamp
+        except:
+
+             control_zone = stamp
 
     image_name.replace('.fits','.diff')
 
