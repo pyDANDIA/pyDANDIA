@@ -21,7 +21,8 @@ import config_utils
 import metadata
 import logs
 import convolution
-
+import db.astropy_interface as db_ai
+import db.phot_db as db_phot
 
 def run_stage6(setup):
     """Main driver function to run stage 6: image substraction and photometry.
@@ -283,9 +284,23 @@ def photometry_on_the_difference_image(setup, difference_image, star_catalog, ps
     table = Table(differential_photometry, names = column_names)
 
 
-    return table	
+    return table
 
+def ingest_reference_in_db(setup, photometric_table):
+
+	conn = db_phot.get_connection(dsn=setup.red_dir)
+	
+	db_ai.load_astropy_table(conn, 'phot', photometric_table)
+
+	
+def ingest_exposure_in_db(setup, photometric_table):
+
+	conn = db_phot.get_connection(dsn=setup.red_dir)
+	
+	db_ai.load_astropy_table(conn, 'phot', photometric_table)
 
 def ingest_photometric_table_in_db(setup, photometric_table):
 
-	pass
+	conn = db_phot.get_connection(dsn=setup.red_dir)
+	
+	db_ai.load_astropy_table(conn, 'phot', photometric_table)
