@@ -1,16 +1,8 @@
-os
 pytest
 numpy
 astropy
 scipy
-json
-sys
-time
-logging
 datetime
-glob
-collections
-warnings
 matplotlib
 photutils
-subprocess
+
