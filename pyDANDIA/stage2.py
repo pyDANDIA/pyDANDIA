@@ -81,6 +81,8 @@ def run_stage2(setup):
         ['degree', None, None]
     ]
 
+    all_images = reduction_metadata.find_all_images(setup, reduction_metadata, os.path.join(setup.red_dir, 'data'), log=log)
+
     reduction_metadata.create_a_new_layer(layer_name='reference_inventory',
                                           data_structure=table_structure,
                                           data_columns=None)
@@ -122,22 +124,34 @@ def run_stage2(setup):
         ref_img_path = os.path.join(
             str(reduction_metadata.data_architecture[1]['IMAGES_PATH'][0]), best_image[0])
         print 'New reference ', best_image[0], ' in ', ref_img_path
-        if not 'REF_PATH' in str(reduction_metadata.data_architecture[1]) and  not 'REF_IMAGE' in str(reduction_metadata.data_architecture[1]):
+
+        if not 'REF_PATH' in reduction_metadata.data_architecture[1].keys():
             reduction_metadata.add_column_to_layer('data_architecture',
                                                    'REF_PATH', [ref_directory_path],
                                                     new_column_format=None,
                                                     new_column_unit=None)
+        else:
+            reduction_metadata.update_a_cell_to_layer('data_architecture', 0,'REF_PATH', ref_directory_path)
+        if  not 'REF_IMAGE' in reduction_metadata.data_architecture[1].keys():
             reduction_metadata.add_column_to_layer('data_architecture',
-                                                   'REF_IMAGE', [ref_img_path],
+                                                   'REF_IMAGE', [os.path.basename(ref_img_path)],
                                                     new_column_format=None,
                                                    new_column_unit=None)
-            reduction_metadata.save_updated_metadata(metadata_directory=setup.red_dir,
-                                                   metadata_name='pyDANDIA_metadata.fits')
+        else:
+            reduction_metadata.update_a_cell_to_layer('data_architecture', 0,'REF_IMAGE', os.path.basename(ref_img_path))
+        # Update the REDUCTION_STATUS table in metadata for stage 2
+       
+        reduction_metadata.update_reduction_metadata_reduction_status(all_images,
+                                                          stage_number=1, status=1, log=log)
+        reduction_metadata.save_updated_metadata(metadata_directory=setup.red_dir,
+                                                 metadata_name='pyDANDIA_metadata.fits')
+
 
         status = 'OK'
         report = 'Completed successfully'
         log.info('Updating metadata with info on new images...')
         logs.close_log(log)
+
         return status, report
 
     else:
