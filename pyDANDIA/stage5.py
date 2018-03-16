@@ -14,6 +14,8 @@ import numpy as np
 from astropy.io import fits
 from scipy.signal import convolve2d
 from read_images_stage5 import open_reference,  open_images, open_data_image
+from convolution import convolve_image_with_a_psf
+
 import sys
 
 import config_utils
@@ -55,7 +57,7 @@ def run_stage5(setup):
             fwhm_max = stats_entry['FWHM_X']
         if float(stats_entry['FWHM_Y'])> fwhm_max:
             fwhm_max = stats_entry['FWHM_Y']
-    kernel_size = 2*int(float(reduction_metadata.reduction_parameters[1]['KER_RAD'][0]) * fwhm_max)
+    kernel_size = 3*int(float(reduction_metadata.reduction_parameters[1]['KER_RAD'][0]) * fwhm_max)
     if kernel_size:
         if kernel_size % 2 == 0:
             kernel_size = kernel_size + 1
@@ -91,7 +93,7 @@ def run_stage5(setup):
         log.ifverbose(log, setup,'Reference/Images ! Abort stage5')
         status = 'KO'
         report = 'No reference image found!'
-        return status, report
+        return status, report, reduction_metadata
 
     reference_image, bright_reference_mask = open_reference(setup, reference_image_directory, reference_image_name, kernel_size, max_adu, ref_extension = 0, log = log)
     print(np.trace(bright_reference_mask))
@@ -329,13 +331,9 @@ def kernel_solution(u_matrix, b_vector, kernel_size):
 def subtract_images(data_image, reference_image, kernel, kernel_size, bkg_kernel):
 
     model_image = convolve2d(reference_image, kernel, mode='same')
-
     difference_image = model_image - data_image + bkg_kernel
 #    difference_image[bright_mask] = 0.
-    difference_image[-kernel_size - 2:, :] = 0.
-    difference_image[0:kernel_size + 2, :] = 0.
-    difference_image[:, -kernel_size - 2:] = 0.
-    difference_image[:, 0:kernel_size + 2] = 0.
+    difference_image = difference_image[kernel_size:-kernel_size,kernel_size:-kernel_size]
 
     return difference_image
 
