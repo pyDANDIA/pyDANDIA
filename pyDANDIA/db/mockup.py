@@ -13,7 +13,6 @@ from phot_db import *
 
 def fill_with_fake_entries():
     conn = get_connection(database_file_path)
-    ensure_tables(conn)
     create_stars_if_necessary(conn, n=5)
     create_reference_images_if_necessary(conn, n=2)
     create_exposures_if_necessary(conn, n=10)
