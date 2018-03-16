@@ -286,7 +286,7 @@ def photometry_on_the_difference_image(setup, difference_image, star_catalog, ps
 
     return table
 
-def ingest_reference_in_db(setup, photometric_table):
+def ingest_reference_in_db(setup, reference):
 
 	conn = db_phot.get_connection(dsn=setup.red_dir)
 	
