@@ -55,7 +55,7 @@ def run_stage5(setup):
             fwhm_max = stats_entry['FWHM_X']
         if float(stats_entry['FWHM_Y'])> fwhm_max:
             fwhm_max = stats_entry['FWHM_Y']
-    kernel_size = int(float(reduction_metadata.reduction_parameters[1]['KER_RAD'][0]) * fwhm_max)
+    kernel_size = 2*int(float(reduction_metadata.reduction_parameters[1]['KER_RAD'][0]) * fwhm_max)
     if kernel_size:
         if kernel_size % 2 == 0:
             kernel_size = kernel_size + 1
@@ -85,7 +85,7 @@ def run_stage5(setup):
         # reference image path needs to be harmonized
         reference_image_name = str(reduction_metadata.data_architecture[1]['REF_IMAGE'][0])
         reference_image_directory = '.'#reduction_metadata.data_architecture[1]['IMAGES_PATH']
-        max_adu = float(reduction_metadata.reduction_parameters[1]['MAXVAL'][0])
+        max_adu = 0.2*float(reduction_metadata.reduction_parameters[1]['MAXVAL'][0])
         logs.ifverbose(log, setup,'Using reference image:' + reference_image_name)
     except KeyError:
         log.ifverbose(log, setup,'Reference/Images ! Abort stage5')
@@ -94,7 +94,7 @@ def run_stage5(setup):
         return status, report, reduction_metadata
 
     reference_image, bright_reference_mask = open_reference(setup, reference_image_directory, reference_image_name, kernel_size, max_adu, ref_extension = 0, log = log)
-
+    print(np.trace(bright_reference_mask))
     #check if umatrix exists
     if os.path.exists(os.path.join(kernel_directory_path,'unweighted_u_matrix.npy')):
         umatrix, kernel_size_u = np.load(os.path.join(kernel_directory_path,'unweighted_u_matrix.npy'))
@@ -102,11 +102,15 @@ def run_stage5(setup):
             #calculate and store unweighted umatrix
             umatrix = umatrix_constant(reference_image, kernel_size, model_image=None)
             np.save(os.path.join(kernel_directory_path,'unweighted_u_matrix.npy'), [umatrix, kernel_size])
+            hdutmp = fits.PrimaryHDU(umatrix)
+            hdutmp.writeto(os.path.join(kernel_directory_path,'unweighted_u_matrix.fits'),overwrite =True)
     else:
         #calculate and store unweighted umatrix 
         umatrix = umatrix_constant(reference_image, kernel_size, model_image=None)
         np.save(os.path.join(kernel_directory_path,'unweighted_u_matrix.npy'), [umatrix, kernel_size])
-	
+        hdutmp = fits.PrimaryHDU(umatrix)
+        hdutmp.writeto(os.path.join(kernel_directory_path,'unweighted_u_matrix.fits'),overwrite=True)
+
     if len(new_images) > 0:
         # find the reference image
 
@@ -148,6 +152,16 @@ def noise_model(model_image, gain, readout_noise, flat=None, initialize=None):
 	
     return weights
 
+def noise_model_constant(model_image):
+
+    noise_image = np.copy(model_image)
+    noise_image[noise_image == 0] = 1.
+    weights = np.ones(np.shape(model_image))    
+    weights[noise_image == 1] = 0.
+	
+    return weights
+
+
 def umatrix_constant(reference_image, ker_size, model_image=None):
     '''
     The kernel solution is supposed to implement the approach outlined in
@@ -175,8 +189,7 @@ def umatrix_constant(reference_image, ker_size, model_image=None):
         else:
             kernel_size = ker_size
 
-    weights = np.ones(np.shape(reference_image))
-
+    weights = noise_model_constant(reference_image)
     # Prepare/initialize indices, vectors and matrices
     pandq = []
     n_kernel = kernel_size * kernel_size
@@ -217,8 +230,7 @@ def bvector_constant(reference_image, data_image, ker_size, model_image=None):
         else:
             kernel_size = ker_size
 
-    weights = np.ones(np.shape(reference_image))
-
+    weights = noise_model_constant(reference_image)
     # Prepare/initialize indices, vectors and matrices
     pandq = []
     n_kernel = kernel_size * kernel_size
@@ -355,11 +367,8 @@ def difference_image_single_iteration(ref_imagename, data_imagename, kernel_size
 
     difference_image = model_image - data_image + bkg_kernel
     difference_image[bright_mask] = 0.
-    difference_image[-kernel_size - 2:, :] = 0.
-    difference_image[0:kernel_size + 2, :] = 0.
-    difference_image[:, -kernel_size - 2:] = 0.
-    difference_image[:, 0:kernel_size + 2] = 0.
 
+    difference_image[kernel_size:-kernel_size, kernel_size:-kernel_size] = np.array(difference_image, float)
     return difference_image, output_kernel, bkg_kernel
 
 

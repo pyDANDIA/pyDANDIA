@@ -129,7 +129,6 @@ def open_reference(setup, ref_image_directory, ref_image_name, kernel_size,
     ref10pc = np.percentile(ref_image[ref_extension].data, 10.)
     ref_image[ref_extension].data = ref_image[ref_extension].data - \
         np.percentile(ref_image[ref_extension].data, 10.)
-
     logs.ifverbose(log, setup,
                    'Background reference= ' + str(ref10pc))
 

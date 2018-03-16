@@ -122,15 +122,17 @@ def run_stage2(setup):
         ref_img_path = os.path.join(
             str(reduction_metadata.data_architecture[1]['IMAGES_PATH'][0]), best_image[0])
         print 'New reference ', best_image[0], ' in ', ref_img_path
-        reduction_metadata.add_column_to_layer('data_architecture',
-                                               'REF_PATH', [
-                                                   ref_directory_path],
-                                               new_column_format=None,
-                                               new_column_unit=None)
-        reduction_metadata.add_column_to_layer('data_architecture',
-                                               'REF_IMAGE', [ref_img_path],
-                                               new_column_format=None,
-                                               new_column_unit=None)
+        if not 'REF_PATH' in str(reduction_metadata.data_architecture[1]) and  not 'REF_IMAGE' in str(reduction_metadata.data_architecture[1]):
+            reduction_metadata.add_column_to_layer('data_architecture',
+                                                   'REF_PATH', [ref_directory_path],
+                                                    new_column_format=None,
+                                                    new_column_unit=None)
+            reduction_metadata.add_column_to_layer('data_architecture',
+                                                   'REF_IMAGE', [ref_img_path],
+                                                    new_column_format=None,
+                                                   new_column_unit=None)
+            reduction_metadata.save_updated_metadata(metadata_directory=setup.red_dir,
+                                                   metadata_name='pyDANDIA_metadata.fits')
 
         status = 'OK'
         report = 'Completed successfully'
