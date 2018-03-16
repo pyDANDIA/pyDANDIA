@@ -18,7 +18,7 @@ if __name__=="__main__":
         " FROM phot"
         " NATURAL JOIN exposures"
         " NATURAL JOIN stars"
-        " WHERE star_id=%s" % str(random.randint(1,10)))
+        " WHERE star_id=%s" % str(random.randint(1,5)))
     time.sleep(1)
     
     print query_to_astropy_table(conn,
