@@ -118,7 +118,7 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
     
     return ref_star_catalog
     
-def run_psf_photometry_on_difference_image(setup,reduction_metadata,log,ref_star_catalog,
+def run_psf_photometry_on_difference_image(setup,reduction_metadata,log,star_catalog,
                        difference_image,psf_model,sky_model,kernel,centroiding=True):
     """Function to perform PSF fitting photometry on all stars for a single difference image.
     
@@ -174,7 +174,11 @@ def run_psf_photometry_on_difference_image(setup,reduction_metadata,log,ref_star
     phot_scale_factor = np.sum(kernel)
     error_phot_scale_factor = 0
 
-    for j in range(0,len(ref_star_catalog),1):
+
+    control_size = 50
+    control_count = 0
+
+    for j in range(0,len(star_catalog),1):
         
 	list_image_id.append(ref_star_catalog[j,0])
 	list_star_id.append(0)
@@ -225,6 +229,18 @@ def run_psf_photometry_on_difference_image(setup,reduction_metadata,log,ref_star
             
             residuals[corners[2]:corners[3],corners[0]:corners[1]] = res_image[corners[2]:corners[3],corners[0]:corners[1]]
             
+	    if control_residuals<10:
+
+		try :
+
+			control_zone = np.c_[control_zone, residuals]
+
+		 except:
+
+			control_zone = residuals
+		
+		control_count += 1		
+
             logs.ifverbose(log, setup,' -> Star '+str(j)+
             ' subtracted PSF from the residuals')
                     
@@ -254,7 +270,7 @@ def run_psf_photometry_on_difference_image(setup,reduction_metadata,log,ref_star
         else:
             
             logs.ifverbose(log,setup,' -> Star '+str(j)+
-            ' No photometry possible from poor PSF fit')
+            ' No photometry possible from poor fit')
 
 	    list_flux.append(-10**30)
             list_flux_error.append(-10**30)
@@ -296,7 +312,7 @@ def run_psf_photometry_on_difference_image(setup,reduction_metadata,log,ref_star
 
     log.info('Completed photometry on difference image')
     
-    return  difference_image_photometry
+    return  difference_image_photometry, control_zone
 
 
 def convert_flux_to_mag(flux, flux_err):

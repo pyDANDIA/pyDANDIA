@@ -843,23 +843,11 @@ def fit_star_existing_model_with_kernel(setup,data, x_cen, y_cen, psf_radius,
     
     fitted_model.update_psf_parameters(psf_params)
     
-    if diagnostics:
+    
         
-        Y_data, X_data = np.indices(stamps[0].data.shape)
+    Y_data, X_data = np.indices(stamps[0].data.shape)
         
-        pars = fitted_model.get_parameters()
-        
-        model_data = fitted_model.psf_model_star(Y_data, X_data, star_params=pars)
-        model_data_with_kernel = convolution.convolve_image_with_a_psf(model_data, kernel, fourrier_transform_psf=None, fourrier_transform_image=None,
-                              correlate=None, auto_correlation=None)	
-        hdu = fits.PrimaryHDU(model_data_with_kernel)
-        
-        hdulist = fits.HDUList([hdu])
-
-        file_path = os.path.join(setup.red_dir,'ref',\
-        'psf_star_model_stamp_'+str(round(x_cen,0))+'_'+str(round(y_cen,0))+'.fits')
-        
-        hdulist.writeto(file_path,overwrite=True)
+    pars = fitted_model.get_parameters()
     
     # Add the stamp x,y offset back to the star centroid:
     psf_params = fitted_model.get_parameters()

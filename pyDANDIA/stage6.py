@@ -49,6 +49,13 @@ def run_stage6(setup):
     new_images = reduction_metadata.find_images_need_to_be_process(setup, all_images,
                                                                    stage_number=6, rerun_all=None, log=log)
 
+    # find the starlist
+    starlist = 	reduction_metadata.load_a_layer_from_file( setup.red_dir,'pyDANDIA_metadata.fits','star_catalog', log=log)
+    mask  = starlist[1][:,-1] == 1
+
+    control_stars = starlist[1][mask][:10]		
+    star_coordinates = control_stars[:,[0,1,2]]
+
     if len(new_images) > 0:
 
         # find the reference image
@@ -107,9 +114,12 @@ def run_stage6(setup):
 
             difference_image = image_substraction(setup, reference_image, kernel_image, target_image)
 
+	    save_control_stars_of_the_difference_image(setup, image_name, difference_image, star_coordinates)
 
-	    photometric_table = photometry_on_the_difference_image(setup, difference_image, list_of_stars, psf_model, psf_parameters, kernel)
+	    photometric_table, control_zone = photometry_on_the_difference_image(setup, difference_image, list_of_stars, psf_model, psf_parameters, kernel)
 	     
+	    save_control_zone_of_residuals(setup, image_name, control_zone)	
+
             ingest_photometric_table_in_db(setup, photometric_table)
 
     return status, report
@@ -150,6 +160,67 @@ def open_an_image(setup, image_directory, image_name,
 
         return None
 
+def save_control_zone_of_residuals(setup, image_name, control_zone): 
+    '''
+    Save selected stars for difference image control
+
+    :param object reduction_metadata: the metadata object
+    :param str image_name: the name of the image
+    :param array_likecontrol_zone: the residuals stamps
+
+    '''
+
+    control_images_directory = setup.red_dir+'/res_images/'
+    os.makedirs(control_images_directory, exist_ok=True)
+
+    control_size = 50
+
+    image_name.replace('.fits','.res')
+
+    hdu = fits.PrimaryHDU(control_zone)
+    hdu.writeto(control_images_directory+image_name, overwrite=True)
+
+
+def save_control_stars_of_the_difference_image(setup, image_name, difference_image, star_coordinates): 
+    '''
+    Save selected stars for difference image control
+
+    :param object reduction_metadata: the metadata object
+    :param str image_name: the name of the image
+    :param array_like difference_image: the reference image data
+    :param array_like stars_coordinates: the position of control stars
+    '''
+
+    control_images_directory = setup.red_dir+'/diff_images/'
+    os.makedirs(control_images_directory, exist_ok=True)
+
+    control_size = 50
+
+    
+    for star in star_coordinates :
+
+		 ind_i = int(np.round(star[1]))
+		 ind_j = int(np.round(star[2]))
+
+		 stamp = difference_image[ind_i-control_size/2:ind_i+control_size/2,
+                                          ind_j-control_size/2:ind_i+control_size/2]
+		
+		 try :
+
+			control_zone = np.c_[control_zone, stamp]
+
+		 except:
+
+			control_zone = stamp
+
+    image_name.replace('.fits','.diff')
+
+    hdu = fits.PrimaryHDU(control_zone)
+    hdu.writeto(control_images_directory+image_name, overwrite=True)
+
+
+
+     
 
 def image_substraction(setup, reference_image_data, kernel_data, image_data, log=None):
     '''
@@ -192,7 +263,7 @@ def find_the_associated_kernel(setup, kernels_directory, image_name):
     return kernel
 
 
-def photometry_on_the_difference_image(setup, difference_image, list_of_stars, psf_model, psf_parameters, kernel):
+def photometry_on_the_difference_image(setup, difference_image, star_catalog, psf_model, psf_parameters, kernel):
     '''
     Find the appropriate kernel associated to an image
     :param object reduction_metadata: the metadata object
@@ -204,7 +275,7 @@ def photometry_on_the_difference_image(setup, difference_image, list_of_stars, p
     '''
 
 
-    differential_photometry = photometry.run_psf_photometry_on_difference_image(setup,reduction_metadata,log,ref_star_catalog,
+    differential_photometry = photometry.run_psf_photometry_on_difference_image(setup,reduction_metadata,log,star_catalog,
                        								difference_image,psf_model,sky_model, kernel, centroiding=True)
     
     column_names = ('Exposure_id','Star_id','Ref_mag','Ref_mag_err','Ref_flux','Ref_flux_err','Delta_flux','Delta_flux_err','Mag','Mag_err',
