@@ -18,7 +18,7 @@ from os import getcwd, path, remove, environ
 import numpy as np
 
 ########## THESE NEED TO BE CHANGED TO THE ACTUAL VALUES TO USE #################
-environ["PHOTDB_PATH"] = '/home/Tux/ytsapras/Programs/Workspace/pyDANDIA/pyDANDIA/db/phot_db'
+environ["PHOTDB_PATH"] = '/home/Tux/ytsapras/Desktop/phot_db'
 database_file_path = path.expanduser(environ["PHOTDB_PATH"])
 
 telescopes = {'Chile':[40.1,60.4,2235.6]}
