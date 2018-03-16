@@ -1512,15 +1512,15 @@ def subtract_psf_from_image_with_kernel(image,psf_model,xstar,ystar,dx,dy, kerne
 
     residuals = np.copy(image)
     
-    output_stamp_image(residuals[corners[2]:corners[3],corners[0]:corners[1]],
-                       '/Users/rstreet/software/pyDANDIA/pyDANDIA/tests/data/subtractions/presubtraction_'+str(round(xstar,0))+'_'+str(round(ystar,0))+'.png')
-    output_stamp_image(psf_image,
-                       '/Users/rstreet/software/pyDANDIA/pyDANDIA/tests/data/subtractions/residuals_psf_model_'+str(round(xstar,0))+'_'+str(round(ystar,0))+'.png')
+    #output_stamp_image(residuals[corners[2]:corners[3],corners[0]:corners[1]],
+    #                  '/Users/rstreet/software/pyDANDIA/pyDANDIA/tests/data/subtractions/presubtraction_'+str(round(xstar,0))+'_'+str(round(ystar,0))+'.png')
+    #output_stamp_image(psf_image,
+    #                   '/Users/rstreet/software/pyDANDIA/pyDANDIA/tests/data/subtractions/residuals_psf_model_'+str(round(xstar,0))+'_'+str(round(ystar,0))+'.png')
     
     residuals[corners[2]:corners[3],corners[0]:corners[1]] -= psf_image_with_kernel
     
-    output_stamp_image(residuals[corners[2]:corners[3],corners[0]:corners[1]],
-                       '/Users/rstreet/software/pyDANDIA/pyDANDIA/tests/data/subtractions/residuals_'+str(round(xstar,0))+'_'+str(round(ystar,0))+'.png')
+    #output_stamp_image(residuals[corners[2]:corners[3],corners[0]:corners[1]],
+    #                   '/Users/rstreet/software/pyDANDIA/pyDANDIA/tests/data/subtractions/residuals_'+str(round(xstar,0))+'_'+str(round(ystar,0))+'.png')
     
     return residuals,corners    
     
