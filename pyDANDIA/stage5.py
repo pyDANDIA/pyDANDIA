@@ -96,7 +96,6 @@ def run_stage5(setup):
         return status, report, reduction_metadata
 
     reference_image, bright_reference_mask = open_reference(setup, reference_image_directory, reference_image_name, kernel_size, max_adu, ref_extension = 0, log = log)
-    print(np.trace(bright_reference_mask))
     #check if umatrix exists
     if os.path.exists(os.path.join(kernel_directory_path,'unweighted_u_matrix.npy')):
         umatrix, kernel_size_u = np.load(os.path.join(kernel_directory_path,'unweighted_u_matrix.npy'))
@@ -336,6 +335,7 @@ def subtract_images(data_image, reference_image, kernel, kernel_size, bkg_kernel
     difference_image = difference_image[kernel_size:-kernel_size,kernel_size:-kernel_size]
 
     return difference_image
+
 
 def difference_image_single_iteration(ref_imagename, data_imagename, kernel_size,
                                       mask=None, max_adu=np.inf):

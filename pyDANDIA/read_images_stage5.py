@@ -3,6 +3,22 @@ import numpy as np
 import logs
 from astropy.io import fits
 from scipy.signal import convolve2d
+from sky_background import mask_saturated_pixels, generate_sky_model
+from sky_background import fit_sky_background, generate_sky_model_image
+
+def background_subtract(setup, image, max_adu):
+    masked_image = mask_saturated_pixels(setup, image, max_adu,log = None)
+    sky_params = { 'background_type': 'gradient', 
+          'nx': image.shape[1], 'ny': image.shape[0],
+          'a0': 0.0, 'a1': 0.0, 'a2': 0.0 }
+    sky_model = generate_sky_model(sky_params) 
+    sky_fit = fit_sky_background(masked_image,sky_model,'gradient',log=None)
+    sky_params['a0'] = sky_fit[0][0]
+    sky_params['a1'] = sky_fit[0][1]
+    sky_params['a2'] = sky_fit[0][2]
+    #sky_model = generate_sky_model(sky_params)
+    sky_model_image = generate_sky_model_image(sky_params)
+    return image - sky_model_image
 
 def read_images_for_substamps(ref_image_filename, data_image_filename, kernel_size, max_adu):
     data_image = fits.open(data_image_filename)
@@ -76,7 +92,8 @@ def open_data_image(setup, data_image_directory, data_image_name, reference_mask
     logs.ifverbose(log, setup, 'Attempting to open data image ' + os.path.join(data_image_directory, data_image_name))
 
     data_image = fits.open(os.path.join(data_image_directory, data_image_name), mmap=True)
-
+    img50pc = np.median(data_image[data_extension].data)
+    data_image[data_extension].data = background_subtract(setup, data_image[data_extension].data, img50pc)
 	#increase kernel size by 2 and define circular mask
     kernel_size_plus = kernel_size + 2
     mask_kernel = np.ones(kernel_size_plus * kernel_size_plus, dtype=float)
@@ -113,6 +130,7 @@ def open_reference(setup, ref_image_directory, ref_image_name, kernel_size,
                    'Attempting to open ref image ' + os.path.join(ref_image_directory, ref_image_name))
 
     ref_image = fits.open(os.path.join(ref_image_directory, ref_image_name), mmap=True)
+   
 	#increase kernel size by 2 and define circular mask
     kernel_size_plus = kernel_size + 2
     print kernel_size_plus
@@ -126,7 +144,10 @@ def open_reference(setup, ref_image_directory, ref_image_name, kernel_size,
                 mask_kernel[idx, jdx] = 0.
 
     #subtract background estimate using 10% percentile
+    ref50pc = np.median(ref_image[ref_extension].data)
+    ref_image[ref_extension].data = background_subtract(setup, ref_image[ref_extension].data, ref50pc)
     ref10pc = np.percentile(ref_image[ref_extension].data, 10.)
+    
     ref_image[ref_extension].data = ref_image[ref_extension].data - \
         np.percentile(ref_image[ref_extension].data, 10.)
     logs.ifverbose(log, setup,
