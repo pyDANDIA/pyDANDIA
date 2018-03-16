@@ -26,9 +26,9 @@ reference_catalog = query_to_astropy_table(
     "select * from stars") # or restrict to field in question
 
 reference = coordinates.SkyCoord(
-    reference_catalog["ra"], reference_catalog["dec"])
+    reference_catalog["ra"], reference_catalog["dec"],unit='deg')
 to_match = coordinates.SkyCoord(
-    reference_catalog["RA_J2000_deg"], reference_catalog["Dec_J2000_deg"])
+    extracted_objects["RA_J2000_deg"], extracted_objects["Dec_J2000_deg"],unit='deg')
 match = to_match.match_to_catalog_sky(reference)
 print match
 

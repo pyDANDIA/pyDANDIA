@@ -17,12 +17,14 @@ import sqlite3
 from os import getcwd, path, remove, environ
 import numpy as np
 
+########## THESE NEED TO BE CHANGED TO THE ACTUAL VALUES TO USE #################
 environ["PHOTDB_PATH"] = '/home/Tux/ytsapras/Programs/Workspace/pyDANDIA/pyDANDIA/db/phot_db'
 database_file_path = path.expanduser(environ["PHOTDB_PATH"])
 
-telescopes = {'Australia':[10.5,20.3,1235.6],'Chile':[40.1,60.4,2235.6]}
-instruments = {'camera1':[1,2,3,'blah'],'camera2':[4,5,6,'bleh']}
-filters = {'r':'SDSS-r','g':'SDSS-g','i':'SDSS-i'}
+telescopes = {'Chile':[40.1,60.4,2235.6]}
+instruments = {'camera1':[1,2,3,'blah']}
+filters = {'i':'SDSS-i'}
+#################################################################################
 
 class TableDef(object):
     """a definition of a table in an SQLite DB.
@@ -68,15 +70,15 @@ class ReferenceImages(TableDef):
     c_020_telescope_id = 'TEXT'
     c_030_instrument_id = 'TEXT'
     c_040_filter_id = 'TEXT'
-    c_050_fwhm = 'REAL'
-    c_060_fwhm_err = 'REAL'
-    c_070_ellipticity = 'REAL'
-    c_080_ellipticity_err = 'REAL'
+    c_050_refimg_fwhm = 'REAL'
+    c_060_refimg_fwhm_err = 'REAL'
+    c_070_refimg_ellipticity = 'REAL'
+    c_080_refimg_ellipticity_err = 'REAL'
     c_090_slope = 'REAL' #The slope of the photometric calibration: VPHAS mags vs instr mags
     c_095_slope_err = 'REAL'
     c_100_intercept = 'REAL' #The intercept of the photometric calibration: VPHAS mags vs instr mags
     c_105_intercept_err = 'REAL'
-    c_120_name = 'TEXT'
+    c_120_refimg_name = 'TEXT'
 
 class Exposures(TableDef):
     """The table storing individual sky exposures.
@@ -84,17 +86,17 @@ class Exposures(TableDef):
     c_000_exposure_id = 'INTEGER PRIMARY KEY'
     c_005_reference_image = 'INTEGER REFERENCES reference_images(refimg_id)'
     c_010_jd = 'DOUBLE PRECISION'
-    c_050_fwhm = 'REAL'
-    c_060_fwhm_err = 'REAL'
-    c_050_ellipticity = 'REAL'
-    c_060_ellipticity_err = 'REAL'
+    c_050_exposure_fwhm = 'REAL'
+    c_060_exposure_fwhm_err = 'REAL'
+    c_050_exposure_ellipticity = 'REAL'
+    c_060_exposure_ellipticity_err = 'REAL'
     c_110_airmass = 'REAL'
     c_120_exposure_time = 'INTEGER'
     c_130_moon_phase = 'REAL'
     c_140_moon_separation = 'REAL'
     c_150_delta_x = 'REAL'
     c_160_delta_y = 'REAL'    
-    c_170_name = 'TEXT'
+    c_170_exposure_name = 'TEXT'
 
 class Stars(TableDef):
     """The object list.
@@ -124,9 +126,9 @@ class PhotometryPoints(TableDef):
     c_050_magnitude = 'REAL'
     c_060_magnitude_err = 'REAL'
     c_070_phot_scale_factor = 'REAL'
-    c_080_phot_scale_factor_error = 'REAL'
+    c_080_phot_scale_factor_err = 'REAL'
     c_090_local_background = 'DOUBLE PRECISION'
-    c_100_local_background_error = 'DOUBLE PRECISION'
+    c_100_local_background_err = 'DOUBLE PRECISION'
     c_130_residual_x = 'REAL'
     c_140_residual_y = 'REAL'
 
@@ -134,6 +136,7 @@ class PhotometryPoints(TableDef):
         'CREATE INDEX IF NOT EXISTS phot_objs ON phot (star_id)')
 
 
+# This is what the classes are actually called in the database schema
 EXPOSURES_TD = Exposures("exposures")
 REFERENCE_IMAGES_TD = ReferenceImages("reference_images")
 STARS_TD = Stars("stars")
