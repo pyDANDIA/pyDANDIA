@@ -17,7 +17,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-def reference_astrometry(log,image_path,detected_sources,diagnostics=True):
+def reference_astrometry(setup,log,image_path,detected_sources,diagnostics=True):
     """Function to calculate the World Coordinate System (WCS) for an image"""
     
     log.info('Performing astrometry on the reference image')
@@ -28,8 +28,8 @@ def reference_astrometry(log,image_path,detected_sources,diagnostics=True):
     log.info('Reference image initial WCS information:')
     log.info(image_wcs)
     
-    wcs_image_path = image_path.replace('.fits','_wcs.fits')
-    catalog_file = path.join(path.dirname(image_path), 'star_catalog.fits')
+    wcs_image_path = path.join(setup.red_dir,'ref','ref_image_wcs.fits')
+    catalog_file = path.join(setup.red_dir,'ref', 'star_catalog.fits')
     
     log.info('Querying ViZier for 2MASS sources within the field of view...')
     radius = hdu[0].header['NAXIS1']*image_wcs.wcs.cd[0,0]*60.0/2.0

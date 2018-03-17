@@ -104,7 +104,7 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
             logs.ifverbose(log,setup,' -> Star '+str(j)+
             ' No photometry possible from poor PSF fit')
             
-    res_image_path = image_path.replace('.fits','_res.fits')
+    res_image_path = os.path.join(setup.reddir,'ref',os.path.basename(image_path).replace('.fits','_res.fits'))
     
     hdu = fits.PrimaryHDU(residuals)
     hdulist = fits.HDUList([hdu])

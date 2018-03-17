@@ -34,11 +34,9 @@ def run_stage3(setup):
     reduction_metadata.load_a_layer_from_file( setup.red_dir, 
                                               'pyDANDIA_metadata.fits', 
                                               'images_stats' )
-                                            
-    reduction_metadata.reference_image_path = os.path.join(setup.red_dir,'data',
-                        reduction_metadata.images_stats[1]['IM_NAME'].data[0])
-    
-    reduction_metadata.background_type = 'constant'
+    reduction_metadata.load_a_layer_from_file( setup.red_dir, 
+                                              'pyDANDIA_metadata.fits', 
+                                              'data_architecture' )
     
     meta_pars = extract_parameters_stage3(reduction_metadata)
     
@@ -54,7 +52,7 @@ def run_stage3(setup):
                                         log,
                                         diagnostics=False)
                                         
-        ref_star_catalog = wcs.reference_astrometry(log,
+        ref_star_catalog = wcs.reference_astrometry(setup,log,
                                         reduction_metadata.reference_image_path,
                                         detected_sources,
                                         diagnostics=False)        
@@ -144,7 +142,7 @@ def extract_parameters_stage3(reduction_metadata):
     
     try:
         
-        meta_pars['ref_image_path'] = reduction_metadata.reference_image_path
+        meta_pars['ref_image_path'] = str(reduction_metadata.data_architecture[1]['REF_IMAGE'][0])
     
     except AttributeError:
         
