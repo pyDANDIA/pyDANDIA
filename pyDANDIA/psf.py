@@ -132,8 +132,14 @@ class Moffat2D(PSFModel):
         
         flux = model.sum()
         
-        flux_err = np.sqrt(flux)
+        if flux > 0:
+            
+            flux_err = np.sqrt(flux)
         
+        else:
+            
+            flux_err = -99.999
+            
         return flux, flux_err
 
     def calc_flux_with_kernel(self,Y_star, X_star, kernel):
@@ -950,7 +956,7 @@ def build_psf(setup, reduction_metadata, log, image, ref_star_catalog,
 
     logs.ifverbose(log,setup,' -> Applying PSF size='+str(psf_size))
 
-    idx = np.where(ref_star_catalog[:,13] == 1.0)
+    idx = np.where(ref_star_catalog[:,15] == 1.0)
     psf_idx = ref_star_catalog[idx[0],0]
     psf_star_centres = ref_star_catalog[idx[0],1:3]
     
