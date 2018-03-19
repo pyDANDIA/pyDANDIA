@@ -25,7 +25,7 @@ def model_sky_background(setup,reduction_metadata,log,ref_star_catalog):
     background model.
     """
         
-    ref_image = fits.getdata(reduction_metadata.reference_image_path)
+    ref_image = fits.getdata(str(reduction_metadata.data_architecture[1]['REF_PATH'][0]) +'/'+ str(reduction_metadata.data_architecture[1]['REF_IMAGE'][0]))
     
     psf_size = reduction_metadata.reduction_parameters[1]['PSF_SIZE'][0]
     
@@ -48,16 +48,19 @@ def model_sky_background(setup,reduction_metadata,log,ref_star_catalog):
     log.info('Mean = '+str(star_masked_image.mean()))
     log.info('Std. dev = '+str(star_masked_image.std()))
     log.info('Median = '+str(np.median(star_masked_image)))
-    
-    if reduction_metadata.background_type == 'constant':
+
+    background_type = reduction_metadata.reduction_parameters[1]['BACK_VAR'].data[0]
+
+    import pdb; pdb.set_trace()
+    if background_type == 'constant':
         
-        sky_params = { 'background_type': reduction_metadata.background_type, 
+        sky_params = { 'background_type':background_type, 
           'nx': ref_image.shape[1], 'ny': ref_image.shape[0],
           'constant': 0.0 }
           
-    elif reduction_metadata.background_type == 'gradient':
+    elif background_type == 'gradient':
         
-        sky_params = { 'background_type': reduction_metadata.background_type, 
+        sky_params = { 'background_type':background_type, 
           'nx': ref_image.shape[1], 'ny': ref_image.shape[0],
           'a0': 0.0, 'a1': 0.0, 'a2': 0.0 }
           
@@ -65,11 +68,11 @@ def model_sky_background(setup,reduction_metadata,log,ref_star_catalog):
     
     sky_fit = fit_sky_background(star_masked_image,sky_model,'constant',log=log)
 
-    if reduction_metadata.background_type == 'constant':
+    if background_type == 'constant':
         
         sky_params['constant'] = sky_fit[0][0]
           
-    elif reduction_metadata.background_type == 'gradient':
+    elif background_type == 'gradient':
         
         sky_params['a0'] = sky_fit[0][0]
         sky_params['a1'] = sky_fit[0][1]

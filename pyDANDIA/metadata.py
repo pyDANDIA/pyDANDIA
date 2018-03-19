@@ -752,7 +752,7 @@ def get_level1(self):
     """
 
     data = [['year', 'YEAR', 'int', 'Year of observations'],
-            ['back_var', 'BACKVAR', 'int', 'Switch for a spatially variable differential background'],
+            ['back_var', 'BACKVAR', 'string', 'Switch for a spatially variable differential background'],
             ['coeff2', 'COEFF2', 'float', ''],
             ['coeff3', 'COEFF3', 'float', ''],
             ['datekey', 'DATE-KEY', 'string', 'Name of date keyword in image headers'],

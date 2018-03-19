@@ -103,8 +103,8 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
             
             logs.ifverbose(log,setup,' -> Star '+str(j)+
             ' No photometry possible from poor PSF fit')
-            
-    res_image_path = os.path.join(setup.reddir,'ref',os.path.basename(image_path).replace('.fits','_res.fits'))
+
+    res_image_path = os.path.join(setup.red_dir,'ref',os.path.basename(image_path).replace('.fits','_res.fits'))
     
     hdu = fits.PrimaryHDU(residuals)
     hdulist = fits.HDUList([hdu])
@@ -352,8 +352,9 @@ def convert_flux_to_mag(flux, flux_err):
 def plot_ref_mag_errors(setup,ref_star_catalog):
     """Function to output a diagnostic plot of the fitted PSF magnitudes
     against photometric error"""
-    
-    file_path = os.path.join(setup.red_dir,'ref','ref_image_phot_errors.png')
+
+    ref_path =  setup.red_dir+'/ref/'
+    file_path = os.path.join(ref_path,'ref_image_phot_errors.png')
     
     fig = plt.figure(1)
     
