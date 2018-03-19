@@ -50,15 +50,15 @@ def run_stage4(setup):
 
         # find the reference image
         try:
-            reference_image_name = reduction_metadata.data_architecture[1]['REFERENCE_NAME']
-            reference_image_directory = reduction_metadata.data_architecture[1]['IMAGES_PATH']
+            reference_image_name = reduction_metadata.data_architecture[1]['REF_IMAGE']
+            reference_image_directory = reduction_metadata.data_architecture[1]['REF_PATH']
             reference_image = open_an_image(setup, reference_image_directory, reference_image_name, image_index=0,
                                             log=None)
             logs.ifverbose(log, setup,
                            'I found the reference frame:' + reference_image_name)
         except KeyError:
             logs.ifverbose(log, setup,
-                           'I can not find any reference image! Aboard stage4')
+                           'I can not find any reference image! Abort stage4')
 
             status = 'KO'
             report = 'No reference frame found!'
@@ -83,7 +83,7 @@ def run_stage4(setup):
             except:
 
                 logs.ifverbose(log, setup,
-                               'I can not find the image translation to the reference for frame:' + new_image + '. Aboard stage4!')
+                               'I can not find the image translation to the reference for frame:' + new_image + '. Abort stage4!')
 
                 status = 'KO'
                 report = 'No shift  found for image:' + new_image + ' !'
@@ -193,7 +193,7 @@ def find_x_y_shifts_from_the_reference_image(setup, reference_image, target_imag
 
     reference_shape = reference_image.shape
     if reference_shape != target_image.shape:
-        logs.ifverbose(log, setup, 'The reference image and the target image dimensions does not match! Aboard stage4')
+        logs.ifverbose(log, setup, 'The reference image and the target image dimensions does not match! Abort stage4')
         sys.exit(1)
 
     x_center = int(reference_shape[0] / 2)
