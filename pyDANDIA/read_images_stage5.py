@@ -90,7 +90,6 @@ def open_data_image(setup, data_image_directory, data_image_name, reference_mask
     '''
 
     logs.ifverbose(log, setup, 'Attempting to open data image ' + os.path.join(data_image_directory, data_image_name))
-
     data_image = fits.open(os.path.join(data_image_directory, data_image_name), mmap=True)
     img50pc = np.median(data_image[data_extension].data)
     data_image[data_extension].data = background_subtract(setup, data_image[data_extension].data, img50pc)
