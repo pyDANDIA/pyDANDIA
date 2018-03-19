@@ -23,6 +23,9 @@ import logs
 import convolution
 import db.astropy_interface as db_ai
 import db.phot_db as db_phot
+import sky_background
+import psf
+import photometry
 
 def run_stage6(setup):
     """Main driver function to run stage 6: image substraction and photometry.
@@ -51,20 +54,58 @@ def run_stage6(setup):
                                                                    stage_number=6, rerun_all=None, log=log)
 
     # find the starlist
-    starlist = 	reduction_metadata.load_a_layer_from_file( setup.red_dir,'pyDANDIA_metadata.fits','star_catalog', log=log)
-    mask  = starlist[1][:,-1] == 1
+    starlist =  reduction_metadata.star_catalog[1]	
 
-    control_stars = starlist[1][mask][:10]		
-    star_coordinates = control_stars[:,[0,1,2]]
+    max_x = np.max(starlist['x_pixel'].data)
+    max_y = np.max(starlist['y_pixel'].data)
+    mask  = (starlist['psf_star'].data == 1) & (starlist['x_pixel'].data<max_x-25)  & (starlist['x_pixel'].data>25) & (starlist['y_pixel'].data<max_y-25)  & (starlist['y_pixel'].data>25)
 
+    control_stars = starlist[mask][:10]
+    star_coordinates = np.c_[control_stars['star_index'].data,
+                             control_stars['x_pixel'].data,
+                             control_stars['y_pixel'].data]
+
+    for index,key in enumerate(starlist.columns.keys()):
+
+	if index != 0:
+
+	
+	    ref_star_catalog = np.c_[ref_star_catalog,starlist[key].data]
+
+	else:
+		
+	    ref_star_catalog = starlist[key].data
+
+
+
+    psf_model = fits.open(reduction_metadata.data_architecture[1]['REF_PATH'].data[0]+'/psf_model.fits')
+
+    psf_type = psf_model[0].header['PSFTYPE']
+    psf_parameters = [0, psf_model[0].header['Y_CENTER'],
+                      psf_model[0].header['X_CENTER'],
+                      psf_model[0].header['GAMMA'],
+                      psf_model[0].header['ALPHA']]  	
+    
+ 
+    sky_model = sky_background.model_sky_background(setup,
+                                        reduction_metadata,log,ref_star_catalog)
+
+
+    psf_model = psf.get_psf_object( psf_type )
+    psf_model.update_psf_parameters( psf_parameters)
+    import pdb; pdb.set_trace()	
     if len(new_images) > 0:
 
         # find the reference image
         try:
-            reference_image_name = reduction_metadata.data_architecture[1]['REFERENCE_NAME']
-            reference_image_directory = reduction_metadata.data_architecture[1]['IMAGES_PATH']
+            reference_image_name = reduction_metadata.data_architecture[1]['REF_IMAGE'].data[0]
+            reference_image_directory = reduction_metadata.data_architecture[1]['REF_PATH'].data[0]
             reference_image = open_an_image(setup, reference_image_directory, reference_image_name, image_index=0,
                                             log=None)
+
+
+
+   
             logs.ifverbose(log, setup,
                            'I found the reference frame:' + reference_image_name)
         except KeyError:
@@ -79,7 +120,7 @@ def run_stage6(setup):
         # find the kernels directory
         try:
 
-            kernels_directory = reduction_metadata.data_architecture[1]['KERNELS_PATH']
+            kernels_directory = reduction_metadata.data_architecture[1]['OUTPUT_DIRECTORY'].data[0]+'kernel/'
 
             logs.ifverbose(log, setup,
                            'I found the kernels directory:' + kernels_directory)
@@ -92,34 +133,22 @@ def run_stage6(setup):
 
             return status, report
 
-        # find the reference image psf model/parameters
-        try:
-            ####?????
-            psf_model = reduction_metadata.data_architecture[1]['KERNELS_PATH']
-
-            logs.ifverbose(log, setup,
-                           'I found the kernels directory:' + kernels_directory)
-        except KeyError:
-            logs.ifverbose(log, setup,
-                           'I can not find the kernels directory! Aboard stage6')
-
-            status = 'KO'
-            report = 'No kernels directory found!'
-
-            return status, report
         data = []
+        images_directory = reduction_metadata.data_architecture[1]['IMAGES_PATH'].data[0]
         for new_image in new_images:
 
-            target_image = open_an_image(setup, reference_image_directory, new_image, image_index=0, log=None)
+            target_image = open_an_image(setup, images_directory, new_image, image_index=0, log=None)
             kernel_image = find_the_associated_kernel(setup, kernels_directory, new_image)
 
             difference_image = image_substraction(setup, reference_image, kernel_image, target_image)
 
-            save_control_stars_of_the_difference_image(setup, image_name, difference_image, star_coordinates)
+	    
 
-            photometric_table, control_zone = photometry_on_the_difference_image(setup, difference_image, list_of_stars, psf_model, psf_parameters, kernel)
+            save_control_stars_of_the_difference_image(setup, new_image, difference_image, star_coordinates)
+
+            photometric_table, control_zone = photometry_on_the_difference_image(setup, reduction_metadata, log,ref_star_catalog,new_image,difference_image,  psf_model, sky_model, kernel_image)
 	     
-            save_control_zone_of_residuals(setup, image_name, control_zone)	
+            save_control_zone_of_residuals(setup, new_image, control_zone)	
 
             ingest_photometric_table_in_db(setup, photometric_table)
     return status, report
@@ -153,7 +182,7 @@ def open_an_image(setup, image_directory, image_name,
 
         logs.ifverbose(log, setup, image_name + ' open : OK')
 
-        return image_data
+        return image_data.data
 
     except:
         logs.ifverbose(log, setup, image_name + ' open : not OK!')
@@ -191,8 +220,11 @@ def save_control_stars_of_the_difference_image(setup, image_name, difference_ima
     :param array_like stars_coordinates: the position of control stars
     '''
 
-    control_images_directory = setup.red_dir+'/diff_images/'
-    os.makedirs(control_images_directory, exist_ok=True)
+    control_images_directory = setup.red_dir+'diffim/'
+    try:
+    	os.makedirs(control_images_directory)
+    except:
+	pass
 
     control_size = 50
 
@@ -203,7 +235,7 @@ def save_control_stars_of_the_difference_image(setup, image_name, difference_ima
         ind_j = int(np.round(star[2]))
 
         stamp = difference_image[ind_i-control_size/2:ind_i+control_size/2,
-		          ind_j-control_size/2:ind_i+control_size/2]
+		          ind_j-control_size/2:ind_j+control_size/2]
 
         try :
 
@@ -213,10 +245,11 @@ def save_control_stars_of_the_difference_image(setup, image_name, difference_ima
 
              control_zone = stamp
 
-    image_name.replace('.fits','.diff')
+    image_name = image_name.replace('.fits','.diff')
 
     hdu = fits.PrimaryHDU(control_zone)
-    hdu.writeto(control_images_directory+image_name, overwrite=True)
+    hdul = fits.HDUList([hdu])
+    hdul.writeto(control_images_directory+image_name, overwrite=True)
 
 
 
@@ -255,7 +288,7 @@ def find_the_associated_kernel(setup, kernels_directory, image_name):
     :rtype: array_like
     '''
 
-    kernel_name = image_name.replace('.fits', '.ker')
+    kernel_name = 'kernel_'+image_name
 
     kernel = open_an_image(setup, kernels_directory, kernel_name,
                            image_index=0, log=None)
@@ -263,7 +296,7 @@ def find_the_associated_kernel(setup, kernels_directory, image_name):
     return kernel
 
 
-def photometry_on_the_difference_image(setup, difference_image, star_catalog, psf_model, psf_parameters, kernel):
+def photometry_on_the_difference_image(setup, reduction_metadata, log, star_catalog,image_name,difference_image, psf_model, sky_model, kernel):
     '''
     Find the appropriate kernel associated to an image
     :param object reduction_metadata: the metadata object
@@ -273,9 +306,9 @@ def photometry_on_the_difference_image(setup, difference_image, star_catalog, ps
     :return: the associated kernel to the image
     :rtype: array_like
     '''
+    import pdb; pdb.set_trace()
 
-
-    differential_photometry = photometry.run_psf_photometry_on_difference_image(setup,reduction_metadata,log,star_catalog,
+    differential_photometry = photometry.run_psf_photometry_on_difference_image(setup,reduction_metadata,log,star_catalog, image_name,
                        								difference_image,psf_model,sky_model, kernel, centroiding=True)
     
     column_names = ('Exposure_id','Star_id','Ref_mag','Ref_mag_err','Ref_flux','Ref_flux_err','Delta_flux','Delta_flux_err','Mag','Mag_err',

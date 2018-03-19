@@ -17,6 +17,7 @@ import stage2
 import stage3
 import stage4
 import stage5
+import stage6
 import starfind
 import logs
 
@@ -64,6 +65,10 @@ def run_stage_stand_alone():
     elif params['stage'] == 'stage5':
         
         (status, report) = stage5.run_stage5(setup)
+
+    elif params['stage'] == 'stage6':
+        
+        (status, report) = stage6.run_stage6(setup)
     else:
         
         print('ERROR: Unsupported stage name given')

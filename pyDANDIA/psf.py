@@ -782,43 +782,36 @@ def fit_star_existing_model_with_kernel(setup,data, x_cen, y_cen, psf_radius,
     
     :param PSFModel fitted_model: PSF model for the star with optimized intensity
     """
-    
+
     psf_model = get_psf_object(input_psf_model.psf_type())
     psf_model.update_psf_parameters(input_psf_model.get_parameters())
     
     stamp_dims = (2.0*psf_radius, 2.0*psf_radius)
     
-    stamps = cut_image_stamps(setup, data, np.array([[x_cen,y_cen]]), 
-                              stamp_dims, log=None, 
-                                over_edge=True)
+    stamps = data
     
-    stamp_centre = ( (x_cen - stamps[0].xmin_original), 
-                    (y_cen - stamps[0].ymin_original) )
+    stamp_centre = ( stamps.shape[0]/2, 
+                    stamps.shape[1]/2 )
     
-    if diagnostics:
+    #if diagnostics:
         
-        hdu = fits.PrimaryHDU(stamps[0].data)
+        #hdu = fits.PrimaryHDU(stamps[0].data)
         
-        hdulist = fits.HDUList([hdu])
+        #hdulist = fits.HDUList([hdu])
 
-        file_path = os.path.join(setup.red_dir,'ref',\
-        'psf_star_stamp_'+str(round(x_cen,0))+'_'+str(round(y_cen,0))+'.fits')
+        #file_path = os.path.join(setup.red_dir,'ref',\
+        #'psf_star_stamp_'+str(round(x_cen,0))+'_'+str(round(y_cen,0))+'.fits')
 
-        hdulist.writeto(file_path,overwrite=True)
+        #hdulist.writeto(file_path,overwrite=True)
 
     
-    Y_data, X_data = np.indices(stamps[0].data.shape)
+    Y_data, X_data = np.indices(stamps.shape)
     
     sky_bkgd = sky_model.background_model(X_data,Y_data,
                                           sky_model.get_parameters())
     
-    
-    # Recenter the PSF temporarily to the middle of the stamp to be fitted
-    # NOTE PSF parameters in order intensity, Y, X
-    psf_params = psf_model.get_parameters()
-    psf_params[1] = stamp_centre[1]
-    psf_params[2] = stamp_centre[0]
-    psf_model.update_psf_parameters(psf_params)
+
+ 
     
     if centroiding:
         
@@ -829,7 +822,7 @@ def fit_star_existing_model_with_kernel(setup,data, x_cen, y_cen, psf_radius,
         init_par = [ psf_model.get_parameters()[0] ]
     
     fit = optimize.leastsq(error_star_fit_existing_model_with_kernel, init_par, 
-        args=(stamps[0].data, psf_model, sky_bkgd, Y_data, X_data,kernel), 
+        args=(stamps, psf_model, sky_bkgd, Y_data, X_data,kernel), 
         full_output=1)
 
     fitted_model = get_psf_object( psf_model.psf_type() )
@@ -845,20 +838,13 @@ def fit_star_existing_model_with_kernel(setup,data, x_cen, y_cen, psf_radius,
     
     
         
-    Y_data, X_data = np.indices(stamps[0].data.shape)
+   
         
-    pars = fitted_model.get_parameters()
+
     
-    # Add the stamp x,y offset back to the star centroid:
-    psf_params = fitted_model.get_parameters()
-    psf_params[0] = fit[0][0]
-    psf_params[1] = stamps[0].ymin_original + psf_params[1]
-    psf_params[2] = stamps[0].xmin_original + psf_params[2]
     
-    fitted_model.update_psf_parameters(psf_params)
-    
-    good_fit = check_fit_quality(setup,stamps[0].data,sky_bkgd,fitted_model)
-    
+    good_fit = check_fit_quality(setup,data,sky_bkgd,fitted_model)
+
     return fitted_model, good_fit
 
 
@@ -877,14 +863,14 @@ def error_star_fit_existing_model(params, data, psf_model, sky_bkgd,
 
 def error_star_fit_existing_model_with_kernel(params, data, psf_model, sky_bkgd, 
                                   Y_data, X_data,kernel):
-
+    
     sky_subtracted_data = data - sky_bkgd
 
     psf_image = psf_model.psf_model_star(Y_data, X_data, star_params=params)
     
     psf_image_with_kernel = convolution.convolve_image_with_a_psf(psf_image, kernel, fourrier_transform_psf=None, fourrier_transform_image=None,
                               correlate=None, auto_correlation=None)	
-
+    
     residuals = np.ravel(sky_subtracted_data - psf_image_with_kernel)
 
     return residuals
@@ -1502,7 +1488,7 @@ def subtract_psf_from_image_with_kernel(image,psf_model,xstar,ystar,dx,dy, kerne
     
     dxc = corners[1] - corners[0]
     dyc = corners[3] - corners[2]
-    
+
     Y_data, X_data = np.indices([int(dyc),int(dxc)])
     
     psf_image = psf_model.psf_model(Y_data, X_data, psf_model.get_parameters())

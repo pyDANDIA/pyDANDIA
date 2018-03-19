@@ -118,7 +118,7 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
     
     return ref_star_catalog
     
-def run_psf_photometry_on_difference_image(setup,reduction_metadata,log,star_catalog,
+def run_psf_photometry_on_difference_image(setup,reduction_metadata,log,ref_star_catalog,image_name,
                        difference_image,psf_model,sky_model,kernel,centroiding=True):
     """Function to perform PSF fitting photometry on all stars for a single difference image.
     
@@ -137,10 +137,10 @@ def run_psf_photometry_on_difference_image(setup,reduction_metadata,log,star_cat
     
     :param array ref_star_catalog: catalog of objects detected in the image
     """
-    
-    log.info('Starting photometry of '+os.path.basename(image_path))
+
+    log.info('Starting difference photometry of '+image_name)
  
-    
+
     psf_size = reduction_metadata.reduction_parameters[1]['PSF_SIZE'][0]
     half_psf = int(float(psf_size)/2.0)
     
@@ -178,11 +178,11 @@ def run_psf_photometry_on_difference_image(setup,reduction_metadata,log,star_cat
     control_size = 50
     control_count = 0
 
-    for j in range(0,len(star_catalog),1):
-        
-	list_image_id.append(ref_star_catalog[j,0])
-	list_star_id.append(0)
+    for j in range(0,len(ref_star_catalog),1):
 
+	list_image_id.append(0)
+	list_star_id.append(ref_star_catalog[j,0])
+       # import pdb; pdb.set_trace()
 	ref_flux = 0
 	error_ref_flux = 0
 
@@ -200,7 +200,21 @@ def run_psf_photometry_on_difference_image(setup,reduction_metadata,log,star_cat
         
         logs.ifverbose(log,setup,' -> Star '+str(j)+' at position ('+\
         str(xstar)+', '+str(ystar)+')')
+
         
+	try:
+		max_x = np.min([difference_image.shape[0], np.max(X_data + (int(xstar) - half_psf))])
+		min_x = np.max([0, np.min(X_data + (int(xstar) - half_psf))])
+		max_y = np.min([difference_image.shape[1], np.max(Y_data + (int(xstar) - half_psf))])
+		min_y = np.max([0, np.min(Y_data + (int(xstar) - half_psf))])
+
+
+                data = difference_image[min_x:max_x,min_y:max_y]
+		sky_model.update_background_parameters([np.median(data)])
+        	residuals = np.copy(data)
+	except:
+        	import pdb; pdb.set_trace()
+
         (fitted_model,good_fit) = psf.fit_star_existing_model_with_kernel(setup, data, 
                                                xstar, ystar, psf_size, 
                                                psf_model, sky_model, kernel,
@@ -223,13 +237,11 @@ def run_psf_photometry_on_difference_image(setup,reduction_metadata,log,star_cat
             
             sub_psf_model.update_psf_parameters(pars)
             
-            (res_image,corners) = psf.subtract_psf_from_image_with_kernel(data,sub_psf_model,
-                                                    xstar,ystar,
-                                                    psf_size, psf_size)
+            (res_image,corners) = psf.subtract_psf_from_image_with_kernel(data,sub_psf_model, psf_size/2.0,psf_size/2.0, psf_size/2, psf_size/2,kernel)
             
             residuals[corners[2]:corners[3],corners[0]:corners[1]] = res_image[corners[2]:corners[3],corners[0]:corners[1]]
             
-	    if control_residuals<10:
+	    if control_count<10:
 
 		try :
 
@@ -250,7 +262,7 @@ def run_psf_photometry_on_difference_image(setup,reduction_metadata,log,star_cat
             list_delta_flux_error.append(flux_err)        
 	        
             flux = flux+ref_flux/phot_scale_factor
-	    flux_err = (error_ref_flux**2+flux_err**2/phot_scale_fator**2+(flux*error_phot_scale_factor/phot_scale_factor**2)**2)**0.5
+	    flux_err = (error_ref_flux**2+flux_err**2/phot_scale_factor**2+(flux*error_phot_scale_factor/phot_scale_factor**2)**2)**0.5
             
 	    (mag, mag_err) = convert_flux_to_mag(flux, flux_err)
             
@@ -272,8 +284,8 @@ def run_psf_photometry_on_difference_image(setup,reduction_metadata,log,star_cat
             logs.ifverbose(log,setup,' -> Star '+str(j)+
             ' No photometry possible from poor fit')
 
-	    list_flux.append(-10**30)
-            list_flux_error.append(-10**30)
+	    list_delta_flux.append(-10**30)
+            list_delta_flux_error.append(-10**30)
             list_mag.append(-10**30)
             list_mag_error.append(-10**30)
             list_phot_scale_factor.append(np.sum(kernel))
@@ -283,29 +295,10 @@ def run_psf_photometry_on_difference_image(setup,reduction_metadata,log,star_cat
 
             list_align_x.append(0)
             list_align_y.append(0)
-
-    list_image_id = []
-    list_star_id = []
-
-    list_ref_mag = []
-    list_ref_mag_error = []
-    list_ref_flux = []
-    list_ref_flux_error = []
-    
-    list_delta_flux = []
-    list_delta_flux_error = []
-    list_mag = []
-    list_mag_error = []
-
-    list_phot_scale_factor = []
-    list_phot_scale_factor_error = []
-    list_background = []
-    list_background_error = []
-
-    list_align_x = []
-    list_align_y = []
+    import pdb; pdb.set_trace()
+ 
     difference_image_photometry = [list_image_id,list_star_id,list_ref_mag,list_ref_mag_error,list_ref_flux,
-                                            list_ref_flux_erlist_delta_flux,list_delta_flux_error,list_mag,list_mag_error,
+                                            list_ref_flux_error,list_delta_flux,list_delta_flux_error,list_mag,list_mag_error,
                                             list_phot_scale_factor, list_phot_scale_factor_error, list_background,
                                             list_background_error, list_align_x, list_align_y ]
 

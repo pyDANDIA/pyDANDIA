@@ -24,7 +24,7 @@ def model_sky_background(setup,reduction_metadata,log,ref_star_catalog):
     Returns the output of scipy.optimize.leastsq fit for the sky
     background model.
     """
-        
+
     ref_image = fits.getdata(str(reduction_metadata.data_architecture[1]['REF_PATH'][0]) +'/'+ str(reduction_metadata.data_architecture[1]['REF_IMAGE'][0]))
     
     psf_size = reduction_metadata.reduction_parameters[1]['PSF_SIZE'][0]
@@ -142,7 +142,7 @@ def mask_stars(setup,ref_image,ref_star_catalog, psf_mask, diagnostics=False):
     pymax = psf_mask.shape[1]
     
     star_mask = np.ones(ref_image.shape)
-    
+
     for j in range(0,len(ref_star_catalog),1):
         
         xstar = int(ref_star_catalog[j,1])
