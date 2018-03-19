@@ -57,7 +57,7 @@ def run_stage5(setup):
             fwhm_max = stats_entry['FWHM_X']
         if float(stats_entry['FWHM_Y'])> fwhm_max:
             fwhm_max = stats_entry['FWHM_Y']
-    kernel_size = 2*int(float(reduction_metadata.reduction_parameters[1]['KER_RAD'][0]) * fwhm_max)
+    kernel_size = 2.5*int(float(reduction_metadata.reduction_parameters[1]['KER_RAD'][0]) * fwhm_max)
     if kernel_size:
         if kernel_size % 2 == 0:
             kernel_size = kernel_size + 1
@@ -84,9 +84,8 @@ def run_stage5(setup):
     #based on the largest FWHM and store it to disk -> needs config switch
 
     try:
-        # reference image path needs to be harmonized
         reference_image_name = str(reduction_metadata.data_architecture[1]['REF_IMAGE'][0])
-        reference_image_directory = '.'#reduction_metadata.data_architecture[1]['IMAGES_PATH']
+        reference_image_directory = str(reduction_metadata.data_architecture[1]['REF_PATH'][0])
         max_adu = 0.2*float(reduction_metadata.reduction_parameters[1]['MAXVAL'][0])
         logs.ifverbose(log, setup,'Using reference image:' + reference_image_name)
     except KeyError:
