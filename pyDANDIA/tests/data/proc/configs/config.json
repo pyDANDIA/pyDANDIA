@@ -6,9 +6,9 @@
 	"unit":""
     },
     "back_var": {
-        "comment": "back_var - INT - Switch for a spatially variable differential background (1 = YES : 0 = NO : Default Value = 1).", 
-        "value": 1,
-	"format":"int",
+        "comment": "back_var - STRING - Switch for a spatially variable differential background (gradient = YES : constant = NO : Default Value = constant).", 
+        "value": "constant",
+	"format":"S10",
 	"unit":""
     }, 
     "coeff2": {
