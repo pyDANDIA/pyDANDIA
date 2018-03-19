@@ -57,7 +57,7 @@ def run_stage5(setup):
             fwhm_max = stats_entry['FWHM_X']
         if float(stats_entry['FWHM_Y'])> fwhm_max:
             fwhm_max = stats_entry['FWHM_Y']
-    kernel_size = 3*int(float(reduction_metadata.reduction_parameters[1]['KER_RAD'][0]) * fwhm_max)
+    kernel_size = 2.5*int(float(reduction_metadata.reduction_parameters[1]['KER_RAD'][0]) * fwhm_max)
     if kernel_size:
         if kernel_size % 2 == 0:
             kernel_size = kernel_size + 1
@@ -84,9 +84,8 @@ def run_stage5(setup):
     #based on the largest FWHM and store it to disk -> needs config switch
 
     try:
-        # reference image path needs to be harmonized
         reference_image_name = str(reduction_metadata.data_architecture[1]['REF_IMAGE'][0])
-        reference_image_directory = '.'#reduction_metadata.data_architecture[1]['IMAGES_PATH']
+        reference_image_directory = str(reduction_metadata.data_architecture[1]['REF_PATH'][0])
         max_adu = 0.2*float(reduction_metadata.reduction_parameters[1]['MAXVAL'][0])
         logs.ifverbose(log, setup,'Using reference image:' + reference_image_name)
     except KeyError:
@@ -96,7 +95,6 @@ def run_stage5(setup):
         return status, report, reduction_metadata
 
     reference_image, bright_reference_mask = open_reference(setup, reference_image_directory, reference_image_name, kernel_size, max_adu, ref_extension = 0, log = log)
-    print(np.trace(bright_reference_mask))
     #check if umatrix exists
     if os.path.exists(os.path.join(kernel_directory_path,'unweighted_u_matrix.npy')):
         umatrix, kernel_size_u = np.load(os.path.join(kernel_directory_path,'unweighted_u_matrix.npy'))
@@ -122,18 +120,24 @@ def run_stage5(setup):
             #reference needs to be opened only once and masks require
             #methods for readjustment...
             data_image = open_data_image(setup, data_image_directory, new_image, bright_reference_mask, kernel_size, max_adu)
-            try:
+            if True:
                 b_vector = bvector_constant(reference_image, data_image, kernel_size, model_image=None)
-            	kernel_matrix, bkg_kernel  = kernel_solution(umatrix, b_vector, kernel_size)
+            	kernel_matrix, bkg_kernel, kernel_uncertainty  = kernel_solution(umatrix, b_vector, kernel_size)
+              
                 pscale = np.sum(kernel_matrix)
-                np.save(os.path.join(kernel_directory_path,'kernel_'+new_image),kernel_matrix)
+                np.save(os.path.join(kernel_directory_path,'kernel_'+new_image+'.npy'),kernel_matrix)
+                hdu_kernel = fits.PrimaryHDU(kernel_matrix)
+                hdu_kernel.writeto(os.path.join(kernel_directory_path,'kernel_'+new_image), overwrite = True)  
+                hdu_kernel_err = fits.PrimaryHDU(kernel_uncertainty)
+                hdu_kernel_err.writeto(os.path.join(kernel_directory_path,'kernel_err_'+new_image), overwrite = True)  
+
                 logs.ifverbose(log, setup, 'b_vector calculated for:' + new_image)
                 #CROP EDGE!
                 difference_image = subtract_images(data_image, reference_image, kernel_matrix, kernel_size, bkg_kernel)
                 difference_image_hdu = fits.PrimaryHDU(difference_image)
                 difference_image_hdu.writeto(os.path.join(diffim_directory_path,'diff_'+new_image),overwrite = True)
-            except:
-                logs.ifverbose(log, setup,'kernel matrix computation failed:' + new_image + '. skipping!')
+#            except:
+#                logs.ifverbose(log, setup,'kernel matrix computation failed:' + new_image + '. skipping!')
 
             #append some metric for the kernel, perhaps its scale factor...
     reduction_metadata.update_reduction_metadata_reduction_status(new_images, stage_number=5, status=1, log=log)
@@ -157,6 +161,16 @@ def noise_model(model_image, gain, readout_noise, flat=None, initialize=None):
 def noise_model_constant(model_image):
 
     noise_image = np.copy(model_image)
+    noise_image[noise_image == 0] = 1.
+    weights = np.ones(np.shape(model_image))    
+    weights[noise_image == 1] = 0.
+	
+    return weights
+
+def noise_model_blurred_ref(reference_image):
+
+    noise_image = np.copy(reference_image)
+    noise_image = gaussian_filter(noise_image, sigma=7)
     noise_image[noise_image == 0] = 1.
     weights = np.ones(np.shape(model_image))    
     weights[noise_image == 1] = 0.
@@ -312,21 +326,33 @@ def kernel_solution(u_matrix, b_vector, kernel_size):
     #For better stability: solve the least square problem via np.linalg.lstsq
     #inv_umatrix = np.linalg.inv(u_matrix)
     #a_vector = np.dot(inv_umatrix, b_vector)
-    a_vector = np.linalg.lstsq(u_matrix,b_vector)[0]
-	#a_vector_err = MSE*np.diagonal(np.matrix(np.dot(u_matrix.T, u_matrix)).I)
+    lstsq_result = np.linalg.lstsq(u_matrix,b_vector)
+    a_vector = lstsq_result[0]
+    mse = 1.#lstsq_result
+    a_vector_err = mse*np.diagonal(np.matrix(np.dot(u_matrix.T, u_matrix)).I)
     #MSE: mean square error of the residuals
 
     output_kernel = np.zeros(kernel_size * kernel_size, dtype=float)
     output_kernel = a_vector[:-1]
     output_kernel = output_kernel.reshape((kernel_size, kernel_size))
+
+    err_kernel = np.zeros(kernel_size * kernel_size, dtype=float)
+    err_kernel = a_vector_err[:-1]
+    err_kernel = output_kernel.reshape((kernel_size, kernel_size))
+
     xyc = kernel_size / 2
     radius_square = (xyc)**2
     for idx in range(kernel_size):
         for jdx in range(kernel_size):
             if (idx - xyc)**2 + (jdx - xyc)**2 >= radius_square:
                 output_kernel[idx, jdx] = 0.
+                err_kernel[idx, jdx] = 0.
+
     output_kernel_2 = np.flip(np.flip(output_kernel, 0), 1)
-    return output_kernel_2, a_vector[-1]
+    err_kernel_2 = np.flip(np.flip(err_kernel, 0), 1)
+
+
+    return output_kernel_2, a_vector[-1], err_kernel_2
 
 def subtract_images(data_image, reference_image, kernel, kernel_size, bkg_kernel):
 
@@ -336,6 +362,7 @@ def subtract_images(data_image, reference_image, kernel, kernel_size, bkg_kernel
     difference_image = difference_image[kernel_size:-kernel_size,kernel_size:-kernel_size]
 
     return difference_image
+
 
 def difference_image_single_iteration(ref_imagename, data_imagename, kernel_size,
                                       mask=None, max_adu=np.inf):
@@ -360,7 +387,7 @@ def difference_image_single_iteration(ref_imagename, data_imagename, kernel_size
     u_matrix, b_vector = naive_u_matrix(
         data_image, ref_image, kernel_size, model_image=None)
    
-    output_kernel_2, bkg_kernel = kernel_solution(u_matrix, b_vector, kernel_size)
+    output_kernel_2, bkg_kernel, err_kernel = kernel_solution(u_matrix, b_vector, kernel_size)
     model_image = convolve2d(ref_image, output_kernel_2, mode='same')
 
     difference_image = model_image - data_image + bkg_kernel
