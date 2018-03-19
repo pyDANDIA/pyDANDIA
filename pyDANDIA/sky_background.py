@@ -51,7 +51,7 @@ def model_sky_background(setup,reduction_metadata,log,ref_star_catalog):
 
     background_type = reduction_metadata.reduction_parameters[1]['BACK_VAR'].data[0]
 
-    import pdb; pdb.set_trace()
+
     if background_type == 'constant':
         
         sky_params = { 'background_type':background_type, 
