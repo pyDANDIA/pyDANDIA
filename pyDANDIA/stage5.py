@@ -57,7 +57,7 @@ def run_stage5(setup):
             fwhm_max = stats_entry['FWHM_X']
         if float(stats_entry['FWHM_Y'])> fwhm_max:
             fwhm_max = stats_entry['FWHM_Y']
-    kernel_size = 2.5*int(float(reduction_metadata.reduction_parameters[1]['KER_RAD'][0]) * fwhm_max)
+    kernel_size = int(2.5*float(reduction_metadata.reduction_parameters[1]['KER_RAD'][0]) * fwhm_max)
     if kernel_size:
         if kernel_size % 2 == 0:
             kernel_size = kernel_size + 1
