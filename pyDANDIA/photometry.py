@@ -122,7 +122,7 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
     return ref_star_catalog
     
 def run_psf_photometry_on_difference_image(setup,reduction_metadata,log,ref_star_catalog,
-                       difference_image,psf_model,kernel):
+                       difference_image,psf_model,kernel,kernel_error):
     """Function to perform PSF fitting photometry on all stars for a single difference image.
     
     :param SetUp object setup: Essential reduction parameters
@@ -167,7 +167,7 @@ def run_psf_photometry_on_difference_image(setup,reduction_metadata,log,ref_star
 	
 
     phot_scale_factor = np.sum(kernel)
-    error_phot_scale_factor = 0
+    error_phot_scale_factor = (np.sum(kernel_error**2))**0.5
 
 
     control_size = 50
@@ -181,8 +181,8 @@ def run_psf_photometry_on_difference_image(setup,reduction_metadata,log,ref_star
 	list_image_id.append(0)
 	list_star_id.append(ref_star_catalog[j,0])
 
-	ref_flux = 0
-	error_ref_flux = 0
+	ref_flux = ref_star_catalog[j,5]
+	error_ref_flux = ref_star_catalog[j,6]
 
         list_ref_mag.append(ref_star_catalog[j,5])
         list_ref_mag_error.append(ref_star_catalog[j,6])
@@ -229,7 +229,7 @@ def run_psf_photometry_on_difference_image(setup,reduction_metadata,log,ref_star
 
         
        
-	
+	#import pdb; pdb.set_trace()
 	good_fit = True
         if good_fit == True:
             
@@ -259,22 +259,28 @@ def run_psf_photometry_on_difference_image(setup,reduction_metadata,log,ref_star
 
             logs.ifverbose(log, setup,' -> Star '+str(j)+
             ' subtracted from the residuals')
+           
             intensities,cov = np.polyfit(psf_fit.ravel(),data.ravel(),1,cov=True)
-
+ 	    #plt.scatter(psf_fit.ravel(),data.ravel())
+	    #plt.plot( psf_fit.ravel(),intensities[0]*psf_fit.ravel()+intensities[1])
+            #plt.show()
             psf_final = psf_fit*intensities[0]
 
 
             (flux, flux_err) =  (np.sum(psf_final),np.abs(np.sum(psf_final))**0.5)
    
-	    (back,bac_err) = (intensities[1],cov[1][1]**0.5)
+	    (back,back_err) = (intensities[1],cov[1][1]**0.5)
 	
+            
+	        
+            flux_tot = ref_flux+flux/phot_scale_factor
+	    flux_err_tot = (error_ref_flux**2+flux_err**2/phot_scale_factor**2+(flux*error_phot_scale_factor/phot_scale_factor**2)**2+back_err**2)**0.5
+            
             list_delta_flux.append(flux)
             list_delta_flux_error.append(flux_err)        
-	        
-            flux = flux+ref_flux/phot_scale_factor
-	    flux_err = (error_ref_flux**2+flux_err**2/phot_scale_factor**2+(flux*error_phot_scale_factor/phot_scale_factor**2)**2)**0.5
-            
-	    (mag, mag_err) = convert_flux_to_mag(flux, flux_err)
+
+
+	    (mag, mag_err) = convert_flux_to_mag(flux_tot, flux_err_tot)
             
     	
             list_mag.append(mag)

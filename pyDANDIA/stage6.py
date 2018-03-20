@@ -141,7 +141,7 @@ def run_stage6(setup):
     	 
             log.info('Starting difference photometry of '+new_image)
             target_image = open_an_image(setup, images_directory, new_image, image_index=0, log=None)
-            kernel_image = find_the_associated_kernel(setup, kernels_directory, new_image)
+            kernel_image,kernel_error = find_the_associated_kernel(setup, kernels_directory, new_image)
 
             difference_image = image_substraction(setup, reference_image, kernel_image, target_image)
 
@@ -149,13 +149,21 @@ def run_stage6(setup):
 
             save_control_stars_of_the_difference_image(setup, new_image, difference_image, star_coordinates)
 
-            photometric_table, control_zone = photometry_on_the_difference_image(setup, reduction_metadata, log,ref_star_catalog,difference_image,  psf_model, sky_model, kernel_image)
+            photometric_table, control_zone = photometry_on_the_difference_image(setup, reduction_metadata, log,ref_star_catalog,difference_image,  psf_model, sky_model, kernel_image,kernel_error)
 	    
 	    phot[idx,:,:] = photometric_table
 
             #save_control_zone_of_residuals(setup, new_image, control_zone)	
 
             #ingest_photometric_table_in_db(setup, photometric_table)
+    import matplotlib.pyplot as plt
+    ind = np.random.randint(0,600)
+    #ind=52
+    plt.errorbar(np.arange(0,6),phot[:,ind,8],yerr=phot[:,ind,9],fmt='.k')
+    ind = np.random.randint(0,600)
+    #ind=52
+    plt.errorbar(np.arange(0,6),phot[:,ind,8],yerr=phot[:,ind,9],fmt='.r')
+    plt.show()
     import pdb; pdb.set_trace()
     return status, report
 
@@ -295,14 +303,16 @@ def find_the_associated_kernel(setup, kernels_directory, image_name):
     '''
 
     kernel_name = 'kernel_'+image_name
-
+    kernel_err = 'kernel_err_'+image_name
+	 
     kernel = open_an_image(setup, kernels_directory, kernel_name,
                            image_index=0, log=None)
+    kernel_error = open_an_image(setup, kernels_directory, kernel_err,
+                           image_index=0, log=None)
+    return kernel,kernel_error
 
-    return kernel
 
-
-def photometry_on_the_difference_image(setup, reduction_metadata, log, star_catalog,difference_image, psf_model, sky_model, kernel):
+def photometry_on_the_difference_image(setup, reduction_metadata, log, star_catalog,difference_image, psf_model, sky_model, kernel,kernel_error):
     '''
     Find the appropriate kernel associated to an image
     :param object reduction_metadata: the metadata object
@@ -315,7 +325,7 @@ def photometry_on_the_difference_image(setup, reduction_metadata, log, star_cata
     #import pdb; pdb.set_trace()
 
     differential_photometry = photometry.run_psf_photometry_on_difference_image(setup,reduction_metadata,log,star_catalog,
-                       								difference_image,psf_model,kernel)
+                       								difference_image,psf_model,kernel,kernel_error)
     
     #column_names = ('Exposure_id','Star_id','Ref_mag','Ref_mag_err','Ref_flux','Ref_flux_err','Delta_flux','Delta_flux_err','Mag','Mag_err',
      #               'Phot_scale_factor','Phot_scale_factor_err','Back','Back_err','delta_x','delta_y')
