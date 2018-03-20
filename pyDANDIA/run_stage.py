@@ -88,7 +88,7 @@ def get_args():
             > python run_stage.py [stage] [path to reduction directory] [-v]
             
             where stage is the name of the stage or code to be run, one of:
-                stage0, stage1, starfind
+                stage0, stage1, stage2, stage3, stage4, stage5, starfind
             
             and the path to the reduction directory is given to the dataset
             to be processed

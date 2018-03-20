@@ -39,8 +39,8 @@ def psf_star_selection(setup,reduction_metadata,log,ref_star_catalog,
     psf_stars_idx = id_crowded_stars(setup,reduction_metadata,log,
                                       ref_star_catalog,psf_stars_idx)
     
-    ref_star_catalog[:,13] = psf_stars_idx
-    idx = np.where(ref_star_catalog[:,13] == 1.0)
+    ref_star_catalog[:,15] = psf_stars_idx
+    idx = np.where(ref_star_catalog[:,15] == 1.0)
     
     psf_idx = ref_star_catalog[idx[0],0]
     

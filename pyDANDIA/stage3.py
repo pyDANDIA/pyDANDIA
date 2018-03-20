@@ -42,9 +42,7 @@ def run_stage3(setup):
     
     sane = sanity_checks(reduction_metadata,log,meta_pars)
     
-    
-
-    if sane == True:
+    if sane:
         
         scidata = fits.getdata(meta_pars['ref_image_path'])
         
@@ -73,7 +71,7 @@ def run_stage3(setup):
         (psf_model,psf_status) = psf.build_psf(setup, reduction_metadata, 
                                             log, scidata, 
                                             ref_star_catalog, sky_model)
-                              
+        
         ref_star_catalog = photometry.run_psf_photometry(setup, 
                                              reduction_metadata, 
                                              log, 
