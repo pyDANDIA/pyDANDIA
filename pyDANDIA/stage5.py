@@ -15,6 +15,7 @@ from astropy.io import fits
 from scipy.signal import convolve2d
 from read_images_stage5 import open_reference,  open_images, open_data_image
 from scipy.ndimage.filters import gaussian_filter
+import convolution
 
 import sys
 
@@ -96,6 +97,13 @@ def run_stage5(setup):
         report = 'No reference image found!'
         return status, report, reduction_metadata
 
+    if not ('SHIFT_X' in reduction_metadata.images_stats[1].keys()) and (
+            'SHIFT_Y' in reduction_metadata.images_stats[1].keys()):
+        log.ifverbose(log, setup,'No xshift! run stage4 ! Abort stage5')
+        status = 'KO'
+        report = 'No alignment data found!'
+        return status, report, reduction_metadata
+
     reference_image, bright_reference_mask = open_reference(setup, reference_image_directory, reference_image_name, kernel_size, max_adu, ref_extension = 0, log = log)
     #check if umatrix exists
     if os.path.exists(os.path.join(kernel_directory_path,'unweighted_u_matrix.npy')):
@@ -118,10 +126,12 @@ def run_stage5(setup):
 
         kernel_list = []
         for new_image in new_images:
+            row_index = np.where(reduction_metadata.images_stats[1]['IM_NAME'] == new_image)[0][0]
+            x_shift, y_shift = reduction_metadata.images_stats[1][row_index]['SHIFT_X'],reduction_metadata.images_stats[1][row_index]['SHIFT_Y']
             #rethink how to open reference and data image
             #reference needs to be opened only once and masks require
             #methods for readjustment...
-            data_image = open_data_image(setup, data_image_directory, new_image, bright_reference_mask, kernel_size, max_adu)
+            data_image = open_data_image(setup, data_image_directory, new_image, bright_reference_mask, kernel_size, max_adu, xshift = x_shift, yshift = y_shift )
             if True:
                 b_vector = bvector_constant(reference_image, data_image, kernel_size)
             	kernel_matrix, bkg_kernel, kernel_uncertainty  = kernel_solution(umatrix, b_vector, kernel_size)

@@ -78,7 +78,7 @@ def open_an_image(setup, image_directory, image_name,
 
         return None
 
-def open_data_image(setup, data_image_directory, data_image_name, reference_mask, kernel_size, max_adu, data_extension = 0, log = None):
+def open_data_image(setup, data_image_directory, data_image_name, reference_mask, kernel_size, max_adu, data_extension = 0, log = None, xshift = 0, yshift = 0):
     '''
     reading difference image for constructing u matrix
 
@@ -93,6 +93,9 @@ def open_data_image(setup, data_image_directory, data_image_name, reference_mask
     data_image = fits.open(os.path.join(data_image_directory, data_image_name), mmap=True)
     img50pc = np.median(data_image[data_extension].data)
     data_image[data_extension].data = background_subtract(setup, data_image[data_extension].data, img50pc)
+    img_shape = np.shape(data_image[data_extension].data)
+    shifted = np.zeros(img_shape)
+    data_image[data_extension].data[0:img_shape[0]-xshift,0:img_shape[1]-yshift] = shifted[0:img_shape[0]-xshift,0:img_shape[1]-yshift] = data_image[0].data[xshift:img_shape[0],yshift:img_shape[1]]
 	#increase kernel size by 2 and define circular mask
     kernel_size_plus = kernel_size + 2
     mask_kernel = np.ones(kernel_size_plus * kernel_size_plus, dtype=float)
