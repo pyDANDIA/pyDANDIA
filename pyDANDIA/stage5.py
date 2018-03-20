@@ -14,7 +14,8 @@ import numpy as np
 from astropy.io import fits
 from scipy.signal import convolve2d
 from read_images_stage5 import open_reference,  open_images, open_data_image
-from convolution import convolve_image_with_a_psf
+from scipy.ndimage.filters import gaussian_filter
+import convolution
 
 import sys
 
@@ -57,7 +58,11 @@ def run_stage5(setup):
             fwhm_max = stats_entry['FWHM_X']
         if float(stats_entry['FWHM_Y'])> fwhm_max:
             fwhm_max = stats_entry['FWHM_Y']
-    kernel_size = int(2.5*float(reduction_metadata.reduction_parameters[1]['KER_RAD'][0]) * fwhm_max)
+
+    sigma_max = fwhm_max*2.*(2.*np.log(2.))**0.5
+    kernel_size = int(2.7*float(reduction_metadata.reduction_parameters[1]['KER_RAD'][0]) * fwhm_max)
+
+
     if kernel_size:
         if kernel_size % 2 == 0:
             kernel_size = kernel_size + 1
@@ -94,20 +99,27 @@ def run_stage5(setup):
         report = 'No reference image found!'
         return status, report, reduction_metadata
 
+    if not ('SHIFT_X' in reduction_metadata.images_stats[1].keys()) and (
+            'SHIFT_Y' in reduction_metadata.images_stats[1].keys()):
+        log.ifverbose(log, setup,'No xshift! run stage4 ! Abort stage5')
+        status = 'KO'
+        report = 'No alignment data found!'
+        return status, report, reduction_metadata
+
     reference_image, bright_reference_mask = open_reference(setup, reference_image_directory, reference_image_name, kernel_size, max_adu, ref_extension = 0, log = log)
     #check if umatrix exists
     if os.path.exists(os.path.join(kernel_directory_path,'unweighted_u_matrix.npy')):
-        umatrix, kernel_size_u = np.load(os.path.join(kernel_directory_path,'unweighted_u_matrix.npy'))
-        if kernel_size_u != kernel_size:
+        umatrix, kernel_size_u, max_adu_restored = np.load(os.path.join(kernel_directory_path,'unweighted_u_matrix.npy'))
+        if (kernel_size_u != kernel_size) or (max_adu_restored != max_adu):
             #calculate and store unweighted umatrix
-            umatrix = umatrix_constant(reference_image, kernel_size, model_image=None)
-            np.save(os.path.join(kernel_directory_path,'unweighted_u_matrix.npy'), [umatrix, kernel_size])
+            umatrix = umatrix_constant(reference_image, kernel_size)
+            np.save(os.path.join(kernel_directory_path,'unweighted_u_matrix.npy'), [umatrix, kernel_size, max_adu])
             hdutmp = fits.PrimaryHDU(umatrix)
             hdutmp.writeto(os.path.join(kernel_directory_path,'unweighted_u_matrix.fits'),overwrite =True)
     else:
         #calculate and store unweighted umatrix 
-        umatrix = umatrix_constant(reference_image, kernel_size, model_image=None)
-        np.save(os.path.join(kernel_directory_path,'unweighted_u_matrix.npy'), [umatrix, kernel_size])
+        umatrix = umatrix_constant(reference_image, kernel_size)
+        np.save(os.path.join(kernel_directory_path,'unweighted_u_matrix.npy'), [umatrix, kernel_size, max_adu])
         hdutmp = fits.PrimaryHDU(umatrix)
         hdutmp.writeto(os.path.join(kernel_directory_path,'unweighted_u_matrix.fits'),overwrite=True)
 
@@ -116,12 +128,14 @@ def run_stage5(setup):
 
         kernel_list = []
         for new_image in new_images:
+            row_index = np.where(reduction_metadata.images_stats[1]['IM_NAME'] == new_image)[0][0]
+            x_shift, y_shift = reduction_metadata.images_stats[1][row_index]['SHIFT_X'],reduction_metadata.images_stats[1][row_index]['SHIFT_Y']
             #rethink how to open reference and data image
             #reference needs to be opened only once and masks require
             #methods for readjustment...
-            data_image = open_data_image(setup, data_image_directory, new_image, bright_reference_mask, kernel_size, max_adu)
+            data_image = open_data_image(setup, data_image_directory, new_image, bright_reference_mask, kernel_size, max_adu, xshift = x_shift, yshift = y_shift )
             if True:
-                b_vector = bvector_constant(reference_image, data_image, kernel_size, model_image=None)
+                b_vector = bvector_constant(reference_image, data_image, kernel_size)
             	kernel_matrix, bkg_kernel, kernel_uncertainty  = kernel_solution(umatrix, b_vector, kernel_size)
               
                 pscale = np.sum(kernel_matrix)
@@ -167,18 +181,23 @@ def noise_model_constant(model_image):
 	
     return weights
 
-def noise_model_blurred_ref(reference_image):
+def noise_model_blurred_ref(reference_image,bright_mask,sigma_max):
 
     noise_image = np.copy(reference_image)
-    noise_image = gaussian_filter(noise_image, sigma=7)
-    noise_image[noise_image == 0] = 1.
-    weights = np.ones(np.shape(model_image))    
-    weights[noise_image == 1] = 0.
-	
+    good_region = np.copy(np.where(noise_image != 0))
+    bad_region = np.copy(np.where(noise_image == 0))
+    readout_noise = 12.
+
+#    noise_image[noise_image == 0] = 1.
+    noise_image = gaussian_filter(noise_image, sigma=sigma_max)
+    noise_image = noise_image**2
+    noise_image = noise_image + readout_noise * readout_noise
+    weights = 1. / noise_image
+    weights[bright_mask] = 0.
     return weights
 
 
-def umatrix_constant(reference_image, ker_size, model_image=None):
+def umatrix_constant(reference_image, ker_size, model_image=None, sigma_max = None, bright_mask = None):
     '''
     The kernel solution is supposed to implement the approach outlined in
     the Bramich 2008 paper. It generates the u matrix which is required
@@ -204,8 +223,10 @@ def umatrix_constant(reference_image, ker_size, model_image=None):
             kernel_size = ker_size + 1
         else:
             kernel_size = ker_size
-
-    weights = noise_model_constant(reference_image)
+    if model_image == None or sigma_max == None:
+        weights = noise_model_constant(reference_image)
+    else:
+        weights = noise_model_blurred_ref(reference_image, bright_mask, sigma_max)
     # Prepare/initialize indices, vectors and matrices
     pandq = []
     n_kernel = kernel_size * kernel_size
@@ -220,7 +241,7 @@ def umatrix_constant(reference_image, ker_size, model_image=None):
     return u_matrix
 
 
-def bvector_constant(reference_image, data_image, ker_size, model_image=None):
+def bvector_constant(reference_image, data_image, ker_size, model_image=None, sigma_max = None, bright_mask = None):
     '''
     The kernel solution is supposed to implement the approach outlined in
     the Bramich 2008 paper. It generates the b_vector which is required
@@ -245,8 +266,10 @@ def bvector_constant(reference_image, data_image, ker_size, model_image=None):
             kernel_size = ker_size + 1
         else:
             kernel_size = ker_size
-
-    weights = noise_model_constant(reference_image)
+    if model_image == None or sigma_max == None:
+        weights = noise_model_constant(reference_image)
+    else:
+        weights = noise_model_blurred_ref(reference_image, bright_mask, sigma_max)
     # Prepare/initialize indices, vectors and matrices
     pandq = []
     n_kernel = kernel_size * kernel_size
@@ -329,7 +352,7 @@ def kernel_solution(u_matrix, b_vector, kernel_size):
     lstsq_result = np.linalg.lstsq(u_matrix,b_vector)
     a_vector = lstsq_result[0]
     mse = 1.#lstsq_result
-    a_vector_err = mse*np.diagonal(np.matrix(np.dot(u_matrix.T, u_matrix)).I)
+    a_vector_err = np.diagonal(np.matrix(np.dot(u_matrix.T, u_matrix)).I)
     #MSE: mean square error of the residuals
 
     output_kernel = np.zeros(kernel_size * kernel_size, dtype=float)
