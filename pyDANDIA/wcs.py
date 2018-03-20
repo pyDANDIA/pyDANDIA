@@ -50,7 +50,8 @@ def reference_astrometry(setup,log,image_path,detected_sources,diagnostics=True)
     log.info('Calculated x, y offsets: '+str(offset_x)+', '+str(offset_y)+' pix')
     
     if diagnostics == True:
-        diagnostic_plots(image_path,hdu,image_wcs,detected_sources,
+        diagnostic_plots(path.join(setup.red_dir,'ref'),hdu,image_wcs,
+                         detected_sources,
                          catalog_sources_xy,
                          matched_stars,offset_x,offset_y)
         log.info('-> Output astrometry diagnostic plots')
@@ -169,12 +170,10 @@ def update_image_wcs(hdu,image_wcs,offset_x,offset_y):
     
     return image_wcs,hdu
     
-def diagnostic_plots(image_path,hdu,image_wcs,detected_sources,
+def diagnostic_plots(output_dir,hdu,image_wcs,detected_sources,
                      catalog_sources_xy,matched_stars,offset_x,offset_y):
     """Function to output plots used to assess and debug the astrometry
     performed on the reference image"""
-
-    output_dir = path.dirname(image_path)
 
     norm = visualization.ImageNormalize(hdu[0].data, \
                         interval=visualization.ZScaleInterval())
@@ -225,7 +224,8 @@ def build_ref_source_catalog(detected_sources,catalog_sources,\
     information from the 2MASS Point Source Catalogue where available.
     
     Output catalog is in numpy array format with columns:
-    idx x  y  ra  dec  inst_mag inst_mag_err J  Jerr  H Herr   K   Kerr psf_star
+    0   1  2  3   4     5        6             7         8        9   10   11 12   13   14   15
+    idx x  y  ra  dec  ref_flux  ref_flux_err ref_mag ref_mag_err J  Jerr  H Herr   K   Kerr psf_star
     
     J, H, K magnitudes and their photometric errors are added if a given 
     star has been matched with the 2MASS PSC.  Similarly, instrumental 
@@ -246,25 +246,25 @@ def build_ref_source_catalog(detected_sources,catalog_sources,\
         
     world_coords = image_wcs.wcs_pix2world(detected_sources[:,1:3], 1)
     
-    data = np.zeros([len(detected_sources),14])
+    data = np.zeros([len(detected_sources),16])
         
-    data[:,0] = detected_sources[:,0]
-    data[:,1] = detected_sources[:,1]
-    data[:,2] = detected_sources[:,2]
-    data[:,3] = world_coords[:,0]
-    data[:,4] = world_coords[:,1]
-    data[:,5] = detected_sources[:,10]
-    data[:,6] = -99.999
-    data[:,13] = 0
+    data[:,0] = detected_sources[:,0]   # Index
+    data[:,1] = detected_sources[:,1]   # X
+    data[:,2] = detected_sources[:,2]   # Y
+    data[:,3] = world_coords[:,0]       # RA
+    data[:,4] = world_coords[:,1]       # Dec
+    data[:,7] = detected_sources[:,10]  # instrumental mag
+    data[:,8] = -99.999                 # instrumental mag error (null)
+    data[:,15] = 0                      # PSF star switch
     
     for j in range(0,len(matched_stars),1):
         idx = int(matched_stars[j,0])
-        data[int(matched_stars[j,0]),7] = validate_entry(catalog_sources[int(matched_stars[j,3])][2])
-        data[int(matched_stars[j,0]),8] = validate_entry(catalog_sources[int(matched_stars[j,3])][3])
-        data[int(matched_stars[j,0]),9] = validate_entry(catalog_sources[int(matched_stars[j,3])][4])
-        data[int(matched_stars[j,0]),10] = validate_entry(catalog_sources[int(matched_stars[j,3])][5])
-        data[int(matched_stars[j,0]),11] = validate_entry(catalog_sources[int(matched_stars[j,3])][6])
-        data[int(matched_stars[j,0]),12] = validate_entry(catalog_sources[int(matched_stars[j,3])][7])
+        data[int(matched_stars[j,0]),9] = validate_entry(catalog_sources[int(matched_stars[j,3])][2])
+        data[int(matched_stars[j,0]),10] = validate_entry(catalog_sources[int(matched_stars[j,3])][3])
+        data[int(matched_stars[j,0]),11] = validate_entry(catalog_sources[int(matched_stars[j,3])][4])
+        data[int(matched_stars[j,0]),12] = validate_entry(catalog_sources[int(matched_stars[j,3])][5])
+        data[int(matched_stars[j,0]),13] = validate_entry(catalog_sources[int(matched_stars[j,3])][6])
+        data[int(matched_stars[j,0]),14] = validate_entry(catalog_sources[int(matched_stars[j,3])][7])
         
     return data
     

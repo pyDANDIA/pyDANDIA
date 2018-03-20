@@ -39,7 +39,7 @@ def output_ref_catalog_file(catalog_file,ref_catalog):
     within the reference image
 
     Format of output is a FITS binary table with the following columns:
-    idx x  y  ra  dec  inst_mag inst_mag_err J  Jerr  H Herr   K   Kerr psf_star
+    idx x  y  ra  dec  ref_flux ref_flux_err ref_mag  ref_mag_err J  Jerr  H Herr   K   Kerr psf_star
     """
     
     header = fits.Header()
@@ -52,15 +52,17 @@ def output_ref_catalog_file(catalog_file,ref_catalog):
             fits.Column(name='Y_pixel', format='E', array=ref_catalog[:,2]),\
             fits.Column(name='RA_J2000_deg', format='D', array=ref_catalog[:,3]),\
             fits.Column(name='Dec_J2000_deg', format='D', array=ref_catalog[:,4]),\
-            fits.Column(name='Instr_mag', format='E', array=ref_catalog[:,5]),\
-            fits.Column(name='Instr_mag_err', format='E', array=ref_catalog[:,6]),\
-            fits.Column(name='J_mag', format='E', array=ref_catalog[:,7]),\
-            fits.Column(name='J_mag_err', format='E', array=ref_catalog[:,8]),\
-            fits.Column(name='H_mag', format='E', array=ref_catalog[:,9]),\
-            fits.Column(name='H_mag_err', format='E', array=ref_catalog[:,10]),\
-            fits.Column(name='Ks_mag', format='E', array=ref_catalog[:,11]),\
-            fits.Column(name='Ks_mag_err', format='E', array=ref_catalog[:,12]),\
-            fits.Column(name='psf_star', format='I', array=ref_catalog[:,13]),\
+            fits.Column(name='ref_flux', format='E', array=ref_catalog[:,5]),\
+            fits.Column(name='ref_flux_err', format='E', array=ref_catalog[:,6]),\
+            fits.Column(name='ref_mag', format='E', array=ref_catalog[:,7]),\
+            fits.Column(name='ref_mag_err', format='E', array=ref_catalog[:,8]),\
+            fits.Column(name='J_mag', format='E', array=ref_catalog[:,9]),\
+            fits.Column(name='J_mag_err', format='E', array=ref_catalog[:,10]),\
+            fits.Column(name='H_mag', format='E', array=ref_catalog[:,11]),\
+            fits.Column(name='H_mag_err', format='E', array=ref_catalog[:,12]),\
+            fits.Column(name='Ks_mag', format='E', array=ref_catalog[:,13]),\
+            fits.Column(name='Ks_mag_err', format='E', array=ref_catalog[:,14]),\
+            fits.Column(name='psf_star', format='I', array=ref_catalog[:,15]),\
             ])
     
     thdulist = fits.HDUList([prihdu, tbhdu])

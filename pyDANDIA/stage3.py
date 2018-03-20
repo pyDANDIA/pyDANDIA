@@ -42,7 +42,7 @@ def run_stage3(setup):
     
     sane = sanity_checks(reduction_metadata,log,meta_pars)
     
-    if sane == True:
+    if sane:
         
         scidata = fits.getdata(meta_pars['ref_image_path'])
         
@@ -53,7 +53,7 @@ def run_stage3(setup):
                                         diagnostics=False)
                                         
         ref_star_catalog = wcs.reference_astrometry(setup,log,
-                                        reduction_metadata.reference_image_path,
+                                        meta_pars['ref_image_path'],
                                         detected_sources,
                                         diagnostics=False)        
                                                     
@@ -71,7 +71,7 @@ def run_stage3(setup):
         (psf_model,psf_status) = psf.build_psf(setup, reduction_metadata, 
                                             log, scidata, 
                                             ref_star_catalog, sky_model)
-                              
+        
         ref_star_catalog = photometry.run_psf_photometry(setup, 
                                              reduction_metadata, 
                                              log, 
@@ -109,11 +109,12 @@ def sanity_checks(reduction_metadata,log,meta_pars):
     :param boolean status: Status parameter indicating if conditions are OK 
                             to continue the stage.
     """
-        
-    if not os.path.isfile(reduction_metadata.reference_image_path):
+
+    ref_path =  str(reduction_metadata.data_architecture[1]['REF_PATH'][0]) +'/'+ str(reduction_metadata.data_architecture[1]['REF_IMAGE'][0])
+    if not os.path.isfile(ref_path):
         # Message reduction_control?  Return error code?
         log.info('ERROR: Stage 3 cannot access reference image at '+\
-                        reduction_metadata.reference_image_path)
+                        ref_path)
         return False
 
     for key, value in meta_pars.items():
@@ -142,14 +143,15 @@ def extract_parameters_stage3(reduction_metadata):
     
     try:
         
-        meta_pars['ref_image_path'] = str(reduction_metadata.data_architecture[1]['REF_IMAGE'][0])
+        meta_pars['ref_image_path'] = str(reduction_metadata.data_architecture[1]['REF_PATH'][0]) +'/'+ str(reduction_metadata.data_architecture[1]['REF_IMAGE'][0])
     
     except AttributeError:
         
         meta_pars['ref_image_path'] = None
     
-    idx = np.where(reduction_metadata.images_stats[1]['IM_NAME'].data == os.path.basename(reduction_metadata.reference_image_path))
-    
+    idx = np.where(reduction_metadata.images_stats[1]['IM_NAME'].data ==  reduction_metadata.data_architecture[1]['REF_IMAGE'][0])
+
+
     if len(idx[0]) > 0:
     
         meta_pars['ref_sky_bkgd'] = reduction_metadata.images_stats[1]['SKY'].data[idx[0][0]]
@@ -157,14 +159,16 @@ def extract_parameters_stage3(reduction_metadata):
     else:
         
         meta_pars['ref_sky_bkgd'] = None
+
+	
         
     try:
         
-        meta_pars['sky_model_type'] = reduction_metadata.background_type
+        meta_pars['sky_model_type'] = reduction_metadata['reduction_parameters'].data['BACK_VAR'][0]
     
     except AttributeError:
         
-        meta_pars['sky_model_type'] = 'constant'
+        meta_pars['sky_model_type'] = '0'
         
     return meta_pars
     

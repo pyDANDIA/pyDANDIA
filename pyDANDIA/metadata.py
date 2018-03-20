@@ -244,7 +244,8 @@ class MetaData:
         names = [ 'star_index', 
                 'x_pixel', 'y_pixel', 
                 'RA_J2000', 'DEC_J2000',
-                'Instr_mag', 'Instr_mag_err',
+                'ref_flux', 'ref_flux_err',
+                'ref_mag', 'ref_mag_err',
                 'J_mag', 'J_mag_err',
                 'H_mag', 'H_mag_err', 
                 'Ks_mag', 'Ks_mag_err',
@@ -257,12 +258,14 @@ class MetaData:
                    'float', 'float',
                    'float', 'float',
                    'float', 'float',
+                   'float', 'float',
                    'int'
                    ]
                    
         units = [ None, 
                  'pixel', 'pixel',
                  'deg', 'deg',
+                 'DN', 'DN',
                  'mag', 'mag',
                  'mag', 'mag',
                  'mag', 'mag',
@@ -752,7 +755,7 @@ def get_level1(self):
     """
 
     data = [['year', 'YEAR', 'int', 'Year of observations'],
-            ['back_var', 'BACKVAR', 'int', 'Switch for a spatially variable differential background'],
+            ['back_var', 'BACKVAR', 'string', 'Switch for a spatially variable differential background'],
             ['coeff2', 'COEFF2', 'float', ''],
             ['coeff3', 'COEFF3', 'float', ''],
             ['datekey', 'DATE-KEY', 'string', 'Name of date keyword in image headers'],

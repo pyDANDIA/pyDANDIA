@@ -92,8 +92,10 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
             
             (mag, mag_err) = convert_flux_to_mag(flux, flux_err)
             
-            ref_star_catalog[j,5] = mag
-            ref_star_catalog[j,6] = mag_err
+            ref_star_catalog[j,5] = flux
+            ref_star_catalog[j,6] = flux_err
+            ref_star_catalog[j,7] = mag
+            ref_star_catalog[j,8] = mag_err
             
             logs.ifverbose(log,setup,' -> Star '+str(j)+
             ' flux='+str(flux)+' +/- '+str(flux_err)+' ADU, '
@@ -103,8 +105,8 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
             
             logs.ifverbose(log,setup,' -> Star '+str(j)+
             ' No photometry possible from poor PSF fit')
-            
-    res_image_path = os.path.join(setup.reddir,'ref',os.path.basename(image_path).replace('.fits','_res.fits'))
+
+    res_image_path = os.path.join(setup.red_dir,'ref',os.path.basename(image_path).replace('.fits','_res.fits'))
     
     hdu = fits.PrimaryHDU(residuals)
     hdulist = fits.HDUList([hdu])
@@ -342,18 +344,16 @@ def convert_flux_to_mag(flux, flux_err):
         
         mag = flux2mag(ZP, flux)
         
-        m1 = flux2mag(ZP, (flux + flux_err))
-        m2 = flux2mag(ZP, (flux - flux_err))
+        mag_err = (2.5/np.log(10.0))*flux_err/flux
         
-        mag_err = (m2 - m1)/2.0
-    
     return mag, mag_err
     
 def plot_ref_mag_errors(setup,ref_star_catalog):
     """Function to output a diagnostic plot of the fitted PSF magnitudes
     against photometric error"""
-    
-    file_path = os.path.join(setup.red_dir,'ref','ref_image_phot_errors.png')
+
+    ref_path =  setup.red_dir+'/ref/'
+    file_path = os.path.join(ref_path,'ref_image_phot_errors.png')
     
     fig = plt.figure(1)
     

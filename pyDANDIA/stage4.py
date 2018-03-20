@@ -50,8 +50,8 @@ def run_stage4(setup):
 
         # find the reference image
         try:
-            reference_image_name = reduction_metadata.data_architecture[1]['REF_IMAGE']
-            reference_image_directory = reduction_metadata.data_architecture[1]['REF_PATH']
+            reference_image_name = reduction_metadata.data_architecture[1]['REF_IMAGE'].data[0]
+            reference_image_directory = reduction_metadata.data_architecture[1]['REF_PATH'].data[0]
             reference_image = open_an_image(setup, reference_image_directory, reference_image_name, image_index=0,
                                             log=None)
             logs.ifverbose(log, setup,
@@ -66,8 +66,9 @@ def run_stage4(setup):
             return status, report
 
         data = []
+	images_directory = reduction_metadata.data_architecture[1]['IMAGES_PATH'].data[0]
         for new_image in new_images:
-            target_image = open_an_image(setup, reference_image_directory, new_image, image_index=0, log=None)
+            target_image = open_an_image(setup, images_directory, new_image, image_index=0, log=None)
 
             try:
                 x_new_center, y_new_center, x_shift, y_shift = find_x_y_shifts_from_the_reference_image(setup,
@@ -76,7 +77,7 @@ def run_stage4(setup):
                                                                                                         edgefraction=0.5,
                                                                                                         log=None)
 
-                data.append([target_image, x_shift, y_shift])
+                data.append([new_image, x_shift, y_shift])
                 logs.ifverbose(log, setup,
                                'I found the image translation to the reference for frame:' + new_image)
 
@@ -89,6 +90,7 @@ def run_stage4(setup):
                 report = 'No shift  found for image:' + new_image + ' !'
 
                 return status, report
+	
 
         if ('SHIFT_X' in reduction_metadata.images_stats[1].keys()) and (
                     'SHIFT_Y' in reduction_metadata.images_stats[1].keys()):
@@ -97,7 +99,7 @@ def run_stage4(setup):
                 target_image = data[index][0]
                 x_shift = data[index][1]
                 y_shift = data[index][2]
-                row_index = np.where(reduction_metadata.images_stats[1]['IMAGES'] == target_image)[0][0]
+                row_index = np.where(reduction_metadata.images_stats[1]['IM_NAME'].data == new_image)[0][0]
                 reduction_metadata.update_a_cell_to_layer('images_stats', row_index, 'SHIFT_X', x_shift)
                 reduction_metadata.update_a_cell_to_layer('images_stats', row_index, 'SHIFT_Y', y_shift)
                 logs.ifverbose(log, setup,
@@ -106,23 +108,23 @@ def run_stage4(setup):
             logs.ifverbose(log, setup,
                            'I have to construct SHIFT_X and SHIFT_Y columns')
 
-            sorted_data = np.copy(data).T
+            sorted_data = np.copy(data)
 
             for index in range(len(data)):
                 target_image = data[index][0]
 
-                row_index = np.where(reduction_metadata.images_stats[1]['IMAGES'] == target_image)[0][0]
+                row_index = np.where(reduction_metadata.images_stats[1]['IM_NAME'].data == new_image)[0][0]
 
                 sorted_data[row_index] = data[index]
 
             column_format = 'int'
             column_unit = 'pix'
-
-            reduction_metadata.add_column_to_layer('image_stats', 'SHIFT_X', sorted_data[:, 1],
+	    import pdb; pdb.set_trace()
+            reduction_metadata.add_column_to_layer('images_stats', 'SHIFT_X', sorted_data[:, 1],
                                                    new_column_format=column_format,
                                                    new_column_unit=column_unit)
 
-            reduction_metadata.add_column_to_layer('image_stats', 'SHIFT_Y', sorted_data[:, 2],
+            reduction_metadata.add_column_to_layer('images_stats', 'SHIFT_Y', sorted_data[:, 2],
                                                    new_column_format=column_format,
                                                    new_column_unit=column_unit)
 
@@ -168,7 +170,7 @@ def open_an_image(setup, image_directory, image_name,
 
         logs.ifverbose(log, setup, image_name + ' open : OK')
 
-        return image_data
+        return image_data.data
 
     except:
         logs.ifverbose(log, setup, image_name + ' open : not OK!')

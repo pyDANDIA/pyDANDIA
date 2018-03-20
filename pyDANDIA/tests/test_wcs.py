@@ -11,6 +11,7 @@ systempath.append(path.join(cwd,'../'))
 import logs
 import wcs
 import stage3
+import pipeline_setup
 from astropy.io import fits
 import catalog_utils
 
@@ -18,6 +19,8 @@ cwd = getcwd()
 TEST_DATA = path.join(cwd,'data')
 
 def test_reference_astrometry():
+
+    setup = pipeline_setup.pipeline_setup({'red_dir': TEST_DATA})    
     
     log = logs.start_stage_log( cwd, 'test_wcs' )
     
@@ -35,12 +38,13 @@ def test_reference_astrometry():
     
     detected_sources = catalog_utils.read_source_catalog(detected_sources_file)
     
-    ref_source_catalog = wcs.reference_astrometry(log,image_path,detected_sources)
+    ref_source_catalog = wcs.reference_astrometry(setup,log,image_path,detected_sources)
     
-    assert path.isfile(path.join(TEST_DATA,'reference_detected_sources_pixels.png')) == True
-    assert path.isfile(path.join(TEST_DATA,'reference_detected_sources_world.png')) == True
-    assert path.isfile(path.join(TEST_DATA,'astrometry_separations.png')) == True
-    assert path.isfile(path.join(TEST_DATA,'star_catalog.fits')) == True
+    assert path.isfile(path.join(TEST_DATA,'ref','reference_detected_sources_pixels.png')) == True
+    assert path.isfile(path.join(TEST_DATA,'ref','reference_detected_sources_world.png')) == True
+    assert path.isfile(path.join(TEST_DATA,'ref','astrometry_separations.png')) == True
+    assert path.isfile(path.join(TEST_DATA,'ref','star_catalog.fits')) == True
+    assert path.isfile(path.join(TEST_DATA,'ref','ref_image_wcs.fits')) == True
     
     logs.close_log(log)
     
