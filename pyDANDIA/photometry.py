@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 from astropy.io import fits
 import starfind
 import psf
+import convolution
 
 def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
                        image_path,psf_model,sky_model,centroiding=True):
@@ -118,8 +119,8 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
     
     return ref_star_catalog
     
-def run_psf_photometry_on_difference_image(setup,reduction_metadata,log,ref_star_catalog,image_name,
-                       difference_image,psf_model,sky_model,kernel,centroiding=True):
+def run_psf_photometry_on_difference_image(setup,reduction_metadata,log,ref_star_catalog,
+                       difference_image,psf_model,kernel):
     """Function to perform PSF fitting photometry on all stars for a single difference image.
     
     :param SetUp object setup: Essential reduction parameters
@@ -127,26 +128,18 @@ def run_psf_photometry_on_difference_image(setup,reduction_metadata,log,ref_star
     :param logging log: Open reduction log object
     :param array ref_star_catalog: catalog of objects detected in the image
     :param array_like difference_image: the array of data on which performs photometry
-    :param PSFModel object psf_model: PSF to be fitted to each star
-    :param BackgroundModel object sky_model: Model for the image sky background
-    :param array_like kernel: the kernel data in 2d np.array
-    :param boolean centroiding: Switch to (dis)-allow re-fitting of each star's
-                                x, y centroid.  Default=allowed (True)
+    :param array_like psf_model: PSF to be fitted to each star
+   
     
     Returns:
     
     :param array ref_star_catalog: catalog of objects detected in the image
     """
-
-    log.info('Starting difference photometry of '+image_name)
  
 
     psf_size = reduction_metadata.reduction_parameters[1]['PSF_SIZE'][0]
-    half_psf = int(float(psf_size)/2.0)
-    
-    logs.ifverbose(log,setup,'Applying '+psf_model.psf_type()+\
-                    ' PSF of diameter='+str(psf_size))
-    
+    half_psf = psf_size/2
+
     Y_data, X_data = np.indices((int(psf_size),int(psf_size)))
 
     list_image_id = []
@@ -177,12 +170,15 @@ def run_psf_photometry_on_difference_image(setup,reduction_metadata,log,ref_star
 
     control_size = 50
     control_count = 0
+    psf_parameters = psf_model.get_parameters()
+    psf_parameters[0] = 1
+ 	
 
     for j in range(0,len(ref_star_catalog),1):
 
 	list_image_id.append(0)
 	list_star_id.append(ref_star_catalog[j,0])
-       # import pdb; pdb.set_trace()
+
 	ref_flux = 0
 	error_ref_flux = 0
 
@@ -200,63 +196,75 @@ def run_psf_photometry_on_difference_image(setup,reduction_metadata,log,ref_star
         
         logs.ifverbose(log,setup,' -> Star '+str(j)+' at position ('+\
         str(xstar)+', '+str(ystar)+')')
+	
+        psf_parameters[1] = xstar
+ 	psf_parameters[2] = ystar
 
-        
+        psf_image = psf_model.psf_model(X_grid, Y_grid, psf_parameters)
+	psf_convolve = convolution.convolve_image_with_a_psf(psf_image, kernel, fourrier_transform_psf=None, fourrier_transform_image=None,
+                              correlate=None, auto_correlation=None)
 	try:
-		max_x = np.min([difference_image.shape[0], np.max(X_data + (int(xstar) - half_psf))])
-		min_x = np.max([0, np.min(X_data + (int(xstar) - half_psf))])
-		max_y = np.min([difference_image.shape[1], np.max(Y_data + (int(xstar) - half_psf))])
-		min_y = np.max([0, np.min(Y_data + (int(xstar) - half_psf))])
+		max_x = int(np.min([difference_image.shape[0], np.max(X_data + (int(xstar) - half_psf))]))
+		min_x = int(np.max([0, np.min(X_data + (int(xstar) - half_psf))]))
+		max_y = int(np.min([difference_image.shape[1], np.max(Y_data + (int(ystar) - half_psf))]))
+		min_y = int(np.max([0, np.min(Y_data + (int(ystar) - half_psf))]))
 
-
+		
                 data = difference_image[min_x:max_x,min_y:max_y]
-		sky_model.update_background_parameters([np.median(data)])
+		
+		max_x = int(max_x- (int(xstar) - half_psf))
+		min_x = int(min_x- (int(xstar) - half_psf))
+		max_y = int(max_y- (int(ystar) - half_psf))
+		min_y = int(min_y- (int(ystar) - half_psf))
+
+		psf_fit = psf_convolve[min_x:max_x,min_y:max_y]
+
+		
+		
         	residuals = np.copy(data)
 	except:
         	import pdb; pdb.set_trace()
 
-        (fitted_model,good_fit) = psf.fit_star_existing_model_with_kernel(setup, data, 
-                                               xstar, ystar, psf_size, 
-                                               psf_model, sky_model, kernel,
-                                               centroiding=centroiding,
-                                               diagnostics=True)
         
-        logs.ifverbose(log, setup,' -> Star '+str(j)+
-        ' fitted model parameters = '+repr(fitted_model.get_parameters())+
-        ' good fit? '+repr(good_fit))
-        
+       
 	
-
+	good_fit = True
         if good_fit == True:
             
-            sub_psf_model = psf.get_psf_object('Moffat2D')
+            #sub_psf_model = psf.get_psf_object('Moffat2D')
             
-            pars = fitted_model.get_parameters()
-            pars[1] = (psf_size/2.0) + (ystar-int(ystar))
-            pars[2] = (psf_size/2.0) + (xstar-int(xstar))
+            #pars = fitted_model.get_parameters()
+            #pars[1] = (psf_size/2.0) + (ystar-int(ystar))
+            #pars[2] = (psf_size/2.0) + (xstar-int(xstar))
             
-            sub_psf_model.update_psf_parameters(pars)
+            #sub_psf_model.update_psf_parameters(pars)
             
-            (res_image,corners) = psf.subtract_psf_from_image_with_kernel(data,sub_psf_model, psf_size/2.0,psf_size/2.0, psf_size/2, psf_size/2,kernel)
+            #(res_image,corners) = psf.subtract_psf_from_image_with_kernel(data,sub_psf_model, psf_size/2.0,psf_size/2.0, psf_size/2, psf_size/2,kernel)
             
-            residuals[corners[2]:corners[3],corners[0]:corners[1]] = res_image[corners[2]:corners[3],corners[0]:corners[1]]
+            #residuals[corners[2]:corners[3],corners[0]:corners[1]] = res_image[corners[2]:corners[3],corners[0]:corners[1]]
             
-	    if control_count<10:
+	    #if control_count<10:
 
-		try :
+		#try :
 
-			control_zone = np.c_[control_zone, residuals]
+		#	control_zone = np.c_[control_zone, residuals]
 
-		except:
+		#except:
 
-			control_zone = residuals
+		#	control_zone = residuals
 		
-		control_count += 1		
+		#control_count += 1		
 
             logs.ifverbose(log, setup,' -> Star '+str(j)+
-            ' subtracted PSF from the residuals')
-                    
-            (flux, flux_err) = fitted_model.calc_flux_with_kernel(Y_grid, X_grid, kernel)
+            ' subtracted from the residuals')
+            intensities,cov = np.polyfit(psf_fit.ravel(),data.ravel(),1,cov=True)
+
+            psf_final = psf_fit*intensities[0]
+
+
+            (flux, flux_err) =  (np.sum(psf_final),np.abs(np.sum(psf_final))**0.5)
+   
+	    (back,bac_err) = (intensities[1],cov[1][1]**0.5)
 	
             list_delta_flux.append(flux)
             list_delta_flux_error.append(flux_err)        
@@ -295,7 +303,7 @@ def run_psf_photometry_on_difference_image(setup,reduction_metadata,log,ref_star
 
             list_align_x.append(0)
             list_align_y.append(0)
-    import pdb; pdb.set_trace()
+    #import pdb; pdb.set_trace()
  
     difference_image_photometry = [list_image_id,list_star_id,list_ref_mag,list_ref_mag_error,list_ref_flux,
                                             list_ref_flux_error,list_delta_flux,list_delta_flux_error,list_mag,list_mag_error,
@@ -305,8 +313,8 @@ def run_psf_photometry_on_difference_image(setup,reduction_metadata,log,ref_star
 
     log.info('Completed photometry on difference image')
     
-    return  difference_image_photometry, control_zone
-
+    #return  difference_image_photometry, control_zone
+    return  np.array(difference_image_photometry).T	,1
 
 def convert_flux_to_mag(flux, flux_err):
     """Function to convert the flux of a star from its fitted PSF model 

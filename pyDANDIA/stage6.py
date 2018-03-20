@@ -93,7 +93,8 @@ def run_stage6(setup):
 
     psf_model = psf.get_psf_object( psf_type )
     psf_model.update_psf_parameters( psf_parameters)
-    import pdb; pdb.set_trace()	
+
+
     if len(new_images) > 0:
 
         # find the reference image
@@ -135,8 +136,10 @@ def run_stage6(setup):
 
         data = []
         images_directory = reduction_metadata.data_architecture[1]['IMAGES_PATH'].data[0]
-        for new_image in new_images:
-
+        phot = np.zeros((6,642,16))
+        for idx,new_image in enumerate(new_images):
+    	 
+            log.info('Starting difference photometry of '+new_image)
             target_image = open_an_image(setup, images_directory, new_image, image_index=0, log=None)
             kernel_image = find_the_associated_kernel(setup, kernels_directory, new_image)
 
@@ -146,11 +149,14 @@ def run_stage6(setup):
 
             save_control_stars_of_the_difference_image(setup, new_image, difference_image, star_coordinates)
 
-            photometric_table, control_zone = photometry_on_the_difference_image(setup, reduction_metadata, log,ref_star_catalog,new_image,difference_image,  psf_model, sky_model, kernel_image)
-	     
-            save_control_zone_of_residuals(setup, new_image, control_zone)	
+            photometric_table, control_zone = photometry_on_the_difference_image(setup, reduction_metadata, log,ref_star_catalog,difference_image,  psf_model, sky_model, kernel_image)
+	    
+	    phot[idx,:,:] = photometric_table
 
-            ingest_photometric_table_in_db(setup, photometric_table)
+            #save_control_zone_of_residuals(setup, new_image, control_zone)	
+
+            #ingest_photometric_table_in_db(setup, photometric_table)
+    import pdb; pdb.set_trace()
     return status, report
 
 
@@ -296,7 +302,7 @@ def find_the_associated_kernel(setup, kernels_directory, image_name):
     return kernel
 
 
-def photometry_on_the_difference_image(setup, reduction_metadata, log, star_catalog,image_name,difference_image, psf_model, sky_model, kernel):
+def photometry_on_the_difference_image(setup, reduction_metadata, log, star_catalog,difference_image, psf_model, sky_model, kernel):
     '''
     Find the appropriate kernel associated to an image
     :param object reduction_metadata: the metadata object
@@ -306,19 +312,19 @@ def photometry_on_the_difference_image(setup, reduction_metadata, log, star_cata
     :return: the associated kernel to the image
     :rtype: array_like
     '''
-    import pdb; pdb.set_trace()
+    #import pdb; pdb.set_trace()
 
-    differential_photometry = photometry.run_psf_photometry_on_difference_image(setup,reduction_metadata,log,star_catalog, image_name,
-                       								difference_image,psf_model,sky_model, kernel, centroiding=True)
+    differential_photometry = photometry.run_psf_photometry_on_difference_image(setup,reduction_metadata,log,star_catalog,
+                       								difference_image,psf_model,kernel)
     
-    column_names = ('Exposure_id','Star_id','Ref_mag','Ref_mag_err','Ref_flux','Ref_flux_err','Delta_flux','Delta_flux_err','Mag','Mag_err',
-                    'Phot_scale_factor','Phot_scale_factor_err','Back','Back_err','delta_x','delta_y')
+    #column_names = ('Exposure_id','Star_id','Ref_mag','Ref_mag_err','Ref_flux','Ref_flux_err','Delta_flux','Delta_flux_err','Mag','Mag_err',
+     #               'Phot_scale_factor','Phot_scale_factor_err','Back','Back_err','delta_x','delta_y')
    
-    table = Table(differential_photometry, names = column_names)
+    #table = Table(differential_photometry, names = column_names)
 
 
-    return table
-
+    #return table
+    return differential_photometry
 def ingest_reference_in_db(setup, reference):
 
 	conn = db_phot.get_connection(dsn=setup.red_dir)
