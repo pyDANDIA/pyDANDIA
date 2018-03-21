@@ -48,8 +48,14 @@ def reduction_control():
     (status, report) = stage3.run_stage3(setup)
     log.info('Completed stage 3 with status '+repr(status)+': '+report)
     
-    (status, report, metadata) = stage4.run_stage4(setup)
+    (status, report) = stage4.run_stage4(setup)
     log.info('Completed stage 4 with status '+repr(status)+': '+report)
+    
+    (status, report) = stage5.run_stage5(setup)
+    log.info('Completed stage 5 with status '+repr(status)+': '+report)
+    
+    (status, report) = stage6.run_stage6(setup)
+    log.info('Completed stage 6 with status '+repr(status)+': '+report)
     
     logs.close_log(log)
 

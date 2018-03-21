@@ -5,6 +5,7 @@ from astropy.io import fits
 from scipy.signal import convolve2d
 from sky_background import mask_saturated_pixels, generate_sky_model
 from sky_background import fit_sky_background, generate_sky_model_image
+from scipy.ndimage.interpolation import shift
 
 def background_subtract(setup, image, max_adu):
     masked_image = mask_saturated_pixels(setup, image, max_adu,log = None)
@@ -78,7 +79,7 @@ def open_an_image(setup, image_directory, image_name,
 
         return None
 
-def open_data_image(setup, data_image_directory, data_image_name, reference_mask, kernel_size, max_adu, data_extension = 0, log = None):
+def open_data_image(setup, data_image_directory, data_image_name, reference_mask, kernel_size, max_adu, data_extension = 0, log = None, xshift = 0, yshift = 0):
     '''
     reading difference image for constructing u matrix
 
@@ -93,6 +94,13 @@ def open_data_image(setup, data_image_directory, data_image_name, reference_mask
     data_image = fits.open(os.path.join(data_image_directory, data_image_name), mmap=True)
     img50pc = np.median(data_image[data_extension].data)
     data_image[data_extension].data = background_subtract(setup, data_image[data_extension].data, img50pc)
+    img_shape = np.shape(data_image[data_extension].data)
+    shifted = np.zeros(img_shape)
+    if xshift>img_shape[0] or yshift>img_shape[1]:
+        return []
+    data_image[data_extension].data = shift(data_image[data_extension].data, (-yshift,-xshift), cval=0.) 
+    
+    data_image.writeto(str(abs(yshift))	+'tst_shi.fits',overwrite=True)
 	#increase kernel size by 2 and define circular mask
     kernel_size_plus = kernel_size + 2
     mask_kernel = np.ones(kernel_size_plus * kernel_size_plus, dtype=float)
@@ -132,7 +140,6 @@ def open_reference(setup, ref_image_directory, ref_image_name, kernel_size,
    
 	#increase kernel size by 2 and define circular mask
     kernel_size_plus = kernel_size + 2
-    print kernel_size_plus
     mask_kernel = np.ones(kernel_size_plus * kernel_size_plus, dtype=float)
     mask_kernel = mask_kernel.reshape((kernel_size_plus, kernel_size_plus))
     xyc = kernel_size_plus / 2
