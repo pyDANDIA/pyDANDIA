@@ -91,7 +91,7 @@ def run_stage5(setup):
     try:
         reference_image_name = str(reduction_metadata.data_architecture[1]['REF_IMAGE'][0])
         reference_image_directory = str(reduction_metadata.data_architecture[1]['REF_PATH'][0])
-        max_adu = 0.3*float(reduction_metadata.reduction_parameters[1]['MAXVAL'][0])
+        max_adu = 0.2*float(reduction_metadata.reduction_parameters[1]['MAXVAL'][0])
         ref_row_index = np.where(reduction_metadata.images_stats[1]['IM_NAME'] == str(reduction_metadata.data_architecture[1]['REF_IMAGE'][0]))[0][0]
         ref_fwhm_x = reduction_metadata.images_stats[1][ref_row_index]['FWHM_X'] 
         ref_fwhm_y = reduction_metadata.images_stats[1][ref_row_index]['FWHM_Y'] 
@@ -154,16 +154,22 @@ def run_stage5(setup):
               
                 pscale = np.sum(kernel_matrix)
                 
-                np.save(os.path.join(kernel_directory_path,'kernel_'+new_image+'.npy'),kernel_matrix)
+                np.save(os.path.join(kernel_directory_path,'kernel_'+new_image+'.npy'),[kernel_matrix,bkg_kernel])
                 hdu_kernel = fits.PrimaryHDU(kernel_matrix)
+                kernel_header = fits.Header()
+                kernel_header['SCALEFAC'] = pscale
+                kernel_header['KERBKG'] = bkg_kernel
                 hdu_kernel.writeto(os.path.join(kernel_directory_path,'kernel_'+new_image), overwrite = True)  
+
                 hdu_kernel_err = fits.PrimaryHDU(kernel_uncertainty)
                 hdu_kernel_err.writeto(os.path.join(kernel_directory_path,'kernel_err_'+new_image), overwrite = True)  
 
-                logs.ifverbose(log, setup, 'b_vector calculated for:' + new_image)
+                logs.ifverbose(log, setup, 'b_vector calculated for:' + new_image+' and scale factor '+str(pscale))
                 #CROP EDGE!
                 difference_image = subtract_images(data_image_unmasked, reference_image_unmasked, kernel_matrix, kernel_size, bkg_kernel, missing_data_mask)
-                difference_image_hdu = fits.PrimaryHDU(difference_image)
+                new_header = fits.Header()
+                new_header['SCALEFAC'] = pscale
+                difference_image_hdu = fits.PrimaryHDU(difference_image,header=new_header)
                 difference_image_hdu.writeto(os.path.join(diffim_directory_path,'diff_'+new_image),overwrite = True)
             except:
                 logs.ifverbose(log, setup,'kernel matrix computation or shift failed:' + new_image + '. skipping!')
@@ -396,8 +402,7 @@ def subtract_images(data_image, reference_image, kernel, kernel_size, bkg_kernel
 
     model_image = convolve2d(reference_image, kernel, mode='same')
     difference_image = model_image - data_image + bkg_kernel
-#    difference_image[missing_mask] = 0.
-    difference_image = difference_image[kernel_size:-kernel_size,kernel_size:-kernel_size]
+    #difference_image[missing_mask[kernel_size:-kernel_size,kernel_size:-kernel_size]] = 0.
     return difference_image
 
 

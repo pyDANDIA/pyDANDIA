@@ -26,7 +26,7 @@ def read_images_for_substamps(ref_image_filename, data_image_filename, kernel_si
     data_image = fits.open(data_image_filename)
     ref_image = fits.open(ref_image_filename)
     # Masks
-    kernel_size_plus = kernel_size
+    kernel_size_plus = kernel_size +2
     mask_kernel = np.ones(kernel_size_plus * kernel_size_plus, dtype=float)
     mask_kernel = mask_kernel.reshape((kernel_size_plus, kernel_size_plus))
     xyc = kernel_size_plus / 2
@@ -113,6 +113,7 @@ def open_data_image(setup, data_image_directory, data_image_name, reference_mask
     data_image.writeto(str(abs(yshift))	+'tst_shi.fits',overwrite=True)
 	#increase kernel size by 2 and define circular mask
     kernel_size_plus = kernel_size + 2
+
     mask_kernel = np.ones(kernel_size_plus * kernel_size_plus, dtype=float)
     mask_kernel = mask_kernel.reshape((kernel_size_plus, kernel_size_plus))
     xyc = kernel_size_plus / 2
@@ -148,9 +149,9 @@ def open_reference(setup, ref_image_directory, ref_image_name, kernel_size,
                    'Attempting to open ref image ' + os.path.join(ref_image_directory, ref_image_name))
 
     ref_image = fits.open(os.path.join(ref_image_directory, ref_image_name), mmap=True)
-   
+    
 	#increase kernel size by 2 and define circular mask
-    kernel_size_plus = kernel_size + 2
+    kernel_size_plus = int(round(kernel_size*1.2))
     mask_kernel = np.ones(kernel_size_plus * kernel_size_plus, dtype=float)
     mask_kernel = mask_kernel.reshape((kernel_size_plus, kernel_size_plus))
     xyc = kernel_size_plus / 2
@@ -160,24 +161,32 @@ def open_reference(setup, ref_image_directory, ref_image_name, kernel_size,
             if (idx - xyc)**2 + (jdx - xyc)**2 >= radius_square:
                 mask_kernel[idx, jdx] = 0.
 
-    #subtract background estimate using 10% percentile
     ref50pc = np.median(ref_image[ref_extension].data)
+    ref_bright_mask = ref_image[ref_extension].data > max_adu + ref50pc
     ref_image[ref_extension].data = background_subtract(setup, ref_image[ref_extension].data, ref50pc)
-    ref10pc = np.percentile(ref_image[ref_extension].data, 10.)
     
-    ref_image[ref_extension].data = ref_image[ref_extension].data - \
-        np.percentile(ref_image[ref_extension].data, 10.)
-    logs.ifverbose(log, setup,
-                   'Background reference= ' + str(ref10pc))
+    #rm corners
+    #ref_image[ref_extension].data[0,0] = max_adu+1.
+    #ref_image[ref_extension].data[0,-1] = max_adu+1.
+    #ref_image[ref_extension].data[-1,-1] = max_adu+1.
+    #ref_image[ref_extension].data[-1,0] = max_adu+1.
+
+#    ref_image[ref_extension].data = ref_image[ref_extension].data - \
+#        np.percentile(ref_image[ref_extension].data, 50.)
+#    logs.ifverbose(log, setup,
+#                   'Background reference= ' + str(ref10pc))
 
     # extend image size for convolution and kernel solution
+    mask_extended = np.zeros((np.shape(ref_image[ref_extension].data)[0] + 2 * kernel_size,
+                             np.shape(ref_image[ref_extension].data)[1] + 2 * kernel_size))
+    mask_extended[kernel_size:-kernel_size, kernel_size:-kernel_size][ref_bright_mask] = 1.
     ref_extended = np.zeros((np.shape(ref_image[ref_extension].data)[0] + 2 * kernel_size,
                              np.shape(ref_image[ref_extension].data)[1] + 2 * kernel_size))
     ref_extended[kernel_size:-kernel_size, kernel_size:-
                  kernel_size] = np.array(ref_image[ref_extension].data, float)
     
     #apply consistent mask
-    ref_bright_mask = ref_extended > max_adu + ref10pc
+    ref_bright_mask = mask_extended > 0.
     mask_propagate = np.zeros(np.shape(ref_extended))
     mask_propagate[ref_bright_mask] = 1.
     #increase mask size to kernel size
