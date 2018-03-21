@@ -21,8 +21,8 @@ import config_utils
 import metadata
 import logs
 import convolution
-import db.astropy_interface as db_ai
-import db.phot_db as db_phot
+#import db.astropy_interface as db_ai
+#import db.phot_db as db_phot
 import sky_background
 import psf
 import photometry
@@ -101,7 +101,7 @@ def run_stage6(setup):
         try:
             reference_image_name = reduction_metadata.data_architecture[1]['REF_IMAGE'].data[0]
             reference_image_directory = reduction_metadata.data_architecture[1]['REF_PATH'].data[0]
-            reference_image = open_an_image(setup, reference_image_directory, reference_image_name, image_index=0,
+            reference_image,date = open_an_image(setup, reference_image_directory, reference_image_name, image_index=0,
                                             log=None)
 
 
@@ -136,16 +136,17 @@ def run_stage6(setup):
 
         data = []
         images_directory = reduction_metadata.data_architecture[1]['IMAGES_PATH'].data[0]
-        phot = np.zeros((6,642,16))
+        phot = np.zeros((145,793,16))
+	time = []
         for idx,new_image in enumerate(new_images):
     	 
             log.info('Starting difference photometry of '+new_image)
-            target_image = open_an_image(setup, images_directory, new_image, image_index=0, log=None)
+            target_image,date = open_an_image(setup, images_directory, new_image, image_index=0, log=None)
             kernel_image,kernel_error = find_the_associated_kernel(setup, kernels_directory, new_image)
 
             difference_image = image_substraction(setup, reference_image, kernel_image, target_image)
 
-	    
+	    time.append(date)
 
             save_control_stars_of_the_difference_image(setup, new_image, difference_image, star_coordinates)
 
@@ -155,7 +156,8 @@ def run_stage6(setup):
 
             #save_control_zone_of_residuals(setup, new_image, control_zone)	
 
-            #ingest_photometric_table_in_db(setup, photometric_table)
+            #ingest_photometric_table_in_db(setup, photometric_table) 
+    import pdb; pdb.set_trace()
     import matplotlib.pyplot as plt
     ind = np.random.randint(0,600)
     #ind=52
@@ -187,16 +189,20 @@ def open_an_image(setup, image_directory, image_name,
 
     logs.ifverbose(log, setup,
                    'Attempting to open image ' + os.path.join(image_directory_path, image_name))
-
+    #import pdb; pdb.set_trace()
     try:
 
         image_data = fits.open(os.path.join(image_directory_path, image_name),
                                mmap=True)
         image_data = image_data[image_index]
+        try:
+		date =  image_data.header['MJD-OBS']
+	except :
+		date = 0
 
         logs.ifverbose(log, setup, image_name + ' open : OK')
 
-        return image_data.data
+        return image_data.data,date
 
     except:
         logs.ifverbose(log, setup, image_name + ' open : not OK!')
@@ -305,9 +311,9 @@ def find_the_associated_kernel(setup, kernels_directory, image_name):
     kernel_name = 'kernel_'+image_name
     kernel_err = 'kernel_err_'+image_name
 	 
-    kernel = open_an_image(setup, kernels_directory, kernel_name,
+    kernel,date = open_an_image(setup, kernels_directory, kernel_name,
                            image_index=0, log=None)
-    kernel_error = open_an_image(setup, kernels_directory, kernel_err,
+    kernel_error,date = open_an_image(setup, kernels_directory, kernel_err,
                            image_index=0, log=None)
     return kernel,kernel_error
 

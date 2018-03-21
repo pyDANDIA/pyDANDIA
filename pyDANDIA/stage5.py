@@ -87,6 +87,7 @@ def run_stage5(setup):
         reference_image_name = str(reduction_metadata.data_architecture[1]['REF_IMAGE'][0])
         reference_image_directory = str(reduction_metadata.data_architecture[1]['REF_PATH'][0])
         max_adu = 0.2*float(reduction_metadata.reduction_parameters[1]['MAXVAL'][0])
+        max_adu = float(65535)
         logs.ifverbose(log, setup,'Using reference image:' + reference_image_name)
     except KeyError:
         log.ifverbose(log, setup,'Reference/Images ! Abort stage5')

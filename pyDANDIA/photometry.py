@@ -261,14 +261,23 @@ def run_psf_photometry_on_difference_image(setup,reduction_metadata,log,ref_star
             ' subtracted from the residuals')
            
             intensities,cov = np.polyfit(psf_fit.ravel(),data.ravel(),1,cov=True)
+	    #plt.subplot(311)
+	    #plt.imshow(data)
+            #plt.subplot(312)
+	    #plt.imshow(psf_fit)
+	    #plt.subplot(313)
+	    #plt.imshow(data-psf_fit*intensities[0])
+	    #plt.show()
  	    #plt.scatter(psf_fit.ravel(),data.ravel())
 	    #plt.plot( psf_fit.ravel(),intensities[0]*psf_fit.ravel()+intensities[1])
             #plt.show()
-            psf_final = psf_fit*intensities[0]
+            psf_final = psf_fit
 
 
             (flux, flux_err) =  (np.sum(psf_final),np.abs(np.sum(psf_final))**0.5)
-   
+              
+	    flux_err = ((flux_err*intensities[0])**2+(flux*cov[0][0]**0.5)**2)**0.5
+            flux *= intensities[0] 
 	    (back,back_err) = (intensities[1],cov[1][1]**0.5)
 	
             
