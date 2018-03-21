@@ -15,6 +15,11 @@ import sys
 from astropy.io import fits
 from astropy.table import Table
 from astropy.table import Column
+from scipy.ndimage.interpolation import shift
+from sky_background import mask_saturated_pixels, generate_sky_model
+from sky_background import fit_sky_background, generate_sky_model_image
+
+
 
 import config_utils
 
@@ -94,7 +99,8 @@ def run_stage6(setup):
     psf_model = psf.get_psf_object( psf_type )
     psf_model.update_psf_parameters( psf_parameters)
 
-
+    ind = ((starlist['x_pixel']-150)**2<1) & ((starlist['y_pixel']-150)**2<1)
+    print np.argmin(((starlist['x_pixel']-150)**2) + ((starlist['y_pixel']-150)**2))
     if len(new_images) > 0:
 
         # find the reference image
@@ -135,6 +141,7 @@ def run_stage6(setup):
             return status, report
 
         data = []
+        diffim_directory = reduction_metadata.data_architecture[1]['OUTPUT_DIRECTORY'].data[0]+'diffim/'
         images_directory = reduction_metadata.data_architecture[1]['IMAGES_PATH'].data[0]
         phot = np.zeros((145,793,16))
 	time = []
@@ -144,7 +151,8 @@ def run_stage6(setup):
             target_image,date = open_an_image(setup, images_directory, new_image, image_index=0, log=None)
             kernel_image,kernel_error = find_the_associated_kernel(setup, kernels_directory, new_image)
 
-            difference_image = image_substraction(setup, reference_image, kernel_image, target_image)
+            difference_image = image_substraction(setup, reduction_metadata,reference_image, kernel_image, new_image)
+	    #difference_image = image_substraction2(setup, diffim_directory, new_image)
 
 	    time.append(date)
 
@@ -158,7 +166,11 @@ def run_stage6(setup):
 
             #ingest_photometric_table_in_db(setup, photometric_table) 
     import pdb; pdb.set_trace()
-    import matplotlib.pyplot as plt
+    import matplotlib.pyplot as plt 
+    ind = ((starlist['x_pixel']-150)**2<1) & ((starlist['y_pixel']-150)**2<1)
+    plt.errorbar(time,phot[:,ind,8],yerr=phot[:,ind,9],fmt='.k')
+    plt.gca().inverse_yaxis()
+    plt.show()
     ind = np.random.randint(0,600)
     #ind=52
     plt.errorbar(np.arange(0,6),phot[:,ind,8],yerr=phot[:,ind,9],fmt='.k')
@@ -168,6 +180,22 @@ def run_stage6(setup):
     plt.show()
     import pdb; pdb.set_trace()
     return status, report
+
+def background_subtract(setup, image, max_adu):
+
+    masked_image = mask_saturated_pixels(setup, image, max_adu,log = None)
+    sky_params = { 'background_type': 'gradient', 
+          'nx': image.shape[1], 'ny': image.shape[0],
+          'a0': 0.0, 'a1': 0.0, 'a2': 0.0 }
+    sky_model = generate_sky_model(sky_params) 
+    sky_fit = fit_sky_background(masked_image,sky_model,'gradient',log=None)
+    sky_params['a0'] = sky_fit[0][0]
+    sky_params['a1'] = sky_fit[0][1]
+    sky_params['a2'] = sky_fit[0][2]
+    #sky_model = generate_sky_model(sky_params)
+    sky_model_image = generate_sky_model_image(sky_params)
+    
+    return image - sky_model_image
 
 
 def open_an_image(setup, image_directory, image_name,
@@ -272,10 +300,30 @@ def save_control_stars_of_the_difference_image(setup, image_name, difference_ima
     hdul.writeto(control_images_directory+image_name, overwrite=True)
 
 
+def image_substraction2(setup, diffim_directory, image_name, log=None):
+    '''
+    Subtract the image from model, i.e residuals = image-convolution(reference_image,kernel)
 
+    :param object reduction_metadata: the metadata object
+    :param array_like reference_image_data: the reference image data
+    :param array_like kernel_data: the kernel image data
+    :param array_like image_data: the image data
+
+    :param boolean verbose: switch to True to have more informations
+
+    :return: the difference image
+    :rtype: array_like
+    '''
+    #import pdb; pdb.set_trace()
+    diffim = 'diff_'+image_name
+	 
+    diffim,date = open_an_image(setup, diffim_directory, diffim,
+                           image_index=0, log=None)
+
+    return diffim
      
 
-def image_substraction(setup, reference_image_data, kernel_data, image_data, log=None):
+def image_substraction(setup, reduction_metadata, reference_image_data, kernel_data, image_name, log=None):
     '''
     Subtract the image from model, i.e residuals = image-convolution(reference_image,kernel)
 
@@ -290,9 +338,18 @@ def image_substraction(setup, reference_image_data, kernel_data, image_data, log
     :rtype: array_like
     '''
 
+    image_data,date = open_an_image(setup, './data/', image_name, image_index=0, log=None)
+    row_index = np.where(reduction_metadata.images_stats[1]['IM_NAME'] == image_name)[0][0]
+
+    
     model = convolution.convolve_image_with_a_psf(reference_image_data, kernel_data)
 
-    difference_image = image_data - model
+    #background_image = background_subtract(setup, image_data, np.median(image_data))
+     
+    xshift, yshift = -reduction_metadata.images_stats[1][row_index]['SHIFT_X'],-reduction_metadata.images_stats[1][row_index]['SHIFT_Y'] 
+    image_shifted = shift(image_data, (-yshift,-xshift), cval=0.) 
+
+    difference_image = image_shifted - model
 
     return difference_image
 
@@ -307,7 +364,7 @@ def find_the_associated_kernel(setup, kernels_directory, image_name):
     :return: the associated kernel to the image
     :rtype: array_like
     '''
-
+    #import pdb; pdb.set_trace()
     kernel_name = 'kernel_'+image_name
     kernel_err = 'kernel_err_'+image_name
 	 

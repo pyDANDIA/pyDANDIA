@@ -15,6 +15,14 @@ from astropy.io import fits
 import starfind
 import psf
 import convolution
+from scipy.odr import *
+
+
+def linear_func(p,x):
+    a, b = p
+    return a*x+b
+
+
 
 def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
                        image_path,psf_model,sky_model,centroiding=True):
@@ -139,10 +147,10 @@ def run_psf_photometry_on_difference_image(setup,reduction_metadata,log,ref_star
     """
  
 
-    psf_size = reduction_metadata.reduction_parameters[1]['PSF_SIZE'][0]
+    psf_size = 2*reduction_metadata.reduction_parameters[1]['PSF_SIZE'][0]
     half_psf = psf_size/2
 
-    Y_data, X_data = np.indices((int(psf_size),int(psf_size)))
+    Y_data, X_data = np.indices((int(psf_size)+1,int(psf_size)+1))
 
     list_image_id = []
     list_star_id = []
@@ -174,7 +182,7 @@ def run_psf_photometry_on_difference_image(setup,reduction_metadata,log,ref_star
     control_count = 0
     psf_parameters = psf_model.get_parameters()
     psf_parameters[0] = 1
- 	
+    radius = psf_size/2
 
     for j in range(0,len(ref_star_catalog),1):
 
@@ -193,8 +201,8 @@ def run_psf_photometry_on_difference_image(setup,reduction_metadata,log,ref_star
         xstar = ref_star_catalog[j,1]
         ystar = ref_star_catalog[j,2]
         
-        X_grid = X_data + (int(xstar) - half_psf)
-        Y_grid = Y_data + (int(ystar) - half_psf)
+        X_grid = X_data + (int(np.round(xstar)) - half_psf-1)
+        Y_grid = Y_data + (int(np.round(ystar)) - half_psf-1)
         
         logs.ifverbose(log,setup,' -> Star '+str(j)+' at position ('+\
         str(xstar)+', '+str(ystar)+')')
@@ -203,13 +211,14 @@ def run_psf_photometry_on_difference_image(setup,reduction_metadata,log,ref_star
  	psf_parameters[2] = ystar
 
         psf_image = psf_model.psf_model(X_grid, Y_grid, psf_parameters)
+ 	
 	psf_convolve = convolution.convolve_image_with_a_psf(psf_image, kernel, fourrier_transform_psf=None, fourrier_transform_image=None,
                               correlate=None, auto_correlation=None)
 	try:
-		max_x = int(np.min([difference_image.shape[0], np.max(X_data + (int(xstar) - half_psf))]))
-		min_x = int(np.max([0, np.min(X_data + (int(xstar) - half_psf))]))
-		max_y = int(np.min([difference_image.shape[1], np.max(Y_data + (int(ystar) - half_psf))]))
-		min_y = int(np.max([0, np.min(Y_data + (int(ystar) - half_psf))]))
+		max_x = int(np.min([difference_image.shape[0], np.max(X_data + (int(np.round(xstar)) - half_psf))]))
+		min_x = int(np.max([0, np.min(X_data + (int(np.round(xstar)) - half_psf))]))
+		max_y = int(np.min([difference_image.shape[1], np.max(Y_data + (int(np.round(ystar)) - half_psf))]))
+		min_y = int(np.max([0, np.min(Y_data + (int(np.round(ystar)) - half_psf))]))
 
 		
                 data = difference_image[min_x:max_x,min_y:max_y]
@@ -259,39 +268,69 @@ def run_psf_photometry_on_difference_image(setup,reduction_metadata,log,ref_star
 
             logs.ifverbose(log, setup,' -> Star '+str(j)+
             ' subtracted from the residuals')
-           
-            intensities,cov = np.polyfit(psf_fit.ravel(),data.ravel(),1,cov=True)
-	    #plt.subplot(311)
-	    #plt.imshow(data)
-            #plt.subplot(312)
-	    #plt.imshow(psf_fit)
-	    #plt.subplot(313)
-	    #plt.imshow(data-psf_fit*intensities[0])
-	    #plt.show()
- 	    #plt.scatter(psf_fit.ravel(),data.ravel())
-	    #plt.plot( psf_fit.ravel(),intensities[0]*psf_fit.ravel()+intensities[1])
-            #plt.show()
-            psf_final = psf_fit
 
+
+           # psf_fit /= np.sum(psf_fit)
+	    center = (psf_fit.shape)
+ 	    xx,yy=np.indices(psf_fit.shape)
+	    mask = ((xx-center[0]/2)**2+(yy-center[1]/2)**2)<radius**2
+            
+            #psf_fit[~mask] = 0
+            intensities,cov = np.polyfit(psf_fit[mask].ravel(),data[mask].ravel(),1,cov=True)
+	    #linear_model=Model(linear_func)
+	    #data2=RealData(psf_fit[mask].ravel(),data[mask].ravel())
+	    #odr=ODR(data2,linear_model,beta0=[100,0])
+	    #out=odr.run()
+	    ##intensities=out.beta
+            #cov = out.sd_beta
+            #import pdb; pdb.set_trace()  
+            #if (j>378) & (j<380) :
+		   #plt.scatter(psf_fit.ravel(),data.ravel())
+		   #plt.plot( psf_fit.ravel(),intensities[0]*psf_fit.ravel()+intensities[1])
+		   #plt.show()
+                    #import pdb; pdb.set_trace()
+		    #plt.subplot(311)
+		    #plt.imshow(data,interpolation="None")
+		    #plt.subplot(312)
+		    #plt.imshow(psf_fit*intensities[0]+intensities[1],interpolation="None")
+		    #plt.subplot(313)
+		    #plt.imshow(data-psf_fit*intensities[0]-intensities[1],interpolation="None",vmin=-1000,vmax=1000)
+		    #plt.show()
+	    #center = (psf_fit.shape)
+ 	    #xx,yy=np.indices(psf_fit.shape)
+	    #mask = ((xx-center[0]/2)**2+(yy-center[0]/2)**2)<8**2
+            
+            #psf_fit[~mask] = 0
+	    psf_fit = psf_fit*intensities[0]
+
+            #psf_final = psf_fit/np.sum(psf_fit)
+	    psf_final = psf_fit
+	    	
 
             (flux, flux_err) =  (np.sum(psf_final),np.abs(np.sum(psf_final))**0.5)
-              
-	    flux_err = ((flux_err*intensities[0])**2+(flux*cov[0][0]**0.5)**2)**0.5
-            flux *= intensities[0] 
+	    res = data-psf_fit*intensities[0]-intensities[1]
+            flux_err = (np.sum(abs(res)**0.5))**0.5
+ 
+           # import pdb; pdb.set_trace()  
+	    #flux_err = ((flux*cov[0][0]**0.5)**2)**0.5
+            #flux *= intensities[0] 
 	    (back,back_err) = (intensities[1],cov[1][1]**0.5)
 	
-            
+	    #flux = np.sum(data[mask].ravel())/len(data[mask].ravel())	
+            #flux_err = flux**0.5
 	        
             flux_tot = ref_flux+flux/phot_scale_factor
-	    flux_err_tot = (error_ref_flux**2+flux_err**2/phot_scale_factor**2+(flux*error_phot_scale_factor/phot_scale_factor**2)**2+back_err**2)**0.5
             
+	    flux_err_tot = (error_ref_flux**2+flux_err**2/phot_scale_factor**2+(flux*error_phot_scale_factor/phot_scale_factor**2)**2+back_err**2)**0.5
+            #flux_err_tot = (error_ref_flux**2+flux_err**2)**0.5
+
             list_delta_flux.append(flux)
             list_delta_flux_error.append(flux_err)        
 
 
 	    (mag, mag_err) = convert_flux_to_mag(flux_tot, flux_err_tot)
             
-    	
+    		
             list_mag.append(mag)
             list_mag_error.append(mag_err)
 	    list_phot_scale_factor.append(phot_scale_factor)
