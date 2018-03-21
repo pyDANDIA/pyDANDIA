@@ -59,7 +59,7 @@ def run_stage5(setup):
         if float(stats_entry['FWHM_Y'])> fwhm_max:
             fwhm_max = stats_entry['FWHM_Y']
 
-    sigma_max = fwhm_max*2.*(2.*np.log(2.))**0.5
+    sigma_max = fwhm_max/(2.*(2.*np.log(2.))**0.5)
     kernel_size = int(3.*float(reduction_metadata.reduction_parameters[1]['KER_RAD'][0]) * fwhm_max)
 
 
@@ -92,6 +92,11 @@ def run_stage5(setup):
         reference_image_name = str(reduction_metadata.data_architecture[1]['REF_IMAGE'][0])
         reference_image_directory = str(reduction_metadata.data_architecture[1]['REF_PATH'][0])
         max_adu = 0.3*float(reduction_metadata.reduction_parameters[1]['MAXVAL'][0])
+        ref_row_index = np.where(reduction_metadata.images_stats[1]['IM_NAME'] == str(reduction_metadata.data_architecture[1]['REF_IMAGE'][0]))[0][0]
+        ref_fwhm_x = reduction_metadata.images_stats[1][ref_row_index]['FWHM_X'] 
+        ref_fwhm_y = reduction_metadata.images_stats[1][ref_row_index]['FWHM_Y'] 
+        ref_sigma_x = ref_fwhm_x/(2.*(2.*np.log(2.))**0.5)
+        ref_sigma_y = ref_fwhm_y/(2.*(2.*np.log(2.))**0.5)
         logs.ifverbose(log, setup,'Using reference image:' + reference_image_name)
     except KeyError:
         log.ifverbose(log, setup,'Reference/Images ! Abort stage5')
@@ -106,7 +111,7 @@ def run_stage5(setup):
         report = 'No alignment data found!'
         return status, report, reduction_metadata
 
-    reference_image, bright_reference_mask = open_reference(setup, reference_image_directory, reference_image_name, kernel_size, max_adu, ref_extension = 0, log = log)
+    reference_image, bright_reference_mask, reference_image_unmasked = open_reference(setup, reference_image_directory, reference_image_name, kernel_size, max_adu, ref_extension = 0, log = log)
     #check if umatrix exists
     if os.path.exists(os.path.join(kernel_directory_path,'unweighted_u_matrix.npy')):
         umatrix, kernel_size_u, max_adu_restored = np.load(os.path.join(kernel_directory_path,'unweighted_u_matrix.npy'))
@@ -130,14 +135,25 @@ def run_stage5(setup):
         for new_image in new_images:
             row_index = np.where(reduction_metadata.images_stats[1]['IM_NAME'] == new_image)[0][0]
             x_shift, y_shift = -reduction_metadata.images_stats[1][row_index]['SHIFT_X'],-reduction_metadata.images_stats[1][row_index]['SHIFT_Y'] 
+            #if the reference is not as sharp as a data image -> smooth the data
+            smoothing = 0
+            if reduction_metadata.images_stats[1][row_index]['FWHM_X']<ref_fwhm_x:
+                sigma_x = reduction_metadata.images_stats[1][row_index]['FWHM_X']/(2.*(2.*np.log(2.))**0.5)
+                smoothing = (ref_sigma_x**2-sigma_x**2)**0.5       
+            if reduction_metadata.images_stats[1][row_index]['FWHM_Y']<ref_fwhm_y:
+                sigma_y = reduction_metadata.images_stats[1][row_index]['FWHM_Y']/(2.*(2.*np.log(2.))**0.5)
+                smoothing_y = (ref_sigma_y**2-sigma_y**2)**0.5
+                if smoothing_y>smoothing:
+                    smoothing = smoothing_y
+            print smoothing, row_index
             try:
-                data_image = open_data_image(setup, data_image_directory, new_image, bright_reference_mask, kernel_size, max_adu, xshift = x_shift, yshift = y_shift )
+                data_image, data_image_unmasked = open_data_image(setup, data_image_directory, new_image, bright_reference_mask, kernel_size, max_adu, xshift = x_shift, yshift = y_shift, sigma_smooth = smoothing )
                 missing_data_mask = (data_image == 0.)
                 b_vector = bvector_constant(reference_image, data_image, kernel_size)
             	kernel_matrix, bkg_kernel, kernel_uncertainty  = kernel_solution(umatrix, b_vector, kernel_size)
               
                 pscale = np.sum(kernel_matrix)
-             
+                
                 np.save(os.path.join(kernel_directory_path,'kernel_'+new_image+'.npy'),kernel_matrix)
                 hdu_kernel = fits.PrimaryHDU(kernel_matrix)
                 hdu_kernel.writeto(os.path.join(kernel_directory_path,'kernel_'+new_image), overwrite = True)  
@@ -146,7 +162,7 @@ def run_stage5(setup):
 
                 logs.ifverbose(log, setup, 'b_vector calculated for:' + new_image)
                 #CROP EDGE!
-                difference_image = subtract_images(data_image, reference_image, kernel_matrix, kernel_size, bkg_kernel, missing_data_mask)
+                difference_image = subtract_images(data_image_unmasked, reference_image_unmasked, kernel_matrix, kernel_size, bkg_kernel, missing_data_mask)
                 difference_image_hdu = fits.PrimaryHDU(difference_image)
                 difference_image_hdu.writeto(os.path.join(diffim_directory_path,'diff_'+new_image),overwrite = True)
             except:
@@ -159,6 +175,7 @@ def run_stage5(setup):
     report = 'Completed successfully'
 
     return status, report
+
 
 def noise_model(model_image, gain, readout_noise, flat=None, initialize=None):
 
@@ -379,7 +396,7 @@ def subtract_images(data_image, reference_image, kernel, kernel_size, bkg_kernel
 
     model_image = convolve2d(reference_image, kernel, mode='same')
     difference_image = model_image - data_image + bkg_kernel
-    difference_image[missing_mask] = 0.
+#    difference_image[missing_mask] = 0.
     difference_image = difference_image[kernel_size:-kernel_size,kernel_size:-kernel_size]
     return difference_image
 
