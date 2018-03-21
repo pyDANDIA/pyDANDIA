@@ -3,6 +3,7 @@ import numpy as np
 import logs
 from astropy.io import fits
 from scipy.signal import convolve2d
+from scipy.ndimage.filters import gaussian_filter
 from sky_background import mask_saturated_pixels, generate_sky_model
 from sky_background import fit_sky_background, generate_sky_model_image
 from scipy.ndimage.interpolation import shift
@@ -25,7 +26,7 @@ def read_images_for_substamps(ref_image_filename, data_image_filename, kernel_si
     data_image = fits.open(data_image_filename)
     ref_image = fits.open(ref_image_filename)
     # Masks
-    kernel_size_plus = kernel_size
+    kernel_size_plus = kernel_size +2
     mask_kernel = np.ones(kernel_size_plus * kernel_size_plus, dtype=float)
     mask_kernel = mask_kernel.reshape((kernel_size_plus, kernel_size_plus))
     xyc = kernel_size_plus / 2
@@ -51,10 +52,14 @@ def read_images_for_substamps(ref_image_filename, data_image_filename, kernel_si
     mask_propagate[data_bright_mask] = 1.
     mask_propagate = convolve2d(mask_propagate, mask_kernel, mode='same')
     bright_mask = mask_propagate > 0.
+    ref_complete = np.copy(ref_extended)
     ref_extended[bright_mask] = 0.
     data_extended[bright_mask] = 0.
+    
+    #half_kernel_mask
+    
 
-    return ref_extended, data_extended, bright_mask
+    return ref_extended, data_extended, bright_mask, ref_complete
 
 def open_an_image(setup, image_directory, image_name,
                   image_index=0, log=None):
@@ -79,7 +84,8 @@ def open_an_image(setup, image_directory, image_name,
 
         return None
 
-def open_data_image(setup, data_image_directory, data_image_name, reference_mask, kernel_size, max_adu, data_extension = 0, log = None, xshift = 0, yshift = 0):
+def open_data_image(setup, data_image_directory, data_image_name, reference_mask, kernel_size,
+                    max_adu, data_extension = 0, log = None, xshift = 0, yshift = 0, sigma_smooth = 0):
     '''
     reading difference image for constructing u matrix
 
@@ -96,13 +102,18 @@ def open_data_image(setup, data_image_directory, data_image_name, reference_mask
     data_image[data_extension].data = background_subtract(setup, data_image[data_extension].data, img50pc)
     img_shape = np.shape(data_image[data_extension].data)
     shifted = np.zeros(img_shape)
+    #smooth data image
+    if sigma_smooth != 0:
+        data_image[data_extension].data = gaussian_filter(data_image[data_extension].data, sigma=sigma_smooth)
+
     if xshift>img_shape[0] or yshift>img_shape[1]:
         return []
     data_image[data_extension].data = shift(data_image[data_extension].data, (-yshift,-xshift), cval=0.) 
-    
+    #apply offset from image registration
     data_image.writeto(str(abs(yshift))	+'tst_shi.fits',overwrite=True)
 	#increase kernel size by 2 and define circular mask
     kernel_size_plus = kernel_size + 2
+
     mask_kernel = np.ones(kernel_size_plus * kernel_size_plus, dtype=float)
     mask_kernel = mask_kernel.reshape((kernel_size_plus, kernel_size_plus))
     xyc = kernel_size_plus / 2
@@ -116,10 +127,11 @@ def open_data_image(setup, data_image_directory, data_image_name, reference_mask
     data_extended = np.zeros((np.shape(data_image[data_extension].data)[0] + 2 * kernel_size, np.shape(data_image[data_extension].data)[1] + 2 * kernel_size))
     data_extended[kernel_size:-kernel_size, kernel_size:-
                  kernel_size] = np.array(data_image[data_extension].data, float)
+    data_image_unmasked = np.copy(data_image[data_extension].data)
     #apply consistent mask    
     data_extended[reference_mask] = 0.
 
-    return data_extended
+    return data_extended, data_image_unmasked
 
 def open_reference(setup, ref_image_directory, ref_image_name, kernel_size,
                    max_adu, ref_extension = 0, log = None):
@@ -137,9 +149,9 @@ def open_reference(setup, ref_image_directory, ref_image_name, kernel_size,
                    'Attempting to open ref image ' + os.path.join(ref_image_directory, ref_image_name))
 
     ref_image = fits.open(os.path.join(ref_image_directory, ref_image_name), mmap=True)
-   
+    
 	#increase kernel size by 2 and define circular mask
-    kernel_size_plus = kernel_size + 2
+    kernel_size_plus = int(round(kernel_size*1.2))
     mask_kernel = np.ones(kernel_size_plus * kernel_size_plus, dtype=float)
     mask_kernel = mask_kernel.reshape((kernel_size_plus, kernel_size_plus))
     xyc = kernel_size_plus / 2
@@ -149,32 +161,41 @@ def open_reference(setup, ref_image_directory, ref_image_name, kernel_size,
             if (idx - xyc)**2 + (jdx - xyc)**2 >= radius_square:
                 mask_kernel[idx, jdx] = 0.
 
-    #subtract background estimate using 10% percentile
     ref50pc = np.median(ref_image[ref_extension].data)
+    ref_bright_mask = ref_image[ref_extension].data > max_adu + ref50pc
     ref_image[ref_extension].data = background_subtract(setup, ref_image[ref_extension].data, ref50pc)
-    ref10pc = np.percentile(ref_image[ref_extension].data, 10.)
     
-    ref_image[ref_extension].data = ref_image[ref_extension].data - \
-        np.percentile(ref_image[ref_extension].data, 10.)
-    logs.ifverbose(log, setup,
-                   'Background reference= ' + str(ref10pc))
+    #rm corners
+    #ref_image[ref_extension].data[0,0] = max_adu+1.
+    #ref_image[ref_extension].data[0,-1] = max_adu+1.
+    #ref_image[ref_extension].data[-1,-1] = max_adu+1.
+    #ref_image[ref_extension].data[-1,0] = max_adu+1.
+
+#    ref_image[ref_extension].data = ref_image[ref_extension].data - \
+#        np.percentile(ref_image[ref_extension].data, 50.)
+#    logs.ifverbose(log, setup,
+#                   'Background reference= ' + str(ref10pc))
 
     # extend image size for convolution and kernel solution
+    mask_extended = np.zeros((np.shape(ref_image[ref_extension].data)[0] + 2 * kernel_size,
+                             np.shape(ref_image[ref_extension].data)[1] + 2 * kernel_size))
+    mask_extended[kernel_size:-kernel_size, kernel_size:-kernel_size][ref_bright_mask] = 1.
     ref_extended = np.zeros((np.shape(ref_image[ref_extension].data)[0] + 2 * kernel_size,
                              np.shape(ref_image[ref_extension].data)[1] + 2 * kernel_size))
     ref_extended[kernel_size:-kernel_size, kernel_size:-
                  kernel_size] = np.array(ref_image[ref_extension].data, float)
     
     #apply consistent mask
-    ref_bright_mask = ref_extended > max_adu + ref10pc
+    ref_bright_mask = mask_extended > 0.
     mask_propagate = np.zeros(np.shape(ref_extended))
     mask_propagate[ref_bright_mask] = 1.
     #increase mask size to kernel size
     mask_propagate = convolve2d(mask_propagate, mask_kernel, mode='same')
     bright_mask = mask_propagate > 0.
+    ref_image_unmasked = np.copy(ref_image[ref_extension].data)
     ref_extended[bright_mask] = 0.
 
-    return ref_extended, bright_mask
+    return ref_extended, bright_mask, ref_image_unmasked
 
 def open_images(setup, ref_image_directory, data_image_directory, ref_image_name,
                 data_image_name, kernel_size, max_adu, ref_extension = 0, 
