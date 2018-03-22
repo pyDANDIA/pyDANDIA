@@ -23,8 +23,9 @@ import logs
 def run_stage1(setup, rerun_all=None):
     """
     Main driver function to run stage 1 of pyDANDIA: measurement of image 
-    properties. This stage populates the metadata with the FWHM and sky 
-    background for each image. Updates the 'images_stats' layer in the 
+    properties. This stage populates the metadata with the FWHM, sky 
+    background, correlation coefficient, number of stars detected and fraction
+	of saturated pixels for each image. Updates the 'images_stats' layer in the
     metadata file.
 
     :param object setup: this is an instance of the ReductionSetup class. See
@@ -113,7 +114,9 @@ def run_stage1(setup, rerun_all=None):
             params['fwhm_x'],
             params['fwhm_y'],
             params['sky'],
-            params['corr_xy']
+            params['corr_xy'],
+			params['nstars'],
+			params['sat_frac']
         ]
 
         reduction_metadata.add_row_to_layer(key_layer='images_stats',

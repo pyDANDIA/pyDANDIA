@@ -73,7 +73,7 @@ def starfind(setup, path_to_image, reduction_metadata, plot_it=False,
     if log != None:
         log.info('Starting starfind')
     
-    params = { 'sky': 0.0, 'fwhm_y': 0.0, 'fwhm_x': 0.0, 'corr_xy':0.0 }
+    params = { 'sky': 0.0, 'fwhm_y': 0.0, 'fwhm_x': 0.0, 'corr_xy':0.0, 'nstars':0, 'sat_frac':0.0 }
     
     t0 = time.time()
     im = fits.open(path_to_image)
@@ -164,6 +164,10 @@ def starfind(setup, path_to_image, reduction_metadata, plot_it=False,
     sources = sources[np.where(sources['peak'] < saturation)]
     sources.sort('peak')
     sources.reverse()
+    
+    # Store the number of identified sources and fraction of saturated pixels
+    nstars = len(sources)
+    sat_frac = nr_sat_pix/(250.*250.)
     
     # Discount stars too close to the edges of the image
     sources = sources[np.where((sources['xcentroid'] > 10) & 
@@ -263,6 +267,8 @@ def starfind(setup, path_to_image, reduction_metadata, plot_it=False,
     params['fwhm_y'] = np.median(fwhm_y_arr)
     params['fwhm_x'] = np.median(fwhm_x_arr)
     params['corr_xy'] = np.median(corr_xy_arr)
+    params['nstars'] = nstars
+    params['sat_frac'] = sat_frac
     
     if log != None:
         log.info('Measured median values:')
@@ -270,6 +276,8 @@ def starfind(setup, path_to_image, reduction_metadata, plot_it=False,
         log.info('FWHM X = '+str(params['fwhm_x']))
         log.info('FWHM Y = '+str(params['fwhm_y']))
         log.info('Corr XY = '+str(params['corr_xy']))
+        log.info('Nstars = '+str(params['nstars']))
+        log.info('Saturation fraction = '+str(params['sat_frac']))
           
     # If plot_it is True, plot the sources found
     if plot_it == True:
