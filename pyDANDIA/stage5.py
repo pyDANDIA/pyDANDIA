@@ -66,7 +66,7 @@ def run_stage5(setup):
     if kernel_size:
         if kernel_size % 2 == 0:
             kernel_size = kernel_size + 1
-
+    kernel_size = 25	
     # find the images that need to be processed
     all_images = reduction_metadata.find_all_images(setup, reduction_metadata,
                                                     os.path.join(setup.red_dir, 'data'), log=log)
@@ -91,12 +91,18 @@ def run_stage5(setup):
     try:
         reference_image_name = str(reduction_metadata.data_architecture[1]['REF_IMAGE'][0])
         reference_image_directory = str(reduction_metadata.data_architecture[1]['REF_PATH'][0])
+
+
+        max_adu = 0.3*float(reduction_metadata.reduction_parameters[1]['MAXVAL'][0])
+
+
         max_adu = 0.2*float(reduction_metadata.reduction_parameters[1]['MAXVAL'][0])
         ref_row_index = np.where(reduction_metadata.images_stats[1]['IM_NAME'] == str(reduction_metadata.data_architecture[1]['REF_IMAGE'][0]))[0][0]
         ref_fwhm_x = reduction_metadata.images_stats[1][ref_row_index]['FWHM_X'] 
         ref_fwhm_y = reduction_metadata.images_stats[1][ref_row_index]['FWHM_Y'] 
         ref_sigma_x = ref_fwhm_x/(2.*(2.*np.log(2.))**0.5)
         ref_sigma_y = ref_fwhm_y/(2.*(2.*np.log(2.))**0.5)
+
         logs.ifverbose(log, setup,'Using reference image:' + reference_image_name)
     except KeyError:
         log.ifverbose(log, setup,'Reference/Images ! Abort stage5')
@@ -155,10 +161,11 @@ def run_stage5(setup):
                 pscale = np.sum(kernel_matrix)
                 
                 np.save(os.path.join(kernel_directory_path,'kernel_'+new_image+'.npy'),[kernel_matrix,bkg_kernel])
-                hdu_kernel = fits.PrimaryHDU(kernel_matrix)
+                
                 kernel_header = fits.Header()
                 kernel_header['SCALEFAC'] = pscale
                 kernel_header['KERBKG'] = bkg_kernel
+		hdu_kernel = fits.PrimaryHDU(kernel_matrix,header=kernel_header)
                 hdu_kernel.writeto(os.path.join(kernel_directory_path,'kernel_'+new_image), overwrite = True)  
 
                 hdu_kernel_err = fits.PrimaryHDU(kernel_uncertainty)
@@ -374,16 +381,16 @@ def kernel_solution(u_matrix, b_vector, kernel_size):
     lstsq_result = np.linalg.lstsq(u_matrix,b_vector)
     a_vector = lstsq_result[0]
     mse = 1.#lstsq_result
-    a_vector_err = np.diagonal(np.matrix(np.dot(u_matrix.T, u_matrix)).I)
+    a_vector_err = np.copy(np.diagonal(np.matrix(np.dot(u_matrix.T, u_matrix)).I))
     #MSE: mean square error of the residuals
 
     output_kernel = np.zeros(kernel_size * kernel_size, dtype=float)
     output_kernel = a_vector[:-1]
     output_kernel = output_kernel.reshape((kernel_size, kernel_size))
-
+    #import pdb; pdb.set_trace()
     err_kernel = np.zeros(kernel_size * kernel_size, dtype=float)
-    err_kernel = a_vector_err[:-1]
-    err_kernel = output_kernel.reshape((kernel_size, kernel_size))
+    err_kernel = (a_vector_err*lstsq_result[3])[:-1]
+    err_kernel = err_kernel.reshape((kernel_size, kernel_size))
 
     xyc = kernel_size / 2
     radius_square = (xyc)**2
@@ -395,7 +402,8 @@ def kernel_solution(u_matrix, b_vector, kernel_size):
 
     output_kernel_2 = np.flip(np.flip(output_kernel, 0), 1)
     err_kernel_2 = np.flip(np.flip(err_kernel, 0), 1)
-
+    #err_kernel_2 = err_kernel
+    #import pdb; pdb.set_trace()
     return output_kernel_2, a_vector[-1], err_kernel_2
 
 def subtract_images(data_image, reference_image, kernel, kernel_size, bkg_kernel, missing_mask):
