@@ -150,7 +150,7 @@ def run_stage6(setup):
             log.info('Starting difference photometry of '+new_image)
             target_image,date = open_an_image(setup, images_directory, new_image, image_index=0, log=None)
             kernel_image,kernel_error,kernel_bkg = find_the_associated_kernel(setup, kernels_directory, new_image)
-
+	    #import pdb; pdb.set_trace()
             difference_image = image_substraction(setup, reduction_metadata,reference_image, kernel_image, new_image)-kernel_bkg
 	    #difference_image = image_substraction2(setup, diffim_directory, new_image)
 
@@ -168,15 +168,15 @@ def run_stage6(setup):
     import pdb; pdb.set_trace()
     import matplotlib.pyplot as plt 
     ind = ((starlist['x_pixel']-150)**2<1) & ((starlist['y_pixel']-150)**2<1)
-    plt.errorbar(time,phot[:,ind,8],yerr=phot[:,ind,9],fmt='.k')
+    plt.errorbar(time,phot[:,ind,8],fmt='.k')
     
     
     ind=177
-    plt.errorbar(time,phot[:,ind,8],yerr=phot[:,ind,9],fmt='.r')
+    plt.errorbar(time,phot[:,ind,8],fmt='.r')
     ind = np.random.randint(0,600)
     ind=722
     print ind
-    plt.errorbar(time,phot[:,ind,8],yerr=phot[:,ind,9],fmt='.g')
+    plt.errorbar(time,phot[:,ind,8],fmt='.g')
     plt.gca().invert_yaxis()
     plt.show()
     import pdb; pdb.set_trace()
@@ -296,7 +296,7 @@ def save_control_stars_of_the_difference_image(setup, image_name, difference_ima
 
     image_name = image_name.replace('.fits','.diff')
 
-    hdu = fits.PrimaryHDU(control_zone)
+    hdu = fits.PrimaryHDU(difference_image)
     hdul = fits.HDUList([hdu])
     hdul.writeto(control_images_directory+image_name, overwrite=True)
 
@@ -342,13 +342,29 @@ def image_substraction(setup, reduction_metadata, reference_image_data, kernel_d
     image_data,date = open_an_image(setup, './data/', image_name, image_index=0, log=None)
     row_index = np.where(reduction_metadata.images_stats[1]['IM_NAME'] == image_name)[0][0]
 
-    
-    model = convolution.convolve_image_with_a_psf(reference_image_data, kernel_data)
+    kernel_size = kernel_data.shape[0]
 
-    #background_image = background_subtract(setup, image_data, np.median(image_data))
-     
+    background_ref = background_subtract(setup, reference_image_data, np.median(reference_image_data))
+    #background_ref = reference_image_data
+    ref_extended = np.zeros((np.shape( background_ref)[0] + 2 * kernel_size,
+                             np.shape( background_ref)[1] + 2 * kernel_size))
+    ref_extended[kernel_size:-kernel_size, kernel_size:-
+                 kernel_size] = np.array(background_ref, float)
+
+	
+    model = convolution.convolve_image_with_a_psf(ref_extended, kernel_data)
+
+    model = model[kernel_size:-kernel_size,kernel_size:-kernel_size]
+
+    background_image = background_subtract(setup, image_data, np.median(image_data))
+    #background_image = image_data
     xshift, yshift = -reduction_metadata.images_stats[1][row_index]['SHIFT_X'],-reduction_metadata.images_stats[1][row_index]['SHIFT_Y'] 
-    image_shifted = shift(image_data, (-yshift,-xshift), cval=0.) 
+
+    
+
+    image_shifted = shift(background_image, (-yshift,-xshift), cval=0.) 
+
+    
 
     difference_image = image_shifted - model
 
