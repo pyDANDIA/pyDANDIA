@@ -149,9 +149,9 @@ def run_stage6(setup):
     	 
             log.info('Starting difference photometry of '+new_image)
             target_image,date = open_an_image(setup, images_directory, new_image, image_index=0, log=None)
-            kernel_image,kernel_error = find_the_associated_kernel(setup, kernels_directory, new_image)
+            kernel_image,kernel_error,kernel_bkg = find_the_associated_kernel(setup, kernels_directory, new_image)
 
-            difference_image = image_substraction(setup, reduction_metadata,reference_image, kernel_image, new_image)
+            difference_image = image_substraction(setup, reduction_metadata,reference_image, kernel_image, new_image)-kernel_bkg
 	    #difference_image = image_substraction2(setup, diffim_directory, new_image)
 
 	    time.append(date)
@@ -169,14 +169,15 @@ def run_stage6(setup):
     import matplotlib.pyplot as plt 
     ind = ((starlist['x_pixel']-150)**2<1) & ((starlist['y_pixel']-150)**2<1)
     plt.errorbar(time,phot[:,ind,8],yerr=phot[:,ind,9],fmt='.k')
-    plt.gca().inverse_yaxis()
-    plt.show()
+    
+    
+    ind=177
+    plt.errorbar(time,phot[:,ind,8],yerr=phot[:,ind,9],fmt='.r')
     ind = np.random.randint(0,600)
-    #ind=52
-    plt.errorbar(np.arange(0,6),phot[:,ind,8],yerr=phot[:,ind,9],fmt='.k')
-    ind = np.random.randint(0,600)
-    #ind=52
-    plt.errorbar(np.arange(0,6),phot[:,ind,8],yerr=phot[:,ind,9],fmt='.r')
+    ind=722
+    print ind
+    plt.errorbar(time,phot[:,ind,8],yerr=phot[:,ind,9],fmt='.g')
+    plt.gca().invert_yaxis()
     plt.show()
     import pdb; pdb.set_trace()
     return status, report
@@ -367,13 +368,18 @@ def find_the_associated_kernel(setup, kernels_directory, image_name):
     #import pdb; pdb.set_trace()
     kernel_name = 'kernel_'+image_name
     kernel_err = 'kernel_err_'+image_name
-	 
-    kernel,date = open_an_image(setup, kernels_directory, kernel_name,
-                           image_index=0, log=None)
-    kernel_error,date = open_an_image(setup, kernels_directory, kernel_err,
-                           image_index=0, log=None)
-    return kernel,kernel_error
+    
+    kernel = fits.open( kernels_directory+kernel_name )
+    kernel_error = fits.open( kernels_directory+kernel_err )
+    #kernel,date = open_an_image(setup, kernels_directory, kernel_name,
+    #                       image_index=0, log=None)
+    #kernel_error,date = open_an_image(setup, kernels_directory, kernel_err,
+    #                       image_index=0, log=None)
+    bkgd = +kernel[0].header['KERBKG']
 
+    kernel = kernel[0].data
+
+    return kernel,kernel_error[0].data,bkgd
 
 def photometry_on_the_difference_image(setup, reduction_metadata, log, star_catalog,difference_image, psf_model, sky_model, kernel,kernel_error):
     '''

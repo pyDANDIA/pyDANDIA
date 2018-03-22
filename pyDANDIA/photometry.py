@@ -175,7 +175,7 @@ def run_psf_photometry_on_difference_image(setup,reduction_metadata,log,ref_star
 	
 
     phot_scale_factor = np.sum(kernel)
-    error_phot_scale_factor = (np.sum(kernel_error**2))**0.5
+    error_phot_scale_factor = (np.sum(kernel_error))**0.5
 
 
     control_size = 50
@@ -300,18 +300,18 @@ def run_psf_photometry_on_difference_image(setup,reduction_metadata,log,ref_star
  	    #xx,yy=np.indices(psf_fit.shape)
 	    #mask = ((xx-center[0]/2)**2+(yy-center[0]/2)**2)<8**2
             
-            #psf_fit[~mask] = 0
+            psf_fit[~mask] = 0
 	    psf_fit = psf_fit*intensities[0]
 
-            #psf_final = psf_fit/np.sum(psf_fit)
+            psf_final = psf_fit/np.sum(psf_fit)
 	    psf_final = psf_fit
 	    	
 
-            (flux, flux_err) =  (np.sum(psf_final),np.abs(np.sum(psf_final))**0.5)
+            (flux, flux_err) =  (np.sum(psf_final),(np.sum(np.abs(psf_final)))**0.5)
 	    res = data-psf_fit*intensities[0]-intensities[1]
-            flux_err = (np.sum(abs(res)**0.5))**0.5
+            #flux_err = (np.sum(abs(res)))**0.5
  
-           # import pdb; pdb.set_trace()  
+            #import pdb; pdb.set_trace()  
 	    #flux_err = ((flux*cov[0][0]**0.5)**2)**0.5
             #flux *= intensities[0] 
 	    (back,back_err) = (intensities[1],cov[1][1]**0.5)
@@ -334,9 +334,9 @@ def run_psf_photometry_on_difference_image(setup,reduction_metadata,log,ref_star
             list_mag.append(mag)
             list_mag_error.append(mag_err)
 	    list_phot_scale_factor.append(phot_scale_factor)
-    	    list_phot_scale_factor_error.append(0)
-            list_background.append(0)
-            list_background_error.append(0)
+    	    list_phot_scale_factor_error.append(error_phot_scale_factor)
+            list_background.append(back)
+            list_background_error.append(back_err)
 
             list_align_x.append(0)
             list_align_y.append(0)

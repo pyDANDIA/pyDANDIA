@@ -161,10 +161,11 @@ def run_stage5(setup):
                 pscale = np.sum(kernel_matrix)
                 
                 np.save(os.path.join(kernel_directory_path,'kernel_'+new_image+'.npy'),[kernel_matrix,bkg_kernel])
-                hdu_kernel = fits.PrimaryHDU(kernel_matrix)
+                
                 kernel_header = fits.Header()
                 kernel_header['SCALEFAC'] = pscale
                 kernel_header['KERBKG'] = bkg_kernel
+		hdu_kernel = fits.PrimaryHDU(kernel_matrix,header=kernel_header)
                 hdu_kernel.writeto(os.path.join(kernel_directory_path,'kernel_'+new_image), overwrite = True)  
 
                 hdu_kernel_err = fits.PrimaryHDU(kernel_uncertainty)
@@ -380,16 +381,16 @@ def kernel_solution(u_matrix, b_vector, kernel_size):
     lstsq_result = np.linalg.lstsq(u_matrix,b_vector)
     a_vector = lstsq_result[0]
     mse = 1.#lstsq_result
-    a_vector_err = np.diagonal(np.matrix(np.dot(u_matrix.T, u_matrix)).I)
+    a_vector_err = np.copy(np.diagonal(np.matrix(np.dot(u_matrix.T, u_matrix)).I))
     #MSE: mean square error of the residuals
 
     output_kernel = np.zeros(kernel_size * kernel_size, dtype=float)
     output_kernel = a_vector[:-1]
     output_kernel = output_kernel.reshape((kernel_size, kernel_size))
-
+    #import pdb; pdb.set_trace()
     err_kernel = np.zeros(kernel_size * kernel_size, dtype=float)
-    err_kernel = a_vector_err[:-1]
-    err_kernel = output_kernel.reshape((kernel_size, kernel_size))
+    err_kernel = (a_vector_err*lstsq_result[3])[:-1]
+    err_kernel = err_kernel.reshape((kernel_size, kernel_size))
 
     xyc = kernel_size / 2
     radius_square = (xyc)**2
@@ -401,7 +402,8 @@ def kernel_solution(u_matrix, b_vector, kernel_size):
 
     output_kernel_2 = np.flip(np.flip(output_kernel, 0), 1)
     err_kernel_2 = np.flip(np.flip(err_kernel, 0), 1)
-
+    #err_kernel_2 = err_kernel
+    #import pdb; pdb.set_trace()
     return output_kernel_2, a_vector[-1], err_kernel_2
 
 def subtract_images(data_image, reference_image, kernel, kernel_size, bkg_kernel, missing_mask):
