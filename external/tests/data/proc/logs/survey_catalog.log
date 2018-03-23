@@ -1,0 +1,14 @@
+2018-03-23T16:42:12 Started run of survey_catalog
+
+2018-03-23T16:42:12   Software version: pyDANDIA_survey_catalog_v0.1
+
+2018-03-23T16:42:12 Found 1 datasets to process
+2018-03-23T16:42:12 No pre-existing survey catalogue to read in.
+2018-03-23T16:42:12 Read star catalog from metadata for ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip
+2018-03-23T16:42:12 Created holding table for survey star catalogue.
+2018-03-23T16:42:12 Transferred whole catalogue of 642 to empty master catalogue
+2018-03-23T16:42:12 Added 642 to the master catalog
+2018-03-23T16:42:12 Output star catalogue to /Users/rstreet/software/pyDANDIA/external/tests/data/proc/logs/survey_star_catalog.fits
+2018-03-23T16:42:12 Survey catalogue construction complete.
+2018-03-23T16:42:12 Processing complete
+

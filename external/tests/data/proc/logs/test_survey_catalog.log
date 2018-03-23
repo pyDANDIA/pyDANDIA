@@ -1,0 +1,11 @@
+2018-03-23T16:41:05 Started run of test_survey_catalog
+
+2018-03-23T16:41:05 Created holding table for survey star catalogue.
+2018-03-23T16:41:05 Read in pre-existing survey catalogue /Users/rstreet/software/pyDANDIA/external/tests/data/proc/ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip/../survey_star_catalog.fits
+2018-03-23T16:41:05 Read star catalog from metadata for ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip
+2018-03-23T16:41:05 -> Adding star 1: (642, 269.52626494360726, -27.996503792374671, 0)
+2018-03-23T16:41:05 -> Adding star 2: (643, 269.54404162558757, -27.996505362752107, 0)
+2018-03-23T16:41:05 -> Adding star 3: (644, 269.51712665130282, -27.996565934181476, 0)
+2018-03-23T16:41:05 Added 3 to the master catalog
+2018-03-23T16:41:05 Processing complete
+

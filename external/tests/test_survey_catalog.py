@@ -9,6 +9,7 @@ import os
 import sys
 cwd = os.getcwd()
 sys.path.append(os.path.join(cwd,'../'))
+sys.path.append(os.path.join(cwd,'../../pyDANDIA/'))
 import survey_catalog
 import logs
 from astropy.table import Table

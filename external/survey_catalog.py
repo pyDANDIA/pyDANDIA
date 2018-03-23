@@ -6,6 +6,8 @@ Created on Tue Mar 20 20:26:36 2018
 """
 import os
 import sys
+cwd = os.getcwd()
+sys.path.append(os.path.join(cwd,'../pyDANDIA/'))
 import logs
 import glob
 import metadata
