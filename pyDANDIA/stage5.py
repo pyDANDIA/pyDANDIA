@@ -161,14 +161,14 @@ def run_stage5(setup):
                 b_vector = bvector_constant(reference_image, data_image, kernel_size)
             	kernel_matrix, bkg_kernel, kernel_uncertainty  = kernel_solution(umatrix, b_vector, kernel_size)
                 pscale = np.sum(kernel_matrix)                
- #               np.save(os.path.join(kernel_directory_path,'kernel_'+new_image+'.npy'),[kernel_matrix,bkg_kernel])
-#                kernel_header = fits.Header()
-#                kernel_header['SCALEFAC'] = str(pscale)
-#                kernel_header['KERBKG'] = bkg_kernel
-#                hdu_kernel = fits.PrimaryHDU(kernel_matrix,header=kernel_header)
-#                hdu_kernel.writeto(os.path.join(kernel_directory_path,'kernel_'+new_image), overwrite = True)  
-#                hdu_kernel_err = fits.PrimaryHDU(kernel_uncertainty)
-#                hdu_kernel_err.writeto(os.path.join(kernel_directory_path,'kernel_err_'+new_image), overwrite = True)  
+ #               \np.save(os.path.join(kernel_directory_path,'kernel_'+new_image+'.npy'),[kernel_matrix,bkg_kernel])
+                kernel_header = fits.Header()
+                kernel_header['SCALEFAC'] = str(pscale)
+                kernel_header['KERBKG'] = bkg_kernel
+                hdu_kernel = fits.PrimaryHDU(kernel_matrix,header=kernel_header)
+                hdu_kernel.writeto(os.path.join(kernel_directory_path,'kernel_'+new_image), overwrite = True)  
+                hdu_kernel_err = fits.PrimaryHDU(kernel_uncertainty)
+                hdu_kernel_err.writeto(os.path.join(kernel_directory_path,'kernel_err_'+new_image), overwrite = True)  
 
                 logs.ifverbose(log, setup, 'b_vector calculated for:' + new_image+' and scale factor '+str(pscale))
                 #CROP EDGE!
