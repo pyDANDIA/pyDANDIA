@@ -68,7 +68,6 @@ def run_stage5(setup):
         crop_flag = True
     else:
         crop_flag = False
-
     sigma_max = fwhm_max/(2.*(2.*np.log(2.))**0.5)
     kernel_size = int(3.2*float(reduction_metadata.reduction_parameters[1]['KER_RAD'][0]) * fwhm_max)
     if kernel_size:
