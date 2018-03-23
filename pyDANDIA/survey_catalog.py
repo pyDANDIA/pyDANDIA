@@ -38,7 +38,7 @@ def build_survey_catalog():
         catalog = read_star_catalog(red_dir,log)
 
         star_catalog = merge_catalogs(catalog, star_catalog, log)
-    
+        
     catalog_file = os.path.join(params['log_dir'],'survey_star_catalog.fits')
     
     catalog_utils.output_survey_catalog(catalog_file,star_catalog,log)
@@ -157,7 +157,7 @@ def add_new_stars_to_catalog(new_stars,new_catalog,master_catalog,log):
     
         for j in new_stars:
             
-            row = (new_catalog['star_index'][j], 
+            row = (len(master_catalog), 
                    new_catalog['RA_J2000'][j],
                     new_catalog['DEC_J2000'][j],
                     0)
