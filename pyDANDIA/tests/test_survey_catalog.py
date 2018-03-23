@@ -64,9 +64,10 @@ def test_xmatch_catalog():
     
     catalog2 = survey_catalog.read_star_catalog(TEST_DIR,log)
     
-    matched_table = survey_catalog.xmatch_catalogs(catalog1, catalog2)
+    (matched_table,blends) = survey_catalog.xmatch_catalogs(catalog1, catalog2, log)
 
     assert len(matched_table[0]) > int(len(catalog1)*0.9)
+    assert len(blends) > 0
     
     logs.close_log(log)
 
@@ -80,6 +81,8 @@ def test_merge_catalog():
     
     catalog1 = survey_catalog.read_star_catalog(TEST_DIR,log)
     
+    nrows = len(catalog1)
+    
     row = [999, 999.99999, 999.999999, 99.99999, 9.99999, 99.9999, 99.999, 
            99.9999, 99.9999, 99.9999, 99.999, 99.9999, 99.9999, 99.9999, 
            99.999, 99.9999]
@@ -87,18 +90,83 @@ def test_merge_catalog():
     catalog1.add_row(row)
     
     catalog2 = survey_catalog.read_star_catalog(TEST_DIR,log)
+        
+    new_stars = range(0,len(catalog2),1)
     
-    catalog2 = survey_catalog.merge_catalogs(catalog1, catalog2, log)
+    star_catalog = survey_catalog.add_new_stars_to_catalog(new_stars,catalog2,None,log)
     
-    print catalog2[-1]
+    star_catalog = survey_catalog.merge_catalogs(catalog1, star_catalog, log)
+    
+    assert len(star_catalog) == nrows + 1
     
     logs.close_log(log)
  
- 
+def test_create_survey_catalog():
+    """Function to test the creation of a survey catalog Table object"""
+     
+    log = logs.start_stage_log(LOG_DIR, 'test_survey_catalog')
+    
+    star_catalog = survey_catalog.create_survey_catalog(log,10)
+                 
+    test_table = Table()
+    
+    assert type(star_catalog) == type(test_table)
+    assert 'ID' in star_catalog.colnames
+    assert 'RA_J2000' in star_catalog.colnames
+    assert 'DEC_J2000' in star_catalog.colnames
+    assert 'Blend' in star_catalog.colnames
+
+    logs.close_log(log)
+    
+def test_read_existing_survey_catalog():
+    """Function to test the reading of a previously-existing star catalog"""
+
+    log = logs.start_stage_log(LOG_DIR, 'test_survey_catalog')
+    
+    params = { 'old_star_catalog': 'NONE' }
+    
+    star_catalog = survey_catalog.read_existing_survey_catalog(params,log)
+
+    assert star_catalog == None
+    
+    params = { 'old_star_catalog': os.path.join(TEST_DIR,'..','survey_star_catalog.fits') }
+    
+    star_catalog = survey_catalog.read_existing_survey_catalog(params,log)
+    
+    test_table = Table()
+    
+    assert type(star_catalog) == type(test_table)
+    assert len(star_catalog) > 0
+    
+    logs.close_log(log)
+
+def test_add_new_stars_to_catalog():
+    """Function to test the addition of new stars to an existing master catalogue."""
+
+    log = logs.start_stage_log(LOG_DIR, 'test_survey_catalog')
+    
+    params = { 'old_star_catalog': os.path.join(TEST_DIR,'..','survey_star_catalog.fits') }
+    
+    star_catalog = survey_catalog.read_existing_survey_catalog(params,log)
+
+    nrows = len(star_catalog)
+    
+    new_catalog = survey_catalog.read_star_catalog(TEST_DIR,log)
+    
+    new_stars = set([1,2,3])
+    
+    star_catalog = survey_catalog.add_new_stars_to_catalog(new_stars,new_catalog,star_catalog,log)
+    
+    assert len(star_catalog) == nrows+3
+    
+    logs.close_log(log)
+    
 if __name__ == '__main__':
     
     test_read_star_catalog()
     test_list_reducted_datasets()
     test_xmatch_catalog()
     test_merge_catalog()
+    test_create_survey_catalog()
+    test_read_existing_survey_catalog()
     

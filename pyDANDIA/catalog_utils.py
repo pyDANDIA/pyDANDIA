@@ -94,6 +94,32 @@ def read_ref_star_catalog_file(catalog_file):
     
     return ref_star_catalog
 
+def output_survey_catalog(catalog_file,star_catalog,log):
+    """Function to output a survey catalog file
+    
+    Format of output is a FITS binary table with the following columns:
+    idx x  y  ra  dec  Blend
+    
+    where Blend is a {0,1}={False,True} flag
+    """
+    
+    header = fits.Header()
+    header['NSTARS'] = len(star_catalog)
+    prihdu = fits.PrimaryHDU(header=header)
+    
+    tbhdu = fits.BinTableHDU.from_columns(\
+            [fits.Column(name='ID', format='I', array=star_catalog['ID']),\
+            fits.Column(name='RA_J2000', format='E', array=star_catalog['RA_J2000']),\
+            fits.Column(name='DEC_J2000', format='E', array=star_catalog['DEC_J2000']),\
+            fits.Column(name='Blend', format='I', array=star_catalog['Blend']),])
+    
+    thdulist = fits.HDUList([prihdu, tbhdu])
+    
+    thdulist.writeto(catalog_file,overwrite=True)
+    
+    log.info('Output star catalogue to '+catalog_file)
+    
+
 def extract_star_catalog(star_cat_file, ra_min=None, dec_min=None, 
                                       ra_max=None, dec_max=None):
     """Function to read a catalogue of stars in standard FITS binary table 
