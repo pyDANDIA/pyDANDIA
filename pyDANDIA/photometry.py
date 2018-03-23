@@ -130,7 +130,7 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
     return ref_star_catalog
     
 def run_psf_photometry_on_difference_image(setup,reduction_metadata,log,ref_star_catalog,
-                       difference_image,psf_model,kernel,kernel_error):
+                       difference_image,psf_model,kernel,kernel_error,jd):
     """Function to perform PSF fitting photometry on all stars for a single difference image.
     
     :param SetUp object setup: Essential reduction parameters
@@ -159,6 +159,7 @@ def run_psf_photometry_on_difference_image(setup,reduction_metadata,log,ref_star
 
     list_image_id = []
     list_star_id = []
+    list_star_jd = []
 
     list_ref_mag = []
     list_ref_mag_error = []
@@ -191,8 +192,9 @@ def run_psf_photometry_on_difference_image(setup,reduction_metadata,log,ref_star
 
     for j in range(0,len(ref_star_catalog),1):
 
-	list_image_id.append(0)
-	list_star_id.append(ref_star_catalog[j,0])
+	list_image_id.append(int(j))
+	list_star_id.append(int(ref_star_catalog[j,0]))
+	list_star_jd.append(jd)
 
 	ref_flux = ref_star_catalog[j,5]
 	error_ref_flux = ref_star_catalog[j,6]
@@ -347,6 +349,8 @@ def run_psf_photometry_on_difference_image(setup,reduction_metadata,log,ref_star
 
             list_align_x.append(0)
             list_align_y.append(0)
+
+
     #import pdb; pdb.set_trace()
  
     difference_image_photometry = [list_image_id,list_star_id,list_ref_mag,list_ref_mag_error,list_ref_flux,

@@ -31,6 +31,8 @@ import convolution
 import sky_background
 import psf
 import photometry
+import phot_db
+
 
 def run_stage6(setup):
     """Main driver function to run stage 6: image substraction and photometry.
@@ -139,12 +141,29 @@ def run_stage6(setup):
             report = 'No kernels directory found!'
 
             return status, report
+       
+        # turn on the db
+        try:
+
+            kernels_directory = reduction_metadata.data_architecture[1]['OUTPUT_DIRECTORY'].data[0]+'kernel/'
+
+            logs.ifverbose(log, setup,
+                           'I found the kernels directory:' + kernels_directory)
+        except KeyError:
+            logs.ifverbose(log, setup,
+                           'I can not find the kernels directory! Aboard stage6')
+
+            status = 'KO'
+            report = 'No kernels directory found!'
+
+            return status, report
 
         data = []
         diffim_directory = reduction_metadata.data_architecture[1]['OUTPUT_DIRECTORY'].data[0]+'diffim/'
         images_directory = reduction_metadata.data_architecture[1]['IMAGES_PATH'].data[0]
         phot = np.zeros((145,793,16))
 	time = []
+        conn = phot_db.get_connection((setup.red_dir+ 'pyDANDIA_phot.db'))
         for idx,new_image in enumerate(new_images):
     	 
             log.info('Starting difference photometry of '+new_image)
@@ -158,13 +177,15 @@ def run_stage6(setup):
 
             save_control_stars_of_the_difference_image(setup, new_image, difference_image, star_coordinates)
 
-            photometric_table, control_zone = photometry_on_the_difference_image(setup, reduction_metadata, log,ref_star_catalog,difference_image,  psf_model, sky_model, kernel_image,kernel_error)
+            photometric_table, control_zone = photometry_on_the_difference_image(setup, reduction_metadata, log,ref_star_catalog,difference_image,  psf_model, sky_model, kernel_image,kernel_error,time)
 	    
 	    phot[idx,:,:] = photometric_table
 
             #save_control_zone_of_residuals(setup, new_image, control_zone)	
 
-            #ingest_photometric_table_in_db(setup, photometric_table) 
+            #ingest_photometric_table_in_db(setup, photometric_table)
+
+ 
     import pdb; pdb.set_trace()
     import matplotlib.pyplot as plt 
     ind = ((starlist['x_pixel']-150)**2<1) & ((starlist['y_pixel']-150)**2<1)
@@ -370,7 +391,15 @@ def image_substraction(setup, reduction_metadata, reference_image_data, kernel_d
 
     return difference_image
 
+def create_astropy_table_for_db(photometry_table):
 
+	names = ["exposure_id", "star_id","reference_flux","reference_flux_err", "reference_mag","reference_mag_err", 
+                 "diff_flux",    "diff_flux_err", "magnitude",  "magnitude_err", "phot_scale_factor","phot_scale_factor_err",
+                 "local_background","local_background_err","residual_x", "residual_y",]        
+ 
+        types = ('i', 'i','f', 'f','f','f','f','f','f','f','f','f','f','f','f','f')
+	astropy_table = Table(photometry_table,names=names,dtype=types)
+	return astropy_table
 def find_the_associated_kernel(setup, kernels_directory, image_name):
     '''
     Find the appropriate kernel associated to an image
@@ -397,7 +426,7 @@ def find_the_associated_kernel(setup, kernels_directory, image_name):
 
     return kernel,kernel_error[0].data,bkgd
 
-def photometry_on_the_difference_image(setup, reduction_metadata, log, star_catalog,difference_image, psf_model, sky_model, kernel,kernel_error):
+def photometry_on_the_difference_image(setup, reduction_metadata, log, star_catalog,difference_image, psf_model, sky_model, kernel,kernel_error,jd):
     '''
     Find the appropriate kernel associated to an image
     :param object reduction_metadata: the metadata object
@@ -410,7 +439,7 @@ def photometry_on_the_difference_image(setup, reduction_metadata, log, star_cata
     #import pdb; pdb.set_trace()
 
     differential_photometry = photometry.run_psf_photometry_on_difference_image(setup,reduction_metadata,log,star_catalog,
-                       								difference_image,psf_model,kernel,kernel_error)
+                       								difference_image,psf_model,kernel,kernel_error,jd)
     
     #column_names = ('Exposure_id','Star_id','Ref_mag','Ref_mag_err','Ref_flux','Ref_flux_err','Delta_flux','Delta_flux_err','Mag','Mag_err',
      #               'Phot_scale_factor','Phot_scale_factor_err','Back','Back_err','delta_x','delta_y')
