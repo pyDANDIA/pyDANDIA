@@ -11,7 +11,7 @@
 #      matplotlib 1.3+
 #      photutils 0.3.2+
 #
-# Developed by the Yiannis Tsapras
+# Developed by Yiannis Tsapras
 # as part of the ROME/REA LCO Key Project.
 #
 # version 0.1a (development)
