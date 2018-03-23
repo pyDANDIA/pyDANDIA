@@ -79,28 +79,28 @@ class ReferenceImages(TableDef):
     c_100_intercept = 'REAL' #The intercept of the photometric calibration: VPHAS mags vs instr mags
     c_105_intercept_err = 'REAL'
     c_120_refimg_name = 'TEXT'
-	c_130_wcsfrcat = 'TEXT' #WCS fit information stored in the next lines (c_130 to c_152)
-	c_131_wcsimcat = 'TEXT'
-	c_132_wcsmatch = 'INTEGER'
-	c_133_wcsnref = 'INTEGER'
-	c_134_wcstol = 'REAL'
-	c_135_wcsra = 'TEXT'
-	c_136_wcsdec = 'TEXT'
+    c_130_wcsfrcat = 'TEXT' #WCS fit information stored in the next lines (c_130 to c_152)
+    c_131_wcsimcat = 'TEXT'
+    c_132_wcsmatch = 'INTEGER'
+    c_133_wcsnref = 'INTEGER'
+    c_134_wcstol = 'REAL'
+    c_135_wcsra = 'TEXT'
+    c_136_wcsdec = 'TEXT'
     c_137_wequinox = 'INTEGER'
-	c_138_wepoch = 'INTEGER'
-	c_139_radecsys = 'FK5'
+    c_138_wepoch = 'INTEGER'
+    c_139_radecsys = 'FK5'
     c_140_cdelt1 = 'DOUBLE PRECISION'
-	c_141_cdelt2 = 'DOUBLE PRECISION'
-	c_142_crota1 = 'DOUBLE PRECISION'
-	c_143_crota2 = 'DOUBLE PRECISION'
-	c_144_secpix1 = 'REAL'
-	c_145_secpix2 = 'REAL'
-	c_146_wcssep = 'REAL'
-	c_147_equinox = 'INTEGER'
-	c_148_cd1_1 = 'DOUBLE PRECISION'
-	c_149_cd1_2 = 'DOUBLE PRECISION'
-	c_150_cd2_1 = 'DOUBLE PRECISION'
-	c_151_cd2_2 = 'DOUBLE PRECISION'
+    c_141_cdelt2 = 'DOUBLE PRECISION'
+    c_142_crota1 = 'DOUBLE PRECISION'
+    c_143_crota2 = 'DOUBLE PRECISION'
+    c_144_secpix1 = 'REAL'
+    c_145_secpix2 = 'REAL'
+    c_146_wcssep = 'REAL'
+    c_147_equinox = 'INTEGER'
+    c_148_cd1_1 = 'DOUBLE PRECISION'
+    c_149_cd1_2 = 'DOUBLE PRECISION'
+    c_150_cd2_1 = 'DOUBLE PRECISION'
+    c_151_cd2_2 = 'DOUBLE PRECISION'
     c_152_epoch = 'INTEGER'
 
 class Exposures(TableDef):
@@ -211,11 +211,12 @@ def feed_to_table_many(conn, table_name, names, tuples):
     """dumps a sequence of tuples into table_name.
 
     names gives the sequence of column names per tuple element.
+    !!! careful not to include the PRIMARY KEY column for the table in the 
+        names or tuples !!!
     """
-    conn.executemany("INSERT OR REPLACE INTO %s (%s) VALUES (%s)"%(
+    conn.executemany("INSERT INTO %s (%s) VALUES (%s)"%(
         table_name, ",".join(names), ",".join("?"*len(names))),
         tuples)
-
 
 def feed_to_table_many_dict(conn, table_name, rows):
     """dumps a list of (structurally identical!) dictionaries to the database.
