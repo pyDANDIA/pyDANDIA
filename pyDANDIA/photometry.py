@@ -130,7 +130,7 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
     return ref_star_catalog
     
 def run_psf_photometry_on_difference_image(setup,reduction_metadata,log,ref_star_catalog,
-                       difference_image,psf_model,kernel,kernel_error,jd):
+                       difference_image,psf_model,kernel,kernel_error,jd,exp_time_ratio):
     """Function to perform PSF fitting photometry on all stars for a single difference image.
     
     :param SetUp object setup: Essential reduction parameters
@@ -188,16 +188,15 @@ def run_psf_photometry_on_difference_image(setup,reduction_metadata,log,ref_star
     control_count = 0
     psf_parameters = psf_model.get_parameters()
     psf_parameters[0] = 1
-    radius = psf_size/2
-
+    radius = psf_size/3
     for j in range(0,len(ref_star_catalog),1):
 
 	list_image_id.append(int(j))
 	list_star_id.append(int(ref_star_catalog[j,0]))
 	list_star_jd.append(jd)
 
-	ref_flux = ref_star_catalog[j,5]
-	error_ref_flux = ref_star_catalog[j,6]
+	ref_flux = ref_star_catalog[j,5]/300.
+	error_ref_flux = ref_star_catalog[j,6]/300.
 
         list_ref_mag.append(ref_star_catalog[j,5])
         list_ref_mag_error.append(ref_star_catalog[j,6])
@@ -214,10 +213,10 @@ def run_psf_photometry_on_difference_image(setup,reduction_metadata,log,ref_star
         logs.ifverbose(log,setup,' -> Star '+str(j)+' at position ('+\
         str(xstar)+', '+str(ystar)+')')
 	
-        psf_parameters[1] = xstar
- 	psf_parameters[2] = ystar
+        psf_parameters[1] = ystar
+ 	psf_parameters[2] = xstar
 
-        psf_image = psf_model.psf_model(X_grid, Y_grid, psf_parameters)
+        psf_image = psf_model.psf_model(Y_grid, X_grid, psf_parameters)
  	#psf_image /= np.sum(psf_image)
 	psf_convolve = convolution.convolve_image_with_a_psf(psf_image, kernel, fourrier_transform_psf=None, fourrier_transform_image=None,
                               correlate=None, auto_correlation=None)
@@ -247,7 +246,7 @@ def run_psf_photometry_on_difference_image(setup,reduction_metadata,log,ref_star
 
         
        
-	#import pdb; pdb.set_trace()
+
 	good_fit = True
         if good_fit == True:
             
@@ -282,23 +281,35 @@ def run_psf_photometry_on_difference_image(setup,reduction_metadata,log,ref_star
            # psf_fit /= np.sum(psf_fit)
 	    center = (psf_fit.shape)
  	    xx,yy=np.indices(psf_fit.shape)
-	    mask = ((xx-center[0]/2)**2+(yy-center[1]/2)**2)<radius**2
+            dist = ((xx-center[0]/2)**2+(yy-center[1]/2)**2)
+	    mask = dist<radius**2
             
            
-            #psf_fit[~mask] = 0
-            
             weight1= 0.5+np.abs(data[mask].ravel()+0.25)**0.5
             weight2= -0.5+np.abs(data[mask].ravel()+0.25)**0.5
             weight = (weight1+weight2)/2
+            #import pdb; pdb.set_trace()
  	    intensities,cov = np.polyfit(psf_fit[mask].ravel(),data[mask].ravel(),1,w=1/weight,cov=True)
+          
             #psf_final = psf_fit/np.sum(psf_fit)
 	    res = data-psf_fit*intensities[0]-intensities[1]
-            psf_fit[~mask] = 0
-
+           # psf_fit[~mask] = 0
+	    #import pdb; pdb.set_trace()
 	    psf_final = psf_fit
-	    	
+#            if np.abs(intensities[0])>10*cov[0][0]**0.5: 
+#                    plt.subplot(311)
+
+#                    plt.imshow(data)
+#		    plt.subplot(312)
+#                    plt.imshow(psf_final*intensities[0]+intensities[1])
+#                    plt.subplot(313)
+#		    plt.imshow(data-psf_final*intensities[0]-intensities[1])
+#		    plt.show()
+            #import pdb; pdb.set_trace()
 
             (flux, flux_err) =  (np.sum(psf_final),(np.sum(np.abs(psf_final)))**0.5)
+            flux /= 300.
+            flux_err /= 300.
 	    res = data-psf_fit*intensities[0]-intensities[1]
             #flux_err = (np.sum(abs(res)))**0.5
  
@@ -308,11 +319,10 @@ def run_psf_photometry_on_difference_image(setup,reduction_metadata,log,ref_star
 	    (back,back_err) = (intensities[1],cov[1][1]**0.5)
 	
 	   
-	        
             flux_tot = ref_flux+flux/phot_scale_factor
             
-	    #flux_err_tot = (error_ref_flux**2+flux_err**2/phot_scale_factor**2+back_err**2)**0.5
-            flux_err_tot = (error_ref_flux**2+flux_err**2)**0.5
+	    flux_err_tot = (error_ref_flux**2+flux_err**2/phot_scale_factor**2+back_err**2)**0.5
+            #flux_err_tot = (error_ref_flux**2+flux_err**2)**0.5
 
             list_delta_flux.append(flux)
             list_delta_flux_error.append(flux_err)        
