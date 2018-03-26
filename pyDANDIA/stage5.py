@@ -69,7 +69,8 @@ def run_stage5(setup):
     else:
         crop_flag = False
     sigma_max = fwhm_max/(2.*(2.*np.log(2.))**0.5)
-    kernel_size = int(3.2*float(reduction_metadata.reduction_parameters[1]['KER_RAD'][0]) * fwhm_max)
+    # Factor 4 corresponds to the radius of 2*FWHM the old pipeline
+    kernel_size = int(4.*float(reduction_metadata.reduction_parameters[1]['KER_RAD'][0]) * fwhm_max)
     if kernel_size:
         if kernel_size % 2 == 0:
             kernel_size = kernel_size + 1
@@ -161,14 +162,14 @@ def run_stage5(setup):
                 b_vector = bvector_constant(reference_image, data_image, kernel_size)
             	kernel_matrix, bkg_kernel, kernel_uncertainty  = kernel_solution(umatrix, b_vector, kernel_size)
                 pscale = np.sum(kernel_matrix)                
- #               np.save(os.path.join(kernel_directory_path,'kernel_'+new_image+'.npy'),[kernel_matrix,bkg_kernel])
-#                kernel_header = fits.Header()
-#                kernel_header['SCALEFAC'] = str(pscale)
-#                kernel_header['KERBKG'] = bkg_kernel
-#                hdu_kernel = fits.PrimaryHDU(kernel_matrix,header=kernel_header)
-#                hdu_kernel.writeto(os.path.join(kernel_directory_path,'kernel_'+new_image), overwrite = True)  
-#                hdu_kernel_err = fits.PrimaryHDU(kernel_uncertainty)
-#                hdu_kernel_err.writeto(os.path.join(kernel_directory_path,'kernel_err_'+new_image), overwrite = True)  
+                np.save(os.path.join(kernel_directory_path,'kernel_'+new_image+'.npy'),[kernel_matrix,bkg_kernel])
+                kernel_header = fits.Header()
+                kernel_header['SCALEFAC'] = str(pscale)
+                kernel_header['KERBKG'] = bkg_kernel
+                hdu_kernel = fits.PrimaryHDU(kernel_matrix,header=kernel_header)
+                hdu_kernel.writeto(os.path.join(kernel_directory_path,'kernel_'+new_image), overwrite = True)  
+                hdu_kernel_err = fits.PrimaryHDU(kernel_uncertainty)
+                hdu_kernel_err.writeto(os.path.join(kernel_directory_path,'kernel_err_'+new_image), overwrite = True)  
 
                 logs.ifverbose(log, setup, 'b_vector calculated for:' + new_image+' and scale factor '+str(pscale))
                 #CROP EDGE!
@@ -433,7 +434,6 @@ def kernel_solution(u_matrix, b_vector, kernel_size):
     err_kernel = np.zeros(kernel_size * kernel_size, dtype=float)
     err_kernel = (a_vector_err*lstsq_result[3])[:-1]
     err_kernel = err_kernel.reshape((kernel_size, kernel_size))
-
     xyc = kernel_size / 2
     radius_square = (xyc)**2
     for idx in range(kernel_size):
