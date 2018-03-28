@@ -154,6 +154,75 @@ class Moffat2D(PSFModel):
         
         return flux, flux_err	
 
+class EllipticalMoffat(PSFModel):
+
+    def psf_type(self):
+
+        return 'EllipticalMoffat'
+
+    def define_psf_parameters(self):
+
+        self.model = ['intensity', 'y_center', 'x_center', 'alpha_1', 'alpha_2','theta','beta']
+
+        self.psf_parameters = collections.namedtuple('parameters', self.model)
+
+        for index, key in enumerate(self.model):
+
+            setattr(self.psf_parameters, key, None)
+
+    def update_psf_parameters(self, parameters):
+
+        for index, key in enumerate(self.model):
+            
+            setattr(self.psf_parameters, key, parameters[index])
+                        
+    def psf_model(self, Y_star, X_star, parameters):
+
+        self.update_psf_parameters(parameters)
+        A = (np.cos(self.psf_parameters.theta)/self.psf_parameters.alpha_1)**2+ (np.sin(self.psf_parameters.theta)/self.psf_parameters.alpha_2)**2 
+
+        B = (np.sin(self.psf_parameters.theta)/self.psf_parameters.alpha_1)**2+ (np.cos(self.psf_parameters.theta)/self.psf_parameters.alpha_2)**2   
+
+        C = 2*np.cos(self.psf_parameters.theta)*np.sin(self.psf_parameters.theta)*(1/self.psf_parameters.alpha_1**2-1/self.psf_parameters.alpha_2**2)
+
+	D = (1+A*(X_star - self.psf_parameters.x_center)**2+B*(Y_star - self.psf_parameters.y_center)**2+
+            C*(X_star - self.psf_parameters.x_center)*(Y_star - self.psf_parameters.y_center))**(-self.psf_parameters.beta)
+        
+        model = self.psf_parameters.intensity * D
+
+        return model
+
+    def psf_model_star(self, Y_star, X_star, star_params=[]):
+
+        params = self.get_parameters()
+        
+        for i in range(0,len(star_params),1):
+            
+            params[i] = star_params[i]
+            
+        model = self.psf_model(Y_star,X_star,params)
+        
+        return model
+
+    def psf_guess(self):
+
+        #gamma, alpha
+        return [2.0, 2.0,0.0,2.0]
+
+    def get_parameters(self):
+        
+        params = []
+        
+        for par in self.model:
+            
+            params.append(getattr(self.psf_parameters,par))
+        
+        return params
+    def get_FWHM(self, gamma, alpha, pix_scale):
+
+        fwhm = gamma * 2 * (2**(1 / alpha) - 1)**0.5 * pix_scale
+        return fwhm
+    
 class Gaussian2D(PSFModel):
 
     def psf_type(self):
@@ -1310,6 +1379,9 @@ def get_psf_object(psf_type):
     elif psf_type == 'Lorentzian2D':
 
         model = Lorentzian2D()
+    elif psf_type == 'EllipticalMoffat':
+
+        model = EllipticalMoffat()
 
     else:
         

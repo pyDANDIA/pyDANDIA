@@ -92,8 +92,7 @@ def run_stage6(setup):
                       psf_model[0].header['X_CENTER'],
                       psf_model[0].header['GAMMA'],
                       psf_model[0].header['ALPHA']]  	
-    
- 
+
     sky_model = sky_background.model_sky_background(setup,
                                         reduction_metadata,log,ref_star_catalog)
 
@@ -174,7 +173,7 @@ def run_stage6(setup):
 	    row_index = np.where(reduction_metadata.images_stats[1]['IM_NAME'] == new_image)[0][0]
             target_exposure_time = float(reduction_metadata.headers_summary[1][row_index]['EXPKEY'])
 
-            exp_time_ratio = 1/(target_exposure_time/ref_exposure_time )
+            exp_time_ratio = (target_exposure_time/ref_exposure_time )
            
             kernel_image,kernel_error,kernel_bkg = find_the_associated_kernel(setup, kernels_directory, new_image)
 	    #import pdb; pdb.set_trace()
@@ -193,7 +192,6 @@ def run_stage6(setup):
 
             #ingest_photometric_table_in_db(setup, photometric_table)
 
- 
     import pdb; pdb.set_trace()
     import matplotlib.pyplot as plt 
     ind = ((starlist['x_pixel']-150)**2<1) & ((starlist['y_pixel']-150)**2<1)
@@ -390,7 +388,9 @@ def image_substraction(setup, reduction_metadata, reference_image_data, kernel_d
     xshift, yshift = -reduction_metadata.images_stats[1][row_index]['SHIFT_X'],-reduction_metadata.images_stats[1][row_index]['SHIFT_Y'] 
 
     
-
+    print yshift,xshift
+    #xshift = 0
+    #yshift = 0
     image_shifted = shift(background_image, (-yshift,-xshift), cval=0.) 
 
     
