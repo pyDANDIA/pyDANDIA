@@ -108,7 +108,7 @@ def open_data_image(setup, data_image_directory, data_image_name, reference_mask
 
     if xshift>img_shape[0] or yshift>img_shape[1]:
         return []
-  
+    data_image[data_extension].data = shift(data_image[data_extension].data, (-yshift,-xshift), cval=0.)
     data_image_unmasked = np.copy(data_image[data_extension].data)
     if central_crop != None:
         tmp_image = np.zeros(np.shape(data_image[data_extension].data))
