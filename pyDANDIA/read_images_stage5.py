@@ -121,8 +121,8 @@ def open_data_image(setup, data_image_directory, data_image_name, reference_mask
     
     #apply consistent mask    
     data_extended[reference_mask] = 0.
-    dout = fits.PrimaryHDU(data_extended)
-    dout.writeto('datext'+data_image_name,overwrite=True)
+    #dout = fits.PrimaryHDU(data_extended)
+    #dout.writeto('datext'+data_image_name,overwrite=True)
     return data_extended, data_image_unmasked
 
 def open_reference(setup, ref_image_directory, ref_image_name, kernel_size,
@@ -179,8 +179,8 @@ def open_reference(setup, ref_image_directory, ref_image_name, kernel_size,
     mask_propagate = convolve2d(mask_propagate, mask_kernel, mode='same')
     bright_mask = mask_propagate > 0.
     ref_extended[bright_mask] = 0.
-    dout = fits.PrimaryHDU(ref_extended)
-    dout.writeto('refext'+ref_image_name,overwrite=True)
+    #dout = fits.PrimaryHDU(ref_extended)
+    #dout.writeto('refext'+ref_image_name,overwrite=True)
     return ref_extended, bright_mask, ref_image_unmasked
 
 def open_images(setup, ref_image_directory, data_image_directory, ref_image_name,
