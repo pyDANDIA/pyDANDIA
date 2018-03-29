@@ -119,7 +119,6 @@ def run_stage4(setup):
 
             column_format = 'int'
             column_unit = 'pix'
-	    import pdb; pdb.set_trace()
             reduction_metadata.add_column_to_layer('images_stats', 'SHIFT_X', sorted_data[:, 1],
                                                    new_column_format=column_format,
                                                    new_column_unit=column_unit)
