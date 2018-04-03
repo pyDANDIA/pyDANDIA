@@ -14,11 +14,11 @@ import os
 from astropy.io import fits
 import sys
 
-import config_utils
+from pyDANDIA import config_utils
 
-import metadata
-import logs
-import convolution
+from pyDANDIA import metadata
+from pyDANDIA import logs
+from pyDANDIA import convolution
 
 def run_stage4(setup):
     """Main driver function to run stage 4: image alignement.
@@ -66,7 +66,7 @@ def run_stage4(setup):
             return status, report
 
         data = []
-	images_directory = reduction_metadata.data_architecture[1]['IMAGES_PATH'].data[0]
+        images_directory = reduction_metadata.data_architecture[1]['IMAGES_PATH'].data[0]
         for new_image in new_images:
             target_image = open_an_image(setup, images_directory, new_image, image_index=0, log=None)
 
@@ -90,7 +90,7 @@ def run_stage4(setup):
                 report = 'No shift  found for image:' + new_image + ' !'
 
                 return status, report
-	
+     
 
         if ('SHIFT_X' in reduction_metadata.images_stats[1].keys()) and (
                     'SHIFT_Y' in reduction_metadata.images_stats[1].keys()):

@@ -8,15 +8,15 @@ import os
 import sys
 from astropy.io import fits
 import numpy as np
-import logs
-import metadata
-import starfind
-import pipeline_setup
-import sky_background
-import wcs
-import psf
-import psf_selection
-import photometry
+from pyDANDIA import  logs
+from pyDANDIA import  metadata
+from pyDANDIA import  starfind
+from pyDANDIA import  pipeline_setup
+from pyDANDIA import  sky_background
+from pyDANDIA import  wcs
+from pyDANDIA import  psf
+from pyDANDIA import  psf_selection
+from pyDANDIA import  photometry
 
 VERSION = 'pyDANDIA_stage3_v0.2'
 
@@ -51,7 +51,7 @@ def run_stage3(setup):
                                         (scidata-meta_pars['ref_sky_bkgd']),
                                         log,
                                         diagnostics=False)
-                                        
+
         ref_star_catalog = wcs.reference_astrometry(setup,log,
                                         meta_pars['ref_image_path'],
                                         detected_sources,
@@ -164,11 +164,11 @@ def extract_parameters_stage3(reduction_metadata):
         
     try:
         
-        meta_pars['sky_model_type'] = reduction_metadata['reduction_parameters'].data['BACK_VAR'][0]
-    
+        meta_pars['sky_model_type'] = reduction_metadata.reduction_parameters[1]['BACK_VAR'][0]
+
     except AttributeError:
         
-        meta_pars['sky_model_type'] = '0'
+        meta_pars['sky_model_type'] = 'constant'
         
     return meta_pars
     

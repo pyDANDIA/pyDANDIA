@@ -13,11 +13,11 @@
 # Last update: 19 Oct 2017
 ###############################################################################
 
-import starfind
+from pyDANDIA import  starfind
 import os
 import sys
-import metadata
-import logs
+from pyDANDIA import  metadata
+from pyDANDIA import  logs
 
 
 def run_stage1(setup, rerun_all=None):

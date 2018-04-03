@@ -16,21 +16,21 @@ from astropy.io import fits
 from astropy.table import Table
 from astropy.table import Column
 from scipy.ndimage.interpolation import shift
-from sky_background import mask_saturated_pixels, generate_sky_model
-from sky_background import fit_sky_background, generate_sky_model_image
+from pyDANDIA.sky_background import mask_saturated_pixels, generate_sky_model
+from pyDANDIA.sky_background import fit_sky_background, generate_sky_model_image
 
 
 
-import config_utils
+from pyDANDIA import config_utils
 
-import metadata
-import logs
-import convolution
+from pyDANDIA import metadata
+from pyDANDIA import logs
+from pyDANDIA import convolution
 #import db.astropy_interface as db_ai
 #import db.phot_db as db_phot
-import sky_background
-import psf
-import photometry
+from pyDANDIA import sky_background
+from pyDANDIA import psf
+from pyDANDIA import photometry
 
 def run_stage6(setup):
     """Main driver function to run stage 6: image substraction and photometry.
@@ -59,7 +59,7 @@ def run_stage6(setup):
                                                                    stage_number=6, rerun_all=None, log=log)
 
     # find the starlist
-    starlist =  reduction_metadata.star_catalog[1]	
+    starlist =  reduction_metadata.star_catalog[1]     
 
     max_x = np.max(starlist['x_pixel'].data)
     max_y = np.max(starlist['y_pixel'].data)
@@ -71,15 +71,15 @@ def run_stage6(setup):
                              control_stars['y_pixel'].data]
 
     for index,key in enumerate(starlist.columns.keys()):
+    
+        if index != 0:
 
-	if index != 0:
+     
+         ref_star_catalog = np.c_[ref_star_catalog,starlist[key].data]
 
-	
-	    ref_star_catalog = np.c_[ref_star_catalog,starlist[key].data]
-
-	else:
-		
-	    ref_star_catalog = starlist[key].data
+        else:
+          
+         ref_star_catalog = starlist[key].data
 
 
 
@@ -89,7 +89,7 @@ def run_stage6(setup):
     psf_parameters = [0, psf_model[0].header['Y_CENTER'],
                       psf_model[0].header['X_CENTER'],
                       psf_model[0].header['GAMMA'],
-                      psf_model[0].header['ALPHA']]  	
+                      psf_model[0].header['ALPHA']]       
     
  
     sky_model = sky_background.model_sky_background(setup,
@@ -100,7 +100,7 @@ def run_stage6(setup):
     psf_model.update_psf_parameters( psf_parameters)
 
     ind = ((starlist['x_pixel']-150)**2<1) & ((starlist['y_pixel']-150)**2<1)
-    print np.argmin(((starlist['x_pixel']-150)**2) + ((starlist['y_pixel']-150)**2))
+    print (np.argmin(((starlist['x_pixel']-150)**2) + ((starlist['y_pixel']-150)**2)))
     if len(new_images) > 0:
 
         # find the reference image
@@ -143,26 +143,26 @@ def run_stage6(setup):
         data = []
         diffim_directory = reduction_metadata.data_architecture[1]['OUTPUT_DIRECTORY'].data[0]+'diffim/'
         images_directory = reduction_metadata.data_architecture[1]['IMAGES_PATH'].data[0]
-        phot = np.zeros((145,793,16))
-	time = []
+        phot = np.zeros((len(new_images),408,16))
+        time = []
         for idx,new_image in enumerate(new_images):
-    	 
+          
             log.info('Starting difference photometry of '+new_image)
             target_image,date = open_an_image(setup, images_directory, new_image, image_index=0, log=None)
             kernel_image,kernel_error,kernel_bkg = find_the_associated_kernel(setup, kernels_directory, new_image)
-	    #import pdb; pdb.set_trace()
+         
             difference_image = image_substraction(setup, reduction_metadata,reference_image, kernel_image, new_image)-kernel_bkg
-	    #difference_image = image_substraction2(setup, diffim_directory, new_image)
+         
 
-	    time.append(date)
+            time.append(date)
 
             save_control_stars_of_the_difference_image(setup, new_image, difference_image, star_coordinates)
 
             photometric_table, control_zone = photometry_on_the_difference_image(setup, reduction_metadata, log,ref_star_catalog,difference_image,  psf_model, sky_model, kernel_image,kernel_error)
-	    
-	    phot[idx,:,:] = photometric_table
+         
+            phot[idx,:,:] = photometric_table
 
-            #save_control_zone_of_residuals(setup, new_image, control_zone)	
+            #save_control_zone_of_residuals(setup, new_image, control_zone)     
 
             #ingest_photometric_table_in_db(setup, photometric_table) 
     import pdb; pdb.set_trace()
@@ -171,13 +171,6 @@ def run_stage6(setup):
     plt.errorbar(time,phot[:,ind,8],fmt='.k')
     
     
-    ind=177
-    plt.errorbar(time,phot[:,ind,8],fmt='.r')
-    ind = np.random.randint(0,600)
-    ind=722
-    print ind
-    plt.errorbar(time,phot[:,ind,8],fmt='.g')
-    plt.gca().invert_yaxis()
     plt.show()
     import pdb; pdb.set_trace()
     return status, report
@@ -225,9 +218,9 @@ def open_an_image(setup, image_directory, image_name,
                                mmap=True)
         image_data = image_data[image_index]
         try:
-		date =  image_data.header['MJD-OBS']
-	except :
-		date = 0
+          date =  image_data.header['MJD-OBS']
+        except :
+          date = 0
 
         logs.ifverbose(log, setup, image_name + ' open : OK')
 
@@ -271,9 +264,9 @@ def save_control_stars_of_the_difference_image(setup, image_name, difference_ima
 
     control_images_directory = setup.red_dir+'diffim/'
     try:
-    	os.makedirs(control_images_directory)
+         os.makedirs(control_images_directory)
     except:
-	pass
+     pass
 
     control_size = 50
 
@@ -283,8 +276,7 @@ def save_control_stars_of_the_difference_image(setup, image_name, difference_ima
         ind_i = int(np.round(star[1]))
         ind_j = int(np.round(star[2]))
 
-        stamp = difference_image[ind_i-control_size/2:ind_i+control_size/2,
-		          ind_j-control_size/2:ind_j+control_size/2]
+        stamp = difference_image[int(ind_i-control_size/2):int(ind_i+control_size/2),int(ind_j-control_size/2):int(ind_j+control_size/2)]
 
         try :
 
@@ -317,7 +309,7 @@ def image_substraction2(setup, diffim_directory, image_name, log=None):
     '''
     #import pdb; pdb.set_trace()
     diffim = 'diff_'+image_name
-	 
+      
     diffim,date = open_an_image(setup, diffim_directory, diffim,
                            image_index=0, log=None)
 
@@ -351,7 +343,7 @@ def image_substraction(setup, reduction_metadata, reference_image_data, kernel_d
     ref_extended[kernel_size:-kernel_size, kernel_size:-
                  kernel_size] = np.array(background_ref, float)
 
-	
+     
     model = convolution.convolve_image_with_a_psf(ref_extended, kernel_data)
 
     model = model[kernel_size:-kernel_size,kernel_size:-kernel_size]
@@ -410,7 +402,7 @@ def photometry_on_the_difference_image(setup, reduction_metadata, log, star_cata
     #import pdb; pdb.set_trace()
 
     differential_photometry = photometry.run_psf_photometry_on_difference_image(setup,reduction_metadata,log,star_catalog,
-                       								difference_image,psf_model,kernel,kernel_error)
+                                                               difference_image,psf_model,kernel,kernel_error)
     
     #column_names = ('Exposure_id','Star_id','Ref_mag','Ref_mag_err','Ref_flux','Ref_flux_err','Delta_flux','Delta_flux_err','Mag','Mag_err',
      #               'Phot_scale_factor','Phot_scale_factor_err','Back','Back_err','delta_x','delta_y')
@@ -422,19 +414,19 @@ def photometry_on_the_difference_image(setup, reduction_metadata, log, star_cata
     return differential_photometry
 def ingest_reference_in_db(setup, reference):
 
-	conn = db_phot.get_connection(dsn=setup.red_dir)
-	
-	db_ai.load_astropy_table(conn, 'phot', photometric_table)
+     conn = db_phot.get_connection(dsn=setup.red_dir)
+     
+     db_ai.load_astropy_table(conn, 'phot', photometric_table)
 
-	
+     
 def ingest_exposure_in_db(setup, photometric_table):
 
-	conn = db_phot.get_connection(dsn=setup.red_dir)
-	
-	db_ai.load_astropy_table(conn, 'phot', photometric_table)
+     conn = db_phot.get_connection(dsn=setup.red_dir)
+     
+     db_ai.load_astropy_table(conn, 'phot', photometric_table)
 
 def ingest_photometric_table_in_db(setup, photometric_table):
 
-	conn = db_phot.get_connection(dsn=setup.red_dir)
-	
-	db_ai.load_astropy_table(conn, 'phot', photometric_table)
+     conn = db_phot.get_connection(dsn=setup.red_dir)
+     
+     db_ai.load_astropy_table(conn, 'phot', photometric_table)

@@ -8,7 +8,7 @@ Created on Mon Oct 16 19:59:22 2017
 from os import path
 from sys import exit
 import numpy as np
-import logs
+from pyDANDIA import  logs
 import matplotlib.pyplot as plt
 
 def psf_star_selection(setup,reduction_metadata,log,ref_star_catalog,

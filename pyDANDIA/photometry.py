@@ -8,13 +8,13 @@ Created on Wed Oct 18 15:42:26 2017
 import os
 import sys
 import numpy as np
-import logs
-import metadata
+from pyDANDIA import logs
+from pyDANDIA import  metadata
 import matplotlib.pyplot as plt
 from astropy.io import fits
-import starfind
-import psf
-import convolution
+from pyDANDIA import  starfind
+from pyDANDIA import  psf
+from pyDANDIA import  convolution
 from scipy.odr import *
 
 
@@ -152,8 +152,7 @@ def run_psf_photometry_on_difference_image(setup,reduction_metadata,log,ref_star
 
     size_stamp = int(psf_size)+1
     if size_stamp%2 == 0 :
-
-	size_stamp += 1
+       size_stamp += 1
 
     Y_data, X_data = np.indices((size_stamp+1,size_stamp+1))
 
@@ -177,7 +176,7 @@ def run_psf_photometry_on_difference_image(setup,reduction_metadata,log,ref_star
 
     list_align_x = []
     list_align_y = []
-	
+     
 
     phot_scale_factor = np.sum(kernel)
     error_phot_scale_factor = (np.sum(kernel_error))**0.5
@@ -190,163 +189,137 @@ def run_psf_photometry_on_difference_image(setup,reduction_metadata,log,ref_star
     radius = psf_size/2
 
     for j in range(0,len(ref_star_catalog),1):
+    
+        list_image_id.append(0)
+        list_star_id.append(ref_star_catalog[j,0])
 
-	list_image_id.append(0)
-	list_star_id.append(ref_star_catalog[j,0])
-
-	ref_flux = ref_star_catalog[j,5]
-	error_ref_flux = ref_star_catalog[j,6]
+        ref_flux = ref_star_catalog[j,5]
+        error_ref_flux = ref_star_catalog[j,6]
 
         list_ref_mag.append(ref_star_catalog[j,5])
         list_ref_mag_error.append(ref_star_catalog[j,6])
         list_ref_flux.append(ref_flux)
         list_ref_flux_error.append(error_ref_flux)
-    	
+
 
         xstar = ref_star_catalog[j,1]
         ystar = ref_star_catalog[j,2]
-        
+
         X_grid = X_data + (int(np.round(xstar)) - half_psf)
         Y_grid = Y_data + (int(np.round(ystar)) - half_psf)
-        
+
         logs.ifverbose(log,setup,' -> Star '+str(j)+' at position ('+\
         str(xstar)+', '+str(ystar)+')')
-	
+
         psf_parameters[1] = xstar
- 	psf_parameters[2] = ystar
+        psf_parameters[2] = ystar
 
         psf_image = psf_model.psf_model(X_grid, Y_grid, psf_parameters)
- 	#psf_image /= np.sum(psf_image)
-	psf_convolve = convolution.convolve_image_with_a_psf(psf_image, kernel, fourrier_transform_psf=None, fourrier_transform_image=None,
-                              correlate=None, auto_correlation=None)
-	try:
-		max_x = int(np.min([difference_image.shape[0], np.max(X_data + (int(np.round(xstar)) - half_psf))]))
-		min_x = int(np.max([0, np.min(X_data + (int(np.round(xstar)) - half_psf))]))
-		max_y = int(np.min([difference_image.shape[1], np.max(Y_data + (int(np.round(ystar)) - half_psf))]))
-		min_y = int(np.max([0, np.min(Y_data + (int(np.round(ystar)) - half_psf))]))
-		#import pdb; pdb.set_trace()
+     
+        psf_convolve = convolution.convolve_image_with_a_psf(psf_image, kernel, fourrier_transform_psf=None, fourrier_transform_image=None,
+                        correlate=None, auto_correlation=None)
+        try:
+          max_x = int(np.min([difference_image.shape[0], np.max(X_data + (int(np.round(xstar)) - half_psf))]))
+          min_x = int(np.max([0, np.min(X_data + (int(np.round(xstar)) - half_psf))]))
+          max_y = int(np.min([difference_image.shape[1], np.max(Y_data + (int(np.round(ystar)) - half_psf))]))
+          min_y = int(np.max([0, np.min(Y_data + (int(np.round(ystar)) - half_psf))]))
+          #import pdb; pdb.set_trace()
 
 
-                data = difference_image[min_y:max_y,min_x:max_x]
-		
-		max_x = int(max_x- (int(np.round(xstar)) - half_psf))
-		min_x = int(min_x- (int(np.round(xstar)) - half_psf))
-		max_y = int(max_y- (int(np.round(ystar)) - half_psf))
-		min_y = int(min_y- (int(np.round(ystar)) - half_psf))
+          data = difference_image[min_y:max_y,min_x:max_x]
+          
+          max_x = int(max_x- (int(np.round(xstar)) - half_psf))
+          min_x = int(min_x- (int(np.round(xstar)) - half_psf))
+          max_y = int(max_y- (int(np.round(ystar)) - half_psf))
+          min_y = int(min_y- (int(np.round(ystar)) - half_psf))
 
-		psf_fit = psf_convolve[min_y:max_y,min_x:max_x]
-		psf_fit /= np.sum(psf_fit)
+          psf_fit = psf_convolve[min_y:max_y,min_x:max_x]
+          psf_fit /= np.sum(psf_fit)
+         
+          residuals = np.copy(data)
 
-		
-		
-        	residuals = np.copy(data)
-	except:
-        	import pdb; pdb.set_trace()
-
-        
-       
-	#import pdb; pdb.set_trace()
-	good_fit = True
+        except:
+             import pdb; pdb.set_trace()
+             
+        good_fit = True
         if good_fit == True:
-            
-            #sub_psf_model = psf.get_psf_object('Moffat2D')
-            
-            #pars = fitted_model.get_parameters()
-            #pars[1] = (psf_size/2.0) + (ystar-int(ystar))
-            #pars[2] = (psf_size/2.0) + (xstar-int(xstar))
-            
-            #sub_psf_model.update_psf_parameters(pars)
-            
-            #(res_image,corners) = psf.subtract_psf_from_image_with_kernel(data,sub_psf_model, psf_size/2.0,psf_size/2.0, psf_size/2, psf_size/2,kernel)
-            
-            #residuals[corners[2]:corners[3],corners[0]:corners[1]] = res_image[corners[2]:corners[3],corners[0]:corners[1]]
-            
-	    #if control_count<10:
 
-		#try :
-
-		#	control_zone = np.c_[control_zone, residuals]
-
-		#except:
-
-		#	control_zone = residuals
-		
-		#control_count += 1		
-
-            logs.ifverbose(log, setup,' -> Star '+str(j)+
-            ' subtracted from the residuals')
-
-
-           # psf_fit /= np.sum(psf_fit)
-	    center = (psf_fit.shape)
- 	    xx,yy=np.indices(psf_fit.shape)
-	    mask = ((xx-center[0]/2)**2+(yy-center[1]/2)**2)<radius**2
-            
            
-            #psf_fit[~mask] = 0
-            
-            weight1= 0.5+np.abs(data[mask].ravel()+0.25)**0.5
-            weight2= -0.5+np.abs(data[mask].ravel()+0.25)**0.5
-            weight = (weight1+weight2)/2
- 	    intensities,cov = np.polyfit(psf_fit[mask].ravel(),data[mask].ravel(),1,w=1/weight,cov=True)
-            #psf_final = psf_fit/np.sum(psf_fit)
-	    res = data-psf_fit*intensities[0]-intensities[1]
-            psf_fit[~mask] = 0
 
-	    psf_final = psf_fit
-	    	
-
-            (flux, flux_err) =  (np.sum(psf_final),(np.sum(np.abs(psf_final)))**0.5)
-	    res = data-psf_fit*intensities[0]-intensities[1]
-            #flux_err = (np.sum(abs(res)))**0.5
- 
-            
-	    flux_err = ((flux_err*intensities[0])**2+(flux*cov[0][0]**0.5)**2)**0.5
-            flux *= intensities[0] 
-	    (back,back_err) = (intensities[1],cov[1][1]**0.5)
-	
-	   
-	        
-            flux_tot = ref_flux+flux/phot_scale_factor
-            
-	    #flux_err_tot = (error_ref_flux**2+flux_err**2/phot_scale_factor**2+back_err**2)**0.5
-            flux_err_tot = (error_ref_flux**2+flux_err**2)**0.5
-
-            list_delta_flux.append(flux)
-            list_delta_flux_error.append(flux_err)        
+          logs.ifverbose(log, setup,' -> Star '+str(j)+
+          ' subtracted from the residuals')
 
 
-	    (mag, mag_err) = convert_flux_to_mag(flux_tot, flux_err_tot)
-            
-    		
-            list_mag.append(mag)
-            list_mag_error.append(mag_err)
-	    list_phot_scale_factor.append(phot_scale_factor)
-    	    list_phot_scale_factor_error.append(error_phot_scale_factor)
-            list_background.append(back)
-            list_background_error.append(back_err)
+          # psf_fit /= np.sum(psf_fit)
+          center = (psf_fit.shape)
+          xx,yy=np.indices(psf_fit.shape)
+          mask = ((xx-center[0]/2)**2+(yy-center[1]/2)**2)<radius**2
 
-            list_align_x.append(0)
-            list_align_y.append(0)
+
+          #psf_fit[~mask] = 0
+
+          weight1= 0.5+np.abs(data[mask].ravel()+0.25)**0.5
+          weight2= -0.5+np.abs(data[mask].ravel()+0.25)**0.5
+          weight = (weight1+weight2)/2
+          intensities,cov = np.polyfit(psf_fit[mask].ravel(),data[mask].ravel(),1,w=1/weight,cov=True)
+          #psf_final = psf_fit/np.sum(psf_fit)
+          res = data-psf_fit*intensities[0]-intensities[1]
+          psf_fit[~mask] = 0
+
+          psf_final = psf_fit
+
+
+          (flux, flux_err) =  (np.sum(psf_final),(np.sum(np.abs(psf_final)))**0.5)
+          res = data-psf_fit*intensities[0]-intensities[1]
+          #flux_err = (np.sum(abs(res)))**0.5
+
+
+          flux_err = ((flux_err*intensities[0])**2+(flux*cov[0][0]**0.5)**2)**0.5
+          flux *= intensities[0] 
+          (back,back_err) = (intensities[1],cov[1][1]**0.5)
+
+
+
+          flux_tot = ref_flux+flux/phot_scale_factor
+
+          #flux_err_tot = (error_ref_flux**2+flux_err**2/phot_scale_factor**2+back_err**2)**0.5
+          flux_err_tot = (error_ref_flux**2+flux_err**2)**0.5
+
+          list_delta_flux.append(flux)
+          list_delta_flux_error.append(flux_err)        
+
+
+          (mag, mag_err) = convert_flux_to_mag(flux_tot, flux_err_tot)
+
+
+          list_mag.append(mag)
+          list_mag_error.append(mag_err)
+          list_phot_scale_factor.append(phot_scale_factor)
+          list_phot_scale_factor_error.append(error_phot_scale_factor)
+          list_background.append(back)
+          list_background_error.append(back_err)
+
+          list_align_x.append(0)
+          list_align_y.append(0)
 
 
 
         else:
-            
-            logs.ifverbose(log,setup,' -> Star '+str(j)+
-            ' No photometry possible from poor fit')
 
-	    list_delta_flux.append(-10**30)
-            list_delta_flux_error.append(-10**30)
-            list_mag.append(-10**30)
-            list_mag_error.append(-10**30)
-            list_phot_scale_factor.append(np.sum(kernel))
-    	    list_phot_scale_factor_error.append(0)
-            list_background.append(0)
-            list_background_error.append(0)
+          logs.ifverbose(log,setup,' -> Star '+str(j)+
+          ' No photometry possible from poor fit')
 
-            list_align_x.append(0)
-            list_align_y.append(0)
+          list_delta_flux.append(-10**30)
+          list_delta_flux_error.append(-10**30)
+          list_mag.append(-10**30)
+          list_mag_error.append(-10**30)
+          list_phot_scale_factor.append(np.sum(kernel))
+          list_phot_scale_factor_error.append(0)
+          list_background.append(0)
+          list_background_error.append(0)
+
+          list_align_x.append(0)
+          list_align_y.append(0)
     #import pdb; pdb.set_trace()
  
     difference_image_photometry = [list_image_id,list_star_id,list_ref_mag,list_ref_mag_error,list_ref_flux,
@@ -358,7 +331,7 @@ def run_psf_photometry_on_difference_image(setup,reduction_metadata,log,ref_star
     log.info('Completed photometry on difference image')
     
     #return  difference_image_photometry, control_zone
-    return  np.array(difference_image_photometry).T	,1
+    return  np.array(difference_image_photometry).T     ,1
 
 def convert_flux_to_mag(flux, flux_err):
     """Function to convert the flux of a star from its fitted PSF model 

@@ -14,14 +14,14 @@ import os
 from astropy.io import fits
 import sys
 
-import config_utils
+from pyDANDIA import config_utils
 from astropy.nddata import Cutout2D
 
-# from pyDANDIA import metadata
-# from pyDANDIA import pixelmasks
-import metadata
-import pixelmasks
-import logs
+from pyDANDIA import metadata
+from pyDANDIA import pixelmasks
+#import metadata
+#import pixelmasks
+from pyDANDIA import logs
 
 
 def run_stage0(setup):

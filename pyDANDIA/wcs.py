@@ -6,13 +6,13 @@ Created on Thu Jul 20 17:05:56 2017
 """
 from os import path, getcwd
 from sys import exit
-import logs
-import metadata
+from pyDANDIA import  logs
+from pyDANDIA import  metadata
 from astropy.io import fits
 from astropy import wcs, coordinates, units, visualization
 import subprocess
 from astroquery.vizier import Vizier
-import catalog_utils
+from pyDANDIA import  catalog_utils
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -40,7 +40,7 @@ def reference_astrometry(setup,log,image_path,detected_sources,diagnostics=True)
     
     catalog_sources_xy = calc_image_coordinates(catalog_sources,image_wcs)
     log.info('Calculated image coordinates of 2MASS catalog sources')
-    
+
     matched_stars = match_stars(detected_sources,catalog_sources_xy)
     log.info('Matched '+str(len(matched_stars))+' detected objects to stars in the 2MASS catalogue')
     
@@ -103,7 +103,7 @@ def run_imwcs(detected_sources,catalog_sources,input_image_path,output_image_pat
                 ' -n '+str(n_param)+\
                 ' -q irs '+input_image_path+\
                 ' -o '+output_image_path]
-    print command, args
+    print( command, args)
     
     p = subprocess.Popen([command,args], stdout=subprocess.PIPE)
     p.wait()
@@ -132,7 +132,7 @@ def calc_image_coordinates(catalog_sources,image_wcs,verbose=False):
         positions.append( [star[0],star[1]] )
         if verbose == True:
             s = coordinates.SkyCoord(str(star[0])+' '+str(star[1]), frame='icrs', unit=(units.deg, units.deg))
-            print star, s.to_string('hmsdms')
+            print( star, s.to_string('hmsdms'))
     positions = np.array(positions)
     
     return image_wcs.wcs_world2pix(positions,1)
@@ -151,11 +151,11 @@ def match_stars(detected_sources,catalog_sources_xy,verbose=False):
         sep = np.sqrt(dx*dx + dy*dy)
         
         idx = sep.argsort()
-        
+
         matched_stars.append([idx[0],detected_sources[idx[0],1],detected_sources[idx[0],2],\
                             i, cat_x, cat_y, sep[idx[0]]])
         if verbose == True:
-            print matched_stars[-1]
+            print( matched_stars[-1])
             
     return np.array(matched_stars)
     
