@@ -39,6 +39,7 @@ import os
 import logs
 import config_utils
 import psf
+import empirical_psf_simple
 
 ###############################################################################
 def starfind(setup, path_to_image, reduction_metadata, plot_it=False,
@@ -73,7 +74,7 @@ def starfind(setup, path_to_image, reduction_metadata, plot_it=False,
     if log != None:
         log.info('Starting starfind')
     
-    params = { 'sky': 0.0, 'fwhm_y': 0.0, 'fwhm_x': 0.0, 'corr_xy':0.0, 'nstars':0, 'sat_frac':0.0 }
+    params = { 'sky': 0.0, 'fwhm_y': 0.0, 'fwhm_x': 0.0, 'corr_xy':0.0, 'nstars':0, 'sat_frac':0.0, 'symmetry' : 1. }
     
     t0 = time.time()
     im = fits.open(path_to_image)
@@ -100,7 +101,10 @@ def starfind(setup, path_to_image, reduction_metadata, plot_it=False,
             log.info(report)
             
             return status, report, params
-    
+
+
+   
+            
     nr_sat_pix = 100000
     bestx1 = -1
     bestx2 = -1
@@ -269,7 +273,23 @@ def starfind(setup, path_to_image, reduction_metadata, plot_it=False,
     params['corr_xy'] = np.median(corr_xy_arr)
     params['nstars'] = nstars
     params['sat_frac'] = sat_frac
-    
+
+    try:
+        if xmax>200 and ymax>200:            
+            psf_emp, psf_error_emp = empirical_psf_simple.empirical_psf_median(np.copy(scidata)[:200,:200], 20, saturation)
+        else:
+            psf_emp, psf_error_emp = empirical_psf_simple.empirical_psf_median(np.copy(scidata), 20, saturation)
+        #imgname = os.path.basename(path_to_image)
+        #hduout=fits.PrimaryHDU(psf_emp)
+        #hduout.writeto('psf_'+imgname,overwrite = True)
+        symmetry_metric = empirical_psf_simple.symmetry_check(psf_emp)
+        params['symmetry'] = symmetry_metric
+    except Exception as e:
+      
+        if log != None:
+            report = ('Could not extract the symmetry based on the PSF ')
+            log.info(report)    
+
     if log != None:
         log.info('Measured median values:')
         log.info('Sky background = '+str(params['sky']))
@@ -278,7 +298,7 @@ def starfind(setup, path_to_image, reduction_metadata, plot_it=False,
         log.info('Corr XY = '+str(params['corr_xy']))
         log.info('Nstars = '+str(params['nstars']))
         log.info('Saturation fraction = '+str(params['sat_frac']))
-          
+        log.info('symmetry = '+str(params['symmetry']))
     # If plot_it is True, plot the sources found
     if plot_it == True:
         

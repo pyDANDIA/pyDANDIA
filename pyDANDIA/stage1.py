@@ -103,6 +103,7 @@ def run_stage1(setup, rerun_all=None):
         # The name of the image
 
         imname = im.split('/')[-1]
+       
 
         logs.ifverbose(log, setup, 'Processing image %s' % imname)
 
@@ -116,7 +117,8 @@ def run_stage1(setup, rerun_all=None):
             params['sky'],
             params['corr_xy'],
 			params['nstars'],
-			params['sat_frac']
+			params['sat_frac'],
+            params['symmetry']
         ]
 
         reduction_metadata.add_row_to_layer(key_layer='images_stats',
