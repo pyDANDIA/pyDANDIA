@@ -29,7 +29,7 @@ def read_images_for_substamps(ref_image_filename, data_image_filename, kernel_si
     kernel_size_plus = kernel_size + 2
     mask_kernel = np.ones(kernel_size_plus * kernel_size_plus, dtype=float)
     mask_kernel = mask_kernel.reshape((kernel_size_plus, kernel_size_plus))
-    xyc = kernel_size_plus / 2
+    xyc = int(kernel_size_plus / 2)
     radius_square = (xyc)**2
     for idx in range(kernel_size_plus):
         for jdx in range(kernel_size_plus):
@@ -146,7 +146,7 @@ def open_reference(setup, ref_image_directory, ref_image_name, kernel_size,
     kernel_size_plus = int(kernel_size)+4
     mask_kernel = np.ones(kernel_size_plus * kernel_size_plus, dtype=float)
     mask_kernel = mask_kernel.reshape((kernel_size_plus, kernel_size_plus))
-    xyc = kernel_size_plus / 2
+    xyc = int(kernel_size_plus / 2)
     radius_square = (xyc)**2
     for idx in range(kernel_size_plus):
         for jdx in range(kernel_size_plus):
@@ -215,7 +215,7 @@ def open_images(setup, ref_image_directory, data_image_directory, ref_image_name
     kernel_size_plus = kernel_size + 2
     mask_kernel = np.ones(kernel_size_plus * kernel_size_plus, dtype=float)
     mask_kernel = mask_kernel.reshape((kernel_size_plus, kernel_size_plus))
-    xyc = kernel_size_plus / 2
+    xyc = int(kernel_size_plus / 2)
     radius_square = (xyc)**2
     for idx in range(kernel_size_plus):
         for jdx in range(kernel_size_plus):
