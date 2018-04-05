@@ -143,7 +143,7 @@ def run_stage6(setup):
         data = []
         diffim_directory = reduction_metadata.data_architecture[1]['OUTPUT_DIRECTORY'].data[0]+'diffim/'
         images_directory = reduction_metadata.data_architecture[1]['IMAGES_PATH'].data[0]
-        phot = np.zeros((len(new_images),408,16))
+        phot = np.zeros((len(new_images),len(ref_star_catalog),16))
         time = []
         for idx,new_image in enumerate(new_images):
           

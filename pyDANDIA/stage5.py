@@ -250,7 +250,7 @@ def noise_model_blurred_ref(reference_image,bright_mask,sigma_max):
 def mask_kernel(kernel_size_plus):
     mask_kernel = np.ones(kernel_size_plus * kernel_size_plus, dtype=float)
     mask_kernel = mask_kernel.reshape((kernel_size_plus, kernel_size_plus))
-    xyc = kernel_size_plus / 2
+    xyc = int(kernel_size_plus / 2)
     radius_square = (xyc)**2
     for idx in range(kernel_size_plus):
         for jdx in range(kernel_size_plus):
@@ -293,7 +293,7 @@ def umatrix_constant(reference_image, ker_size, model_image=None, sigma_max = No
     pandq = []
     n_kernel = kernel_size * kernel_size
     ncount = 0
-    half_kernel_size = int(kernel_size) / 2
+    half_kernel_size = int(int(kernel_size) / 2)
     for lidx in range(kernel_size):
         for midx in range(kernel_size):
             pandq.append((lidx - half_kernel_size, midx - half_kernel_size))
@@ -336,7 +336,7 @@ def bvector_constant(reference_image, data_image, ker_size, model_image=None, si
     pandq = []
     n_kernel = kernel_size * kernel_size
     ncount = 0
-    half_kernel_size = int(kernel_size) / 2
+    half_kernel_size = int(int(kernel_size) / 2)
     for lidx in range(kernel_size):
         for midx in range(kernel_size):
             pandq.append((lidx - half_kernel_size, midx - half_kernel_size))
@@ -389,7 +389,7 @@ def kernel_preparation_matrix(data_image, reference_image, ker_size, model_image
     pandq = []
     n_kernel = kernel_size * kernel_size
     ncount = 0
-    half_kernel_size = int(kernel_size) / 2
+    half_kernel_size = int(int(kernel_size) / 2)
     for lidx in range(kernel_size):
         for midx in range(kernel_size):
             pandq.append((lidx - half_kernel_size, midx - half_kernel_size))
@@ -429,7 +429,7 @@ def kernel_solution(u_matrix, b_vector, kernel_size, circular = True):
     err_kernel = (a_vector_err*lstsq_result[3])[:-1]
     err_kernel = err_kernel.reshape((kernel_size, kernel_size))
     if circular:
-        xyc = kernel_size / 2
+        xyc = int(kernel_size / 2)
         radius_square = (xyc)**2
         for idx in range(kernel_size):
             for jdx in range(kernel_size):
