@@ -4,6 +4,9 @@ def empirical_psf_median(image, psf_size, max_adu):
     """Empirical psf for a given image
     This stage determines an empirical psf based on local maxima found on the
     image. 
+    :param array image: input image
+    :param int psf: psf size (square PSF)
+    :param double max_adu: start of the nonlinear regime
 
     :return: median_psf, median_psf_error
     """
@@ -24,3 +27,16 @@ def empirical_psf_median(image, psf_size, max_adu):
     # correction for median error:
     scale = 1.253 / float(len(stack))**0.5
     return np.median(stack, axis=0), np.std(stack, axis=0) * scale
+
+
+def symmetry_check(psf):
+    """Empirical psf for a given image
+    This stage determines an empirical psf based on local maxima found on the
+    image. 
+    :param array psf: psf model or empirical psf
+    :return avg_rel: average relative deviation (per px) in x and y
+    """
+    flip1 = np.flip(psf,0)
+    flip2 = np.flip(psf,1)
+    return np.mean(np.abs(psf-np.flip(psf,0))/psf)+np.mean(np.abs(psf-np.flip(psf,1))/psf)
+

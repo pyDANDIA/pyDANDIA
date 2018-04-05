@@ -39,6 +39,7 @@ import os
 import logs
 import config_utils
 import psf
+import empirical_psf_simple
 
 ###############################################################################
 def starfind(setup, path_to_image, reduction_metadata, plot_it=False,
@@ -73,7 +74,7 @@ def starfind(setup, path_to_image, reduction_metadata, plot_it=False,
     if log != None:
         log.info('Starting starfind')
     
-    params = { 'sky': 0.0, 'fwhm_y': 0.0, 'fwhm_x': 0.0, 'corr_xy':0.0, 'nstars':0, 'sat_frac':0.0 }
+    params = { 'sky': 0.0, 'fwhm_y': 0.0, 'fwhm_x': 0.0, 'corr_xy':0.0, 'nstars':0, 'sat_frac':0.0, 'symmetry':1.0 }
     
     t0 = time.time()
     im = fits.open(path_to_image)
@@ -100,7 +101,14 @@ def starfind(setup, path_to_image, reduction_metadata, plot_it=False,
             log.info(report)
             
             return status, report, params
-    
+    if ymax>200 and xmax>200:
+        scidata_crop = scidata[int(xmax/2)-100:int(xmax/2)+100,int(ymax/2)-100:int(ymax/2)+100]
+        psf, psf_error = empirical_psf_simple.empirical_psf_median(scidata_crop, 20, saturation)
+    else:
+        psf, psf_error = empirical_psf_simple.empirical_psf_median(scidata, 20, saturation)
+    symmetry_metric = empirical_psf_simple.symmetry_check(psf)
+
+
     nr_sat_pix = 100000
     bestx1 = -1
     bestx2 = -1
@@ -211,7 +219,7 @@ def starfind(setup, path_to_image, reduction_metadata, plot_it=False,
     fwhm_x_arr = []
     fwhm_y_arr = []
     corr_xy_arr = []
-    
+    symmetry_metric = 1.
     i = 0
     while (i <= len(sources)-1):
         
@@ -240,7 +248,8 @@ def starfind(setup, path_to_image, reduction_metadata, plot_it=False,
             fwhm_x_arr.append(fit_params[4])
             corr_xy_arr.append(fit_params[5])
             sky_arr.append(fit_params[6])
-            
+
+
             if plot_it == True:
                 plt.figure(figsize=(3,8))
                 plt.subplot(3,1,1)
@@ -256,9 +265,9 @@ def starfind(setup, path_to_image, reduction_metadata, plot_it=False,
                 plt.title("Residual")
                 plt.colorbar()
                 plt.savefig(path.join(setup.red_dir,'starfind_model.png'))
-        except:
+        except Exception as e:
             if log != None:
-                log.info("Could not fit source: %s." %str(i))
+                log.info("Could not fit source: %s." %str(i)+str(e))
         
         i = i + 1
     
@@ -269,7 +278,9 @@ def starfind(setup, path_to_image, reduction_metadata, plot_it=False,
     params['corr_xy'] = np.median(corr_xy_arr)
     params['nstars'] = nstars
     params['sat_frac'] = sat_frac
-    
+    params['symmetry'] = symmetry_metric
+
+
     if log != None:
         log.info('Measured median values:')
         log.info('Sky background = '+str(params['sky']))
@@ -278,7 +289,7 @@ def starfind(setup, path_to_image, reduction_metadata, plot_it=False,
         log.info('Corr XY = '+str(params['corr_xy']))
         log.info('Nstars = '+str(params['nstars']))
         log.info('Saturation fraction = '+str(params['sat_frac']))
-          
+        log.info('Symmetry metric (x,y flip) rel dev per px = '+str(params['symmetry']))
     # If plot_it is True, plot the sources found
     if plot_it == True:
         
