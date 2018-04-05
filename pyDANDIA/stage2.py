@@ -99,19 +99,39 @@ def run_stage2(setup):
 
     for stats_entry in reduction_metadata.images_stats[1]:
         image_filename = stats_entry[0]
+        row_idx = np.where(reduction_metadata.images_stats[1]['IM_NAME'] == image_filename)[0][0]
         moon_status = 'dark'
         # to be reactivated as soon as it is part of metadata
-        # if 'MOONFRAC' in header and 'MOONDIST' in header:
-        #    moon_status = moon_brightness_header(header)
+        if 'MOONFKEY' in reduction_metadata.headers_summary[1].keys() and 'MOONDKEY' in reduction_metadata.headers_summary[1].keys():
+            moon_status = moon_brightness_header(reduction_metadata.headers_summary[1],row_idx)
+
         fwhm_arcsec = (float(stats_entry['FWHM_X']) ** 2 + float(stats_entry['FWHM_Y'])**2)**0.5 * float(reduction_metadata.reduction_parameters[1]['PIX_SCALE']) 
         # extract data inventory row for image and calculate sorting key
         # if a sufficient number of stars has been detected at s1 (40)
-        if int(stats_entry['NSTARS'])>34 and fwhm_arcsec<3.:
+        if int(stats_entry['NSTARS'])>34 and fwhm_arcsec<3. and (not 'bright' in moon_status):
             ranking_key = add_stage1_rank(reduction_metadata, stats_entry)
             reference_ranking.append([image_filename, ranking_key])
             entry = [image_filename, moon_status, ranking_key]
             reduction_metadata.add_row_to_layer(key_layer='reference_inventory',
                                                 new_row=entry)
+    #relax criteria...
+    if reference_ranking == []:
+        for stats_entry in reduction_metadata.images_stats[1]:
+            image_filename = stats_entry[0]
+            row_idx = np.where(reduction_metadata.images_stats[1]['IM_NAME'] == image_filename)[0][0]
+            moon_status = 'dark'
+            # to be reactivated as soon as it is part of metadata
+            if 'MOONFKEY' in reduction_metadata.headers_summary[1].keys() and 'MOONDKEY' in reduction_metadata.headers_summary[1].keys():
+                moon_status = moon_brightness_header(reduction_metadata.headers_summary[1],row_idx)
+
+            fwhm_arcsec = (float(stats_entry['FWHM_X']) ** 2 + float(stats_entry['FWHM_Y'])**2)**0.5 * float(reduction_metadata.reduction_parameters[1]['PIX_SCALE']) 
+            # extract data inventory row for image and calculate sorting key
+            if int(stats_entry['NSTARS'])>20. and fwhm_arcsec<3.:
+                ranking_key = add_stage1_rank(reduction_metadata, stats_entry)
+                reference_ranking.append([image_filename, ranking_key])
+                entry = [image_filename, moon_status, ranking_key]
+                reduction_metadata.add_row_to_layer(key_layer='reference_inventory',
+                                                    new_row=entry)
 
     # Save the updated layer to the metadata file
     reduction_metadata.save_a_layer_to_file(metadata_directory=setup.red_dir,
@@ -126,7 +146,7 @@ def run_stage2(setup):
 
         ref_img_path = os.path.join(
             str(reduction_metadata.data_architecture[1]['IMAGES_PATH'][0]), best_image[0])
-        print 'New reference ', best_image[0], ' in ', ref_img_path
+        print('New reference '+best_image[0]+' in '+ref_img_path)
 
         
         copyfile(reduction_metadata.data_architecture[1]['IMAGES_PATH'][0]+'/'+best_image[0],ref_directory_path+'/'+best_image[0])
@@ -173,7 +193,7 @@ def run_stage2(setup):
         return status, report
 
 
-def moon_brightness_header(header):
+def moon_brightness_header(header,row_idx):
     """
     Based on header information, determine if image was
     taken with bright/gray or dark moon
@@ -183,10 +203,10 @@ def moon_brightness_header(header):
     :param list header: header or metadata dictionary
     """
 
-    if float(header['MOONFRAC']) < 0.4:
+    if float(header['MOONFKEY'][row_idx]) < 0.4:
         return 'dark'
     else:
-        if float(header['MOONFRAC']) > 0.4 and float(header['MOONFRAC']) < 0.7 and float(header['MOONDIST']) > 90.0:
+        if float(header['MOONFKEY'][row_idx]) > 0.4 and float(header['MOONFKEY'][row_idx]) < 0.7 and float(header['MOONDKEY'][row_idx]) > 90.0:
             return 'gray'
         else:
             return 'bright'
