@@ -199,14 +199,14 @@ def moon_brightness_header(header,row_idx):
     taken with bright/gray or dark moon
     roughly following the ESO definitions
     https://www.eso.org/sci/observing/phase2/ObsConditions.html
-
+    but a lunar distance of 60 degrees is considered as gray time
     :param list header: header or metadata dictionary
     """
 
     if float(header['MOONFKEY'][row_idx]) < 0.4:
         return 'dark'
     else:
-        if float(header['MOONFKEY'][row_idx]) > 0.4 and float(header['MOONFKEY'][row_idx]) < 0.7 and float(header['MOONDKEY'][row_idx]) > 90.0:
+        if float(header['MOONFKEY'][row_idx]) > 0.4 and float(header['MOONFKEY'][row_idx]) < 0.7 and float(header['MOONDKEY'][row_idx]) > 60.0:
             return 'gray'
         else:
             return 'bright'
