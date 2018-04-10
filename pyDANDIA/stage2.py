@@ -25,6 +25,7 @@ import config_utils
 
 import metadata
 import pixelmasks
+import empirical_psf_simple
 import logs
 
 
@@ -94,26 +95,60 @@ def run_stage2(setup):
 
     reference_ranking = []
 
+    fwhm_max = 0.
+    for stats_entry in reduction_metadata.images_stats[1]:
+        if float(stats_entry['FWHM_X'])> fwhm_max:
+            fwhm_max = stats_entry['FWHM_X']
+        if float(stats_entry['FWHM_Y'])> fwhm_max:
+            fwhm_max = stats_entry['FWHM_Y']
+
     # taking filenames from headers_summary (stage1 change pending)
     filename_images = reduction_metadata.images_stats[1]['IM_NAME']
+    data_image_directory = reduction_metadata.data_architecture[1]['IMAGES_PATH'][0]
+    max_adu = float(reduction_metadata.reduction_parameters[1]['MAXVAL'][0])
+    psf_size = int(4.*float(reduction_metadata.reduction_parameters[1]['KER_RAD'][0]) * fwhm_max)
+    empirical_psf_flag = False
+    if empirical_psf_flag == True:
+    
+        for stats_entry in reduction_metadata.images_stats[1]:
+            image_filename = stats_entry[0]
+            row_idx = np.where(reduction_metadata.images_stats[1]['IM_NAME'] == image_filename)[0][0]
+            moon_status = 'dark'
+            # to be reactivated as soon as it is part of metadata
+            if 'MOONFKEY' in reduction_metadata.headers_summary[1].keys() and 'MOONDKEY' in reduction_metadata.headers_summary[1].keys():
+                moon_status = moon_brightness_header(reduction_metadata.headers_summary[1],row_idx)
 
-    for stats_entry in reduction_metadata.images_stats[1]:
-        image_filename = stats_entry[0]
-        row_idx = np.where(reduction_metadata.images_stats[1]['IM_NAME'] == image_filename)[0][0]
-        moon_status = 'dark'
-        # to be reactivated as soon as it is part of metadata
-        if 'MOONFKEY' in reduction_metadata.headers_summary[1].keys() and 'MOONDKEY' in reduction_metadata.headers_summary[1].keys():
-            moon_status = moon_brightness_header(reduction_metadata.headers_summary[1],row_idx)
+            fwhm_arcsec = (float(stats_entry['FWHM_X']) ** 2 + float(stats_entry['FWHM_Y'])**2)**0.5 * float(reduction_metadata.reduction_parameters[1]['PIX_SCALE']) 
+            # extract data inventory row for image and calculate sorting key
+            # if a sufficient number of stars has been detected at s1 (40)
+            if int(stats_entry['NSTARS'])>34 and fwhm_arcsec<3. and (not 'bright' in moon_status):
+                hdulist = fits.open(os.path.join(data_image_directory, image_filename))
+                image = hdulist[0].data
+                ranking_key = empirical_psf_simple.empirical_snr_subframe(image, psf_size, max_adu)
+                hdulist.close()
+                reference_ranking.append([image_filename, ranking_key])
+                entry = [image_filename, moon_status, ranking_key]
+                reduction_metadata.add_row_to_layer(key_layer='reference_inventory', new_row=entry)
 
-        fwhm_arcsec = (float(stats_entry['FWHM_X']) ** 2 + float(stats_entry['FWHM_Y'])**2)**0.5 * float(reduction_metadata.reduction_parameters[1]['PIX_SCALE']) 
-        # extract data inventory row for image and calculate sorting key
-        # if a sufficient number of stars has been detected at s1 (40)
-        if int(stats_entry['NSTARS'])>34 and fwhm_arcsec<3. and (not 'bright' in moon_status):
-            ranking_key = add_stage1_rank(reduction_metadata, stats_entry)
-            reference_ranking.append([image_filename, ranking_key])
-            entry = [image_filename, moon_status, ranking_key]
-            reduction_metadata.add_row_to_layer(key_layer='reference_inventory',
-                                                new_row=entry)
+    else:
+        for stats_entry in reduction_metadata.images_stats[1]:
+            image_filename = stats_entry[0]
+            row_idx = np.where(reduction_metadata.images_stats[1]['IM_NAME'] == image_filename)[0][0]
+            moon_status = 'dark'
+            # to be reactivated as soon as it is part of metadata
+            if 'MOONFKEY' in reduction_metadata.headers_summary[1].keys() and 'MOONDKEY' in reduction_metadata.headers_summary[1].keys():
+                moon_status = moon_brightness_header(reduction_metadata.headers_summary[1],row_idx)
+
+            fwhm_arcsec = (float(stats_entry['FWHM_X']) ** 2 + float(stats_entry['FWHM_Y'])**2)**0.5 * float(reduction_metadata.reduction_parameters[1]['PIX_SCALE']) 
+            # extract data inventory row for image and calculate sorting key
+            # if a sufficient number of stars has been detected at s1 (40)
+            if int(stats_entry['NSTARS'])>34 and fwhm_arcsec<3. and (not 'bright' in moon_status):
+                ranking_key = add_stage1_rank(reduction_metadata, stats_entry)
+                reference_ranking.append([image_filename, ranking_key])
+                entry = [image_filename, moon_status, ranking_key]
+                reduction_metadata.add_row_to_layer(key_layer='reference_inventory',
+                                                    new_row=entry)
+
     #relax criteria...
     if reference_ranking == []:
         for stats_entry in reduction_metadata.images_stats[1]:
@@ -149,11 +184,15 @@ def run_stage2(setup):
         print('New reference '+best_image[0]+' in '+ref_img_path)
 
         
-        copyfile(reduction_metadata.data_architecture[1]['IMAGES_PATH'][0]+'/'+best_image[0],ref_directory_path+'/'+best_image[0])
-        #try:
-        #    os.symlink(reduction_metadata.data_architecture[1]['IMAGES_PATH'][0]+'/'+best_image[0],ref_directory_path+'/'+best_image[0])
-        #except:
-        #    print('soft link failed: ',best_image[0])
+        #copyfile(reduction_metadata.data_architecture[1]['IMAGES_PATH'][0]+'/'+best_image[0],ref_directory_path+'/'+best_image[0])
+        try:
+            os.symlink(reduction_metadata.data_architecture[1]['IMAGES_PATH'][0]+'/'+best_image[0],ref_directory_path+'/'+best_image[0])
+        except:
+            print('soft link failed: ',best_image[0])
+            try:
+                copyfile(reduction_metadata.data_architecture[1]['IMAGES_PATH'][0]+'/'+best_image[0],ref_directory_path+'/'+best_image[0])
+            except:
+                print('copy ref failed: ',best_image[0])
         if not 'REF_PATH' in reduction_metadata.data_architecture[1].keys():
             reduction_metadata.add_column_to_layer('data_architecture',
                                                    'REF_PATH', [ref_directory_path],
