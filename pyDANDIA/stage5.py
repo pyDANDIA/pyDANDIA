@@ -64,7 +64,9 @@ def run_stage5(setup):
         if abs(float(stats_entry['SHIFT_Y']))> shift_max:
             shift_max = abs(float(stats_entry['SHIFT_Y']))
     maxshift = int(shift_max) + 2
-   
+    #image smaller or equal 500x500
+    large_format_image = False 
+
     sigma_max = fwhm_max/(2.*(2.*np.log(2.))**0.5)
     # Factor 4 corresponds to the radius of 2*FWHM the old pipeline
     kernel_size = int(4.*float(reduction_metadata.reduction_parameters[1]['KER_RAD'][0]) * fwhm_max)
@@ -101,6 +103,7 @@ def run_stage5(setup):
         ref_fwhm_y = reduction_metadata.images_stats[1][ref_row_index]['FWHM_Y'] 
         ref_sigma_x = ref_fwhm_x/(2.*(2.*np.log(2.))**0.5)
         ref_sigma_y = ref_fwhm_y/(2.*(2.*np.log(2.))**0.5)    
+        ref_stats = [ref_fwhm_x, ref_fwhm_y, ref_sigma_x, ref_sigma_y]
         logs.ifverbose(log, setup,'Using reference image:' + reference_image_name)
     except Exception as e:
         log.ifverbose(log, setup,'Reference/Images ! Abort stage5'+str(e))
@@ -114,6 +117,20 @@ def run_stage5(setup):
         status = 'KO'
         report = 'No alignment data found!'
         return status, report, reduction_metadata
+
+
+ 
+    if large_format_image == False:
+        subtract_small_format_image(new_images, reference_image_name, reference_image_directory, reduction_metadata, setup, data_image_directory, kernel_size, max_adu, ref_stats, maxshift, kernel_directory_path, diffim_directory_path, log = log)
+    #append some metric for the kernel, perhaps its scale factor...
+    reduction_metadata.update_reduction_metadata_reduction_status(new_images, stage_number=5, status=1, log = log)
+    logs.close_log(log)
+    status = 'OK'
+    report = 'Completed successfully'
+
+    return status, report
+
+def subtract_small_format_image(new_images, reference_image_name, reference_image_directory, reduction_metadata, setup, data_image_directory, kernel_size, max_adu, ref_stats, maxshift, kernel_directory_path, diffim_directory_path, log = None):
 
     reference_image, bright_reference_mask, reference_image_unmasked = open_reference(setup, reference_image_directory, reference_image_name, kernel_size, max_adu, ref_extension = 0, log = log, central_crop = maxshift)
     if len(new_images) > 0:
@@ -134,53 +151,49 @@ def run_stage5(setup):
             hdutmp = fits.PrimaryHDU(umatrix)
             hdutmp.writeto(os.path.join(kernel_directory_path,'unweighted_u_matrix.fits'),overwrite=True)
 
-        for new_image in new_images:
-            row_index = np.where(reduction_metadata.images_stats[1]['IM_NAME'] == new_image)[0][0]
-            x_shift, y_shift = -reduction_metadata.images_stats[1][row_index]['SHIFT_X'],-reduction_metadata.images_stats[1][row_index]['SHIFT_Y'] 
-            #if the reference is not as sharp as a data image -> smooth the data
-            smoothing = 0
-            if reduction_metadata.images_stats[1][row_index]['FWHM_X']<ref_fwhm_x:
-                sigma_x = reduction_metadata.images_stats[1][row_index]['FWHM_X']/(2.*(2.*np.log(2.))**0.5)
-                smoothing = (ref_sigma_x**2-sigma_x**2)**0.5       
-            if reduction_metadata.images_stats[1][row_index]['FWHM_Y']<ref_fwhm_y:
-                sigma_y = reduction_metadata.images_stats[1][row_index]['FWHM_Y']/(2.*(2.*np.log(2.))**0.5)
-                smoothing_y = (ref_sigma_y**2-sigma_y**2)**0.5
-                if smoothing_y>smoothing:
-                    smoothing = smoothing_y
-            print smoothing, row_index
-            try:
-                data_image, data_image_unmasked = open_data_image(setup, data_image_directory, new_image, bright_reference_mask, kernel_size, max_adu, xshift = x_shift, yshift = y_shift, sigma_smooth = smoothing, central_crop = maxshift)
-                missing_data_mask = (data_image == 0.)
-                b_vector = bvector_constant(reference_image, data_image, kernel_size)
-            	kernel_matrix, bkg_kernel, kernel_uncertainty  = kernel_solution(umatrix, b_vector, kernel_size, circular = False)
-                pscale = np.sum(kernel_matrix)                
-                np.save(os.path.join(kernel_directory_path,'kernel_'+new_image+'.npy'),[kernel_matrix,bkg_kernel])
-                kernel_header = fits.Header()
-                kernel_header['SCALEFAC'] = str(pscale)
-                kernel_header['KERBKG'] = bkg_kernel
-                hdu_kernel = fits.PrimaryHDU(kernel_matrix,header=kernel_header)
-                hdu_kernel.writeto(os.path.join(kernel_directory_path,'kernel_'+new_image), overwrite = True)  
-                hdu_kernel_err = fits.PrimaryHDU(kernel_uncertainty)
-                hdu_kernel_err.writeto(os.path.join(kernel_directory_path,'kernel_err_'+new_image), overwrite = True)  
-
-                logs.ifverbose(log, setup, 'b_vector calculated for:' + new_image+' and scale factor '+str(pscale))
-                #CROP EDGE!
-                difference_image = subtract_images(data_image_unmasked, reference_image_unmasked, kernel_matrix, kernel_size, bkg_kernel)
-                
-                new_header = fits.Header()
-                new_header['SCALEFAC'] = pscale
-                difference_image_hdu = fits.PrimaryHDU(difference_image,header=new_header)
-                difference_image_hdu.writeto(os.path.join(diffim_directory_path,'diff_'+new_image),overwrite = True)
-            except Exception as e:
+    for new_image in new_images:
+        row_index = np.where(reduction_metadata.images_stats[1]['IM_NAME'] == new_image)[0][0]
+        ref_fwhm_x, ref_fwhm_y, ref_sigma_x, ref_sigma_y = ref_stats
+        x_shift, y_shift = -reduction_metadata.images_stats[1][row_index]['SHIFT_X'],-reduction_metadata.images_stats[1][row_index]['SHIFT_Y'] 
+        #if the reference is not as sharp as a data image -> smooth the data
+        smoothing = 0.
+        smoothing_y = 0.
+        if reduction_metadata.images_stats[1][row_index]['FWHM_X']<ref_fwhm_x:
+            sigma_x = reduction_metadata.images_stats[1][row_index]['FWHM_X']/(2.*(2.*np.log(2.))**0.5)
+            smoothing = (ref_sigma_x**2-sigma_x**2)**0.5       
+        if reduction_metadata.images_stats[1][row_index]['FWHM_Y']<ref_fwhm_y:
+            sigma_y = reduction_metadata.images_stats[1][row_index]['FWHM_Y']/(2.*(2.*np.log(2.))**0.5)
+            smoothing_y = (ref_sigma_y**2-sigma_y**2)**0.5
+        if smoothing_y>smoothing:
+            smoothing = smoothing_y
+        try:
+            data_image, data_image_unmasked = open_data_image(setup, data_image_directory, new_image, bright_reference_mask, kernel_size, max_adu, xshift = x_shift, yshift = y_shift, sigma_smooth = smoothing, central_crop = maxshift)
+            missing_data_mask = (data_image == 0.)
+            b_vector = bvector_constant(reference_image, data_image, kernel_size)
+            kernel_matrix, bkg_kernel, kernel_uncertainty  = kernel_solution(umatrix, b_vector, kernel_size, circular = False)
+            pscale = np.sum(kernel_matrix)                
+            np.save(os.path.join(kernel_directory_path,'kernel_'+new_image+'.npy'),[kernel_matrix,bkg_kernel])
+            kernel_header = fits.Header()
+            kernel_header['SCALEFAC'] = str(pscale)
+            kernel_header['KERBKG'] = bkg_kernel
+            hdu_kernel = fits.PrimaryHDU(kernel_matrix,header=kernel_header)
+            hdu_kernel.writeto(os.path.join(kernel_directory_path,'kernel_'+new_image), overwrite = True)  
+            hdu_kernel_err = fits.PrimaryHDU(kernel_uncertainty)
+            hdu_kernel_err.writeto(os.path.join(kernel_directory_path,'kernel_err_'+new_image), overwrite = True)  
+            if log is not None:
+                logs.ifverbose(log, setup, 'b_vector calculated for:' + new_image+' and scale factor '+str(pscale)) 
+            #CROP EDGE!
+            difference_image = subtract_images(data_image_unmasked, reference_image_unmasked, kernel_matrix, kernel_size, bkg_kernel)
+              
+            new_header = fits.Header()
+            new_header['SCALEFAC'] = pscale
+            difference_image_hdu = fits.PrimaryHDU(difference_image,header=new_header)
+            difference_image_hdu.writeto(os.path.join(diffim_directory_path,'diff_'+new_image),overwrite = True)
+        except Exception as e:
+            if log is not None:
                 logs.ifverbose(log, setup,'kernel matrix computation or shift failed:' + new_image + '. skipping!'+str(e))
-
-            #append some metric for the kernel, perhaps its scale factor...
-    reduction_metadata.update_reduction_metadata_reduction_status(new_images, stage_number=5, status=1, log=log)
-    logs.close_log(log)
-    status = 'OK'
-    report = 'Completed successfully'
-
-    return status, report
+            else:
+                print(str(e))
 
 def generate_outlier_mask(reference_image, new_images, reduction_metadata):
     master_mask=np.zeros(np.shape(reference_image))

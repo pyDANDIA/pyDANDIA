@@ -40,3 +40,34 @@ def symmetry_check(psf_emp):
     flip2 = np.flip(psf_emp,1)
     return np.mean(np.abs(psf_emp-np.flip(psf_emp,0))/psf_emp)+np.mean(np.abs(psf_emp-np.flip(psf_emp,1))/psf_emp)
 
+def empirical_snr(image, psf_size, max_adu):
+    """Empirical psf for a given image
+    This stage determines the signal to noise based on an empirical psf. 
+    :param array image: input image
+    :param int psf: psf size (square PSF)
+    :param double max_adu: start of the nonlinear regime
+
+    :return: median_psf, median_psf_error
+    """
+    psf, psf_err = empirical_psf_median(image, psf_size, max_adu)
+    psf_var = psf_err**2
+    signal = np.sum(psf)
+    noise = np.sqrt(np.sum(psf_var))
+    return signal/noise
+
+def empirical_snr_subframe(image, psf_size, max_adu):
+    """Empirical psf for the central 300x300 of a given image
+    This stage determines the signal to noise based on an empirical psf. 
+    :param array image: input image
+    :param int psf: psf size (square PSF)
+    :param double max_adu: start of the nonlinear regime
+
+    :return: median_psf, median_psf_error
+    """
+    xshape, yshape = np.shape(image)
+    xcen, ycen = int(xshape/2.), int(yshape/2.)
+    if xshape > 300 and yshape > 300:
+        image_subframe = image[xcen-150:xcen+150,ycen-150:ycen+150]
+        return empirical_snr(image_subframe, psf_size, max_adu)
+    else:
+        return empirical_snr(image, psf_size, max_adu)
