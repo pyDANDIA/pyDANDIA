@@ -122,7 +122,7 @@ def run_stage2(setup):
             # extract data inventory row for image and calculate sorting key
             # if a sufficient number of stars has been detected at s1 (40)
             if int(stats_entry['NSTARS'])>34 and fwhm_arcsec<3. and (not 'bright' in moon_status):
-                hdulist = fits.open(os.path.join(data_image_directory, image_filename))
+                hdulist = fits.open(os.path.join(data_image_directory, image_filename), memmap = True)
                 image = hdulist[0].data
                 ranking_key = empirical_psf_simple.empirical_snr_subframe(image, psf_size, max_adu)
                 hdulist.close()
