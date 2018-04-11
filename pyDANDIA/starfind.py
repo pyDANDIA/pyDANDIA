@@ -30,16 +30,18 @@ from astropy import units as u
 from photutils import background, detection, DAOStarFinder
 from photutils import CircularAperture
 import matplotlib.pyplot as plt
-import metadata
-import pipeline_setup
+from pyDANDIA import  metadata
+from pyDANDIA import  pipeline_setup
 import time
 from datetime import datetime
 import sys
 import os
-import logs
-import config_utils
-import psf
-import empirical_psf_simple
+
+from pyDANDIA import  logs
+from pyDANDIA import  config_utils
+from pyDANDIA import  psf
+from pyDANDIA import empirical_psf_simple
+
 
 ###############################################################################
 def starfind(setup, path_to_image, reduction_metadata, plot_it=False,
@@ -74,8 +76,10 @@ def starfind(setup, path_to_image, reduction_metadata, plot_it=False,
     if log != None:
         log.info('Starting starfind')
     
+
     params = { 'sky': 0.0, 'fwhm_y': 0.0, 'fwhm_x': 0.0, 'corr_xy':0.0, 'nstars':0, 'sat_frac':0.0, 'symmetry' : 1. }
     
+
     t0 = time.time()
     im = fits.open(path_to_image)
     header = im[0].header
@@ -365,7 +369,7 @@ def detect_sources(setup, reduction_metadata, image_path, scidata, log,
     
     :param array detected_sources: position information on all objects in the image
     """
-        
+
     daofind = build_star_finder(reduction_metadata, image_path, log)
     
     sources = daofind(scidata)

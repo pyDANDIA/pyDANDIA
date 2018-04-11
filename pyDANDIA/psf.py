@@ -17,10 +17,10 @@ from astropy import visualization
 from mpl_toolkits.mplot3d import Axes3D
 from astropy.nddata import Cutout2D
 from astropy.io import fits
-import logs
+from pyDANDIA import  logs
 import os
 import sys
-import convolution
+from pyDANDIA import  convolution
 
 class PSFModel(object):
 
@@ -620,8 +620,8 @@ def fit_star(data, Y_data, X_data, psf_model='Moffat2D', background_model='Const
 
         back_model = ConstantBackground()
 
-    guess_psf = [data.max(), Y_data[len(Y_data[:, 0]) / 2, 0],
-                 X_data[0, len(Y_data[0, :]) / 2]] + psf_model.psf_guess()
+    guess_psf = [data.max(), Y_data[int(len(Y_data[:, 0]) / 2), 0],
+                 X_data[0, int(len(Y_data[0, :]) / 2)]] + psf_model.psf_guess()
 
     guess_back = back_model.background_guess()
 
@@ -1221,10 +1221,10 @@ def fit_psf_model(setup,log,psf_model_type,psf_size,sky_model_type,stamp_image,
     half_stamp = stamp_image.shape[0]/2
     half_psf = int(psf_size / 2.0)
     
-    xmin = half_stamp - half_psf
-    xmax = half_stamp + half_psf
-    ymin = half_stamp - half_psf
-    ymax = half_stamp + half_psf
+    xmin = int(half_stamp - half_psf)
+    xmax = int(half_stamp + half_psf)
+    ymin = int(half_stamp - half_psf)
+    ymax = int(half_stamp + half_psf)
     
     #Y_data, X_data = np.indices(stamp_image.shape)
     
@@ -1616,9 +1616,9 @@ def find_psf_companion_stars(setup,psf_idx, psf_x, psf_y, psf_size,
     xc = ref_star_catalog[comp_idx,1] - x_psf_box
     yc = ref_star_catalog[comp_idx,2] - y_psf_box 
 
-    comps_list = zip(comp_idx, xc, yc, 
+    comps_list = list(zip(comp_idx, xc, yc, 
                      ref_star_catalog[comp_idx,1].tolist(), 
-                     ref_star_catalog[comp_idx,2].tolist())
+                     ref_star_catalog[comp_idx,2].tolist()))
     
     if setup.verbosity == 2:
         
@@ -1685,8 +1685,8 @@ def extract_sub_stamp(setup,log,sidx,stamp,xcen,ycen,dx,dy,diagnostics=False):
         
     else:
         
-        xmidss = (x2-x1)/2
-        ymidss = (y2-y1)/2
+        xmidss = int((x2-x1)/2)
+        ymidss = int((y2-y1)/2)
         
         substamp = Cutout2D(stamp.data[y1:y2,x1:x2], (xmidss,ymidss), (y2-y1,x2-x1), copy=True)
         

@@ -1,11 +1,11 @@
 import os
 import numpy as np
-import logs
+from pyDANDIA import logs
 from astropy.io import fits
 from scipy.signal import convolve2d
 from scipy.ndimage.filters import gaussian_filter
-from sky_background import mask_saturated_pixels, generate_sky_model
-from sky_background import fit_sky_background, generate_sky_model_image
+from pyDANDIA.sky_background import mask_saturated_pixels, generate_sky_model
+from pyDANDIA.sky_background import fit_sky_background, generate_sky_model_image
 from scipy.ndimage.interpolation import shift
 
 def background_subtract(setup, image, max_adu):

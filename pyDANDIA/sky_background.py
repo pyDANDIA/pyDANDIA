@@ -9,9 +9,9 @@ from os import path
 from sys import exit
 import numpy as np
 from scipy import optimize
-import logs
-import metadata
-import psf
+from pyDANDIA import  logs
+from pyDANDIA import  metadata
+from pyDANDIA import  psf
 import matplotlib.pyplot as plt
 from astropy.io import fits
 from astropy import visualization

@@ -21,13 +21,12 @@ from astropy.io import fits
 from astropy.table import Table
 from shutil import copyfile
 
-import config_utils
+from pyDANDIA import  config_utils
 
-import metadata
-import pixelmasks
-import empirical_psf_simple
-import logs
-
+from pyDANDIA import  metadata
+from pyDANDIA import  pixelmasks
+from pyDANDIA import  logs
+from pyDANDIA import  empirical_psf_simple
 
 def run_stage2(setup):
     """Main driver function to run stage 2: reference selection.
@@ -181,7 +180,9 @@ def run_stage2(setup):
 
         ref_img_path = os.path.join(
             str(reduction_metadata.data_architecture[1]['IMAGES_PATH'][0]), best_image[0])
+
         print('New reference '+best_image[0]+' in '+ref_img_path)
+
 
         
         #copyfile(reduction_metadata.data_architecture[1]['IMAGES_PATH'][0]+'/'+best_image[0],ref_directory_path+'/'+best_image[0])

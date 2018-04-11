@@ -13,7 +13,7 @@ from astropy.utils.exceptions import AstropyWarning
 import numpy as np
 import collections
 import warnings
-import logs
+from pyDANDIA import  logs
 import os
 
 

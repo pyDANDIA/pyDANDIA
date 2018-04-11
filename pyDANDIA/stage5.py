@@ -13,15 +13,15 @@ import os
 import numpy as np
 from astropy.io import fits
 from scipy.signal import convolve2d
-from read_images_stage5 import open_reference,  open_images, open_data_image
+from pyDANDIA.read_images_stage5 import open_reference,  open_images, open_data_image
 from scipy.ndimage.filters import gaussian_filter
-import convolution
+from pyDANDIA import convolution
 
 import sys
 
-import config_utils
-import metadata
-import logs
+from pyDANDIA import config_utils
+from pyDANDIA import metadata
+from pyDANDIA import logs
 
 def run_stage5(setup):
     """Main driver function to run stage 5: kernel_solution
@@ -151,6 +151,7 @@ def subtract_small_format_image(new_images, reference_image_name, reference_imag
             hdutmp = fits.PrimaryHDU(umatrix)
             hdutmp.writeto(os.path.join(kernel_directory_path,'unweighted_u_matrix.fits'),overwrite=True)
 
+
     for new_image in new_images:
         row_index = np.where(reduction_metadata.images_stats[1]['IM_NAME'] == new_image)[0][0]
         ref_fwhm_x, ref_fwhm_y, ref_sigma_x, ref_sigma_y = ref_stats
@@ -243,7 +244,7 @@ def noise_model_constant(model_image,smooth = None):
     noise_image[noise_image == 0] = 1.
     weights = np.ones(np.shape(model_image))    
     weights[noise_image == 1] = 0.
-	
+     
     return weights
 
 def noise_model_blurred_ref(reference_image,bright_mask,sigma_max):
@@ -417,16 +418,20 @@ def kernel_solution(u_matrix, b_vector, kernel_size, circular = True):
     from lstsq solution
 
     :param object array: u_matrix
-	:param object array: b_vector
+     :param object array: b_vector
     :return: kernel matrix
     '''
     #For better stability: solve the least square problem via np.linalg.lstsq
     #inv_umatrix = np.linalg.inv(u_matrix)
     #a_vector = np.dot(inv_umatrix, b_vector)
+
     lstsq_result = np.linalg.lstsq(u_matrix,b_vector)
+    
     a_vector = lstsq_result[0]
     mse = 1.#lstsq_result
-    a_vector_err = np.copy(np.diagonal(np.matrix(np.dot(u_matrix.T, u_matrix)).I))
+    #a_vector_err = np.copy(np.diagonal(np.matrix(np.dot(u_matrix.T, u_matrix)).I))
+    a_vector_err = np.copy(np.diagonal(np.linalg.lstsq(u_matrix,np.identity(u_matrix.shape[0]))[0]))
+
     #MSE: mean square error of the residuals
 
     output_kernel = np.zeros(kernel_size * kernel_size, dtype=float)
@@ -511,7 +516,7 @@ def difference_image_subimages(ref_imagename, data_imagename,
     subimages_args = []
     for idx in range(subimage_shape[0]):
         for jdx in range(subimage_shape[1]):
-            print 'Solving for subimage ',[idx+1,jdx+1],' of ',subimage_shape
+            print( 'Solving for subimage ',[idx+1,jdx+1],' of ',subimage_shape)
             x_shape, y_shape = np.shape(ref_image)
             x_subsize, y_subsize = x_shape/subimage_shape[0], y_shape/subimage_shape[1]
             subimage_element = subimage_shape+[idx,jdx]
