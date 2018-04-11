@@ -109,9 +109,10 @@ def run_stage6(setup):
             reference_image_directory = reduction_metadata.data_architecture[1]['REF_PATH'].data[0]
             reference_image,date = open_an_image(setup, reference_image_directory, reference_image_name, image_index=0,
                                             log=None)
-
-
-
+                                            
+            ref_image_name = reduction_metadata.data_architecture[1]['REF_IMAGE'].data[0]
+            index_reference = np.where(ref_image_name == reduction_metadata.headers_summary[1]['IMAGES'].data)[0][0]
+            ref_exposure_time = float(reduction_metadata.headers_summary[1]['EXPKEY'].data[index_reference])
    
             logs.ifverbose(log, setup,
                            'I found the reference frame:' + reference_image_name)
@@ -146,7 +147,7 @@ def run_stage6(setup):
         phot = np.zeros((len(new_images),len(ref_star_catalog),16))
         time = []
         for idx,new_image in enumerate(new_images):
-          
+
             log.info('Starting difference photometry of '+new_image)
             target_image,date = open_an_image(setup, images_directory, new_image, image_index=0, log=None)
             kernel_image,kernel_error,kernel_bkg = find_the_associated_kernel(setup, kernels_directory, new_image)
@@ -158,7 +159,7 @@ def run_stage6(setup):
 
             save_control_stars_of_the_difference_image(setup, new_image, difference_image, star_coordinates)
 
-            photometric_table, control_zone = photometry_on_the_difference_image(setup, reduction_metadata, log,ref_star_catalog,difference_image,  psf_model, sky_model, kernel_image,kernel_error)
+            photometric_table, control_zone = photometry_on_the_difference_image(setup, reduction_metadata, log,ref_star_catalog,difference_image,  psf_model, sky_model, kernel_image,kernel_error, ref_exposure_time)
          
             phot[idx,:,:] = photometric_table
 
@@ -354,11 +355,12 @@ def image_substraction(setup, reduction_metadata, reference_image_data, kernel_d
 
     
 
-    image_shifted = shift(background_image, (-yshift,-xshift), cval=0.) 
+    image_shifted = shift(background_image, (-yshift-1,-xshift-1), cval=0.) 
 
-    
+   
+    #import pdb;pdb.set_trace()	
 
-    difference_image = image_shifted - model
+    difference_image = model-image_shifted 
 
     return difference_image
 
@@ -389,7 +391,7 @@ def find_the_associated_kernel(setup, kernels_directory, image_name):
 
     return kernel,kernel_error[0].data,bkgd
 
-def photometry_on_the_difference_image(setup, reduction_metadata, log, star_catalog,difference_image, psf_model, sky_model, kernel,kernel_error):
+def photometry_on_the_difference_image(setup, reduction_metadata, log, star_catalog,difference_image, psf_model, sky_model, kernel,kernel_error, ref_exposure_time):
     '''
     Find the appropriate kernel associated to an image
     :param object reduction_metadata: the metadata object
@@ -402,7 +404,7 @@ def photometry_on_the_difference_image(setup, reduction_metadata, log, star_cata
     #import pdb; pdb.set_trace()
 
     differential_photometry = photometry.run_psf_photometry_on_difference_image(setup,reduction_metadata,log,star_catalog,
-                                                               difference_image,psf_model,kernel,kernel_error)
+                                                               difference_image,psf_model,kernel,kernel_error, ref_exposure_time)
     
     #column_names = ('Exposure_id','Star_id','Ref_mag','Ref_mag_err','Ref_flux','Ref_flux_err','Delta_flux','Delta_flux_err','Mag','Mag_err',
      #               'Phot_scale_factor','Phot_scale_factor_err','Back','Back_err','delta_x','delta_y')

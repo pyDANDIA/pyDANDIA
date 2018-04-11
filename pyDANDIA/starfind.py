@@ -76,12 +76,10 @@ def starfind(setup, path_to_image, reduction_metadata, plot_it=False,
     if log != None:
         log.info('Starting starfind')
     
-<<<<<<< HEAD
-    params = { 'sky': 0.0, 'fwhm_y': 0.0, 'fwhm_x': 0.0, 'corr_xy':0.0, 'nstars':0, 'sat_frac':0.0 }
-=======
+
     params = { 'sky': 0.0, 'fwhm_y': 0.0, 'fwhm_x': 0.0, 'corr_xy':0.0, 'nstars':0, 'sat_frac':0.0, 'symmetry' : 1. }
     
->>>>>>> 039f3d81c20d2479d863fcf7bd0bcf0bfa02d91c
+
     t0 = time.time()
     im = fits.open(path_to_image)
     header = im[0].header
