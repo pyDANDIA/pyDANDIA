@@ -683,7 +683,7 @@ def update_reduction_metadata_headers_summary_with_new_images(setup,
 
 def construct_the_stamps(open_image, stamp_size=None, arcseconds_stamp_size=(60, 60),
                          pixel_scale=None,
-                         number_of_overlaping_pixels=25, log=None):
+                         fraction_of_overlaping_pixels=0.1, log=None):
     '''
     Define the stamps for an image variable kernel definition
 
@@ -691,7 +691,7 @@ def construct_the_stamps(open_image, stamp_size=None, arcseconds_stamp_size=(60,
     :param list stamp_sizes: list of integer give the X,Y stamp size , i.e [150,52] give 150 pix in X, 52 in Y
     :param tuple arcseconds_stamp_size: list of integer give the X,Y stamp size in arcseconds units
     :param float pixel_scale: pixel scale of the CCD, in arcsec/pix
-    :param int number_of_overlaping_pixels : half of  number of pixels in both direction you want overlaping
+    :param float fraction_of_overlaping_pixels : half of  number of pixels as 1D substamp fraction 
     :param boolean verbose: switch to True to have more informations
 
 
@@ -711,15 +711,43 @@ def construct_the_stamps(open_image, stamp_size=None, arcseconds_stamp_size=(60,
 
     else:
         try:
-
             y_stamp_size = int(arcseconds_stamp_size[0] / pixel_scale)
             x_stamp_size = int(arcseconds_stamp_size[1] / pixel_scale)
+            #we want to evenly distribute the stamp size as evenly as possible
+            #that requires to use the corresponding fraction of the envisaged
+            #stamp size fits into the frame
+            stamp_ratio_x = int(x_stamp_size/full_image_x_size)
+            stamp_ratio_y = int(y_stamp_size/full_image_y_size)
+            
+            #the resulting subdivision can be used to define subimages
+            subimage_shape = [stamp_ratio_x, stamp_ratio_y]
+            x_subsize = full_image_x_size/subimage_shape[0] 
+            y_subsize = full_image_y_size/subimage_shape[1]
+            #overlapping fraction in pixels
+            overlap_x = int(fraction_of_overlaping_pixels * x_subsize)
+            overlap_y = int(fraction_of_overlaping_pixels * y_subsize)
+
+
+            subimage_slices = []
+            for idx in range(subimage_shape[0]):
+                for jdx in range(subimage_shape[1]):            
+                    subimage_element = subimage_shape+[idx,jdx]
+                    x_subsize, y_subsize = full_image_x_size/subimage_element[0], full_image_y_size/subimage_element[1]
+
+                    xslice = [subimage_element[2] * x_subsize , (subimage_element[2] + 1) * x_subsize]
+                    yslice = [subimage_element[3] * y_subsize , (subimage_element[3] + 1) * y_subsize]
+                    #this is the slice without overlapping region, but for
+                    #obtaining a higher accurracy and to defeat edge effects
+                    #we check if the slice starts or ends at the edge and add
+                    #the corresponding overlap
+                    
 
         except:
             status = 'ERROR'
             report = 'No pixel scale found!'
             log.info(status + ': ' + report)
             return status, report, np.zeros(1)
+
 
     x_stamps_center = np.arange(x_stamp_size / 2, full_image_x_size, x_stamp_size)
     y_stamps_center = np.arange(y_stamp_size / 2, full_image_y_size, y_stamp_size)
