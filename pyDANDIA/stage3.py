@@ -38,12 +38,16 @@ def run_stage3(setup):
                                               'pyDANDIA_metadata.fits', 
                                               'data_architecture' )
     
-    sane = sanity_checks(reduction_metadata,log,meta_pars)
-        
-    if sane:
-        
+    sane = check_metadata(reduction_metadata,log)
+    
+    if sane: 
+    
         meta_pars = extract_parameters_stage3(reduction_metadata)
     
+        sane = sanity_checks(reduction_metadata,log,meta_pars)
+    
+    if sane:
+        
         scidata = fits.getdata(meta_pars['ref_image_path'])
         
         detected_sources = starfind.detect_sources(setup, reduction_metadata,
@@ -94,7 +98,29 @@ def run_stage3(setup):
     logs.close_log(log)
     
     return status, report
+
+def check_metadata(reduction_metadata,log):
+    """Function to verify sufficient information has been extracted from 
+    the metadata
     
+    :param MetaData reduction_metadata: pipeline metadata for this dataset
+    
+    Returns:
+    
+    :param boolean status: Status parameter indicating if conditions are OK 
+                            to continue the stage.
+    """
+
+    if 'REF_PATH' not in reduction_metadata.data_architecture[1].keys():
+        
+        log.info('ERROR: Stage 3 cannot find path to reference image in metadata')
+        
+        return False
+        
+    else:
+        
+        return True
+        
 def sanity_checks(reduction_metadata,log,meta_pars):
     """Function to check that stage 3 has all the information that it needs 
     from the reduction metadata and reduction products from earlier stages 
@@ -109,12 +135,6 @@ def sanity_checks(reduction_metadata,log,meta_pars):
     :param boolean status: Status parameter indicating if conditions are OK 
                             to continue the stage.
     """
-
-    if 'REF_PATH' not in reduction_metadata.data_architecture[1].keys():
-        
-        log.info('ERROR: Stage 3 cannot find path to reference image in metadata')
-        
-        return False
 
     ref_path =  str(reduction_metadata.data_architecture[1]['REF_PATH'][0]) +'/'+ str(reduction_metadata.data_architecture[1]['REF_IMAGE'][0])
     if not os.path.isfile(ref_path):
