@@ -95,7 +95,7 @@ def run_stage3(setup):
         report = 'Completed successfully'
         
     else:
-        status = 'ERROR:
+        status = 'ERROR'
         report = 'Failed sanity checks'
         
     log.info('Stage 3: '+report)
