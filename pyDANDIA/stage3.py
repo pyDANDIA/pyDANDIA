@@ -38,12 +38,12 @@ def run_stage3(setup):
                                               'pyDANDIA_metadata.fits', 
                                               'data_architecture' )
     
-    meta_pars = extract_parameters_stage3(reduction_metadata)
-    
     sane = sanity_checks(reduction_metadata,log,meta_pars)
-    
+        
     if sane:
         
+        meta_pars = extract_parameters_stage3(reduction_metadata)
+    
         scidata = fits.getdata(meta_pars['ref_image_path'])
         
         detected_sources = starfind.detect_sources(setup, reduction_metadata,
