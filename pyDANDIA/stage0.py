@@ -347,7 +347,8 @@ def open_an_image(setup, image_directory, image_name,
     image_directory_path = image_directory
 
     logs.ifverbose(log, setup,
-                   'Attempting to open image ' + os.path.join(image_directory_path, image_name))
+                   'Attempting to open image ' + \
+                   os.path.join(image_directory_path, image_name))
 
     try:
 
@@ -361,7 +362,8 @@ def open_an_image(setup, image_directory, image_name,
 
     except IndexError:
         
-        logs.ifverbose(log, setup, image_name + ' open : not OK!  Cannot open FITS extension '+str(index))
+        logs.ifverbose(log, setup, image_name + \
+                ' open : not OK!  Cannot open FITS extension '+str(image_index))
 
         return None
 
