@@ -91,9 +91,13 @@ def run_stage3(setup):
                                                 'pyDANDIA_metadata.fits',
                                                 'star_catalog', log=log)
         
-    status = 'OK'
-    report = 'Completed successfully'
-    
+        status = 'OK'
+        report = 'Completed successfully'
+        
+    else:
+        status = 'ERROR:
+        report = 'Failed sanity checks'
+        
     log.info('Stage 3: '+report)
     logs.close_log(log)
     
