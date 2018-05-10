@@ -14,7 +14,7 @@ def read_images(kernel_size):
     data_extended[kernel_size:-kernel_size,kernel_size:-kernel_size]=np.array(data_image[0].data,float)
     ref_extended[kernel_size:-kernel_size,kernel_size:-kernel_size]=np.array(ref_image[0].data,float)
     #NP.ARRAY REQUIRED FOR ALTERED BYTE ORDER (CYTHON CODE)
-    return ref_extended,d ata_extended
+    return ref_extended,data_extended
 
 def noise_model(model_image, gain, readout_noise,  flat=None, initialize=None):
     if initialize == True:
