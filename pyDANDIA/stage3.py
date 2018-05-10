@@ -110,6 +110,12 @@ def sanity_checks(reduction_metadata,log,meta_pars):
                             to continue the stage.
     """
 
+    if 'REF_PATH' not in reduction_metadata.data_architecture[1].keys():
+        
+        log.info('ERROR: Stage 3 cannot find path to reference image in metadata')
+        
+        return False
+
     ref_path =  str(reduction_metadata.data_architecture[1]['REF_PATH'][0]) +'/'+ str(reduction_metadata.data_architecture[1]['REF_IMAGE'][0])
     if not os.path.isfile(ref_path):
         # Message reduction_control?  Return error code?
