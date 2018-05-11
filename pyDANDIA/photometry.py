@@ -71,7 +71,7 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
                                                xstar, ystar, psf_size, 
                                                psf_model, sky_model, 
                                                centroiding=centroiding,
-                                               diagnostics=True)
+                                               diagnostics=False)
         
         logs.ifverbose(log, setup,' -> Star '+str(j)+
         ' fitted model parameters = '+repr(fitted_model.get_parameters())+
@@ -364,9 +364,9 @@ def plot_ref_mag_errors(setup,ref_star_catalog):
     
     fig = plt.figure(1)
     
-    idx = np.where(ref_star_catalog[:,5] > 0.0)
+    idx = np.where(ref_star_catalog[:,7] > 0.0)
     
-    plt.plot(ref_star_catalog[idx,5], ref_star_catalog[idx,6],'k.')
+    plt.plot(ref_star_catalog[idx,7], ref_star_catalog[idx,8],'k.')
 
     plt.yscale('log')    
     

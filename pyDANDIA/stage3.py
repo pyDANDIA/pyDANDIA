@@ -74,7 +74,8 @@ def run_stage3(setup):
                                                     
         (psf_model,psf_status) = psf.build_psf(setup, reduction_metadata, 
                                             log, scidata, 
-                                            ref_star_catalog, sky_model)
+                                            ref_star_catalog, sky_model,
+                                            diagnostics=False)
         
         ref_star_catalog = photometry.run_psf_photometry(setup, 
                                              reduction_metadata, 
