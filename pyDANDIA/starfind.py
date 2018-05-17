@@ -345,7 +345,7 @@ def build_star_finder(reduction_metadata, image_path, log):
     log.info('FWHM = '+str(fwhm))
     log.info('Sky background = '+str(sky_bkgd))
     
-    det_threshold = 5.0 * sky_bkgd_sig
+    det_threshold = 3.0 * sky_bkgd_sig
     
     log.info('Sky background sigma = '+str(sky_bkgd_sig))
     

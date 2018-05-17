@@ -288,6 +288,34 @@ class MetaData:
             
             log.info('Output reference source catalogue to reduction metadata')
 
+    def create_phot_calibration_layer(self,data,log=None):
+        """Function to create the layer in the reduction metadata file
+        containing the star catalogue of objects detected within the reference
+        image.
+        
+        :param list col_names: column names for table
+        :param list formats: column formats
+        :param array_like data: the data need to fill the astropy.table
+        """
+        
+        layer_name = 'phot_calib'
+        
+        names = [ 'star_index', 'cal_ref_mag' ]
+        
+        formats = [ 'int', 'float' ]
+                   
+        units = [ None, 'mag' ]
+                 
+        data_structure = [ names, 
+                         formats, 
+                         units]
+        
+        self.create_a_new_layer(layer_name, data_structure, data)
+
+        if log != None:
+            
+            log.info('Output calibrated photometry to reduction metadata')
+
     def load_a_layer_from_file(self, metadata_directory, metadata_name, key_layer):
         '''
         Load into the metadata object the layer from the metadata file.
