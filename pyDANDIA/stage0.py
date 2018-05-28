@@ -681,9 +681,9 @@ def update_reduction_metadata_headers_summary_with_new_images(setup,
         log.info('Added data on new images to the metadata')
 
 
-def construct_the_stamps(open_image, stamp_size=None, arcseconds_stamp_size=(30, 30),
+def construct_the_stamps(open_image, stamp_size=None, arcseconds_stamp_size=(60, 60),
                          pixel_scale=None,
-                         fraction_of_overlaping_pixels=0.1, log=None):
+                         fraction_of_overlaping_pixels=0.1,number_of_overlaping_pixels=None, log=None):
     '''
     Define the stamps for an image variable kernel definition
 
@@ -699,9 +699,9 @@ def construct_the_stamps(open_image, stamp_size=None, arcseconds_stamp_size=(30,
     :return an array containing the pixel index, Y_min, Y_max, X_min, X_max (i.e matrix index definition)
     :rtype array_like
     '''
+    
 
     image = open_image.data
-    print 'stamp size',stamp_size
     full_image_y_size, full_image_x_size = image.shape
 
     if stamp_size:
@@ -713,7 +713,6 @@ def construct_the_stamps(open_image, stamp_size=None, arcseconds_stamp_size=(30,
         try:
             y_stamp_size = int(arcseconds_stamp_size[0] / pixel_scale)
             x_stamp_size = int(arcseconds_stamp_size[1] / pixel_scale)
-            print arcseconds_stamp_size[0] / pixel_scale,pixel_scale
             #we want to distribute the stamp size as evenly as possible
             #that requires to use the corresponding fraction of the envisaged
             #stamp size fits into the frame (ceiling with overlap...)
@@ -721,10 +720,13 @@ def construct_the_stamps(open_image, stamp_size=None, arcseconds_stamp_size=(30,
             x_subsize = int(full_image_x_size/subimage_shape[0])
             y_subsize = int(full_image_y_size/subimage_shape[1])
             #overlapping fraction in pixels
-            overlap_x = int(fraction_of_overlaping_pixels * subimage_shape[0])
-            overlap_y = int(fraction_of_overlaping_pixels * subimage_shape[1])
+            if number_of_overlaping_pixels:
+                overlap_x = number_of_overlaping_pixels
+                overlap_y =  number_of_overlaping_pixels                        
+            else:
+                overlap_x = int(fraction_of_overlaping_pixels * x_subsize)
+                overlap_y = int(fraction_of_overlaping_pixels * y_subsize)
            
-            print overlap_x,overlap_y	
             subimage_slices = []
             for idx in range(subimage_shape[0]):
                 for jdx in range(subimage_shape[1]):            
@@ -737,41 +739,40 @@ def construct_the_stamps(open_image, stamp_size=None, arcseconds_stamp_size=(30,
                     #obtaining a higher accurracy and to defeat edge effects
                     #we check if the slice starts or ends at the edge and add
                     #the corresponding overlap
-                    print xslice,yslice
-
         except Exception as e:
-            print e
             status = 'ERROR'
-            report = 'No pixel scale found!'
+            report = 'No pixel scale found!'+str(e)
             log.info(status + ': ' + report)
             return status, report, np.zeros(1)
 
 
-    x_stamps_center = np.arange(x_stamp_size / 2, full_image_x_size, x_stamp_size)
-    y_stamps_center = np.arange(y_stamp_size / 2, full_image_y_size, y_stamp_size)
-
+    x_stamps_center = np.arange(int(x_stamp_size / 2), full_image_x_size, x_stamp_size)
+    y_stamps_center = np.arange(int(y_stamp_size / 2), full_image_y_size, y_stamp_size)
+    if x_stamps_center.size == 0:
+        x_stamps_center = np.array([int(x_stamp_size / 2)])
+    if y_stamps_center.size == 0:
+        y_stamps_center = np.array([int(y_stamp_size / 2)])
     stamps_center_x, stamps_center_y = np.meshgrid(y_stamps_center, x_stamps_center)
 
-    stamps_y_min = stamps_center_y - y_stamp_size / 2 - overlap_y
+    stamps_y_min = stamps_center_y - int(y_stamp_size / 2) - overlap_y
     mask = stamps_y_min < 0
     stamps_y_min[mask] = 0
 
-    stamps_y_max = stamps_center_y + y_stamp_size / 2 + overlap_y
+    stamps_y_max = stamps_center_y + int(y_stamp_size / 2) + overlap_y
     mask = stamps_y_max > full_image_y_size
     stamps_y_max[mask] = full_image_y_size
 
-    stamps_x_min = stamps_center_x - x_stamp_size / 2 - overlap_x
+    stamps_x_min = stamps_center_x - int(x_stamp_size / 2) - overlap_x
     mask = stamps_x_min < 0
     stamps_x_min[mask] = 0
-
-    stamps_x_max = stamps_center_x + x_stamp_size / 2 + overlap_x
+    stamps_x_max = stamps_center_x + int(x_stamp_size / 2) + overlap_x
     mask = stamps_x_max > full_image_x_size
     stamps_x_max[mask] = full_image_x_size
 
     stamps = [[stamps_x_min.shape[1] * i + j, stamps_y_min[i, j], stamps_y_max[i, j], stamps_x_min[i, j],
                stamps_x_max[i, j]]
               for i in range(stamps_x_min.shape[0]) for j in range(stamps_x_min.shape[1])]
-
+    print stamps
     status = 'OK'
     report = 'Completed successfully'
     return status, report, np.array(stamps)
@@ -799,7 +800,7 @@ def update_reduction_metadata_stamps(setup, reduction_metadata, open_image,
         pixel_scale = float(reduction_metadata.reduction_parameters[1]['PIX_SCALE'][0])
 
     (status, report, stamps) = construct_the_stamps(open_image, stamp_size, arcseconds_stamp_size,
-                                                    pixel_scale, number_of_overlaping_pixels, log=log)
+                                                    pixel_scale, number_of_overlaping_pixels=number_of_overlaping_pixels, log=log)
 
     names = ['PIXEL_INDEX', 'Y_MIN', 'Y_MAX', 'X_MIN', 'X_MAX']
     formats = ['int', 'S200', 'S200', 'S200', 'S200']
