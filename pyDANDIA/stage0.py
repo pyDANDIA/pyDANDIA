@@ -681,7 +681,7 @@ def update_reduction_metadata_headers_summary_with_new_images(setup,
         log.info('Added data on new images to the metadata')
 
 
-def construct_the_stamps(open_image, stamp_size=None, arcseconds_stamp_size=(60, 60),
+def construct_the_stamps(open_image, stamp_size=None, arcseconds_stamp_size=(30, 30),
                          pixel_scale=None,
                          fraction_of_overlaping_pixels=0.1, log=None):
     '''
@@ -701,7 +701,7 @@ def construct_the_stamps(open_image, stamp_size=None, arcseconds_stamp_size=(60,
     '''
 
     image = open_image.data
-
+    print 'stamp size',stamp_size
     full_image_y_size, full_image_x_size = image.shape
 
     if stamp_size:
@@ -713,21 +713,18 @@ def construct_the_stamps(open_image, stamp_size=None, arcseconds_stamp_size=(60,
         try:
             y_stamp_size = int(arcseconds_stamp_size[0] / pixel_scale)
             x_stamp_size = int(arcseconds_stamp_size[1] / pixel_scale)
-            #we want to evenly distribute the stamp size as evenly as possible
+            print arcseconds_stamp_size[0] / pixel_scale,pixel_scale
+            #we want to distribute the stamp size as evenly as possible
             #that requires to use the corresponding fraction of the envisaged
-            #stamp size fits into the frame
-            stamp_ratio_x = int(x_stamp_size/full_image_x_size)
-            stamp_ratio_y = int(y_stamp_size/full_image_y_size)
-            
-            #the resulting subdivision can be used to define subimages
-            subimage_shape = [stamp_ratio_x, stamp_ratio_y]
-            x_subsize = full_image_x_size/subimage_shape[0] 
-            y_subsize = full_image_y_size/subimage_shape[1]
+            #stamp size fits into the frame (ceiling with overlap...)
+            subimage_shape = [int(np.ceil(float(full_image_x_size)/x_stamp_size)), int(np.ceil(float(full_image_y_size)/y_stamp_size))]
+            x_subsize = int(full_image_x_size/subimage_shape[0])
+            y_subsize = int(full_image_y_size/subimage_shape[1])
             #overlapping fraction in pixels
-            overlap_x = int(fraction_of_overlaping_pixels * x_subsize)
-            overlap_y = int(fraction_of_overlaping_pixels * y_subsize)
-
-
+            overlap_x = int(fraction_of_overlaping_pixels * subimage_shape[0])
+            overlap_y = int(fraction_of_overlaping_pixels * subimage_shape[1])
+           
+            print overlap_x,overlap_y	
             subimage_slices = []
             for idx in range(subimage_shape[0]):
                 for jdx in range(subimage_shape[1]):            
@@ -740,9 +737,10 @@ def construct_the_stamps(open_image, stamp_size=None, arcseconds_stamp_size=(60,
                     #obtaining a higher accurracy and to defeat edge effects
                     #we check if the slice starts or ends at the edge and add
                     #the corresponding overlap
-                    
+                    print xslice,yslice
 
-        except:
+        except Exception as e:
+            print e
             status = 'ERROR'
             report = 'No pixel scale found!'
             log.info(status + ': ' + report)
@@ -754,21 +752,21 @@ def construct_the_stamps(open_image, stamp_size=None, arcseconds_stamp_size=(60,
 
     stamps_center_x, stamps_center_y = np.meshgrid(y_stamps_center, x_stamps_center)
 
-    stamps_y_min = stamps_center_y - y_stamp_size / 2 - number_of_overlaping_pixels
+    stamps_y_min = stamps_center_y - y_stamp_size / 2 - overlap_y
     mask = stamps_y_min < 0
     stamps_y_min[mask] = 0
 
-    stamps_y_max = stamps_center_y + y_stamp_size / 2 + number_of_overlaping_pixels
+    stamps_y_max = stamps_center_y + y_stamp_size / 2 + overlap_y
     mask = stamps_y_max > full_image_y_size
-    stamps_y_min[mask] = full_image_y_size
+    stamps_y_max[mask] = full_image_y_size
 
-    stamps_x_min = stamps_center_x - x_stamp_size / 2 - number_of_overlaping_pixels
+    stamps_x_min = stamps_center_x - x_stamp_size / 2 - overlap_x
     mask = stamps_x_min < 0
     stamps_x_min[mask] = 0
 
-    stamps_x_max = stamps_center_x + x_stamp_size / 2 + number_of_overlaping_pixels
+    stamps_x_max = stamps_center_x + x_stamp_size / 2 + overlap_x
     mask = stamps_x_max > full_image_x_size
-    stamps_x_min[mask] = full_image_x_size
+    stamps_x_max[mask] = full_image_x_size
 
     stamps = [[stamps_x_min.shape[1] * i + j, stamps_y_min[i, j], stamps_y_max[i, j], stamps_x_min[i, j],
                stamps_x_max[i, j]]
