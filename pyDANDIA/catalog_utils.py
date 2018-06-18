@@ -120,6 +120,43 @@ def output_survey_catalog(catalog_file,star_catalog,log):
     log.info('Output star catalogue to '+catalog_file)
     
 
+def output_vphas_catalog_file(catalog_file,vphas_catalog,match_index=None):
+    """Function to output a catalog of the information on sources detected
+    within the reference image
+
+    Format of output is a FITS binary table with the following columns:
+    idx ra  dec  gmag  e_gmag   rmag   e_rmag   imag   e_imag   clean
+    """
+
+    header = fits.Header()
+    header['NSTARS'] = len(vphas_catalog)
+    prihdu = fits.PrimaryHDU(header=header)
+    
+    col_list = [fits.Column(name='_RAJ2000', format='D', array=vphas_catalog['_RAJ2000']),\
+            fits.Column(name='_DEJ2000', format='D', array=vphas_catalog['_DEJ2000']),\
+            fits.Column(name='gmag', format='E', array=vphas_catalog['gmag']),\
+            fits.Column(name='e_gmag', format='E', array=vphas_catalog['e_gmag']),\
+            fits.Column(name='rmag', format='E', array=vphas_catalog['rmag']),\
+            fits.Column(name='e_rmag', format='E', array=vphas_catalog['e_rmag']),\
+            fits.Column(name='imag', format='E', array=vphas_catalog['imag']),\
+            fits.Column(name='e_imag', format='E', array=vphas_catalog['e_imag']),\
+            fits.Column(name='clean', format='I', array=vphas_catalog['clean'])]
+                
+    if type(match_index) == type(np.zeros(1)):
+        
+        idx = np.zeros(len(vphas_catalog))
+        
+        idx[match_index[:,1]] = match_index[:,0]
+        
+        col_list.append(fits.Column(name='match_star_index', format='I', array=idx))
+        
+    tbhdu = fits.BinTableHDU.from_columns(col_list)
+    
+    thdulist = fits.HDUList([prihdu, tbhdu])
+    
+    thdulist.writeto(catalog_file,overwrite=True)
+
+
 def extract_star_catalog(star_cat_file, ra_min=None, dec_min=None, 
                                       ra_max=None, dec_max=None):
     """Function to read a catalogue of stars in standard FITS binary table 
