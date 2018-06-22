@@ -84,7 +84,7 @@ def run_stage6(setup):
 
 
     
-    # create the starlist table in db
+    # create the starlist table in db, if needed
     ingest_the_stars_in_db(setup, starlist)
 
     # find star indexes in the db
@@ -110,7 +110,10 @@ def run_stage6(setup):
 
     ind = ((starlist['x_pixel']-150)**2<1) & ((starlist['y_pixel']-150)**2<1)
 
-
+    time = []
+    exposures_id = []
+    photometric_table = []
+    
     if len(new_images) > 0:
 
         # find the reference image
@@ -162,9 +165,8 @@ def run_stage6(setup):
         data = []
         diffim_directory = reduction_metadata.data_architecture[1]['OUTPUT_DIRECTORY'].data[0]+'diffim/'
         images_directory = reduction_metadata.data_architecture[1]['IMAGES_PATH'].data[0]
-        phot = np.zeros((len(new_images),len(ref_star_catalog),16))
-        time = []
-        exposures_id = []
+        photometric_table = np.zeros((len(new_images),len(ref_star_catalog),16))
+        
         for idx,new_image in enumerate(new_images[:]):
 
 
@@ -192,20 +194,27 @@ def run_stage6(setup):
 
             photometric_table, control_zone = photometry_on_the_difference_image(setup, reduction_metadata, log,ref_star_catalog,difference_image,  psf_model, sky_model, kernel_image,kernel_error, ref_exposure_time)
          
-            phot[idx,:,:] = photometric_table
+            photometric_table[idx,:,:] = photometric_table
 
             #save_control_zone_of_residuals(setup, new_image, control_zone)     
 
             #ingest_photometric_table_in_db(setup, photometric_table) 
-    ingest_photometric_table_in_db(setup, exposures_id, star_indexes, phot)
-    import pdb; pdb.set_trace()
-    import matplotlib.pyplot as plt 
-    ind = ((starlist['x_pixel']-150)**2<1) & ((starlist['y_pixel']-150)**2<1)
-    plt.errorbar(time,phot[:,ind,8],fmt='.k')
+
+    ingest_photometric_table_in_db(setup, exposures_id, star_indexes, photometric_table)
     
-    
-    plt.show()
-    import pdb; pdb.set_trace()
+    reduction_metadata.update_reduction_metadata_reduction_status(new_images, stage_number=6, status=1, log=log)
+    reduction_metadata.save_updated_metadata(
+        reduction_metadata.data_architecture[1]['OUTPUT_DIRECTORY'][0],
+        reduction_metadata.data_architecture[1]['METADATA_NAME'][0],
+        log=log)
+
+    logs.close_log(log)
+
+    status = 'OK'
+    report = 'Completed successfully'
+
+    return status, report
+
     return status, report
 
 def background_subtract(setup, image, max_adu):
@@ -456,12 +465,23 @@ def photometry_on_the_difference_image(setup, reduction_metadata, log, star_cata
 def ingest_the_stars_in_db(setup,star_catalog):
 
      conn = db_phot.get_connection(dsn=setup.red_dir+'phot.db')
-     new_table = star_catalog[['RA_J2000','DEC_J2000']]
-     new_table['RA_J2000'].name = 'ra'
-     new_table['DEC_J2000'].name = 'dec'
-     db_ai.load_astropy_table(conn, 'stars', new_table)
-     conn.commit()
-    
+     
+     #checkif the catalog exist
+     indexes = db_ai.query_to_astropy_table(conn,"SELECT star_id FROM stars")['star_id']
+     
+     if len(indexes) == 0:
+	 
+         print('I create a new star catalog for the db')
+
+         new_table = star_catalog[['RA_J2000','DEC_J2000']]
+         new_table['RA_J2000'].name = 'ra'
+         new_table['DEC_J2000'].name = 'dec'
+         db_ai.load_astropy_table(conn, 'stars', new_table)
+         conn.commit()
+
+     else:
+
+         print('A star catalog for exists in the db, I skip the creation.')  
    
 
 def find_stars_indexes_in_db(setup):
@@ -554,19 +574,21 @@ def ingest_exposure_in_db(setup,  image_header, ref_image_id):
      #c_170_exposure_name = 'TEXT'
 
 def ingest_photometric_table_in_db(setup, exposures_indexes, star_indexes, photometric_table):
-
-     conn = db_phot.get_connection(dsn=setup.red_dir+'phot.db')
+	
+     #if photometric_table exists
+     if len(photometric_table) !=0 :
+         conn = db_phot.get_connection(dsn=setup.red_dir+'phot.db')
      
-     for ind_exp,exposure in enumerate(exposures_indexes):
+         for ind_exp,exposure in enumerate(exposures_indexes):
          
-         for ind_star,star in enumerate(star_indexes):
+             for ind_star,star in enumerate(star_indexes):
 
-             phot_table = photometric_table[ind_exp,ind_star,:]
-	     diff_flux = phot_table[6]	
-             new_table = Table([[exposure],[star],[diff_flux]],names=('exposure_id','star_id','diff_flux'))
+                 phot_table = photometric_table[ind_exp,ind_star,:]
+	         diff_flux = phot_table[6]	
+                 new_table = Table([[exposure],[star],[diff_flux]],names=('exposure_id','star_id','diff_flux'))
              
-     	     db_ai.load_astropy_table(conn, 'phot', new_table)
-     conn.commit()
+     	         db_ai.load_astropy_table(conn, 'phot', new_table)
+         conn.commit()
      #what need to be filled...
      #c_000_phot_id = 'INTEGER PRIMARY KEY'
      #c_010_exposure_id = 'INTEGER REFERENCES exposures(exposure_id)'
