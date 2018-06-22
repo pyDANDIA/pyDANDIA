@@ -6,7 +6,7 @@
 	"unit":""
     },
     "phot_database": {
-        "comment": phot_database - STRING - The full path to the database file that will contain the photometry.", 
+        "comment": "phot_database - STRING - The full path to the database file that will contain the photometry.", 
         "value": "/home/Tux/ytsapras/Programs/Workspace/pyDANDIA/pyDANDIA/db/phot_db",
 	"format":"S200",
 	"unit":""
