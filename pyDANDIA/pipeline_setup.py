@@ -67,7 +67,7 @@ def pipeline_setup(params):
             elif key == 'pipeline_config_dir':
                 
                 setup.pipeline_config_dir = path.join(setup.red_dir,
-                                                              '..','configs')
+                                                              '..','Config')
             
             elif key == 'software_dir':
                 

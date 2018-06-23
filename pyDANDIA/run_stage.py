@@ -8,18 +8,19 @@ Created on Wed Oct 11 17:04:53 2017
 from os import getcwd, path, remove
 from sys import argv, exit
 from sys import path as systempath
-cwd = getcwd()
-systempath.append(path.join(cwd,'../'))
-import pipeline_setup
-import stage0
-import stage1
-import stage2
-import stage3
-import stage4
-import stage5
-import stage6
-import starfind
-import logs
+#cwd = getcwd()
+#systempath.append(path.join(cwd,'../'))
+from pyDANDIA import pipeline_setup
+from pyDANDIA import stage0
+from pyDANDIA import stage1
+from pyDANDIA import stage2
+from pyDANDIA import stage3
+from pyDANDIA import stage4
+from pyDANDIA import stage5
+#from pyDANDIA.db import astropy_interface
+from pyDANDIA import stage6
+from pyDANDIA import starfind
+from pyDANDIA import logs
 
 def run_stage_stand_alone():
     """Function to run a stage or section of pyDANDIA in stand alone mode."""

@@ -214,7 +214,7 @@ def feed_to_table_many(conn, table_name, names, tuples):
     !!! careful not to include the PRIMARY KEY column for the table in the 
         names or tuples !!!
     """
-    conn.executemany("INSERT INTO %s (%s) VALUES (%s)"%(
+    conn.executemany("INSERT OR REPLACE INTO %s (%s) VALUES (%s)"%(
         table_name, ",".join(names), ",".join("?"*len(names))),
         tuples)
 
