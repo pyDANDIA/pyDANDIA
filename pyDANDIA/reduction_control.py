@@ -16,7 +16,7 @@ import stage2
 import stage3
 import stage4
 import stage5
-import stage6
+#import stage6
 import logs
 
 def reduction_control():
@@ -55,9 +55,10 @@ def reduction_control():
     
     (status, report) = stage5.run_stage5(setup)
     log.info('Completed stage 5 with status '+repr(status)+': '+report)
-    
-    (status, report) = stage6.run_stage6(setup)
-    log.info('Completed stage 6 with status '+repr(status)+': '+report)
+ 
+# Code deactivated until stage 6 is fully integrated with pipeline   
+#    (status, report) = stage6.run_stage6(setup)
+#    log.info('Completed stage 6 with status '+repr(status)+': '+report)
     
     logs.close_log(log)
 
