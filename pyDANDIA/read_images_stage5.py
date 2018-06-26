@@ -105,7 +105,7 @@ def open_data_image(setup, data_image_directory, data_image_name, reference_mask
     #dout.writeto('datext'+data_image_name,overwrite=True)
     return data_extended, data_image_unmasked
 
-def open_reference(setup, ref_image_directory, ref_image_name, kernel_size, max_adu, ref_extension = 0, log = None, central_crop = None, subset = None):
+def open_reference(setup, ref_image_directory, ref_image_name, kernel_size, max_adu, ref_extension = 0, log = None, central_crop = None, subset = None, ref_image1 = None):
     '''
     reading difference image for constructing u matrix
 
@@ -116,13 +116,17 @@ def open_reference(setup, ref_image_directory, ref_image_name, kernel_size, max_
     :return: images, mask
     '''
 
-    logs.ifverbose(log, setup,
-                   'Attempting to open ref image ' + os.path.join(ref_image_directory, ref_image_name))
+#    logs.ifverbose(log, setup,
+#                   'Attempting to open ref image ' + os.path.join(ref_image_directory, ref_image_name))
 
-    ref_image = fits.open(os.path.join(ref_image_directory, ref_image_name), mmap=True)
+    if ref_image1 == None:
+        ref_image = fits.open(os.path.join(ref_image_directory, ref_image_name), mmap=True)
     #crop subimage
-    if subset != None:
+    if subset != None and ref_image1 == None:
         ref_image[ref_extension].data=ref_image[ref_extension].data[subset[0]:subset[1],subset[2]:subset[3]]
+    if subset != None and ref_image1 != None:
+        ref_image = fits.HDUList(fits.PrimaryHDU(ref_image1[ref_extension].data[subset[0]:subset[1],subset[2]:subset[3]]))
+
 	#increase kernel size by 2 and define circular mask
     kernel_size_plus = int(kernel_size)+4
     mask_kernel = np.ones(kernel_size_plus * kernel_size_plus, dtype=float)
