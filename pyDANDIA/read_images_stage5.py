@@ -4,12 +4,12 @@ from pyDANDIA import logs
 from astropy.io import fits
 from scipy.signal import convolve2d
 from scipy.ndimage.filters import gaussian_filter
-from pyDANDIA.sky_background import mask_saturated_pixels, generate_sky_model
+from pyDANDIA.sky_background import mask_saturated_pixels_reduce, generate_sky_model
 from pyDANDIA.sky_background import fit_sky_background, generate_sky_model_image
 from scipy.ndimage.interpolation import shift
 
 def background_subtract(setup, image, max_adu):
-    masked_image = mask_saturated_pixels(setup, image, max_adu,log = None)
+    masked_image = mask_saturated_pixels_reduce(setup, image, max_adu,log = None)
     sky_params = { 'background_type': 'gradient', 
           'nx': image.shape[1], 'ny': image.shape[0],
           'a0': 0.0, 'a1': 0.0, 'a2': 0.0 }
@@ -61,7 +61,7 @@ def read_images_for_substamps(ref_image_filename, data_image_filename, kernel_si
     return ref_extended, data_extended, bright_mask, ref_complete
 
 def open_data_image(setup, data_image_directory, data_image_name, reference_mask, kernel_size,
-                    max_adu, data_extension = 0, log = None, xshift = 0, yshift = 0, sigma_smooth = 0, central_crop = None, subset = None):
+                    max_adu, data_extension = 0, log = None, xshift = 0, yshift = 0, sigma_smooth = 0, central_crop = None, subset = None, data_image1 = None):
     '''
     reading difference image for constructing u matrix
 
@@ -72,11 +72,14 @@ def open_data_image(setup, data_image_directory, data_image_name, reference_mask
     :return: images, mask
     '''
 
-    logs.ifverbose(log, setup, 'Attempting to open data image ' + os.path.join(data_image_directory, data_image_name))
-    data_image = fits.open(os.path.join(data_image_directory, data_image_name), mmap=True)
-    if subset != None:
+    #data_image1 is a large format image for processing subimages
+    if data_image1 == None:
+        data_image = fits.open(os.path.join(data_image_directory, data_image_name), mmap=True)
+    if subset != None and data_image1 == None:
         #crop subimage
         data_image[data_extension].data=data_image[data_extension].data[subset[0]:subset[1],subset[2]:subset[3]]
+    if subset != None and data_image1 != None:
+        data_image = fits.HDUList(fits.PrimaryHDU(data_image1[data_extension].data[subset[0]:subset[1],subset[2]:subset[3]]))
 
     img50pc = np.median(data_image[data_extension].data)
     data_image[data_extension].data = background_subtract(setup, data_image[data_extension].data, img50pc)
@@ -116,8 +119,6 @@ def open_reference(setup, ref_image_directory, ref_image_name, kernel_size, max_
     :return: images, mask
     '''
 
-#    logs.ifverbose(log, setup,
-#                   'Attempting to open ref image ' + os.path.join(ref_image_directory, ref_image_name))
 
     if ref_image1 == None:
         ref_image = fits.open(os.path.join(ref_image_directory, ref_image_name), mmap=True)
@@ -186,13 +187,8 @@ def open_images(setup, ref_image_directory, data_image_directory, ref_image_name
     :return: images, mask
     '''
 
-    logs.ifverbose(log, setup,
-                   'Attempting to open data image ' + os.path.join(data_image_directory, data_image_name))
-
     data_image = fits.open(os.path.join(data_image_directory_path, data_image_name), mmap=True)
 
-    logs.ifverbose(log, setup,
-                   'Attempting to open ref image ' + os.path.join(ref_image_directory, ref_image_name))
 
     ref_image = fits.open(os.path.join(ref_image_directory_path, ref_image_name), mmap=True)
 

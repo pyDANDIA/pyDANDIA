@@ -18,11 +18,12 @@ def open_reference_subimages(setup, reduction_metadata, kernel_size, max_adu, ma
     reference_image_name = str(reduction_metadata.data_architecture[1]['REF_IMAGE'][0])
     reference_image_directory = str(reduction_metadata.data_architecture[1]['REF_PATH'][0])
     #load all reference subimages
+    ref_image1 = fits.open(os.path.join(reference_image_directory, reference_image_name), mmap=True)
     for substamp_idx in range(len(reduction_metadata.stamps[1])):
-        subset_slice = [int(reduction_metadata.stamps[1][substamp_idx]['Y_MIN']),int(reduction_metadata.stamps[1][substamp_idx]['Y_MAX']),int(reduction_metadata.stamps[1][substamp_idx]['X_MIN']),int(reduction_metadata.stamps[1][substamp_idx]['X_MAX'])]
-       
-        reference_image, bright_reference_mask, reference_image_unmasked = open_reference(setup, reference_image_directory, reference_image_name, kernel_size, max_adu, ref_extension = 0, log = None, central_crop = maxshift, subset = subset_slice)
-        reference_stamps.append([np.copy(reference_image), np.copy(bright_reference_mask), np.copy(reference_image_unmasked)])       
+        print substamp_idx,'of',len(reduction_metadata.stamps[1])
+        subset_slice = [int(reduction_metadata.stamps[1][substamp_idx]['Y_MIN']),int(reduction_metadata.stamps[1][substamp_idx]['Y_MAX']),int(reduction_metadata.stamps[1][substamp_idx]['X_MIN']),int(reduction_metadata.stamps[1][substamp_idx]['X_MAX'])]       
+        reference_image, bright_reference_mask, reference_image_unmasked = open_reference(setup, reference_image_directory, reference_image_name, kernel_size, max_adu, ref_extension = 0, log = None, central_crop = maxshift, subset = subset_slice,ref_image1=ref_image1)
+        reference_stamps.append([reference_image,bright_reference_mask,reference_image_unmasked])       
     return reference_stamps
 
 def subtract_subimage(setup, kernel_directory_path, image_name,reduction_metadata):
@@ -44,7 +45,6 @@ def subtract_subimage(setup, kernel_directory_path, image_name,reduction_metadat
     overlap_y = min(overlap_y)/2
 
     assembled =  np.zeros((y_max, x_max))
-    assembled = []
     for substamp_idx in range(len(reduction_metadata.stamps[1])):
         subset_slice = [int(reduction_metadata.stamps[1][substamp_idx]['Y_MIN']),int(reduction_metadata.stamps[1][substamp_idx]['Y_MAX']),int(reduction_metadata.stamps[1][substamp_idx]['X_MIN']),int(reduction_metadata.stamps[1][substamp_idx]['X_MAX'])]
 
@@ -55,13 +55,13 @@ def subtract_subimage(setup, kernel_directory_path, image_name,reduction_metadat
         missing_data_mask = (data_image == 0.) 
         difference_image = subtract_images(data_image_unmasked, reference_stamps[substamp_idx][2], kernel_matrix, kernel_size, bkg_kernel)
 #        target_shape = np.shape(assembled[subset_slice[0]:subset_slice[1],subset_slice[2]:subset_slice[3]])
-    
-#        assembled[subset_slice[0]:subset_slice[1],subset_slice[2]:subset_slice[3]] = difference_image[
+        assembled[subset_slice[0]:subset_slice[1],subset_slice[2]:subset_slice[3]] = difference_image
         diffim_directory_path = os.path.join(setup.red_dir, 'diffim')
         new_header = fits.Header()
         difference_image_hdu = fits.PrimaryHDU(difference_image ,header=new_header)
         difference_image_hdu.writeto(os.path.join(diffim_directory_path,'diff_'+str(substamp_idx)+image_name),overwrite = True)
-#    plt.imshow(assembled)
-#    plt.show()
+    difference_image_hdu = fits.PrimaryHDU(assembled ,header=new_header)
+    difference_image_hdu.writeto(os.path.join(diffim_directory_path,'master_'+str(substamp_idx)+image_name),overwrite = True)
+
   
 

@@ -249,6 +249,23 @@ def mask_saturated_pixels(setup,image,saturation_value,log):
     
     return masked_image
 
+def mask_saturated_pixels_reduce(setup,image,saturation_value,log):
+    """Function to mask saturated pixels in an image"""
+    
+    idx = np.where(image >= saturation_value)
+
+    sat_mask = np.zeros(image.shape)
+
+    sat_mask[idx] = 1.0    
+
+    sat_mask[::,::2] = 1.
+
+    sat_mask[::2] = 1.
+    
+    masked_image = np.ma.masked_array(image, mask=sat_mask)
+    
+    return masked_image
+
 def fit_sky_background(image,sky_model,background_type,log=None):
     """Function to perform a Least Squares Fit of a given background 
     model to a 2D image where the stars have been masked out"""
