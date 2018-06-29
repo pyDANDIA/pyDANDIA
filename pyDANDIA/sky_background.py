@@ -249,14 +249,18 @@ def mask_saturated_pixels(setup,image,saturation_value,log):
     
     return masked_image
 
-def mask_saturated_pixels_reduce(setup,image,saturation_value,log):
+def mask_saturated_pixels_quick(setup,image,saturation_value,log, min_value = None):
     """Function to mask saturated pixels in an image"""
     
     idx = np.where(image >= saturation_value)
+    if min_value != None:
+        idx2 = np.where(image < min_value)
 
     sat_mask = np.zeros(image.shape)
 
     sat_mask[idx] = 1.0    
+    if min_value != None:
+        sat_mask[idx2] = 1.0
 
     sat_mask[::,::2] = 1.
 
