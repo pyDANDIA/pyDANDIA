@@ -208,9 +208,10 @@ def run_stage6(setup):
             save_control_stars_of_the_difference_image(setup, new_image, difference_image, star_coordinates)
 
             phot_table, control_zone = photometry_on_the_difference_image(setup, reduction_metadata, log,ref_star_catalog,difference_image,  psf_model, sky_model, kernel_image,kernel_error, ref_exposure_time)
-
-            photometric_table[idx,:,:] = phot_table
-
+	    try:	
+            	photometric_table[compt_db,:,:] = phot_table
+	    except:
+		import pdb; pdb.set_trace()	
             #save_control_zone_of_residuals(setup, new_image, control_zone)     
 
             #ingest_photometric_table_in_db(setup, photometric_table) 
