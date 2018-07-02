@@ -19,7 +19,7 @@ from scipy.ndimage.interpolation import shift
 from pyDANDIA.sky_background import mask_saturated_pixels, generate_sky_model
 from pyDANDIA.sky_background import fit_sky_background, generate_sky_model_image
 
-
+from pyDANDIA.subtract_subimages import subtract_images, subtract_subimage
 
 from pyDANDIA import config_utils
 
@@ -165,11 +165,26 @@ def run_stage6(setup):
         data = []
         diffim_directory = reduction_metadata.data_architecture[1]['OUTPUT_DIRECTORY'].data[0]+'diffim/'
         images_directory = reduction_metadata.data_architecture[1]['IMAGES_PATH'].data[0]
-        photometric_table = np.zeros((len(new_images),len(ref_star_catalog),16))
-        
+        photometric_table = np.zeros((10,len(ref_star_catalog),16))
+        compt_db = 0
+
+
+        fwhm_max = 0.
+        shift_max = 0
+        for stats_entry in reduction_metadata.images_stats[1]:
+              if float(stats_entry['FWHM_X'])> fwhm_max:
+                   fwhm_max = stats_entry['FWHM_X']
+              if float(stats_entry['FWHM_Y'])> fwhm_max:
+                   fwhm_max = stats_entry['FWHM_Y']
+        kernel_size = int(4.*float(reduction_metadata.reduction_parameters[1]['KER_RAD'][0]) * fwhm_max)
+        if kernel_size:
+            if kernel_size % 2 == 0:
+                 kernel_size = kernel_size + 1
+
+        kernel_size = min(21,kernel_size)
         for idx,new_image in enumerate(new_images[:]):
 
-
+	    	
  	    index_image = np.where(new_image == reduction_metadata.headers_summary[1]['IMAGES'].data)[0][0]
             image_header = reduction_metadata.headers_summary[1][index_image]
 
@@ -185,20 +200,31 @@ def run_stage6(setup):
             target_image,date = open_an_image(setup, images_directory, new_image, image_index=0, log=None)
             kernel_image,kernel_error,kernel_bkg = find_the_associated_kernel(setup, kernels_directory, new_image)
          
-            difference_image = image_substraction(setup, reduction_metadata,reference_image, kernel_image, new_image)-kernel_bkg
+            difference_image = subtract_images(target_image, reference_image, kernel_image, kernel_size, kernel_bkg)
          
 
             time.append(date)
 
             save_control_stars_of_the_difference_image(setup, new_image, difference_image, star_coordinates)
 
-            photometric_table, control_zone = photometry_on_the_difference_image(setup, reduction_metadata, log,ref_star_catalog,difference_image,  psf_model, sky_model, kernel_image,kernel_error, ref_exposure_time)
-         
-            photometric_table[idx,:,:] = photometric_table
+            phot_table, control_zone = photometry_on_the_difference_image(setup, reduction_metadata, log,ref_star_catalog,difference_image,  psf_model, sky_model, kernel_image,kernel_error, ref_exposure_time)
+
+            photometric_table[idx,:,:] = phot_table
 
             #save_control_zone_of_residuals(setup, new_image, control_zone)     
 
             #ingest_photometric_table_in_db(setup, photometric_table) 
+            compt_db += 1
+
+            if compt_db >9:
+
+		    ingest_photometric_table_in_db(setup, exposures_id, star_indexes, photometric_table)
+	            photometric_table = np.zeros((10,len(ref_star_catalog),16))
+		    exposures_id = []
+		    compt_db = 0
+
+            
+       
 
     ingest_photometric_table_in_db(setup, exposures_id, star_indexes, photometric_table)
     
@@ -213,7 +239,6 @@ def run_stage6(setup):
     status = 'OK'
     report = 'Completed successfully'
 
-    return status, report
 
     return status, report
 
