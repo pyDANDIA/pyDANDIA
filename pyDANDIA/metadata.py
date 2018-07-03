@@ -836,10 +836,13 @@ def get_level1(self):
             ['oscany2', 'OSCANY2', 'int', 'End pixel of overscan region in y[pix]'],
             ['psf_comp_dist', 'PSFDIST', 'float', 'Minimum separation of PSF neighbour stars [PSF FWHM]'],
             ['psf_comp_flux', 'PSFCFLUX', 'float', 'Maximum flux ratio of PSF neighbour stars'],
+            ['psf_corr_thresh', 'PSFCORRTHRESH', 'float', 'Minimum correlation coefficient for a PSF star'],
+            ['psf_range_thresh', 'PSFRANGETHRESH', 'float', 'Brightest/faintest stars to exclude from PSF star selection [%]'],
+            ['psf_size', 'PSFSIZE', 'float', 'Size of the model PSF stamp [PSF FWHM]'],
+            ['ker_rad', 'KER_RAD', 'float', 'Kernel size [pix]'],
             ['rakey', 'RA-KEY', 'string', 'Name of RA keyword in image header'],
             ['subframes_x', 'SUBREGX', 'int', 'Number of image subregions in x-axis'],
             ['subframes_y', 'SUBREGY', 'int', 'Number of image subregions in y-axis'],
-            ['timekey', 'TIME-KEY', 'string', 'Name of exposure timestamp keyword in image header'],
             ]
 
     hdu = self.build_hdu(data)

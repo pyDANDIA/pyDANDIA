@@ -72,8 +72,7 @@ def run_stage5(setup):
     if kernel_size:
         if kernel_size % 2 == 0:
             kernel_size = kernel_size + 1
-
-    kernel_size = min(21,kernel_size) # hard-wired limit until config is extended!
+    
     # find the images that need to be processed
     all_images = reduction_metadata.find_all_images(setup, reduction_metadata,
                                                     os.path.join(setup.red_dir, 'data'), log=log)
@@ -195,7 +194,7 @@ def subtract_small_format_image(new_images, reference_image_name, reference_imag
             difference_image_hdu.writeto(os.path.join(diffim_directory_path,'diff_'+new_image),overwrite = True)
         except Exception as e:
             if log is not None:
-                logs.ifverbose(log, setup,'kernel matrix computation or shift failed:' + new_image + '. skipping!'+str(e))
+                logs.ifverbose(log, setup,'kernel matrix computation or shift failed:' + new_image + '. skipping! '+str(e))
             else:
                 print(str(e))
 

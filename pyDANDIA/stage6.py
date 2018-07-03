@@ -149,7 +149,7 @@ def run_stage6(setup):
         # find the kernels directory
         try:
 
-            kernels_directory = reduction_metadata.data_architecture[1]['OUTPUT_DIRECTORY'].data[0]+'kernel/'
+            kernels_directory = os.path.join(reduction_metadata.data_architecture[1]['OUTPUT_DIRECTORY'].data[0],'kernel')
 
             logs.ifverbose(log, setup,
                            'I found the kernels directory:' + kernels_directory)
@@ -163,7 +163,7 @@ def run_stage6(setup):
             return status, report
 
         data = []
-        diffim_directory = reduction_metadata.data_architecture[1]['OUTPUT_DIRECTORY'].data[0]+'diffim/'
+        diffim_directory = os.path.join(reduction_metadata.data_architecture[1]['OUTPUT_DIRECTORY'].data[0],'diffim')
         images_directory = reduction_metadata.data_architecture[1]['IMAGES_PATH'].data[0]
         photometric_table = np.zeros((10,len(ref_star_catalog),16))
         compt_db = 0
@@ -446,8 +446,8 @@ def find_the_associated_kernel(setup, kernels_directory, image_name):
     kernel_name = 'kernel_'+image_name
     kernel_err = 'kernel_err_'+image_name
     
-    kernel = fits.open( kernels_directory+kernel_name )
-    kernel_error = fits.open( kernels_directory+kernel_err )
+    kernel = fits.open( os.path.join(kernels_directory,kernel_name) )
+    kernel_error = fits.open( os.path.join(kernels_directory,kernel_err) )
     #kernel,date = open_an_image(setup, kernels_directory, kernel_name,
     #                       image_index=0, log=None)
     #kernel_error,date = open_an_image(setup, kernels_directory, kernel_err,

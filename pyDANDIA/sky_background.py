@@ -33,7 +33,6 @@ def model_sky_background(setup,reduction_metadata,log,ref_star_catalog):
     sat_value = 120000.0
     
     psf_mask = build_psf_mask(setup,psf_size,diagnostics=True)
-    print(psf_mask.shape)
     
     star_masked_image = mask_stars(setup,ref_image,ref_star_catalog, psf_mask, 
                            diagnostics=True)
@@ -50,7 +49,6 @@ def model_sky_background(setup,reduction_metadata,log,ref_star_catalog):
     log.info('Median = '+str(np.median(star_masked_image)))
 
     background_type = reduction_metadata.reduction_parameters[1]['BACK_VAR'].data[0]
-    print background_type
     
     if background_type == 'constant':
         

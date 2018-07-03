@@ -29,11 +29,17 @@
 	"format":"float",
 	"unit":""
     }, 
-    "cppcode": {
-        "comment": "cppcode - STRING - The full directory path indicating where the DanIDL C++ code is installed.", 
-        "value": "/path/to/C++/code/",
+    "datekey": {
+        "comment": "datekey - STRING - Header keyword recording the date (universal time) at the start of the observation. The value of this keyword should be a STRING of the format YYYY-MM-DDxxx...xxx where YYYY-MM-DD is a valid date and xxx...xxx represents a string of arbitrary characters of any length.", 
+        "value": "DATE-OBS",
 	"format":"S200",
-	"unit":""
+	"unit":"day"
+    }, 
+    "deckey": {
+        "comment": "deckey - STRING - Header keyword recording the declination (J2000) of the observation. The value of this keyword should be a STRING of the format pDD:MM:SS.SSS, where pDD:MM:SS.SSS is an angle between +-90 degrees in sexagesimal format.", 
+        "value": "DEC",
+	"format":"S200",
+	"unit":"deg"
     }, 
     "det_thresh": {
         "comment": "det_thresh - DOUBLE - Detection threshold used to detect stars in units of image sky sigma. This parameter should be positive (Default value = 3.0).", 
@@ -53,11 +59,29 @@
 	"format":"float",
 	"unit":""
     }, 
+    "expkey": {
+        "comment": "expkey - STRING - Header keyword recording the image exposure time in seconds. The value of this keyword should be a NUMBER with a non-negative value, or a STRING that represents a valid non-negative number.", 
+        "value": "EXPTIME",
+	"format":"S200",
+	"unit":""
+    }, 
+    "filtkey": {
+        "comment": "filtkey - STRING - Header keyword recording the filter employed. The value of this keyword should be a STRING.", 
+        "value": "FILTER2",
+	"format":"S200",
+	"unit":""
+    }, 
     "flim": {
         "comment": "flim - DOUBLE - Minimum contrast between the Laplacian image and the fine structure image. This parameter should be positive (Default value = 2.0).", 
         "value": 2.0,
 	"format":"float",
 	"unit":""
+    }, 
+    "fov": {
+        "comment": "fov - DOUBLE - Field of view of the CCD camera (deg). This parameter should be positive and less than or equal to 90.0 (Default value = 0.1).", 
+        "value": 0.1,
+	"format":"float",
+	"unit":"deg"
     }, 
     "grow": {
         "comment": "grow - DOUBLE - Controls the amount of overlap between the image regions used for the kernel solutions (Default value = 0.0).", 
@@ -119,60 +143,6 @@
 	"format":"float",
 	"unit":"adu"
     }, 
-    "mbiasmethod": {
-        "comment": "mbiasmethod - STRING - Method for combining the bias frames (mean = Mean : median = Median : sigclip = Sigma-clipped mean : Default value = sigclip).", 
-        "value": "sigclip",
-	"format":"S200",
-	"unit":""
-    }, 
-    "mbiaspro": {
-        "comment": "mbiaspro - INT - Switch for master bias frame correction (0 = NO : 1 = YES : Default value = 0).", 
-        "value": 0,
-	"format":"int",
-	"unit":""
-    }, 
-    "mbiassigma": {
-        "comment": "mbiassigma - DOUBLE - Sigma-clip threshold to be used if mbiasmethod is set to sigclip (Default value = -1.0).", 
-        "value": -1.0,
-	"format":"float",
-	"unit":""
-    }, 
-    "mdarkmethod": {
-        "comment": "mdarkmethod - STRING - Method for combining the dark frames (mean = Mean : median = Median : sigclip = Sigma-clipped mean : Default value = sigclip).", 
-        "value": "sigclip",
-	"format":"S200",
-	"unit":""
-    }, 
-    "mdarkpro": {
-        "comment": "mdarkpro - INT - Switch for master dark frame correction (0 = NO : 1 = YES : Default value = 0).", 
-        "value": 0,
-	"format":"int",
-	"unit":""
-    }, 
-    "mdarksigma": {
-        "comment": "mdarksigma - DOUBLE - Sigma-clip threshold to be used if mdarkmethod is set to sigclip (Default value = -1.0).", 
-        "value": -1.0,
-	"format":"float",
-	"unit":""
-    }, 
-    "mflatmethod": {
-        "comment": "mflatmethod - STRING - Method for combining the flat frames (mean = Mean : median = Median : sigclip = Sigma-clipped mean : Default value = median).", 
-        "value": "median",
-	"format":"S200",
-	"unit":""
-    }, 
-    "mflatpro": {
-        "comment": "mflatpro - INT - Switch for master flat frame correction (0 = NO : 1 = YES : Default value = 0).", 
-        "value": 0,
-	"format":"int",
-	"unit":""
-    }, 
-    "mflatsigma": {
-        "comment": "mflatsigma - DOUBLE - Sigma-clip threshold to be used if oscanmethod is set to sigclip (Default value = -1.0).", 
-        "value": -1.0,
-	"format":"float",
-	"unit":""
-    }, 
     "min_ell": {
         "comment": "min_ell - DOUBLE - Smallest acceptable value of the PSF ellipticity for an image to be used in the combined reference image. This parameter should be non-negative and less than or equal to 1.0 (Default value = 0.8).", 
         "value": 0.8,
@@ -221,12 +191,6 @@
 	"format":"int",
 	"unit":""
     }, 
-    "psf_range_thresh": {
-        "comment": "psf_range_thresh - DOUBLE - The percentage of stars at the top and bottom of the brightness scale of those detected in the reference image, to be excluded from selection as PSF stars (Default value=10.0%).", 
-        "value": 10.0,
-	"format":"float",
-	"unit":"percent"
-    }, 
     "psf_comp_dist": {
         "comment": "psf_comp_dist - DOUBLE - Any star within a distance 0.5*psf_comp_dist*psf_size, in units of FWHM, of another star is considered to be a companion of that star for PSF star selection purposes. This parameter should be non-negative (Default value = 0.7).", 
         "value": 0.7,
@@ -242,6 +206,12 @@
     "psf_corr_thresh": {
         "comment": "psf_corr_thresh - DOUBLE - Minimum correlation coefficient of a star with the image PSF model in order to be considered a PSF star. This parameter should be non-negative (Default value = 0.9).", 
         "value": 0.9,
+	"format":"float",
+	"unit":""
+    }, 
+    "psf_range_thresh": {
+        "comment": "psf_range_thresh - DOUBLE - Percentage of brightest/faintest stars to exclude from PSF star selection. This parameter should be non-negative (Default value = 10.0).", 
+        "value": 10.0,
 	"format":"float",
 	"unit":""
     }, 
@@ -304,7 +274,7 @@
         "value": 1,
 	"format":"int",
 	"unit":""
-    }, 
+    },
     "trans_auto": {
         "comment": "trans_auto - INT - Switch for automatic determination of the coordinate transformation type when fitting a coordinate transformation between two images (0 = Pre-defined transformation type : 1 = Automatic transformation type : Default value = 0).", 
         "value": 0,
