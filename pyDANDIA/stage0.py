@@ -61,7 +61,14 @@ def run_stage0(setup):
     inst_config_file_name = find_the_inst_config_file_name(setup, reduction_metadata, image_name,
                                                            setup.pipeline_config_dir,
                                                            image_index=0, log=None)
-
+    
+    if inst_config_file_name == None:
+        
+            status = 'ERROR'
+            report = 'Cannot find a pipeline configuration file for this dataset'
+            
+            return status, report, None
+            
     inst_config = read_the_inst_config_file(setup.pipeline_config_dir, inst_config_file_name, log=log)
     update_reduction_metadata_with_inst_config_file(reduction_metadata,
                                                     inst_config, log=log)

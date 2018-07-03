@@ -50,8 +50,8 @@ def model_sky_background(setup,reduction_metadata,log,ref_star_catalog):
     log.info('Median = '+str(np.median(star_masked_image)))
 
     background_type = reduction_metadata.reduction_parameters[1]['BACK_VAR'].data[0]
-
-
+    print background_type
+    
     if background_type == 'constant':
         
         sky_params = { 'background_type':background_type, 
@@ -63,7 +63,7 @@ def model_sky_background(setup,reduction_metadata,log,ref_star_catalog):
         sky_params = { 'background_type':background_type, 
           'nx': ref_image.shape[1], 'ny': ref_image.shape[0],
           'a0': 0.0, 'a1': 0.0, 'a2': 0.0 }
-          
+        
     sky_model = generate_sky_model(sky_params)
     
     sky_fit = fit_sky_background(star_masked_image,sky_model,'constant',log=log)

@@ -11,7 +11,7 @@ from os import path
 def read_config(path_to_config_file):
 
     if path.isfile(path_to_config_file) == False:
-        print("No config file found at given location.")
+        print("No config file found at given location: "+path_to_config_file)
         sys.exit()
 
     config_file = open(path_to_config_file,'r')
@@ -27,7 +27,7 @@ def set_config_value(path_to_config_file, key_name, new_value):
     
     
     if path.isfile(path_to_config_file) == False:
-        print("No config file found at given location.")
+        print("No config file found at given location: "+path_to_config_file)
         sys.exit()
 
     config_file = open(path_to_config_file,'r')
