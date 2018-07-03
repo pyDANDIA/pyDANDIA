@@ -29,18 +29,6 @@
 	"format":"float",
 	"unit":""
     }, 
-    "datekey": {
-        "comment": "datekey - STRING - Header keyword recording the date (universal time) at the start of the observation. The value of this keyword should be a STRING of the format YYYY-MM-DDxxx...xxx where YYYY-MM-DD is a valid date and xxx...xxx represents a string of arbitrary characters of any length.", 
-        "value": "DATE-OBS",
-	"format":"S200",
-	"unit":"day"
-    }, 
-    "deckey": {
-        "comment": "deckey - STRING - Header keyword recording the declination (J2000) of the observation. The value of this keyword should be a STRING of the format pDD:MM:SS.SSS, where pDD:MM:SS.SSS is an angle between +-90 degrees in sexagesimal format.", 
-        "value": "DEC",
-	"format":"S200",
-	"unit":"deg"
-    }, 
     "det_thresh": {
         "comment": "det_thresh - DOUBLE - Detection threshold used to detect stars in units of image sky sigma. This parameter should be positive (Default value = 3.0).", 
         "value": 3.0,
@@ -62,12 +50,6 @@
     "expkey": {
         "comment": "expkey - STRING - Header keyword recording the image exposure time in seconds. The value of this keyword should be a NUMBER with a non-negative value, or a STRING that represents a valid non-negative number.", 
         "value": "EXPTIME",
-	"format":"S200",
-	"unit":""
-    }, 
-    "filtkey": {
-        "comment": "filtkey - STRING - Header keyword recording the filter employed. The value of this keyword should be a STRING.", 
-        "value": "FILTER2",
 	"format":"S200",
 	"unit":""
     }, 
