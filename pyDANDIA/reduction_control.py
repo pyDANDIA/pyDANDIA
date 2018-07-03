@@ -110,7 +110,7 @@ def get_args():
             params['verbosity'] = int(argv[idx+1])
         
     params['log_dir'] = path.join(params['red_dir'],'..','logs')
-    params['pipeline_config_dir'] = path.join(params['red_dir'],'..','configs')
+    params['pipeline_config_dir'] = path.join(params['red_dir'],'..','config')
     params['software_dir'] = getcwd()
     
     setup= pipeline_setup.pipeline_setup(params)

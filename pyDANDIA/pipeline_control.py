@@ -56,7 +56,7 @@ def get_args(debug=False):
         print('ERROR: Cannot find reduction base directory '+params['red_dir'])
     
     params['log_dir'] = path.join(params['red_dir'],'logs')
-    params['pipeline_config_dir'] = path.join(params['red_dir'],'configs')
+    params['pipeline_config_dir'] = path.join(params['red_dir'],'..','config')
     
     setup = pipeline_setup.PipelineSetup(params)
     
@@ -103,7 +103,7 @@ def get_datasets_for_reduction(setup,log):
         
         for item in dir_list:
             
-            if 'logs' not in item and 'configs' not in item:
+            if 'logs' not in item and 'config' not in item:
                 
                 datasets.append(path.basename(item))
                 
