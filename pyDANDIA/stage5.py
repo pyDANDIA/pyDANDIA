@@ -74,8 +74,6 @@ def run_stage5(setup):
     if kernel_size:
         if kernel_size % 2 == 0:
             kernel_size = kernel_size + 1
-    kernel_size = 13
-    print kernel_size
     # find the images that need to be processed
     all_images = reduction_metadata.find_all_images(setup, reduction_metadata,
                                                     os.path.join(setup.red_dir, 'data'), log=log)
