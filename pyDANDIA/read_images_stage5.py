@@ -9,7 +9,7 @@ from pyDANDIA.sky_background import fit_sky_background, generate_sky_model_image
 from scipy.ndimage.interpolation import shift
 
 def background_subtract(setup, image, max_adu, min_adu=None):
-    masked_image = mask_saturated_pixels_quick(setup, image, max_adu, min_value = min_adu, log = None, every = 2)
+    masked_image = mask_saturated_pixels_quick(setup, image, max_adu, min_value = min_adu, log = None, every = 5)
     
     sky_params = { 'background_type': 'gradient', 
           'nx': image.shape[1], 'ny': image.shape[0],
@@ -57,7 +57,7 @@ def read_images_for_substamps(ref_image_filename, data_image_filename, kernel_si
     ref_extended[bright_mask] = 0.
     data_extended[bright_mask] = 0.    
     #half_kernel_mask
-    
+
 
     return ref_extended, data_extended, bright_mask, ref_complete
 
@@ -83,8 +83,8 @@ def open_data_image(setup, data_image_directory, data_image_name, reference_mask
         data_image = fits.HDUList(fits.PrimaryHDU(data_image1[data_extension].data[subset[0]:subset[1],subset[2]:subset[3]]))
 
     img50pc = np.median(data_image[data_extension].data)
-    if data_image1 == None:
-        data_image[data_extension].data = background_subtract(setup, data_image[data_extension].data, img50pc)
+    data_image[data_extension].data = data_image[data_extension].data - np.median(data_image[data_extension].data)
+#    data_image[data_extension].data = background_subtract(setup, data_image[data_extension].data, img50pc)
     img_shape = np.shape(data_image[data_extension].data)
     shifted = np.zeros(img_shape)
     #smooth data image
@@ -149,11 +149,11 @@ def open_reference(setup, ref_image_directory, ref_image_name, kernel_size, max_
     img_shape = np.shape(ref_image[ref_extension].data) 
     ref50pc = np.median(ref_image[ref_extension].data)
     if mask_extension != None:
-        ref_image[ref_extension].data[bad_pixel_mask>0] = max_adu + ref50pc +1.
+        ref_image[ref_extension].data[bad_pixel_mask>0.] = max_adu + ref50pc +1.
     ref_bright_mask = ref_image[ref_extension].data > max_adu + ref50pc
     #subtract background when opening file for small format images
-    if ref_image1 == None:
-        ref_image[ref_extension].data = background_subtract(setup, ref_image[ref_extension].data, ref50pc, min_adu = None)
+    ref_image[ref_extension].data =  ref_image[ref_extension].data - np.median( ref_image[ref_extension].data)
+#    ref_image[ref_extension].data = background_subtract(setup, ref_image[ref_extension].data, ref50pc, min_adu = None)
     ref_image_unmasked = np.copy(ref_image[ref_extension].data)
 
     if central_crop != None:
@@ -177,6 +177,8 @@ def open_reference(setup, ref_image_directory, ref_image_name, kernel_size, max_
     mask_propagate = convolve2d(mask_propagate, mask_kernel, mode='same')
     bright_mask = mask_propagate > 0.
     ref_extended[bright_mask] = 0.   
+    tmp = fits.PrimaryHDU(ref_extended)
+    tmp.writeto('mask.fits',overwrite=True)
     return ref_extended, bright_mask, ref_image_unmasked
    
 def open_images(setup, ref_image_directory, data_image_directory, ref_image_name,

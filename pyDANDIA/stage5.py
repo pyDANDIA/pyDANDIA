@@ -74,6 +74,8 @@ def run_stage5(setup):
     if kernel_size:
         if kernel_size % 2 == 0:
             kernel_size = kernel_size + 1
+    kernel_size = 13
+    print kernel_size
     # find the images that need to be processed
     all_images = reduction_metadata.find_all_images(setup, reduction_metadata,
                                                     os.path.join(setup.red_dir, 'data'), log=log)
@@ -98,7 +100,8 @@ def run_stage5(setup):
     try:
         reference_image_name = str(reduction_metadata.data_architecture[1]['REF_IMAGE'][0])
         reference_image_directory = str(reduction_metadata.data_architecture[1]['REF_PATH'][0])
-        max_adu = 0.1*float(reduction_metadata.reduction_parameters[1]['MAXVAL'][0])
+        max_adu = 0.3*float(reduction_metadata.reduction_parameters[1]['MAXVAL'][0])
+        print max_adu
         ref_row_index = np.where(reduction_metadata.images_stats[1]['IM_NAME'] == str(reduction_metadata.data_architecture[1]['REF_IMAGE'][0]))[0][0]
         ref_fwhm_x = reduction_metadata.images_stats[1][ref_row_index]['FWHM_X'] 
         ref_fwhm_y = reduction_metadata.images_stats[1][ref_row_index]['FWHM_Y'] 
@@ -201,18 +204,13 @@ def subtract_small_format_image(new_images, reference_image_name, reference_imag
 def open_reference_stamps(setup, reduction_metadata, reference_image_directory, reference_image_name, kernel_size, max_adu, log, maxshift, min_adu = None):
     reference_pool_stamps = []
     ref_image1 = fits.open(os.path.join(reference_image_directory, reference_image_name), mmap=True)
-    img50pc = np.median(ref_image1[0].data)
-    ref_image1[0].data = background_subtract(setup, ref_image1[0].data, img50pc,min_adu = min_adu)
-    ref_image1[0].data[-70:,:] = max_adu + 1.
-    ref_image1[0].data[:70,:] = max_adu + 1.
-    ref_image1[0].data[:,-70:] = max_adu + 1.
-    ref_image1[0].data[:,:70] = max_adu + 1.
     #load all reference subimages
     for substamp_idx in range(len(reduction_metadata.stamps[1])):
-        print substamp_idx,'of',len(reduction_metadata.stamps[1])
+        print substamp_idx,' loading ref of',len(reduction_metadata.stamps[1])
         #prepare subset slice based on metadata
 
         subset_slice = [int(reduction_metadata.stamps[1][substamp_idx]['Y_MIN']),int(reduction_metadata.stamps[1][substamp_idx]['Y_MAX']),int(reduction_metadata.stamps[1][substamp_idx]['X_MIN']),int(reduction_metadata.stamps[1][substamp_idx]['X_MAX'])]
+         
         reference_image, bright_reference_mask, reference_image_unmasked = open_reference(setup, reference_image_directory, reference_image_name, kernel_size, max_adu, ref_extension = 0, mask_extension = 1, log = log, central_crop = maxshift, subset = subset_slice, ref_image1 = ref_image1, min_adu = min_adu)
 
         reference_pool_stamps.append([reference_image,kernel_size, bright_reference_mask, reference_image_unmasked])
@@ -242,8 +240,6 @@ def subtract_large_format_image(new_images, reference_image_name, reference_imag
 
         #open image before slicing it 
         data_image1 = fits.open(os.path.join(data_image_directory, new_image), mmap=True)
-        img50pc = np.median(data_image1[0].data)
-        data_image1[0].data = background_subtract(setup, data_image1[0].data, img50pc, min_adu = None)
         row_index = np.where(reduction_metadata.images_stats[1]['IM_NAME'] == new_image)[0][0]
         x_shift, y_shift = -reduction_metadata.images_stats[1][row_index]['SHIFT_X'],-reduction_metadata.images_stats[1][row_index]['SHIFT_Y'] 
         data_image_unmasked1 = shift(np.copy(data_image1[0].data), (-y_shift,-x_shift), cval=0.)
@@ -277,10 +273,11 @@ def subtract_large_format_image(new_images, reference_image_name, reference_imag
         scale_out = np.array(scale_out)
         sigma = np.std(scale_out)
         medscale = np.median(scale_out)
-        good = np.where(np.abs(scale_out-medscale)<2.*sigma)
-        kermean = np.mean(np.array(kernels)[good],axis = 0)
+        good = np.where(np.abs(scale_out-medscale)<sigma)
+        kermean = np.median(np.array(kernels)[good],axis = 0)
         kerstd = np.std(np.array(kernels)[good],axis = 0)
         bkgmean = np.mean(np.array(bkgs)[good])
+
         pscale = np.sum(kermean)
         psigma = np.std(kermean)         
         np.save(os.path.join(kernel_directory_path,'kernel_'+new_image+'.npy'),[kermean,bkgmean])
@@ -294,14 +291,14 @@ def subtract_large_format_image(new_images, reference_image_name, reference_imag
         if log is not None:
             logs.ifverbose(log, setup, 'large format averaged kernel calculated for:' + new_image+' and average scale factor '+str(pscale)) 
             #CROP EDGE!
-        difference_image = subtract_images(data_image_unmasked1, reference_image_unmasked, kermean, kernel_size, bkgmean)  
+        difference_image = subtract_images(data_image_unmasked1, reference_image_unmasked1, kermean, kernel_size, bkgmean)  
         new_header = fits.Header()
         new_header['SCALEFAC'] = pscale
         difference_image_hdu = fits.PrimaryHDU(difference_image,header=new_header)
         difference_image_hdu.writeto(os.path.join(diffim_directory_path,'diff_'+new_image),overwrite = True)
  
         #classic subtraction...
-        #subtract_subimage(setup, kernel_directory_path, new_image,reduction_metadata)
+        subtract_subimage(setup, kernel_directory_path, new_image,reduction_metadata)
 
 
 
@@ -552,6 +549,8 @@ def kernel_solution_pool(input_pars):
     reference_stamp = input_pars[1]
     data_image = input_pars[2]
     kernel_size = input_pars[3]
+    print np.shape(umatrix_stamp),np.shape(reference_stamp),np.shape(data_image),kernel_size
+
     return kernel_solution(umatrix_stamp, bvector_constant(reference_stamp, data_image, kernel_size), kernel_size, circular = False)
 
 

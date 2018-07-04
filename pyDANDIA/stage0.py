@@ -93,9 +93,9 @@ def run_stage0(setup):
 
         update_reduction_metadata_stamps(setup, reduction_metadata, open_image,
                                          stamp_size=None,
-                                         arcseconds_stamp_size=(210, 210),
+                                         arcseconds_stamp_size=(140, 140),
                                          pixel_scale=None,
-                                         number_of_overlaping_pixels=25, log=log)
+                                         number_of_overlaping_pixels=0, log=log)
 
     if len(new_images) > 0:
 
@@ -700,9 +700,9 @@ def update_reduction_metadata_headers_summary_with_new_images(setup,
         log.info('Added data on new images to the metadata')
 
 
-def construct_the_stamps(open_image, stamp_size=None, arcseconds_stamp_size=(210, 210),
+def construct_the_stamps(open_image, stamp_size=None, arcseconds_stamp_size=(140, 140),
                          pixel_scale=None,
-                         fraction_of_overlaping_pixels=0.1,number_of_overlaping_pixels=None, log=None):
+                         fraction_of_overlaping_pixels=0.0,number_of_overlaping_pixels=None, log=None):
     '''
     Define the stamps for an image variable kernel definition
 
@@ -798,7 +798,7 @@ def construct_the_stamps(open_image, stamp_size=None, arcseconds_stamp_size=(210
 
 
 def update_reduction_metadata_stamps(setup, reduction_metadata, open_image,
-                                     stamp_size=None, arcseconds_stamp_size=(210, 210),
+                                     stamp_size=None, arcseconds_stamp_size=(140, 140),
                                      pixel_scale=None, number_of_overlaping_pixels=25,
                                      log=None):
     '''
