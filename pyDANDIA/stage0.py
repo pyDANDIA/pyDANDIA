@@ -16,7 +16,6 @@ import sys
 
 from pyDANDIA import config_utils
 from astropy.nddata import Cutout2D
-
 from pyDANDIA import metadata
 from pyDANDIA import pixelmasks
 #import metadata
@@ -93,7 +92,7 @@ def run_stage0(setup):
 
         update_reduction_metadata_stamps(setup, reduction_metadata, open_image,
                                          stamp_size=None,
-                                         arcseconds_stamp_size=(140, 140),
+                                         arcseconds_stamp_size=(160, 160),
                                          pixel_scale=None,
                                          number_of_overlaping_pixels=0, log=log)
 
@@ -700,7 +699,7 @@ def update_reduction_metadata_headers_summary_with_new_images(setup,
         log.info('Added data on new images to the metadata')
 
 
-def construct_the_stamps(open_image, stamp_size=None, arcseconds_stamp_size=(140, 140),
+def construct_the_stamps(open_image, stamp_size=None, arcseconds_stamp_size=(160, 160),
                          pixel_scale=None,
                          fraction_of_overlaping_pixels=0.0,number_of_overlaping_pixels=None, log=None):
     '''
@@ -798,8 +797,8 @@ def construct_the_stamps(open_image, stamp_size=None, arcseconds_stamp_size=(140
 
 
 def update_reduction_metadata_stamps(setup, reduction_metadata, open_image,
-                                     stamp_size=None, arcseconds_stamp_size=(140, 140),
-                                     pixel_scale=None, number_of_overlaping_pixels=25,
+                                     stamp_size=None, arcseconds_stamp_size=(160, 160),
+                                     pixel_scale=None, number_of_overlaping_pixels=0,
                                      log=None):
     '''
     Create the stamps definition in the reduction_metadata

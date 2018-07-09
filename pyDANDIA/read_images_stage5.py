@@ -4,24 +4,7 @@ from pyDANDIA import logs
 from astropy.io import fits
 from scipy.signal import convolve2d
 from scipy.ndimage.filters import gaussian_filter
-from pyDANDIA.sky_background import mask_saturated_pixels_quick, generate_sky_model
-from pyDANDIA.sky_background import fit_sky_background, generate_sky_model_image
 from scipy.ndimage.interpolation import shift
-
-def background_subtract(setup, image, max_adu, min_adu=None):
-    masked_image = mask_saturated_pixels_quick(setup, image, max_adu, min_value = min_adu, log = None, every = 5)
-    
-    sky_params = { 'background_type': 'gradient', 
-          'nx': image.shape[1], 'ny': image.shape[0],
-          'a0': 0.0, 'a1': 0.0, 'a2': 0.0 }
-    sky_model = generate_sky_model(sky_params) 
-    sky_fit = fit_sky_background(masked_image,sky_model,'gradient',log=None)
-    sky_params['a0'] = sky_fit[0][0]
-    sky_params['a1'] = sky_fit[0][1]
-    sky_params['a2'] = sky_fit[0][2]
-    #sky_model = generate_sky_model(sky_params)
-    sky_model_image = generate_sky_model_image(sky_params)
-    return image - sky_model_image
 
 def read_images_for_substamps(ref_image_filename, data_image_filename, kernel_size, max_adu):
     data_image = fits.open(data_image_filename)
@@ -58,11 +41,10 @@ def read_images_for_substamps(ref_image_filename, data_image_filename, kernel_si
     data_extended[bright_mask] = 0.    
     #half_kernel_mask
 
-
     return ref_extended, data_extended, bright_mask, ref_complete
 
 def open_data_image(setup, data_image_directory, data_image_name, reference_mask, kernel_size,
-                    max_adu, data_extension = 0, log = None, xshift = 0, yshift = 0, sigma_smooth = 0, central_crop = None, subset = None, data_image1 = None, min_adu = None):
+                    max_adu, data_extension = 0, log = None, xshift = 0, yshift = 0, sigma_smooth = 0, central_crop = None, subset = None, min_adu = None, subtract = False):
     '''
     reading difference image for constructing u matrix
 
@@ -72,20 +54,15 @@ def open_data_image(setup, data_image_directory, data_image_name, reference_mask
     :param object float: index of the maximum adu values
     :return: images, mask
     '''
-
-    #data_image1 is a large format image for processing subimages
-    if data_image1 == None:
-        data_image = fits.open(os.path.join(data_image_directory, data_image_name), mmap=True)
-    if subset != None and data_image1 == None:
+    data_image = fits.open(os.path.join(data_image_directory, data_image_name), mmap=True)
+    img_shape = np.shape(data_image[data_extension].data)
+    if subset != None:
         #crop subimage
         data_image[data_extension].data=data_image[data_extension].data[subset[0]:subset[1],subset[2]:subset[3]]
-    if subset != None and data_image1 != None:
-        data_image = fits.HDUList(fits.PrimaryHDU(data_image1[data_extension].data[subset[0]:subset[1],subset[2]:subset[3]]))
 
     img50pc = np.median(data_image[data_extension].data)
     data_image[data_extension].data = data_image[data_extension].data - np.median(data_image[data_extension].data)
 #    data_image[data_extension].data = background_subtract(setup, data_image[data_extension].data, img50pc)
-    img_shape = np.shape(data_image[data_extension].data)
     shifted = np.zeros(img_shape)
     #smooth data image
     if sigma_smooth != 0:
@@ -94,10 +71,7 @@ def open_data_image(setup, data_image_directory, data_image_name, reference_mask
     if xshift>img_shape[0] or yshift>img_shape[1]:
         return []
     data_image[data_extension].data = shift(data_image[data_extension].data, (-yshift,-xshift), cval=0.)
-    if data_image1 == None: 
-        data_image_unmasked = np.copy(data_image[data_extension].data)
-    else:
-        data_image_unmasked = []
+    data_image_unmasked = np.copy(data_image[data_extension].data)
     if central_crop != None:
         tmp_image = np.zeros(np.shape(data_image[data_extension].data))
         tmp_image[central_crop:-central_crop,central_crop:-central_crop] = data_image[data_extension].data[central_crop:-central_crop,central_crop:-central_crop]
@@ -107,11 +81,31 @@ def open_data_image(setup, data_image_directory, data_image_name, reference_mask
     data_extended[kernel_size:-kernel_size, kernel_size:-
                  kernel_size] = np.array(data_image[data_extension].data, float)
     
-    #apply consistent mask    
-    data_extended[reference_mask] = 0.
+    #apply consistent mask for kernel solution - not subtraction
+    if subtract == False:
+        data_extended[reference_mask] = 0.
     return data_extended, data_image_unmasked
 
-def open_reference(setup, ref_image_directory, ref_image_name, kernel_size, max_adu, ref_extension = 0, mask_extension = None, log = None, central_crop = None, subset = None, ref_image1 = None, min_adu = None):
+def maxadu_from_reference_mask(setup, ref_image_directory, ref_image_name, ref_extension = 0, mask_extension = 1, mask_value = 2):
+    '''
+    Extracts the maximum adu value for images with regions without
+    establishable gain
+    
+    
+    :param object string: reference imagefilename
+    :param object string: reference image filename
+    :return: max_adu
+    '''
+    hl1 = fits.open(os.path.join(ref_image_directory, ref_image_name), mmap=True)
+    if len(hl1[ref_extension].data[hl1[mask_extension].data==mask_value])>0:
+        new_max_adu = np.min(hl1[ref_extension].data[hl1[mask_extension].data==mask_value])
+        hl1.close()
+        return new_max_adu
+    else:
+        hl1.close()
+        return None
+
+def open_reference(setup, ref_image_directory, ref_image_name, kernel_size, max_adu, ref_extension = 0, log = None, central_crop = None, subset = None, ref_image1 = None, min_adu = None, subtract = False):
     '''
     reading difference image for constructing u matrix
 
@@ -122,34 +116,26 @@ def open_reference(setup, ref_image_directory, ref_image_name, kernel_size, max_
     :return: images, mask
     '''
 
-
     if ref_image1 == None:
-        ref_image = fits.open(os.path.join(ref_image_directory, ref_image_name), mmap=True)
+        ref_image = fits.open(os.path.join(ref_image_directory, ref_image_name))
     #crop subimage
-    if subset != None and ref_image1 == None:
-        if mask_extension != None:
-            bad_pixel_mask = ref_image[mask_extension].data[subset[0]:subset[1],subset[2]:subset[3]]
+    if subset != None and ref_image1 == None :
         ref_image[ref_extension].data=ref_image[ref_extension].data[subset[0]:subset[1],subset[2]:subset[3]]
-    if subset != None and ref_image1 != None:
-        if mask_extension != None:
-            bad_pixel_mask = ref_image1[mask_extension].data[subset[0]:subset[1],subset[2]:subset[3]]
-
+    if subset != None and ref_image1 != None :
         ref_image = fits.HDUList(fits.PrimaryHDU(ref_image1[ref_extension].data[subset[0]:subset[1],subset[2]:subset[3]]))
- 
+    
 	#increase kernel size by 2 and define circular mask
-    kernel_size_plus = int(kernel_size)+4
+    kernel_size_plus = int(kernel_size*1.2)
     mask_kernel = np.ones(kernel_size_plus * kernel_size_plus, dtype=float)
     mask_kernel = mask_kernel.reshape((kernel_size_plus, kernel_size_plus))
     xyc = int(kernel_size_plus / 2)
     radius_square = (xyc)**2
     for idx in range(kernel_size_plus):
         for jdx in range(kernel_size_plus):
-            if (idx - xyc)**2 + (jdx - xyc)**2 >= radius_square:
-                mask_kernel[idx, jdx] = 0.
+            #if (idx - xyc)**2 + (jdx - xyc)**2 >= radius_square:
+            mask_kernel[idx, jdx] = 0.
     img_shape = np.shape(ref_image[ref_extension].data) 
     ref50pc = np.median(ref_image[ref_extension].data)
-    if mask_extension != None:
-        ref_image[ref_extension].data[bad_pixel_mask>0.] = max_adu + ref50pc +1.
     ref_bright_mask = ref_image[ref_extension].data > max_adu + ref50pc
     #subtract background when opening file for small format images
     ref_image[ref_extension].data =  ref_image[ref_extension].data - np.median( ref_image[ref_extension].data)
@@ -176,9 +162,8 @@ def open_reference(setup, ref_image_directory, ref_image_name, kernel_size, max_
     #increase mask size to kernel size
     mask_propagate = convolve2d(mask_propagate, mask_kernel, mode='same')
     bright_mask = mask_propagate > 0.
-    ref_extended[bright_mask] = 0.   
-    tmp = fits.PrimaryHDU(ref_extended)
-    tmp.writeto('mask.fits',overwrite=True)
+    if subtract == False:
+        ref_extended[bright_mask] = 0.   
     return ref_extended, bright_mask, ref_image_unmasked
    
 def open_images(setup, ref_image_directory, data_image_directory, ref_image_name,
@@ -205,7 +190,7 @@ def open_images(setup, ref_image_directory, data_image_directory, ref_image_name
     ref_image = fits.open(os.path.join(ref_image_directory_path, ref_image_name), mmap=True)
 
 	#increase kernel size by 2 and define circular mask
-    kernel_size_plus = kernel_size + 2
+    kernel_size_plus = int(kernel_size*1.2)
     mask_kernel = np.ones(kernel_size_plus * kernel_size_plus, dtype=float)
     mask_kernel = mask_kernel.reshape((kernel_size_plus, kernel_size_plus))
     xyc = int(kernel_size_plus / 2)
