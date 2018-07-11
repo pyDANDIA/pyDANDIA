@@ -18,7 +18,7 @@ from scipy.ndimage.filters import gaussian_filter
 from pyDANDIA.read_images_stage5 import open_reference
 from pyDANDIA.read_images_stage5 import open_data_image
 from pyDANDIA.read_images_stage5 import maxadu_from_reference_mask
-from pyDANDIA.subtract_subimages import subtract_images, subtract_subimage
+from pyDANDIA.subtract_subimages import subtract_images, subtract_subimage, subtract_subimage_interp
 from multiprocessing import Pool
 import multiprocessing as mp
 
@@ -105,7 +105,6 @@ def run_stage5(setup):
         max_adu = maxadu_from_reference_mask(setup, reference_image_directory, reference_image_name, ref_extension = 0, mask_value = 2)
         if max_adu == None:
             max_adu = float(reduction_metadata.reduction_parameters[1]['MAXVAL'][0])
-        print max_adu
         ref_row_index = np.where(reduction_metadata.images_stats[1]['IM_NAME'] == str(reduction_metadata.data_architecture[1]['REF_IMAGE'][0]))[0][0]
         ref_fwhm_x = reduction_metadata.images_stats[1][ref_row_index]['FWHM_X'] 
         ref_fwhm_y = reduction_metadata.images_stats[1][ref_row_index]['FWHM_Y'] 
@@ -211,13 +210,9 @@ def open_reference_stamps(setup, reduction_metadata, reference_image_directory, 
     ref_image1 = fits.open(os.path.join(reference_image_directory, reference_image_name), mmap=True)
     #load all reference subimages
     for substamp_idx in range(len(reduction_metadata.stamps[1])):
-        print(substamp_idx,' loading ref of',len(reduction_metadata.stamps[1]))
         #prepare subset slice based on metadata
-
-        subset_slice = [int(reduction_metadata.stamps[1][substamp_idx]['Y_MIN']),int(reduction_metadata.stamps[1][substamp_idx]['Y_MAX']),int(reduction_metadata.stamps[1][substamp_idx]['X_MIN']),int(reduction_metadata.stamps[1][substamp_idx]['X_MAX'])]
-         
+        subset_slice = [int(reduction_metadata.stamps[1][substamp_idx]['Y_MIN']),int(reduction_metadata.stamps[1][substamp_idx]['Y_MAX']),int(reduction_metadata.stamps[1][substamp_idx]['X_MIN']),int(reduction_metadata.stamps[1][substamp_idx]['X_MAX'])]         
         reference_image, bright_reference_mask, reference_image_unmasked = open_reference(setup, reference_image_directory, reference_image_name, kernel_size, max_adu, ref_extension = 0, log = log, central_crop = maxshift, subset = subset_slice, ref_image1 = ref_image1, min_adu = min_adu)
-
         reference_pool_stamps.append([np.copy(reference_image),kernel_size, bright_reference_mask, np.copy(reference_image_unmasked)])
     ref_image1_data = np.copy(ref_image1[0].data)
     ref_image1.close()
@@ -288,9 +283,9 @@ def subtract_large_format_image(new_images, reference_image_name, reference_imag
         kerstd = np.std(np.array(kernels)[good],axis = 0)
         bkgmean = np.mean(np.array(bkgs)[good])
         #test...
-        subtract_subimage5(setup, kernel_directory_path, new_image,reduction_metadata)
+        subtract_subimage_interp(setup, kernel_directory_path, new_image,reduction_metadata)
         #classic subtraction...
-        subtract_subimage(setup, kernel_directory_path, new_image,reduction_metadata)
+        #subtract_subimage(setup, kernel_directory_path, new_image,reduction_metadata)
 
 def noise_model(model_image, gain, readout_noise, flat=None, initialize=None):
     noise_image = np.copy(model_image)

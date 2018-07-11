@@ -132,8 +132,8 @@ def open_reference(setup, ref_image_directory, ref_image_name, kernel_size, max_
     radius_square = (xyc)**2
     for idx in range(kernel_size_plus):
         for jdx in range(kernel_size_plus):
-            #if (idx - xyc)**2 + (jdx - xyc)**2 >= radius_square:
-            mask_kernel[idx, jdx] = 0.
+            if (idx - xyc)**2 + (jdx - xyc)**2 >= radius_square:
+                mask_kernel[idx, jdx] = 0.
     img_shape = np.shape(ref_image[ref_extension].data) 
     ref50pc = np.median(ref_image[ref_extension].data)
     ref_bright_mask = ref_image[ref_extension].data > max_adu + ref50pc
@@ -189,8 +189,8 @@ def open_images(setup, ref_image_directory, data_image_directory, ref_image_name
 
     ref_image = fits.open(os.path.join(ref_image_directory_path, ref_image_name), mmap=True)
 
-	#increase kernel size by 2 and define circular mask
-    kernel_size_plus = int(kernel_size*1.2)
+	#increase kernel size by 1.4 and define circular mask
+    kernel_size_plus = int(kernel_size*1.4)
     mask_kernel = np.ones(kernel_size_plus * kernel_size_plus, dtype=float)
     mask_kernel = mask_kernel.reshape((kernel_size_plus, kernel_size_plus))
     xyc = int(kernel_size_plus / 2)
