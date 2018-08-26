@@ -7,6 +7,16 @@ from scipy.ndimage.filters import gaussian_filter
 from pyDANDIA.sky_background import mask_saturated_pixels_quick, generate_sky_model
 from pyDANDIA.sky_background import fit_sky_background, generate_sky_model_image
 from scipy.ndimage.interpolation import shift
+from astropy.stats import SigmaClip
+from photutils import Background2D, MedianBackground
+
+def background_mesh(image):
+    sigma_clip = SigmaClip(sigma=3., iters=10)
+    bkg_estimator = MedianBackground()
+    bkg = Background2D(image, (50, 50), filter_size=(3, 3),
+        sigma_clip=sigma_clip, bkg_estimator=bkg_estimator)
+    return bkg.background
+
 
 def background_subtract(setup, image, max_adu, min_adu=None):
     masked_image = mask_saturated_pixels_quick(setup, image, max_adu, min_value = min_adu, log = None)
@@ -83,7 +93,7 @@ def open_data_image(setup, data_image_directory, data_image_name, reference_mask
         data_image = fits.HDUList(fits.PrimaryHDU(data_image1[data_extension].data[subset[0]:subset[1],subset[2]:subset[3]]))
 
     img50pc = np.median(data_image[data_extension].data)
-    data_image[data_extension].data = background_subtract(setup, data_image[data_extension].data, img50pc, min_adu)
+    data_image[data_extension].data = data_image[data_extension].data - background_mesh(data_image[data_extension].data) 
     img_shape = np.shape(data_image[data_extension].data)
     shifted = np.zeros(img_shape)
     #smooth data image
@@ -148,8 +158,7 @@ def open_reference(setup, ref_image_directory, ref_image_name, kernel_size, max_
         ref_image[ref_extension].data[bad_pixel_mask>0] = max_adu + ref50pc +1.
     ref_bright_mask = ref_image[ref_extension].data > max_adu + ref50pc
 
-        
-    ref_image[ref_extension].data = background_subtract(setup, ref_image[ref_extension].data, ref50pc, min_adu)
+    ref_image[ref_extension].data = ref_image[ref_extension].data - background_mesh(ref_image[ref_extension].data)
 
     ref_image_unmasked = np.copy(ref_image[ref_extension].data)
     if central_crop != None:
