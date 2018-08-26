@@ -5,6 +5,16 @@ from astropy.io import fits
 from scipy.signal import convolve2d
 from scipy.ndimage.filters import gaussian_filter
 from scipy.ndimage.interpolation import shift
+from astropy.stats import SigmaClip
+from photutils import Background2D, MedianBackground
+
+def background_mesh(image):
+    sigma_clip = SigmaClip(sigma=3., iters=10)
+    bkg_estimator = MedianBackground()
+    bkg = Background2D(image, (50, 50), filter_size=(3, 3),
+        sigma_clip=sigma_clip, bkg_estimator=bkg_estimator)
+    return bkg.background
+
 
 def read_images_for_substamps(ref_image_filename, data_image_filename, kernel_size, max_adu):
     data_image = fits.open(data_image_filename)
@@ -61,8 +71,8 @@ def open_data_image(setup, data_image_directory, data_image_name, reference_mask
         data_image[data_extension].data=data_image[data_extension].data[subset[0]:subset[1],subset[2]:subset[3]]
 
     img50pc = np.median(data_image[data_extension].data)
-    data_image[data_extension].data = data_image[data_extension].data - np.median(data_image[data_extension].data)
-#    data_image[data_extension].data = background_subtract(setup, data_image[data_extension].data, img50pc)
+    data_image[data_extension].data = data_image[data_extension].data - background_mesh(data_image[data_extension].data) 
+    img_shape = np.shape(data_image[data_extension].data)
     shifted = np.zeros(img_shape)
     #smooth data image
     if sigma_smooth != 0:
@@ -138,8 +148,7 @@ def open_reference(setup, ref_image_directory, ref_image_name, kernel_size, max_
     ref50pc = np.median(ref_image[ref_extension].data)
     ref_bright_mask = ref_image[ref_extension].data > max_adu + ref50pc
     #subtract background when opening file for small format images
-    ref_image[ref_extension].data =  ref_image[ref_extension].data - np.median( ref_image[ref_extension].data)
-#    ref_image[ref_extension].data = background_subtract(setup, ref_image[ref_extension].data, ref50pc, min_adu = None)
+    ref_image[ref_extension].data = ref_image[ref_extension].data - background_mesh(ref_image[ref_extension].data)
     ref_image_unmasked = np.copy(ref_image[ref_extension].data)
 
     if central_crop != None:
