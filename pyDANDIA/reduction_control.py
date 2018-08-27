@@ -93,7 +93,9 @@ def execute_stage(run_stage_func, stage_name, setup, status, log):
         log.info('ERROR halting reduction due to previous errors')
         
         logs.close_log(log)
-    
+        
+        exit()
+        
     return status
 
 def parallelize_stages345(setup, status, log):

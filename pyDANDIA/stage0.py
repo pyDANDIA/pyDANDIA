@@ -22,7 +22,7 @@ from pyDANDIA import pixelmasks
 #import metadata
 #import pixelmasks
 from pyDANDIA import logs
-
+import quality_control
 
 def run_stage0(setup):
     """Main driver function to run stage 0: data preparation.    
@@ -137,10 +137,9 @@ def run_stage0(setup):
         reduction_metadata.data_architecture[1]['METADATA_NAME'][0],
         log=log)
 
+    (status,report) = quality_control.verify_stage0_output(setup,log)
+    
     logs.close_log(log)
-
-    status = 'OK'
-    report = 'Completed successfully'
 
     return status, report, reduction_metadata
 
