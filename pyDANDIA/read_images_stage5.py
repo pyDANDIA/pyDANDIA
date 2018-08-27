@@ -82,6 +82,8 @@ def open_data_image(setup, data_image_directory, data_image_name, reference_mask
     :param object float: index of the maximum adu values
     :return: images, mask
     '''
+    #replacing the bkg with noise
+    np.random.seed(0)
 
     #data_image1 is a large format image for processing subimages
     if data_image1 == None:
@@ -95,7 +97,6 @@ def open_data_image(setup, data_image_directory, data_image_name, reference_mask
     img50pc = np.median(data_image[data_extension].data)
     #data_image[data_extension].data = background_subtract(setup, data_image[data_extension].data, img50pc, min_adu)
     data_image[data_extension].data = data_image[data_extension].data - background_mesh(data_image[data_extension].data)
-
 
     img_shape = np.shape(data_image[data_extension].data)
     shifted = np.zeros(img_shape)
@@ -116,8 +117,12 @@ def open_data_image(setup, data_image_directory, data_image_name, reference_mask
     data_extended[kernel_size:-kernel_size, kernel_size:-
                  kernel_size] = np.array(data_image[data_extension].data, float)
     
+    #replace saturated pixels with random noise or 0, bkg_sigma:
+    bkg_sigma = np.std(data_image_unmasked < img50pc) / (1.-2./np.pi)**0.5
     #apply consistent mask    
+    data_image_unmasked[reference_mask[kernel_size:-kernel_size,kernel_size:-kernel_size]] = 0.#np.random.randn(len(data_image_unmasked[reference_mask[kernel_size:-kernel_size,kernel_size:-kernel_size]]))*bkg_sigma
     data_extended[reference_mask] = 0.
+
     return data_extended, data_image_unmasked
 
 def open_reference(setup, ref_image_directory, ref_image_name, kernel_size, max_adu, ref_extension = 0, mask_extension = None, log = None, central_crop = None, subset = None, ref_image1 = None, min_adu = None):
@@ -187,6 +192,13 @@ def open_reference(setup, ref_image_directory, ref_image_name, kernel_size, max_
     mask_propagate = convolve2d(mask_propagate, mask_kernel, mode='same')
     bright_mask = mask_propagate > 0.
     ref_extended[bright_mask] = 0.   
+
+    #replace saturated pixels with random noise or zero:
+    bkg_sigma = np.std(ref_image_unmasked < np.median(ref_image_unmasked)) / (1.-2./np.pi)**0.5
+    #apply consistent mask    
+    ref_image_unmasked[bright_mask[kernel_size:-kernel_size,kernel_size:-kernel_size]] = 0.# np.random.randn(len(ref_image_unmasked[bright_mask[kernel_size:-kernel_size,kernel_size:-kernel_size]]))*bkg_sigma
+
+
     return ref_extended, bright_mask, ref_image_unmasked
    
 def open_images(setup, ref_image_directory, data_image_directory, ref_image_name,
