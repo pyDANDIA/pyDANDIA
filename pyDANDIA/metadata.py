@@ -212,9 +212,9 @@ class MetaData:
         '''
         layer_name = 'images_stats'
         data_structure = [
-            ['IM_NAME', 'FWHM_X', 'FWHM_Y', 'SKY', 'CORR_XY', 'NSTARS', 'FRAC_SAT_PIX','SYMMETRY'],
-            ['S100', 'float', 'float', 'float', 'float', 'int', 'float','float'],
-            [None, 'arcsec', 'arcsec', 'ADU_counts', None, None, None, None]
+            ['IM_NAME', 'FWHM_X', 'FWHM_Y', 'SKY', 'CORR_XY', 'NSTARS', 'FRAC_SAT_PIX','SYMMETRY','FLAG'],
+            ['S100', 'float', 'float', 'float', 'float', 'int', 'float','float','int'],
+            [None, 'arcsec', 'arcsec', 'ADU_counts', None, None, None, None, None]
         ]
 
         self.create_a_new_layer(layer_name, data_structure)

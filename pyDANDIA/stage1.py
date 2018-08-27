@@ -18,7 +18,7 @@ import os
 import sys
 from pyDANDIA import  metadata
 from pyDANDIA import  logs
-
+import quality_control
 
 def run_stage1(setup, rerun_all=None):
     """
@@ -107,6 +107,8 @@ def run_stage1(setup, rerun_all=None):
 
         logs.ifverbose(log, setup, 'Processing image %s' % imname)
 
+        (flag,report) = quality_control.assess_image(reduction_metadata, params, log)
+        
         # Add a new row to the images_stats layer
         # (if it doesn't already exist)
 
@@ -116,10 +118,11 @@ def run_stage1(setup, rerun_all=None):
             params['fwhm_y'],
             params['sky'],
             params['corr_xy'],
-			params['nstars'],
-			params['sat_frac'],
-            params['symmetry']
-        ]
+		params['nstars'],
+		params['sat_frac'],
+            params['symmetry'],
+            flag
+            ]
 
         reduction_metadata.add_row_to_layer(key_layer='images_stats',
                                             new_row=entry)
@@ -137,6 +140,9 @@ def run_stage1(setup, rerun_all=None):
                                              metadata_name='pyDANDIA_metadata.fits',
                                              log=log)
 
-    status = 'OK'
-    report = 'Completed successfully'
+    (status,report) = quality_control.verify_stage1_output(setup,log)
+    
+    
+    logs.close_log(log)
+        
     return status, report

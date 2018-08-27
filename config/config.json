@@ -119,11 +119,23 @@
 	"format":"float",
 	"unit":""
     }, 
-    "max_sky": {
-        "comment": "max_sky - DOUBLE - Largest acceptable value of the sky background for an image to be used in the combined reference image (ADU : Default value = 5000).", 
+    "max_sky_ref": {
+        "comment": "max_sky_ref - DOUBLE - Largest acceptable value of the sky background for an image to be used in the combined reference image (ADU : Default value = 5000).", 
         "value": 5000,
 	"format":"float",
 	"unit":"adu"
+    }, 
+    "max_sky": {
+        "comment": "max_sky - DOUBLE - Largest acceptable value of the sky background for an image for quality control purposes (ADU : Default value = 12000).", 
+        "value": 12000,
+	"format":"float",
+	"unit":"adu"
+    }, 
+    "max_fwhm_arcsec": {
+        "comment": "max_fwhm_arcsec - DOUBLE - Largest acceptable value of the stellar FWHM (arcsec : Default value = 2.0).", 
+        "value": 2.0,
+	"format":"float",
+	"unit":"arcsec"
     }, 
     "min_ell": {
         "comment": "min_ell - DOUBLE - Smallest acceptable value of the PSF ellipticity for an image to be used in the combined reference image. This parameter should be non-negative and less than or equal to 1.0 (Default value = 0.8).", 
