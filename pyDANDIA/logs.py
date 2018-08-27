@@ -81,8 +81,14 @@ def ifverbose(log,setup,string):
         log.info(string)
         
     if setup.verbosity == 2:
-
-        print(string)
+        
+        try:
+            
+            print(string)
+            
+        except IOError:
+            
+            pass
 
 def close_log(log):
     """Function to cleanly shutdown logging functions with a final timestamped

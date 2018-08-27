@@ -10,7 +10,7 @@ def counter():
     testing spawned and parallel processes.
     """
     
-    max_count = 1e8
+    max_count = 1e9
     
     i = 0
 

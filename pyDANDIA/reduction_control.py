@@ -18,6 +18,7 @@ import stage4
 import stage5
 #import stage6
 import logs
+import subprocess
 
 def reduction_control():
     """Main driver function for the pyDANDIA pipelined reduction of an 
@@ -37,32 +38,127 @@ def reduction_control():
     
     log = logs.start_pipeline_log(setup.red_dir, 'reduction_control',
                                   version=reduction_version)
-
+    
+    log.info('Pipeline setup: '+setup.summary()+'\n')
+    
     (status,report,meta_data) = stage0.run_stage0(setup)
     log.info('Completed stage 0 with status '+repr(status)+': '+report)
     
-    (status, report) = stage1.run_stage1(setup)
-    log.info('Completed stage 1 with status '+repr(status)+': '+report)
-
-    (status, report) = stage2.run_stage2(setup)
-    log.info('Completed stage 2 with status '+repr(status)+': '+report)
+    status = execute_stage(stage1.run_stage1, 'stage 1', setup, status, log)
     
-    (status, report) = stage3.run_stage3(setup)
-    log.info('Completed stage 3 with status '+repr(status)+': '+report)
+    status = execute_stage(stage2.run_stage2, 'stage 2', setup, status, log)
     
-    (status, report) = stage4.run_stage4(setup)
-    log.info('Completed stage 4 with status '+repr(status)+': '+report)
+    status = parallelize_stages345(setup, status, log)
     
-    (status, report) = stage5.run_stage5(setup)
-    log.info('Completed stage 5 with status '+repr(status)+': '+report)
- 
 # Code deactivated until stage 6 is fully integrated with pipeline   
 #    (status, report) = stage6.run_stage6(setup)
 #    log.info('Completed stage 6 with status '+repr(status)+': '+report)
     
     logs.close_log(log)
 
+def execute_stage(run_stage_func, stage_name, setup, status, log):
+    """Function to execute a stage and verify whether it completed successfully
+    before continuing.
+    
+    Accepts as an argument the status of the previous stage in order to check
+    whether or not to continue the reduction.  If the reduction proceeds, this
+    status is overwritten with the status output of the next stage. 
+    
+    Inputs:
+        :param function run_stage_func: Single imported function
+        :param string stage_name: Function name, for logging output
+        :param object setup: pipeline setup object instance
+        :param string status: Status of execution of the most recent stage
+        :param logging log: open log file object
+    
+    Outputs:
+        :param string status: Status of execution of the most recent stage
+    """
+    
+    if 'OK' in status:
+        
+        if '0' in stage_name:
+            
+            (status, report, metadata) = run_stage_func(setup)
+            
+        else:
+            
+            (status, report) = run_stage_func(setup)
+            
+        log.info('Completed '+stage_name+' with status '+\
+                    repr(status)+': '+report)
+        
+    else:
+        
+        log.info('ERROR halting reduction due to previous errors')
+        
+        logs.close_log(log)
+    
+    return status
 
+def parallelize_stages345(setup, status, log):
+    """Function to execute stages 4 & 5 in parallel with stage 3.
+    
+    Inputs:
+        :param object setup: pipeline setup object instance
+        :param string status: Status of execution of the most recent stage
+        :param logging log: open log file object
+    
+    Outputs:    
+        :param string status: Status of execution of the most recent stage
+    """
+    
+    log.info('Executing stage 3 in parallel with stages 4 & 5')
+    
+    process3 = trigger_stage_subprocess('stage3',setup,log,wait=False)
+    
+    process4 = trigger_stage_subprocess('stage4',setup,log,wait=True)
+    process5 = trigger_stage_subprocess('stage5',setup,log,wait=True)
+    
+    log.info('Completed stages 4 and 5; now waiting for stage 3')
+    
+    (outs, errs) = process3.communicate()
+
+    if errs == None:
+        
+        process3.wait()
+        log.info('Completed stage 3')
+
+    else:
+
+        log.info('ERROR: Problem encountered in stage 3:')
+        log.info(errs)
+        
+    log.info('Completed parallel stages')
+    
+    return 'OK'
+    
+def trigger_stage_subprocess(stage_code,setup,log,wait=True):
+    """Function to run a stage as a separate subprocess
+    
+    Inputs:
+        :param string stage_code: Stage to be run without spaces, e.g. stage0
+        :param object setup: Pipeline setup instance
+    """
+    
+    command = path.join(setup.software_dir,'run_stage.py')
+    
+    args = ['python', command, stage_code, setup.red_dir]
+    
+    p = subprocess.Popen(args, stdout=subprocess.PIPE)
+    
+    log.info('Started '+stage_code+', PID='+str(p.pid))
+    
+    if wait:
+        
+        log.info('Waiting for '+stage_code+' to finish')
+        
+        p.wait()
+    
+        log.info('Completed '+stage_code)
+        
+    return p
+    
 def get_args():
     """Function to obtain the command line arguments necessary to run a 
     single-dataset reduction."""
