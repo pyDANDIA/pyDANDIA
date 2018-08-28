@@ -32,7 +32,7 @@ def reduction_control():
                                 dataset
     """
 
-    reduction_version = 'reduction_control v0.2'
+    reduction_version = 'reduction_control v0.3'
 
     setup = get_args()
     
@@ -88,7 +88,7 @@ def execute_stage(run_stage_func, stage_name, setup, status, log):
         log.info('Completed '+stage_name+' with status '+\
                     repr(status)+': '+report)
         
-    else:
+    if 'OK' in status:
         
         log.info('ERROR halting reduction due to previous errors')
         

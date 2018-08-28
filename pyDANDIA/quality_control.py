@@ -61,36 +61,51 @@ def assess_image(reduction_metadata,image_params,log):
                                   the FWHM, sky background and number of stars
     
     Outputs:
-        :param int flag: Quality flag where 1 = OK to use and 0 = bad image
+        :param int use_phot: Quality flag whether this image can be used for photometry
+        :param int use_ref: Quality flag whether this image could be used for a reference
+    
+    Flag convention: 1 = OK, 0 = bad image
     """
     
-    flag = 1
+    use_phot = 1
+    use_ref = 1
     report = ''
     
     fwhm_max = reduction_metadata.reduction_parameters[1]['MAX_FWHM_ARCSEC'][0]
     sky_max = reduction_metadata.reduction_parameters[1]['MAX_SKY'][0]
+    sky_ref_max = reduction_metadata.reduction_parameters[1]['MAX_SKY_REF'][0]
     
     if image_params['nstars'] == 0:
         
-        flag = 0
+        use_phot = 0
+        use_ref = 0
         report = append_errors(report, 'No stars detected in frame')
         
     if image_params['fwhm_x'] > fwhm_max or image_params['fwhm_y'] > fwhm_max:
         
-        flag = 0
+        use_phot = 0
+        use_ref = 0
         report = append_errors(report, 'FWHM exceeds threshold')
         
     if image_params['sky'] > sky_max:
         
-        flag = 0
-        report = append_errors(report, 'Sky background exceeds threshold')
+        use_phot = 0
+        report = append_errors(report, 'Sky background exceeds threshold for photometry')
     
-    if flag == 1 and len(report) == 0:
+    if image_params['sky'] > sky_ref_max:
+        
+        use_ref = 0
+        report = append_errors(report, 'Sky background exceeds threshold for reference')
+    
+    if use_phot == 1 and use_ref == 1 and len(report) == 0:
         report = 'OK'
     
-    log.info('Quality assessment = '+str(flag)+' '+report)
+    log.info('Quality assessment:')
+    log.info('Use for photometry = '+str(use_phot))
+    log.info('Use for reference = '+str(use_ref))
+    log.info('Report: '+report)
     
-    return flag, report
+    return use_phot, use_ref, report
     
 def append_errors(report,error):
     
@@ -135,7 +150,7 @@ def verify_stage1_output(setup,log):
     
     image_stats = reduction_metadata.images_stats[1]
     
-    for flag in image_stats['FLAG'].data:
+    for flag in image_stats['USE_PHOT'].data:
         
         if flag != 0 and flag != 1:
             
