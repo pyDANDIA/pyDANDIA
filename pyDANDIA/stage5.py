@@ -106,7 +106,6 @@ def run_stage5(setup):
         ref_stats = [ref_fwhm_x, ref_fwhm_y, ref_sigma_x, ref_sigma_y]
         logs.ifverbose(log, setup,'Using reference image:' + reference_image_name)
     except Exception as e:
-        log.ifverbose(log, setup,'Reference/Images ! Abort stage5'+str(e))
         status = 'KO'
         report = 'No reference image found!'
         return status, report, reduction_metadata
@@ -471,19 +470,36 @@ def kernel_solution(u_matrix, b_vector, kernel_size, circular = True):
     '''
     #For better stability: solve the least square problem via np.linalg.lstsq
     #inv_umatrix = np.linalg.inv(u_matrix)
-    #a_vector = np.dot(inv_umatrix, b_vector)
+    wmat, vvec = np.linalg.eig(u_matrix)
+    wreal_normalized = wmat.real/np.max(wmat.real)
+    #complex contribution caused by the operation:
+    threshold = min(1e-6,np.percentile(wreal_normalized,10.))
+    #find all eigenvalues below threshold
+    null_mask = wreal_normalized < threshold
+    w_inverse = 1./wmat
+    w_inverse[null_mask] = 0.
+    inverse_regularized_umatrix = np.dot(vvec,np.dot(np.diag(w_inverse), np.linalg.inv(vvec))).real
 
-    lstsq_result = np.linalg.lstsq(u_matrix, b_vector, rcond=None)    
-    a_vector = lstsq_result[0]
+    
+    #usually one can keep the inverted matrix, for illustrative purposes
+    #we reconstruct the umatrix here...
+    #	 tot  =  fits.PrimaryHDU(np.dot(V,np.dot(wnew, la.inv(V))).real)
+
+
+
+    #lstsq_result = np.linalg.lstsq(u_matrix, b_vector, rcond=None)    
+    a_vector = np.dot(inverse_regularized_umatrix, b_vector)
+
+ #   a_vector = lstsq_result[0]
     mse = 1.#lstsq_result
     #a_vector_err = np.copy(np.diagonal(np.matrix(np.dot(u_matrix.T, u_matrix)).I))
-    a_vector_err = np.copy(np.diagonal(np.linalg.lstsq(u_matrix, np.identity(u_matrix.shape[0]),rcond=None)[0]))
+    a_vector_err = np.ones(len(a_vector))#np.copy(np.diagonal(np.linalg.lstsq(u_matrix, np.identity(u_matrix.shape[0]),rcond=None)[0]))
     #MSE: mean square error of the residuals
     output_kernel = np.zeros(kernel_size * kernel_size, dtype=float)
     output_kernel = a_vector[:-1]
     output_kernel = output_kernel.reshape((kernel_size, kernel_size))
     err_kernel = np.zeros(kernel_size * kernel_size, dtype=float)
-    err_kernel = (a_vector_err*lstsq_result[3])[:-1]
+    #err_kernel = (a_vector_err*lstsq_result[3])[:-1]
     err_kernel = err_kernel.reshape((kernel_size, kernel_size))
     if circular:
         xyc = int(kernel_size / 2)
