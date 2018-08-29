@@ -23,6 +23,7 @@ from pyDANDIA import pixelmasks
 #import pixelmasks
 from pyDANDIA import logs
 import quality_control
+import bad_pixel_mask
 
 def run_stage0(setup):
     """Main driver function to run stage 0: data preparation.    
@@ -111,20 +112,28 @@ def run_stage0(setup):
         for new_image in new_images:
             open_image = open_an_image(setup, reduction_metadata.data_architecture[1]['IMAGES_PATH'][0],
                                        new_image, image_index=0, log=log)
-
-            bad_pixel_mask = open_an_image(setup, reduction_metadata.data_architecture[1]['BPM_PATH'][0],
+            
+            bpm = bad_pixel_mask.BadPixelMask()
+            
+            bpm.load_mask(reduction_metadata.reduction_parameters[1]['INSTRID'],setup)
+            
+            image_bpm = open_an_image(setup, reduction_metadata.data_architecture[1]['BPM_PATH'][0],
                                            new_image, image_index=2, log=log)
             
             # Occasionally, the LCO BANZAI pipeline fails to produce an image
             # catalogue for an image.  If this happens, there will only be 2 
             # extensions to the FITS image HDU, the PrimaryHDU (main image data)
             # and the ImageHDU (BPM).  
-            if bad_pixel_mask == None:
+            if image_bpm == None:
                 
-                bad_pixel_mask = open_an_image(setup, reduction_metadata.data_architecture[1]['BPM_PATH'][0],
+                image_bpm = open_an_image(setup, reduction_metadata.data_architecture[1]['BPM_PATH'][0],
                                            new_image, image_index=1, log=log)
-                                           
-            master_mask = construct_the_pixel_mask(open_image, bad_pixel_mask, [1, 3],
+            
+            if image_bpm != None:
+                
+                bpm.add_image_mask(image_bpm)
+                
+            master_mask = construct_the_pixel_mask(open_image, bpm.data, [1, 3],
                                                    saturation_level=65535, low_level=0, log=log)
 
             save_the_pixel_mask_in_image(reduction_metadata, new_image, master_mask)
