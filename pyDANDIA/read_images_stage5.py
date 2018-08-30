@@ -11,7 +11,7 @@ from astropy.stats import SigmaClip
 from photutils import Background2D, MedianBackground
 from scipy.misc import imresize
 
-def background_mesh_perc(image,perc=50,box=100):
+def background_mesh_perc(image,perc=20,box=200):
     #generate slices, iterate over centers
     centerx = box/2
     centery = box/2

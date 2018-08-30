@@ -170,7 +170,8 @@ def subtract_small_format_image(new_images, reference_image_name, reference_imag
         x_shift, y_shift = -reduction_metadata.images_stats[1][row_index]['SHIFT_X'],-reduction_metadata.images_stats[1][row_index]['SHIFT_Y'] 
         #if the reference is not as sharp as a data image -> smooth the data
         smoothing = smoothing_2sharp_images(reduction_metadata, ref_fwhm_x, ref_fwhm_y, ref_sigma_x, ref_sigma_y, row_index)
-        try:
+#        try:
+        if True:
             data_image, data_image_unmasked = open_data_image(setup, data_image_directory, new_image, bright_reference_mask, kernel_size, max_adu, xshift = x_shift, yshift = y_shift, sigma_smooth = smoothing, central_crop = maxshift)
             missing_data_mask = (data_image == 0.)
             b_vector = bvector_constant(reference_image, data_image, kernel_size)
@@ -193,11 +194,11 @@ def subtract_small_format_image(new_images, reference_image_name, reference_imag
             new_header['SCALEFAC'] = pscale
             difference_image_hdu = fits.PrimaryHDU(difference_image,header=new_header)
             difference_image_hdu.writeto(os.path.join(diffim_directory_path,'diff_'+new_image),overwrite = True)
-        except Exception as e:
-            if log is not None:
-                logs.ifverbose(log, setup,'kernel matrix computation or shift failed:' + new_image + '. skipping! '+str(e))
-            else:
-                print(str(e))
+#        except Exception as e:
+#            if log is not None:
+#                logs.ifverbose(log, setup,'kernel matrix computation or shift failed:' + new_image + '. skipping! '+str(e))
+#            else:
+#                print(str(e))
 
 def open_reference_stamps(setup, reduction_metadata, reference_image_directory, reference_image_name, kernel_size, max_adu, log, maxshift, min_adu = None):
     reference_pool_stamps = []
@@ -481,13 +482,11 @@ def kernel_solution(u_matrix, b_vector, kernel_size, circular = True):
     #For better stability: solve the least square problem via np.linalg.lstsq
     #inv_umatrix = np.linalg.inv(u_matrix)
     #a_vector = np.dot(inv_umatrix, b_vector)
-
-    lstsq_result = np.linalg.lstsq(u_matrix, b_vector, rcond=None)    
-    #import pdb;pdb.set_trace()
+    lstsq_result = np.linalg.lstsq(np.array(u_matrix), np.array(b_vector))    
     a_vector = lstsq_result[0]
     mse = 1.#lstsq_result
     #a_vector_err = np.copy(np.diagonal(np.matrix(np.dot(u_matrix.T, u_matrix)).I))
-    a_vector_err = np.copy(np.diagonal(np.linalg.lstsq(u_matrix, np.identity(u_matrix.shape[0]),rcond=None)[0]))
+    a_vector_err = np.copy(np.diagonal(np.linalg.lstsq(u_matrix, np.identity(u_matrix.shape[0]))[0]))
     #MSE: mean square error of the residuals
     output_kernel = np.zeros(kernel_size * kernel_size, dtype=float)
     if len(a_vector)>kernel_size*kernel_size:
