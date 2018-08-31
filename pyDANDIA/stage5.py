@@ -170,8 +170,7 @@ def subtract_small_format_image(new_images, reference_image_name, reference_imag
         x_shift, y_shift = -reduction_metadata.images_stats[1][row_index]['SHIFT_X'],-reduction_metadata.images_stats[1][row_index]['SHIFT_Y'] 
         #if the reference is not as sharp as a data image -> smooth the data
         smoothing = smoothing_2sharp_images(reduction_metadata, ref_fwhm_x, ref_fwhm_y, ref_sigma_x, ref_sigma_y, row_index)
-#        try:
-        if True:
+        try:
             data_image, data_image_unmasked = open_data_image(setup, data_image_directory, new_image, bright_reference_mask, kernel_size, max_adu, xshift = x_shift, yshift = y_shift, sigma_smooth = smoothing, central_crop = maxshift)
             missing_data_mask = (data_image == 0.)
             b_vector = bvector_constant(reference_image, data_image, kernel_size)
@@ -194,11 +193,11 @@ def subtract_small_format_image(new_images, reference_image_name, reference_imag
             new_header['SCALEFAC'] = pscale
             difference_image_hdu = fits.PrimaryHDU(difference_image,header=new_header)
             difference_image_hdu.writeto(os.path.join(diffim_directory_path,'diff_'+new_image),overwrite = True)
-#        except Exception as e:
-#            if log is not None:
-#                logs.ifverbose(log, setup,'kernel matrix computation or shift failed:' + new_image + '. skipping! '+str(e))
-#            else:
-#                print(str(e))
+        except Exception as e:
+            if log is not None:
+                logs.ifverbose(log, setup,'kernel matrix computation or shift failed:' + new_image + '. skipping! '+str(e))
+            else:
+                print(str(e))
 
 def open_reference_stamps(setup, reduction_metadata, reference_image_directory, reference_image_name, kernel_size, max_adu, log, maxshift, min_adu = None):
     reference_pool_stamps = []
@@ -345,6 +344,74 @@ def umatrix_constant(reference_image, ker_size, model_image=None, sigma_max = No
     else:
         u_matrix = umatrix_construction(reference_image, weights, pandq, n_kernel, kernel_size)
     return u_matrix
+
+def umatrix_constant_threading(reference_image, ker_size, model_image=None, sigma_max = None, bright_mask = None, nobkg = None):
+    '''
+    The kernel solution is supposed to implement the approach outlined in
+    the Bramich 2008 paper. It generates the u matrix which is required
+    for finding the best kernel and assumes it can be calculated
+    sufficiently if the noise model either is neglected or similar on all
+    model images. In order to run, it needs the largest possible kernel size
+    and carefully masked regions which are expected to be affected on all
+    data images.
+
+    :param object image: reference image
+    :param integer kernel size: edge length of the kernel in px
+
+    :return: u matrix
+    '''
+    try:
+        from umatrix_routine import umatrix_construction, umatrix_bvector_construction, bvector_construction
+        from umatrix_routine import umatrix_construction_nobkg, bvector_construction_nobkg
+
+    except ImportError:
+        print('cannot import cython module umatrix_routine')
+        return []
+
+    if ker_size:
+        if ker_size % 2 == 0:
+            kernel_size = ker_size + 1
+        else:
+            kernel_size = ker_size
+    if model_image == None or sigma_max == None:
+        weights = noise_model_constant(reference_image)
+    else:
+        weights = noise_model_blurred_ref(reference_image, bright_mask, sigma_max)
+    # Prepare/initialize indices, vectors and matrices
+    pandq = []
+    n_kernel = kernel_size * kernel_size
+    ncount = 0
+    half_kernel_size = int(int(kernel_size) / 2)
+    for lidx in range(kernel_size):
+        for midx in range(kernel_size):
+            pandq.append((lidx - half_kernel_size, midx - half_kernel_size))
+
+    #and now try to broadcast that for each pandq and see if that can be broadcast
+    #at the end: combine als umatrix components
+    if nobkg == True:
+        u_matrix = umatrix_construction_nobkg(reference_image, weights, pandq, n_kernel, kernel_size)
+    else:
+        #cpu_count = min(mp.cpu_count(),8)
+        #pandq_subsets = [pandq[i:i + cpu_count] for i in range(0, len(pandq), cpu_count)]
+        #pool = Pool(processes = cpu_count)
+        #umatrix_stamps = (pool.map(umatrix_single_pool,pandq)) 
+        #pool.terminate()
+        u_matrix = umatrix_construction(reference_image, weights, pandq, n_kernel, kernel_size)
+    return u_matrix
+
+
+def umatrix_single_pool(input_arg):
+    '''
+     Multithreading support for single umatrix umatrix_constant
+    :param object image: list of reference image and kernel size
+    :return: u matrix
+    '''
+    reference_image = input_arg[0]
+    ker_size = input_arg[1]
+    pq_subset = input_arg[2]
+    print("umatrix threaded single start")
+    return umatrix_constant(reference_image, ker_size, model_image=None, sigma_max = None, bright_mask = None)
+
 
 def umatrix_pool(input_arg):
     '''
@@ -494,7 +561,6 @@ def kernel_solution(u_matrix, b_vector, kernel_size, circular = True):
     else:
         output_kernel = a_vector
     output_kernel = output_kernel.reshape((kernel_size, kernel_size))
-    print np.shape(output_kernel)
     err_kernel = np.zeros(kernel_size * kernel_size, dtype=float)
     if len(a_vector)>kernel_size*kernel_size:
         err_kernel = (a_vector_err*lstsq_result[3])[:-1]
