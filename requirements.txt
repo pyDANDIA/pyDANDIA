@@ -5,4 +5,4 @@ scipy
 datetime
 matplotlib
 photutils
-
+opencv-python

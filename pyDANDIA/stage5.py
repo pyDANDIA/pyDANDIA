@@ -40,7 +40,7 @@ def run_stage5(setup):
     log.info('Setup:\n' + setup.summary() + '\n')
     try:
         from umatrix_routine import umatrix_construction, umatrix_bvector_construction, bvector_construction
-        
+        from umatrix_routine import umatrix_construction_nobkg, bvector_construction_nobkg
     except ImportError:
         log.info('Uncompiled cython code, please run setup.py: e.g.\n python setup.py build_ext --inplace')
         status = 'KO'
@@ -72,6 +72,7 @@ def run_stage5(setup):
     if kernel_size:
         if kernel_size % 2 == 0:
             kernel_size = kernel_size + 1
+    kernel_size = min(17,kernel_size)
     
     # find the images that need to be processed
     all_images = reduction_metadata.find_all_images(setup, reduction_metadata,
@@ -203,7 +204,7 @@ def open_reference_stamps(setup, reduction_metadata, reference_image_directory, 
     ref_image1 = fits.open(os.path.join(reference_image_directory, reference_image_name), mmap=True)
     #load all reference subimages
     for substamp_idx in range(len(reduction_metadata.stamps[1])):
-        print substamp_idx,'of',len(reduction_metadata.stamps[1])
+        print(substamp_idx,'of',len(reduction_metadata.stamps[1]))
         #prepare subset slice based on metadata
 
         subset_slice = [int(reduction_metadata.stamps[1][substamp_idx]['Y_MIN']),int(reduction_metadata.stamps[1][substamp_idx]['Y_MAX']),int(reduction_metadata.stamps[1][substamp_idx]['X_MIN']),int(reduction_metadata.stamps[1][substamp_idx]['X_MAX'])]
@@ -298,7 +299,7 @@ def mask_kernel(kernel_size_plus):
 
     return mask_kernel
 
-def umatrix_constant(reference_image, ker_size, model_image=None, sigma_max = None, bright_mask = None):
+def umatrix_constant(reference_image, ker_size, model_image=None, sigma_max = None, bright_mask = None, nobkg = None):
     '''
     The kernel solution is supposed to implement the approach outlined in
     the Bramich 2008 paper. It generates the u matrix which is required
@@ -315,6 +316,54 @@ def umatrix_constant(reference_image, ker_size, model_image=None, sigma_max = No
     '''
     try:
         from umatrix_routine import umatrix_construction, umatrix_bvector_construction, bvector_construction
+        from umatrix_routine import umatrix_construction_nobkg, bvector_construction_nobkg
+
+    except ImportError:
+        print('cannot import cython module umatrix_routine')
+        return []
+
+    if ker_size:
+        if ker_size % 2 == 0:
+            kernel_size = ker_size + 1
+        else:
+            kernel_size = ker_size
+    if model_image == None or sigma_max == None:
+        weights = noise_model_constant(reference_image)
+    else:
+        weights = noise_model_blurred_ref(reference_image, bright_mask, sigma_max)
+    # Prepare/initialize indices, vectors and matrices
+    pandq = []
+    n_kernel = kernel_size * kernel_size
+    ncount = 0
+    half_kernel_size = int(int(kernel_size) / 2)
+    for lidx in range(kernel_size):
+        for midx in range(kernel_size):
+            pandq.append((lidx - half_kernel_size, midx - half_kernel_size))
+    if nobkg == True:
+        u_matrix = umatrix_construction_nobkg(reference_image, weights, pandq, n_kernel, kernel_size)
+    else:
+        u_matrix = umatrix_construction(reference_image, weights, pandq, n_kernel, kernel_size)
+    return u_matrix
+
+def umatrix_constant_threading(reference_image, ker_size, model_image=None, sigma_max = None, bright_mask = None, nobkg = None):
+    '''
+    The kernel solution is supposed to implement the approach outlined in
+    the Bramich 2008 paper. It generates the u matrix which is required
+    for finding the best kernel and assumes it can be calculated
+    sufficiently if the noise model either is neglected or similar on all
+    model images. In order to run, it needs the largest possible kernel size
+    and carefully masked regions which are expected to be affected on all
+    data images.
+
+    :param object image: reference image
+    :param integer kernel size: edge length of the kernel in px
+
+    :return: u matrix
+    '''
+    try:
+        from umatrix_routine import umatrix_construction, umatrix_bvector_construction, bvector_construction
+        from umatrix_routine import umatrix_construction_nobkg, bvector_construction_nobkg
+
     except ImportError:
         print('cannot import cython module umatrix_routine')
         return []
@@ -337,9 +386,32 @@ def umatrix_constant(reference_image, ker_size, model_image=None, sigma_max = No
         for midx in range(kernel_size):
             pandq.append((lidx - half_kernel_size, midx - half_kernel_size))
 
-    u_matrix = umatrix_construction(reference_image, weights, pandq, n_kernel, kernel_size)
-
+    #and now try to broadcast that for each pandq and see if that can be broadcast
+    #at the end: combine als umatrix components
+    if nobkg == True:
+        u_matrix = umatrix_construction_nobkg(reference_image, weights, pandq, n_kernel, kernel_size)
+    else:
+        #cpu_count = min(mp.cpu_count(),8)
+        #pandq_subsets = [pandq[i:i + cpu_count] for i in range(0, len(pandq), cpu_count)]
+        #pool = Pool(processes = cpu_count)
+        #umatrix_stamps = (pool.map(umatrix_single_pool,pandq)) 
+        #pool.terminate()
+        u_matrix = umatrix_construction(reference_image, weights, pandq, n_kernel, kernel_size)
     return u_matrix
+
+
+def umatrix_single_pool(input_arg):
+    '''
+     Multithreading support for single umatrix umatrix_constant
+    :param object image: list of reference image and kernel size
+    :return: u matrix
+    '''
+    reference_image = input_arg[0]
+    ker_size = input_arg[1]
+    pq_subset = input_arg[2]
+    print("umatrix threaded single start")
+    return umatrix_constant(reference_image, ker_size, model_image=None, sigma_max = None, bright_mask = None)
+
 
 def umatrix_pool(input_arg):
     '''
@@ -349,11 +421,10 @@ def umatrix_pool(input_arg):
     '''
     reference_image = input_arg[0]
     ker_size = input_arg[1]
-    print "umatrix start"
-    print np.shape(reference_image)
+    print("umatrix start")
     return umatrix_constant(reference_image, ker_size, model_image=None, sigma_max = None, bright_mask = None)
 
-def bvector_constant(reference_image, data_image, ker_size, model_image=None, sigma_max = None, bright_mask = None):
+def bvector_constant(reference_image, data_image, ker_size, model_image=None, sigma_max = None, bright_mask = None, nobkg = None):
     '''
     The kernel solution is supposed to implement the approach outlined in
     the Bramich 2008 paper. It generates the b_vector which is required
@@ -369,6 +440,8 @@ def bvector_constant(reference_image, data_image, ker_size, model_image=None, si
     '''
     try:
         from umatrix_routine import umatrix_construction, umatrix_bvector_construction, bvector_construction
+        from umatrix_routine import umatrix_construction_nobkg, bvector_construction_nobkg
+
     except ImportError:
         print('cannot import cython module umatrix_routine')
         return []
@@ -390,8 +463,11 @@ def bvector_constant(reference_image, data_image, ker_size, model_image=None, si
     for lidx in range(kernel_size):
         for midx in range(kernel_size):
             pandq.append((lidx - half_kernel_size, midx - half_kernel_size))
-
-    b_vector = bvector_construction(reference_image, data_image, weights, pandq, n_kernel, kernel_size)
+    if nobkg == True:
+        b_vector = bvector_construction_nobkg(reference_image, data_image, weights, pandq, n_kernel, kernel_size)
+    else:     
+        b_vector = bvector_construction(reference_image, data_image, weights, pandq, n_kernel, kernel_size)
+   
     return b_vector
 
 def bvector_pool(input_arg,reference_image, data_image, ker_size, model_image=None, sigma_max = None, bright_mask = None):
@@ -424,7 +500,8 @@ def kernel_preparation_matrix(data_image, reference_image, ker_size, model_image
     '''
     try:
         from umatrix_routine import umatrix_construction, umatrix_bvector_construction, bvector_construction
-         
+        from umatrix_routine import umatrix_construction_nobkg, bvector_construction_nobkg
+
     except ImportError:
         log.info('Uncompiled cython code, please run setup.py: e.g.\n python setup.py build_ext --inplace')
         status = 'KO'
@@ -472,19 +549,26 @@ def kernel_solution(u_matrix, b_vector, kernel_size, circular = True):
     #For better stability: solve the least square problem via np.linalg.lstsq
     #inv_umatrix = np.linalg.inv(u_matrix)
     #a_vector = np.dot(inv_umatrix, b_vector)
-
-    lstsq_result = np.linalg.lstsq(u_matrix, b_vector, rcond=None)    
+    lstsq_result = np.linalg.lstsq(np.array(u_matrix), np.array(b_vector))    
     a_vector = lstsq_result[0]
     mse = 1.#lstsq_result
     #a_vector_err = np.copy(np.diagonal(np.matrix(np.dot(u_matrix.T, u_matrix)).I))
-    a_vector_err = np.copy(np.diagonal(np.linalg.lstsq(u_matrix, np.identity(u_matrix.shape[0]),rcond=None)[0]))
+    a_vector_err = np.copy(np.diagonal(np.linalg.lstsq(u_matrix, np.identity(u_matrix.shape[0]))[0]))
     #MSE: mean square error of the residuals
     output_kernel = np.zeros(kernel_size * kernel_size, dtype=float)
-    output_kernel = a_vector[:-1]
+    if len(a_vector)>kernel_size*kernel_size:
+        output_kernel = a_vector[:-1]
+    else:
+        output_kernel = a_vector
     output_kernel = output_kernel.reshape((kernel_size, kernel_size))
     err_kernel = np.zeros(kernel_size * kernel_size, dtype=float)
-    err_kernel = (a_vector_err*lstsq_result[3])[:-1]
-    err_kernel = err_kernel.reshape((kernel_size, kernel_size))
+    if len(a_vector)>kernel_size*kernel_size:
+        err_kernel = (a_vector_err*lstsq_result[3])[:-1]
+        err_kernel = err_kernel.reshape((kernel_size, kernel_size))
+    else:
+        err_kernel = (a_vector_err*lstsq_result[3])
+        err_kernel = err_kernel.reshape((kernel_size, kernel_size))
+     
     if circular:
         xyc = int(kernel_size / 2)
         radius_square = (xyc)**2
