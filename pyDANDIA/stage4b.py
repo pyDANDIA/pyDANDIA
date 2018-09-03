@@ -135,7 +135,7 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
         data_fwhm = (ref_fwhm_x**2 + ref_fwhm_y**2)**0.5
         daofind = DAOStarFinder(fwhm = data_fwhm, threshold = 4. * std_data)    
         data_sources = daofind(data_image - median_data)
-        data_sources_x, data_sources_y = data_sources['xcentroid'].data, data_sources['ycentroid'].data
+        data_sources_x, data_sources_y = np.copy(data_sources['xcentroid'].data), np.copy(data_sources['ycentroid'].data)
         #correct for shift to facilitate cross-match
 
         data_sources_x -= x_shift
@@ -143,23 +143,29 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
         data_catalog = SkyCoord(data_sources_x/float(central_region_x)*u.rad, data_sources_y/float(central_region_x)*u.rad) 
 
         idx_match, dist2d, dist3d = match_coordinates_sky( data_catalog,ref_catalog, storekdtree='kdtree_sky')  
-        print max(idx_match),len(dist2d), len(data_catalog), len(ref_catalog)
         #reformat points for cv2
         pts1=[]
         pts2=[]
         for idxref in range(len(idx_match)):
             idx = idx_match[idxref]
             if dist2d[idxref].rad*float(central_region_x)<3.:
-                pts1.append([ref_sources['xcentroid'].data[idx],ref_sources['ycentroid'].data[idx]])
-                pts2.append([data_sources['xcentroid'].data[idxref],data_sources['ycentroid'].data[idxref]])
-        pts1 = np.float32(pts1[:4])
-        pts2 = np.float32(pts2[:4])
-        #transform and warp images...cv2?
-
+                pts1.append([ref_sources['xcentroid'].data[idx],ref_sources['ycentroid'].data[idx],0.])
+                pts2.append([data_sources['xcentroid'].data[idxref],data_sources['ycentroid'].data[idxref],0.])
+        #permit translation again to be part of the least-squares problem
+        pts1 = np.float32(pts1)
+        pts2 = np.float32(pts2)
+        extend = lambda x: np.hstack([x, np.ones((x.shape[0], 1))])
+        pts1_input = extend(pts1)
+        pts2_input = extend(pts2)
+        #use the same lstsq as for umatrix:
+        trafo, resi, rank, sing = np.linalg.lstsq(pts1_input, pts2_input)
+        print(trafo,x_shift,y_shift)
         try:
-             print('try')
-#            resampled_image_hdu = fits.PrimaryHDU(resampled_image,header=new_header)
-#            resampled_image_hdu.writeto(os.path.join(resampled_directory_path,'diff_'+new_image),overwrite = True)
+             print('tbd')
+
+             #resampled_image = cv2.warpPerspective(data_image,trafo,np.shape(reference_image))
+             #resampled_image_hdu = fits.PrimaryHDU(resampled_image,header=new_header)
+             #resampled_image_hdu.writeto(os.path.join(resampled_directory_path,'resampled_'+new_image),overwrite = True)
         except Exception as e:
             if log is not None:
                 logs.ifverbose(log, setup,'resampling failed:' + new_image + '. skipping! '+str(e))
