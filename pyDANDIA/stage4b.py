@@ -159,13 +159,15 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
         pts2_input = extend(pts2)
         #use the same lstsq as for umatrix:
         trafo, resi, rank, sing = np.linalg.lstsq(pts1_input, pts2_input)
-        print(trafo,x_shift,y_shift)
-        try:
-             print('tbd')
+        trafo_translation = np.float32([[trafo[0,0],trafo[0,1],-trafo[3,0]],[trafo[1,0],trafo[1,1],-trafo[3,1]]])
+        #trafo_translation = np.float32([[1.,0.,-trafo[3,0]],[0.,1.,-trafo[3,1]]])
+        #subctract negative values for cv2...
+        minval = np.min(data_image)
+        shifted = cv2.warpAffine(data_image-minval,trafo_translation,np.shape(reference_image))+minval
 
-             #resampled_image = cv2.warpPerspective(data_image,trafo,np.shape(reference_image))
-             #resampled_image_hdu = fits.PrimaryHDU(resampled_image,header=new_header)
-             #resampled_image_hdu.writeto(os.path.join(resampled_directory_path,'resampled_'+new_image),overwrite = True)
+        try:
+             resampled_image_hdu = fits.PrimaryHDU(shifted)
+             resampled_image_hdu.writeto(os.path.join(resampled_directory_path,new_image),overwrite = True)
         except Exception as e:
             if log is not None:
                 logs.ifverbose(log, setup,'resampling failed:' + new_image + '. skipping! '+str(e))
