@@ -113,10 +113,6 @@ def run_stage0(setup):
             open_image = open_an_image(setup, reduction_metadata.data_architecture[1]['IMAGES_PATH'][0],
                                        new_image, image_index=0, log=log)
             
-            bpm = bad_pixel_mask.BadPixelMask()
-            
-            bpm.load_mask(reduction_metadata.reduction_parameters[1]['INSTRID'],setup)
-            
             image_bpm = open_an_image(setup, reduction_metadata.data_architecture[1]['BPM_PATH'][0],
                                            new_image, image_index=2, log=log)
             
@@ -129,14 +125,11 @@ def run_stage0(setup):
                 image_bpm = open_an_image(setup, reduction_metadata.data_architecture[1]['BPM_PATH'][0],
                                            new_image, image_index=1, log=log)
             
-            if image_bpm != None:
-                
-                bpm.add_image_mask(image_bpm)
-                
-            master_mask = construct_the_pixel_mask(open_image, bpm.data, [1, 3],
-                                                   saturation_level=65535, low_level=0, log=log)
-
-            save_the_pixel_mask_in_image(reduction_metadata, new_image, master_mask)
+            bpm = bad_pixel_mask.construct_the_pixel_mask(setup, reduction_metadata, 
+                                                  open_image, image_bpm, 
+                                                  [1, 3], low_level=0, log=log)
+                                                  
+            save_the_pixel_mask_in_image(reduction_metadata, new_image, bpm)
             logs.ifverbose(log, setup, ' -> ' + new_image)
 
     reduction_metadata.update_reduction_metadata_reduction_status(new_images, stage_number=0, status=1, log=log)
@@ -416,7 +409,7 @@ def open_an_bad_pixel_mask(reduction_metadata, bpm_name, bpm_index=1, verbose=Fa
         return None
 
 
-def save_the_pixel_mask_in_image(reduction_metadata, image_name, master_mask):
+def save_the_pixel_mask_in_image(reduction_metadata, image_name, bpm):
     '''
     Construct the global pixel mask  using a bitmask approach.
 
@@ -425,7 +418,7 @@ def save_the_pixel_mask_in_image(reduction_metadata, image_name, master_mask):
     :param array_like master_mask: the master mask which needs to be kept
 
     '''
-    master_pixels_mask = fits.ImageHDU(master_mask)
+    master_pixels_mask = fits.ImageHDU(bpm.master_mask)
     master_pixels_mask.name = 'pyDANDIA_PIXEL_MASK'
 
     open_image = fits.open(os.path.join(reduction_metadata.data_architecture[1]['IMAGES_PATH'][0], image_name))
