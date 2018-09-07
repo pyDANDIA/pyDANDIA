@@ -52,8 +52,8 @@ class BadPixelMask:
                 self.camera = hdul[0].header['INSTRUME']
                 self.dateobs = str(hdul[0].header['DATE-OBS']).split('T')[0].replace('-','')
                 
-                self.instrument_mask = hdr = hdul[0].data
-            
+                self.instrument_mask = hdul[0].data.astype(int)
+                
             if log != None:
                 log.info('Read bad pixel mask from '+file_path)
                 
@@ -307,8 +307,9 @@ class PixelCluster():
         return True
         
 def construct_the_pixel_mask(setup, reduction_metadata,
-                             open_image, banzai_bpm, integers_to_flag,
-                             saturation_level=65535, low_level=0, log=None):
+                             open_image, banzai_bpm, integers_to_flag, log,
+                             saturation_level=65535, low_level=0,
+                             instrument_bpm=None):
     '''
     Construct the global pixel mask  using a bitmask approach.
 
@@ -321,18 +322,28 @@ def construct_the_pixel_mask(setup, reduction_metadata,
     :return: the low level pixel mask
     :rtype: array_like
     '''
+    
+    log.info('Constructing the image bad pixel mask')
 
     try:
         bpm = BadPixelMask()
         
-        image_dims = [reduction_metadata.reduction_parameters[1]['IMAGEY2'],
-                      reduction_metadata.reduction_parameters[1]['IMAGEX2']]
-                          
+        image_dims = [reduction_metadata.reduction_parameters[1]['IMAGEY2'][0],
+                      reduction_metadata.reduction_parameters[1]['IMAGEX2'][0]]
+            
         bpm.create_empty_masks(image_dims)
         
-        bpm.load_latest_instrument_mask(reduction_metadata.reduction_parameters[1]['INSTRID'],setup,log=log)
-        
-        if type(banzai_bpm) == type(np.zeros([1])):
+        if instrument_bpm == None:
+            
+            bpm.load_latest_instrument_mask(reduction_metadata.reduction_parameters[1]['INSTRID'][0],setup,log=log)
+            
+        else:
+            
+            bpm.instrument_mask = instrument_bpm.instrument_mask
+            
+            log.info('Included instrumental bad pixel mask data')
+            
+        if type(banzai_bpm) == type(fits.hdu.image.ImageHDU()):
             
             bpm.load_banzai_mask(banzai_bpm, log=log)
         

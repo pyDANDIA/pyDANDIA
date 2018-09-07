@@ -37,6 +37,7 @@ def test_read_mask():
     bpm.read_mask(file_path)
     
     assert type(bpm.instrument_mask) == type(np.zeros([1]))
+    assert bpm.instrument_mask.dtype == int
     assert bpm.instrument_mask.shape[0] > 4000
     assert bpm.instrument_mask.shape[1] > 4000
 
@@ -209,10 +210,10 @@ def test_construct_the_pixel_mask():
     reduction_metadata = mock.MagicMock()
     reduction_metadata.data_architecture = [0, {
         'IMAGES_PATH': ['../tests/data/proc/ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip/data']}]
-    reduction_metadata.reduction_parameters = [0, {'IMAGEY2': image_dims[0], 
-                                                   'IMAGEX2': image_dims[1],
-                                                   'MAXVAL': 1.4e5,
-                                                   'INSTRID': 'fl15'}]
+    reduction_metadata.reduction_parameters = [0, {'IMAGEY2': [image_dims[0]], 
+                                                   'IMAGEX2': [image_dims[1]],
+                                                   'MAXVAL': [1.4e5],
+                                                   'INSTRID': ['fl15']}]
     
     image_bad_pixel_mask = np.zeros(image_dims)
 
@@ -223,7 +224,7 @@ def test_construct_the_pixel_mask():
     bpm = bad_pixel_mask.construct_the_pixel_mask(setup, reduction_metadata, 
                                                   image, 
                                                   image_bad_pixel_mask, [8],
-                                                  low_level=0, log=log)
+                                                  log, low_level=0)
     
     logs.close_log(log)
 
@@ -246,7 +247,7 @@ def test_create_empty_masks():
     
 if __name__ == '__main__':
     
-    #test_read_mask()
+    test_read_mask()
     #test_load_mask()
     #test_load_banzai_mask()
     #test_add_image_saturated_pixels()
@@ -254,4 +255,4 @@ if __name__ == '__main__':
     #test_id_neighbouring_pixels()
     #test_find_clusters_saturated_pixels()
     #test_create_empty_masks()
-    test_construct_the_pixel_mask()
+    #test_construct_the_pixel_mask()

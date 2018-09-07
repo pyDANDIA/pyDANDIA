@@ -106,7 +106,11 @@ def run_stage0(setup):
         set_bad_pixel_mask_directory(setup, reduction_metadata,
                                      bpm_directory_path=os.path.join(setup.red_dir, 'data'),
                                      log=log)
-
+        
+        instrument_bpm = bad_pixel_mask.BadPixelMask()
+        
+        instrument_bpm.load_latest_instrument_mask(reduction_metadata.reduction_parameters[1]['INSTRID'][0],setup,log=log)
+        
         logs.ifverbose(log, setup, 'Updating metadata with info on new images...')
 
         for new_image in new_images:
@@ -126,8 +130,9 @@ def run_stage0(setup):
                                            new_image, image_index=1, log=log)
             
             bpm = bad_pixel_mask.construct_the_pixel_mask(setup, reduction_metadata, 
-                                                  open_image, image_bpm, 
-                                                  [1, 3], low_level=0, log=log)
+                                                  open_image, image_bpm, [1,3], log,
+                                                  low_level=0,
+                                                  instrument_bpm=instrument_bpm)
                                                   
             save_the_pixel_mask_in_image(reduction_metadata, new_image, bpm)
             logs.ifverbose(log, setup, ' -> ' + new_image)
@@ -334,7 +339,8 @@ def set_bad_pixel_mask_directory(setup, reduction_metadata,
                                                new_column_format=None,
                                                new_column_unit=None)
 
-    logs.ifverbose(log, setup, 'Set bad pixel mask directory')
+    logs.ifverbose(log, setup, 'Set bad pixel mask directory to '+\
+                                bpm_directory_path)
 
 
 def open_an_image(setup, image_directory, image_name,

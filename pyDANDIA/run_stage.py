@@ -16,9 +16,9 @@ from pyDANDIA import stage1
 from pyDANDIA import stage2
 from pyDANDIA import stage3
 from pyDANDIA import stage4
-from pyDANDIA import stage5
+#from pyDANDIA import stage5
 #from pyDANDIA.db import astropy_interface
-from pyDANDIA import stage6
+#from pyDANDIA import stage6
 from pyDANDIA import starfind
 from pyDANDIA import logs
 
