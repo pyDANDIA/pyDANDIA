@@ -327,38 +327,6 @@ def test_open_an_bad_pixel_mask():
     os.remove('./HanSolo.fits')
 
 
-def test_construct_the_bad_pixel_mask():
-    image_bad_pixel_mask = np.zeros((3, 3))
-    image_bad_pixel_mask[1, 1] = 42
-    bpm = stage0.construct_the_bad_pixel_mask(image_bad_pixel_mask, [42])
-
-    assert np.allclose(bpm, image_bad_pixel_mask / 42)
-
-
-def test_construct_the_variables_star_mask():
-    # not yet implemented
-    assert 1 == 1
-
-
-def test_construct_the_low_level_pixel_mask():
-    image_bad_pixel_mask = np.zeros((3, 3))
-    image_bad_pixel_mask[1, 1] = -42
-    image = fits.PrimaryHDU(image_bad_pixel_mask)
-    bpm = stage0.construct_the_low_level_pixel_mask(image, [-42])
-
-    assert np.allclose(bpm, image_bad_pixel_mask / -42)
-
-
-def test_construct_the_pixel_mask():
-    image_bad_pixel_mask = np.zeros((3, 3))
-    image_bad_pixel_mask += 89
-    image = fits.PrimaryHDU(image_bad_pixel_mask)
-    bpm = stage0.construct_the_pixel_mask(image, image_bad_pixel_mask, [8],
-                                          saturation_level=65535, low_level=0, log=None)
-
-    assert np.allclose(bpm, image_bad_pixel_mask - 89)
-
-
 def test_save_the_pixel_mask_in_image():
     setup = mock.MagicMock()
 

@@ -36,8 +36,8 @@ def test_read_mask():
     bpm.read_mask(file_path)
     
     assert type(bpm.data) == type(np.zeros([1]))
-    assert bpm.data.shape[0] > 4000
-    assert bpm.data.shape[1] > 4000
+    assert bpm.instrument_mask.shape[0] > 4000
+    assert bpm.instrument_mask.shape[1] > 4000
 
 def test_load_mask():
     """Function to verify that the pipeline can identify and load the most 
@@ -68,11 +68,15 @@ def test_load_mask():
     assert bpm.camera == camera
     assert bpm.dateobs == latest_date
     assert type(bpm.data) == type(np.zeros([1]))
-    assert bpm.data.shape[0] > 4000
-    assert bpm.data.shape[1] > 4000
+    assert bpm.instrument_mask.shape[0] > 4000
+    assert bpm.instrument_mask.shape[1] > 4000
 
-def test_construct_the_saturated_pixel_mask():
+def test_add_image_saturated_pixels():
     """Function to test the identification of saturated pixels from an image"""
+    
+    bpm = bad_pixel_mask.BadPixelMask()
+    
+    bpm.create_empty_mask([3,3])
     
     image_bad_pixel_mask = np.zeros((3, 3))
     
@@ -80,10 +84,32 @@ def test_construct_the_saturated_pixel_mask():
 
     image = fits.PrimaryHDU(image_bad_pixel_mask)
 
-    bpm = bad_pixel_mask.construct_the_saturated_pixel_mask(image, [42])
-
-    assert np.allclose(bpm, image_bad_pixel_mask / 42)
+    bpm.add_image_saturated_pixels(image, [42])
     
+    assert np.allclose(bpm.saturated_pixels, image_bad_pixel_mask / 42)
+
+
+def test_add_image_low_level_pixels():
+    
+    bpm = bad_pixel_mask.BadPixelMask()
+    
+    bpm.create_empty_mask([3,3])
+    
+    image_bad_pixel_mask = np.zeros((3, 3))
+    
+    image_bad_pixel_mask[1, 1] = -42
+
+    image = fits.PrimaryHDU(image_bad_pixel_mask)
+
+    bpm.add_image_low_level_pixels(image, [-42])
+
+    assert np.allclose(bpm.low_pixels, image_bad_pixel_mask / -42)
+
+
+def test_construct_the_variables_star_mask():
+    # not yet implemented
+    assert 1 == 1
+
 def test_id_neighbouring_pixels():
     """Function to test the method of identifying neighouring or boundary
     pixels"""
@@ -107,6 +133,10 @@ def test_id_neighbouring_pixels():
 def test_find_clusters_saturated_pixels():
     """Function to test the clustering algorithm for saturated pixels"""
     
+    setup = pipeline_setup.pipeline_setup(params)
+    
+    log = logs.start_pipeline_log(setup.log_dir, 'test_bpm_clusters')
+    
     image_shape = (50,50)
     
     saturated_pixel_mask = np.zeros(image_shape)
@@ -121,14 +151,27 @@ def test_find_clusters_saturated_pixels():
     xx,yy = np.meshgrid(x,y)
     saturated_pixel_mask[yy,xx] = 1
     
+    x = range(30,35,1)
+    y = range(25,45,1)
+    xx,yy = np.meshgrid(x,y)
+    saturated_pixel_mask[yy,xx] = 1
+    
+    saturated_pixel_mask[41,14] = 1
+    saturated_pixel_mask[42,23] = 1
+    saturated_pixel_mask[47,37] = 1
+    saturated_pixel_mask[10,29] = 1
+    saturated_pixel_mask[7,41] = 1
+    
     hdu = fits.PrimaryHDU(saturated_pixel_mask)
     hdu.writeto('saturated_pixel_input.fits', overwrite=True)
     
-    clusters = bad_pixel_mask.find_clusters_saturated_pixels(saturated_pixel_mask,
-                                                             image_shape)
+    clusters = bad_pixel_mask.find_clusters_saturated_pixels(setup,
+                                                             saturated_pixel_mask,
+                                                             image_shape,log)
     
+    assert len(clusters) == 7
     for c in clusters:
-        print(c.summary())
+        assert len(c.pixels) in [ 1, 50, 100 ]
     
     mask = np.zeros(image_shape)
     for ic,c in enumerate(clusters):
@@ -138,10 +181,53 @@ def test_find_clusters_saturated_pixels():
     hdu = fits.PrimaryHDU(mask)
     hdu.writeto('saturated_pixel_mask.fits', overwrite=True)
     
+    logs.close_log(log)
+
+
+def test_add_banzai_mask():
+    
+    bpm = bad_pixel_mask.BadPixelMask()
+    
+    bpm.data = np.zeros((3, 3))
+    
+    image_bad_pixel_mask = np.zeros((3, 3))
+
+    image_bad_pixel_mask[1, 1] = 42
+
+    bpm = bpm.add_banzai_mask(image_bad_pixel_mask, [42])
+
+    assert np.allclose(bpm, image_bad_pixel_mask / 42)
+
+def test_construct_the_pixel_mask():
+    
+    image_bad_pixel_mask = np.zeros((3, 3))
+
+    image_bad_pixel_mask += 89
+
+    image = fits.PrimaryHDU(image_bad_pixel_mask)
+
+    bpm = stage0.construct_the_pixel_mask(image, image_bad_pixel_mask, [8],
+                                          saturation_level=65535, low_level=0, log=None)
+
+    assert np.allclose(bpm, image_bad_pixel_mask - 89)
+
+def test_create_empty_mask():
+    
+    bpm = bad_pixel_mask.BadPixelMask()
+    
+    image_dims = [ 100, 200 ]
+    
+    bpm.create_empty_mask(image_dims)
+    
+    assert bpm.data.shape[0] == image_dims[0]
+    assert bpm.data.shape[1] == image_dims[1]
+    
 if __name__ == '__main__':
     
-    #test_read_mask()
+    test_read_mask()
     #test_load_mask()
-    #test_construct_the_saturated_pixel_mask()
+    #test_add_image_saturated_pixels()
+    #test_add_image_low_level_pixels()
     #test_id_neighbouring_pixels()
-    test_find_clusters_saturated_pixels()
+    #test_find_clusters_saturated_pixels()
+    #test_create_empty_mask()
