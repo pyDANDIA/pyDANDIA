@@ -14,6 +14,7 @@ import bad_pixel_mask
 import numpy as np
 import glob
 from astropy.io import fits
+import mock
 
 params = {'red_dir': os.path.join(cwd, 'data', 'proc', 
                                    'ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip'), 
@@ -35,7 +36,7 @@ def test_read_mask():
     
     bpm.read_mask(file_path)
     
-    assert type(bpm.data) == type(np.zeros([1]))
+    assert type(bpm.instrument_mask) == type(np.zeros([1]))
     assert bpm.instrument_mask.shape[0] > 4000
     assert bpm.instrument_mask.shape[1] > 4000
 
@@ -51,7 +52,7 @@ def test_load_mask():
     
     bpm = bad_pixel_mask.BadPixelMask()
     
-    bpm.load_latest_mask(camera,setup)
+    bpm.load_latest_instrument_mask(camera,setup)
 
     bpm_list = glob.glob(os.path.join(setup.pipeline_config_dir,'bpm*'+camera+'*fits'))
     
@@ -67,7 +68,7 @@ def test_load_mask():
     
     assert bpm.camera == camera
     assert bpm.dateobs == latest_date
-    assert type(bpm.data) == type(np.zeros([1]))
+    assert type(bpm.instrument_mask) == type(np.zeros([1]))
     assert bpm.instrument_mask.shape[0] > 4000
     assert bpm.instrument_mask.shape[1] > 4000
 
@@ -76,7 +77,7 @@ def test_add_image_saturated_pixels():
     
     bpm = bad_pixel_mask.BadPixelMask()
     
-    bpm.create_empty_mask([3,3])
+    bpm.create_empty_masks([3,3])
     
     image_bad_pixel_mask = np.zeros((3, 3))
     
@@ -84,7 +85,7 @@ def test_add_image_saturated_pixels():
 
     image = fits.PrimaryHDU(image_bad_pixel_mask)
 
-    bpm.add_image_saturated_pixels(image, [42])
+    bpm.mask_image_saturated_pixels(image, [42])
     
     assert np.allclose(bpm.saturated_pixels, image_bad_pixel_mask / 42)
 
@@ -93,7 +94,7 @@ def test_add_image_low_level_pixels():
     
     bpm = bad_pixel_mask.BadPixelMask()
     
-    bpm.create_empty_mask([3,3])
+    bpm.create_empty_masks([3,3])
     
     image_bad_pixel_mask = np.zeros((3, 3))
     
@@ -101,7 +102,7 @@ def test_add_image_low_level_pixels():
 
     image = fits.PrimaryHDU(image_bad_pixel_mask)
 
-    bpm.add_image_low_level_pixels(image, [-42])
+    bpm.mask_image_low_level_pixels(image, [-42])
 
     assert np.allclose(bpm.low_pixels, image_bad_pixel_mask / -42)
 
@@ -184,50 +185,73 @@ def test_find_clusters_saturated_pixels():
     logs.close_log(log)
 
 
-def test_add_banzai_mask():
+def test_load_banzai_mask():
     
     bpm = bad_pixel_mask.BadPixelMask()
     
-    bpm.data = np.zeros((3, 3))
+    bpm.create_empty_masks((3,3))
     
     image_bad_pixel_mask = np.zeros((3, 3))
 
     image_bad_pixel_mask[1, 1] = 42
 
-    bpm = bpm.add_banzai_mask(image_bad_pixel_mask, [42])
+    bpm.load_banzai_mask(image_bad_pixel_mask, [42])
 
-    assert np.allclose(bpm, image_bad_pixel_mask / 42)
+    assert np.allclose(bpm.banzai_mask, image_bad_pixel_mask / 42)
 
 def test_construct_the_pixel_mask():
     
-    image_bad_pixel_mask = np.zeros((3, 3))
+    setup = pipeline_setup.pipeline_setup(params)
+    
+    log = logs.start_pipeline_log(setup.log_dir, 'test_construct_bpm')
+    
+    image_dims = [4096, 4096]
+    reduction_metadata = mock.MagicMock()
+    reduction_metadata.data_architecture = [0, {
+        'IMAGES_PATH': ['../tests/data/proc/ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip/data']}]
+    reduction_metadata.reduction_parameters = [0, {'IMAGEY2': image_dims[0], 
+                                                   'IMAGEX2': image_dims[1],
+                                                   'MAXVAL': 1.4e5,
+                                                   'INSTRID': 'fl15'}]
+    
+    image_bad_pixel_mask = np.zeros(image_dims)
 
     image_bad_pixel_mask += 89
 
     image = fits.PrimaryHDU(image_bad_pixel_mask)
 
-    bpm = stage0.construct_the_pixel_mask(image, image_bad_pixel_mask, [8],
-                                          saturation_level=65535, low_level=0, log=None)
+    bpm = bad_pixel_mask.construct_the_pixel_mask(setup, reduction_metadata, 
+                                                  image, 
+                                                  image_bad_pixel_mask, [8],
+                                                  low_level=0, log=log)
+    
+    logs.close_log(log)
 
-    assert np.allclose(bpm, image_bad_pixel_mask - 89)
+    assert np.allclose(bpm.master_mask, image_bad_pixel_mask - 89)
 
-def test_create_empty_mask():
+def test_create_empty_masks():
     
     bpm = bad_pixel_mask.BadPixelMask()
     
     image_dims = [ 100, 200 ]
     
-    bpm.create_empty_mask(image_dims)
+    bpm.create_empty_masks(image_dims)
     
-    assert bpm.data.shape[0] == image_dims[0]
-    assert bpm.data.shape[1] == image_dims[1]
+    for mask in [ 'instrument_mask', 'saturated_pixels', 'low_pixels', 'banzai_mask' ]:
+        
+        data = getattr(bpm,mask)
+        
+        assert data.shape[0] == image_dims[0]
+        assert data.shape[1] == image_dims[1]
     
 if __name__ == '__main__':
     
-    test_read_mask()
+    #test_read_mask()
     #test_load_mask()
+    #test_load_banzai_mask()
     #test_add_image_saturated_pixels()
     #test_add_image_low_level_pixels()
     #test_id_neighbouring_pixels()
     #test_find_clusters_saturated_pixels()
-    #test_create_empty_mask()
+    #test_create_empty_masks()
+    test_construct_the_pixel_mask()

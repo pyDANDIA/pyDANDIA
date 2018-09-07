@@ -11,6 +11,7 @@ from astropy.io import fits
 import glob
 import copy 
 import logs
+import pixelmasks
 
 class BadPixelMask:
     """Class describing bad pixel masks for imaging data"""
@@ -29,7 +30,7 @@ class BadPixelMask:
         
     def create_empty_masks(self,image_dims):
         
-        self.instrument_masks = np.zeros(image_dims,int)
+        self.instrument_mask = np.zeros(image_dims,int)
         self.banzai_mask = np.zeros(image_dims,int)
         self.saturated_pixels = np.zeros(image_dims,int)
         self.low_pixels = np.zeros(image_dims,int)
@@ -108,7 +109,7 @@ class BadPixelMask:
                                           included in the output BPM.
         """
         
-        if self.banzai_mask.shape != image_mask.data.shape:
+        if self.banzai_mask.shape != image_mask.shape:
 
             if log != None:
 
@@ -117,7 +118,7 @@ class BadPixelMask:
             
             for flag in integers_to_flag:
                 
-                index_saturation = np.where((image_bad_pixel_mask == flag))
+                index_saturation = np.where((image_mask == flag))
                 
                 self.banzai_mask[index_saturation] = 1
                 
@@ -305,7 +306,7 @@ class PixelCluster():
                 
         return True
         
-def construct_the_pixel_mask(reduction_metadata,
+def construct_the_pixel_mask(setup, reduction_metadata,
                              open_image, banzai_bpm, integers_to_flag,
                              saturation_level=65535, low_level=0, log=None):
     '''
@@ -322,7 +323,7 @@ def construct_the_pixel_mask(reduction_metadata,
     '''
 
     try:
-        bpm = bad_pixel_mask.BadPixelMask()
+        bpm = BadPixelMask()
         
         image_dims = [reduction_metadata.reduction_parameters[1]['IMAGEY2'],
                       reduction_metadata.reduction_parameters[1]['IMAGEX2']]
@@ -331,36 +332,36 @@ def construct_the_pixel_mask(reduction_metadata,
         
         bpm.load_latest_instrument_mask(reduction_metadata.reduction_parameters[1]['INSTRID'],setup,log=log)
         
-        if banzai_bpm != None:
+        if type(banzai_bpm) == type(np.zeros([1])):
             
             bpm.load_banzai_mask(banzai_bpm, log=log)
         
         # variables_pixel_mask = construct_the_variables_star_mask(open_image, variable_star_pixels=10)
-
+    
         saturation_level = reduction_metadata.reduction_parameters[1]['MAXVAL']
         
         bpm.mask_image_saturated_pixels(open_image, saturation_level, log=log)
-
+    
         bpm.mask_image_low_level_pixels(open_image, low_level, log=log)
-
+    
         list_of_masks = [bpm.instrument_mask, 
-                         bpm.banzai, 
+                         bpm.banzai_mask, 
                          bpm.saturated_pixels, 
                          bpm.low_pixels]
-
+        
         bpm.master_mask = pixelmasks.construct_a_master_mask(bpm.master_mask, 
                                                              list_of_masks)
-
+    
         if log != None:
             log.info('Successfully built a BPM')
-
+    
         return bpm
 
     except:
 
         #master_mask = np.zeros(open_image.data.shape, int)
 
-        bpm = bad_pixel_mask.BadPixelMask()
+        bpm = BadPixelMask()
         
         bpm.create_empty_masks(open_image.data.shape)
 
