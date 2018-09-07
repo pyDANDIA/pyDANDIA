@@ -9,6 +9,7 @@ from os import path
 import numpy as np
 from astropy.io import fits
 import glob
+import copy 
 
 class BadPixelMask:
     """Class describing bad pixel masks for imaging data"""
@@ -99,6 +100,11 @@ class PixelCluster():
         if xc != None and yc != None:
             self.pixels = [ [xc,yc] ]
     
+    def summary(self):
+        
+        return str(self.index)+' (xc,yc)= '+str(self.xc)+', '+str(self.yc)+' '+\
+                str(len(self.pixels))+' contiguous pixels'
+                
     def check_pixel_in_cluster(self,xp,yp):
         """Method to verify whether a given pixel is already in this 
         cluster"""
@@ -134,54 +140,30 @@ class PixelCluster():
                         
                         self.neighbours.append( (x,y) )
     
-    def merge_cluster(self,clusters,ic,cluster_map):
-        """Method to merge this cluster with another from the clusters list, 
-        indicated by the index ic.
+    def merge_cluster(self,kluster):
+        """Method to merge this cluster with a second kluster
         
         The pixels from the merging cluster's pixel list are added to this 
-        cluster's pixel list, and the cluster indices of those pixels in the 
-        cluster_map are updated.  
-        
-        The merging cluster is removed from the list of clusters.  
+        cluster's pixel list.  
         
         The centroid of this pixel cluster is recalculated.
         """
         
-        print('Working cluster '+str(self.index)+', pixel list:')
-        for p in self.pixels:
-            print(p)
-            
-        merging_cluster = clusters[ic]
-
-        print('Cluster index '+str(ic))
-        print('Merging with cluster '+str(merging_cluster.index)+', pixel list:')
-        for p in merging_cluster.pixels:
-            print(p)
-        
         merged_pixels_list = self.pixels
         
-        for p in merging_cluster.pixels:
+        for p in kluster.pixels:
             
             if [p[0], p[1]] not in merged_pixels_list:
                 merged_pixels_list.append( [p[0], p[1]] )
             
-            cluster_map[p[0],p[1]] = self.index
-        
         self.pixels = merged_pixels_list
-        print('Merged pixel lists')
         
-        for p in self.pixels:
-            print(p)
-            
         pixels = np.array(self.pixels)
         
-        self.xc = np.median(pixels,axis=0)
-        self.yc = np.median(pixels,axis=1)
+        self.xc = np.median(pixels[:,0])
+        self.yc = np.median(pixels[:,1])
         print('Re-calculated cluster center at: '+str(self.xc)+', '+str(self.yc))
-        
-        clusters.pop(ic)
-        
-        return clusters, cluster_map
+
     
 def construct_the_saturated_pixel_mask(open_image, saturation_level=65535):
     """
@@ -252,54 +234,63 @@ def find_clusters_saturated_pixels(saturated_pixel_mask,image_shape):
     
     # Iteratively merge clusters if they have neighbouring saturated pixels
     n_iter = 0
-    max_iter = 3
+    max_iter = 10
     
     iterate = True
     
     while iterate:
         
         n_iter += 1
-        n_mergers = 0
+        mergers = []
+        remaining_clusters = {}
         
         print('Iteration '+str(n_iter))
         
-        for c in clusters:
+        for ic,c in enumerate(clusters):
             
-            print('Cluster '+str(c.index)+' at '+str(c.xc)+', '+str(c.yc))
-            
-            c.id_neighbouring_pixels(image_shape)
-            
-            print(' -> Found '+str(len(c.neighbours))+' neighbouring clusters')
-            print(c.neighbours)
-            
-            for n in c.neighbours:
+            if ic not in mergers:
+                print('Cluster '+str(c.index)+' at '+str(c.xc)+', '+str(c.yc))
                 
-                print(' -> Neighbour '+repr(n))
+                c.id_neighbouring_pixels(image_shape)
                 
-                if cluster_map[n[1],n[0]] != -1:
+                print(' -> Found '+str(len(c.neighbours))+' neighbouring pixels')
+                print(c.neighbours)
+                
+                for n in c.neighbours:
                     
-                    ic = cluster_map[n[1],n[0]]
+                    print(' -> Neighbouring pixel '+repr(n))
                     
-                    print(' -> Cluster_map points to cluster '+str(ic))
-                    
-                    if ic != c.index:
+                    for ik,k in enumerate(clusters):
                         
-                        print('IC = '+str(ic))
-                        print('n = '+repr(n))
-                        print(cluster_map[n[1],n[0]])
-                        (clusters,cluster_map) = c.merge_cluster(clusters,ic,cluster_map)
-                    
-                        n_mergers += 1
+                        if ic != ik and ik not in mergers and \
+                            k.check_pixel_in_cluster(n[1],n[0]):
+                            
+                            print('Merging '+str(ik)+' with '+str(ic))
+                            
+                            mergers.append(ik)
+                            
+                            c.merge_cluster(k)
+                            
+                            if c.index not in remaining_clusters.keys():
+                                remaining_clusters[c.index] = c
+                            
+                            print('Remaining clusters: '+repr(remaining_clusters.keys()))
+                            print('Mergers: '+repr(mergers))
             
-            exit()
-        print('N mergers = '+str(n_mergers))
-        print('N clusters = '+str(len(clusters)))
+        print('N mergers = '+str(len(mergers)))
         
-        if n_mergers == 0 or n_iter >= max_iter or len(clusters) == 1:
+        clusters = copy.copy(remaining_clusters.values())
+        
+        print('N remaining clusters = '+str(len(clusters)))
+        print(str(remaining_clusters.keys()))
+        
+        print('Iteration '+str(n_iter))
+            
+        if len(mergers) == 0 or n_iter >= max_iter or len(clusters) == 1:
             
             iterate = False
             
-        print('Continue? '+repr(iterate))
+        print('\nContinue? '+repr(iterate)+'\n')
         
     return clusters
     

@@ -122,12 +122,21 @@ def test_find_clusters_saturated_pixels():
     saturated_pixel_mask[yy,xx] = 1
     
     hdu = fits.PrimaryHDU(saturated_pixel_mask)
-    hdu.writeto('saturated_pixel_mask.fits', overwrite=True)
+    hdu.writeto('saturated_pixel_input.fits', overwrite=True)
     
     clusters = bad_pixel_mask.find_clusters_saturated_pixels(saturated_pixel_mask,
                                                              image_shape)
     
-    print len(clusters)
+    for c in clusters:
+        print(c.summary())
+    
+    mask = np.zeros(image_shape)
+    for ic,c in enumerate(clusters):
+        for p in c.pixels:
+            mask[p[1],p[0]] = ic+1
+    
+    hdu = fits.PrimaryHDU(mask)
+    hdu.writeto('saturated_pixel_mask.fits', overwrite=True)
     
 if __name__ == '__main__':
     
