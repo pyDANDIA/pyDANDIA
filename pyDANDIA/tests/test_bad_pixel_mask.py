@@ -163,7 +163,7 @@ def test_find_clusters_saturated_pixels():
     saturated_pixel_mask[47,37] = 1
     saturated_pixel_mask[10,29] = 1
     saturated_pixel_mask[7,41] = 1
-    
+        
     hdu = fits.PrimaryHDU(saturated_pixel_mask)
     hdu.writeto('saturated_pixel_input.fits', overwrite=True)
     
@@ -185,7 +185,85 @@ def test_find_clusters_saturated_pixels():
     
     logs.close_log(log)
 
+def test_mask_ccd_blooming():
+    """Function to test the blooming detection method of BPM"""
+    
+    setup = pipeline_setup.pipeline_setup(params)
+    setup.verbosity = 2
+    
+    reduction_metadata = mock.MagicMock()
+    reduction_metadata.reduction_parameters = [0, {'PSF_SIZE': [8]}]
 
+    log = logs.start_pipeline_log(setup.log_dir, 'test_mask_blooming')
+    
+    file_path = raw_input('Please enter the path to a bad pixel mask file: ')
+    
+    with fits.open(file_path) as hdul:
+        
+        image = hdul[0].data
+        
+        image_shape = image.shape
+        
+        saturated_pixel_mask = np.zeros(image_shape)
+        
+        idx = np.where(hdul[3].data == 2)
+        
+        saturated_pixel_mask[idx] = 1
+        
+    generate = False
+    if generate:
+        image_shape = (4096,4096)
+        
+        image = np.random.normal(2000.0,200.0,image_shape)
+        #image = np.zeros(image_shape)
+        
+        x = range(1000,1020,1)
+        y = range(800,1200,1)
+        xx,yy = np.meshgrid(x,y)
+        image[yy,xx] = 1.4e5
+        
+        x = range(900,1110,1)
+        y = range(900,1110,1)
+        xx,yy = np.meshgrid(x,y)
+        model = 100000.0 * np.exp(-(((xx - 1010) / 16.0)**2 +((yy - 1000) / 16.0)**2) / 2)
+        image[yy,xx] += model
+        
+        
+        saturated_pixel_mask = np.zeros(image_shape)
+        
+        x = range(1000,1020,1)
+        y = range(800,1200,1)
+        xx,yy = np.meshgrid(x,y)
+        saturated_pixel_mask[yy,xx] = 1
+        
+        x = range(15,20,1)
+        y = range(12,17,1)
+        xx,yy = np.meshgrid(x,y)
+        saturated_pixel_mask[yy,xx] = 1
+        
+        saturated_pixel_mask[41,14] = 1
+        saturated_pixel_mask[42,23] = 1
+        saturated_pixel_mask[47,37] = 1
+        saturated_pixel_mask[10,29] = 1
+        saturated_pixel_mask[7,41] = 1
+        
+
+    hdu = fits.PrimaryHDU(image)
+    hdu.writeto('test_image_with_saturated_star.fits', overwrite=True)
+    
+    hdu = fits.PrimaryHDU(saturated_pixel_mask)
+    hdu.writeto('test_image_saturated_mask.fits', overwrite=True)
+        
+    bpm = bad_pixel_mask.BadPixelMask()
+    
+    bpm.create_empty_masks(image_shape)
+    
+    bpm.saturated_pixels = saturated_pixel_mask
+    
+    bpm.mask_ccd_blooming(setup,reduction_metadata,image,log)
+    
+    logs.close_log(log)
+    
 def test_load_banzai_mask():
     
     bpm = bad_pixel_mask.BadPixelMask()
@@ -244,10 +322,31 @@ def test_create_empty_masks():
         
         assert data.shape[0] == image_dims[0]
         assert data.shape[1] == image_dims[1]
+
+def test_find_columns_with_blooming():
+
+    image_dims = [4096, 4096]
+    
+    file_path = raw_input('Please enter the path to a bad pixel mask file: ')
+    
+    with fits.open(file_path) as hdul:
+        
+        image = hdul[0].data
+        
+        image_shape = image.shape
+        
+        saturated_pixel_mask = np.zeros(image_shape)
+        
+        idx = np.where(hdul[3].data == 2)
+        
+        saturated_pixel_mask[idx] = 1
+    
+    bad_pixel_mask.find_columns_with_blooming(saturated_pixel_mask)
+    
     
 if __name__ == '__main__':
     
-    test_read_mask()
+    #test_read_mask()
     #test_load_mask()
     #test_load_banzai_mask()
     #test_add_image_saturated_pixels()
@@ -256,3 +355,7 @@ if __name__ == '__main__':
     #test_find_clusters_saturated_pixels()
     #test_create_empty_masks()
     #test_construct_the_pixel_mask()
+    #test_find_columns_with_blooming()
+    
+    test_mask_ccd_blooming()
+    

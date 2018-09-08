@@ -145,5 +145,5 @@ def run_stage1(setup, rerun_all=None):
     
     
     logs.close_log(log)
-        
+    
     return status, report

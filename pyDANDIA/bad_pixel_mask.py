@@ -12,6 +12,7 @@ import glob
 import copy 
 import logs
 import pixelmasks
+import matplotlib.pyplot as plt
 
 class BadPixelMask:
     """Class describing bad pixel masks for imaging data"""
@@ -126,7 +127,8 @@ class BadPixelMask:
                     
                 log.info('Loaded the BANZAI bad pixel mask for this image')
                 
-    def mask_image_saturated_pixels(self, open_image, saturation_level=65535, log=None):
+    def mask_image_saturated_pixels(self, open_image, 
+                                    saturation_level=65535, log=None):
         """
         Method to identify the saturated pixels in a given image and combine
         them with the BPM data.
@@ -196,7 +198,43 @@ class BadPixelMask:
             pass
     
         pass
-
+    
+    def mask_ccd_blooming(self,setup,reduction_metadata,image,log):
+        """Method to identify and mask regions of an image where bright stars 
+        have become so saturated that charge has bled along the columns, and
+        a bright halo is created with a steep sky gradient."""
+        
+        psf_radius = reduction_metadata.reduction_parameters[1]['PSF_SIZE'][0]/2.0
+        min_cluster_pix = int(np.pi * psf_radius * psf_radius)
+            
+        sat_columns = find_columns_with_blooming(self.saturated_pixels)
+        
+        sat_regions = []
+        
+        for columns in sat_columns:
+            
+            sat_image_region = self.saturated_pixels[:,columns[1]:columns[2]]
+            
+            sat_rows = find_rows_with_blooming(sat_image_region, 
+                                                  diagnostic_plots=True)
+            
+            print('X center '+str(columns[0])+' range: '+str(columns[1])+' to '+str(columns[2]))
+            for rows in sat_rows:
+                print('Y center '+str(rows[0])+' range: '+str(rows[1])+' to '+str(rows[2]))
+            
+            sat_regions.append( [ columns[1], columns[2], rows[1], rows[2] ] )
+            
+        for i,r in enumerate(sat_regions):
+            
+            sat_image_region = image[r[2]:r[3],r[0]:r[1]]
+            
+            hdu = fits.PrimaryHDU(sat_image_region)
+            hdu.writeto('image_section'+str(i)+'.fits', overwrite=True)
+            
+#            cluster = find_clusters_saturated_pixels(setup,sat_image_region,
+#                                                     sat_image_region.shape,log)
+            
+                
 class PixelCluster():
     """Class describing the properties of clusters of pixels in an image"""
     
@@ -207,6 +245,8 @@ class PixelCluster():
         self.yc = yc
         self.pixels = []
         self.neighbours = []
+        self.range = []
+        self.xyratio = None
         
         if xc != None and yc != None:
             
@@ -252,6 +292,26 @@ class PixelCluster():
                         
                         self.neighbours.append( (x,y) )
     
+    def calc_min_separation(self,kluster):
+        """Method to calculate the minimum Euclidean separation of all pixels 
+        in this cluster from the pixels in kluster"""
+        
+        min_sep = 1e5
+        
+        kpositions = []
+        for p in kluster.pixels:
+            kpositions.append([p[0],p[1]])
+        kpositions = np.array(kpositions)
+        
+        for p in self.pixels:
+            
+            sep = np.sqrt((kpositions[:,0]-p[0])**2 + (kpositions[:,1]-p[1])**2)
+            
+            if sep.min() < min_sep:
+                min_sep = sep.min()
+        
+        return min_sep
+        
     def merge_cluster(self,kluster, log=None):
         """Method to merge this cluster with a second kluster
         
@@ -286,7 +346,7 @@ class PixelCluster():
                     str(self.xc)+', '+str(self.yc))
 
     def check_for_identical_cluster(self, kluster, log=None):
-        """Function to check whether the pixel lists attributed to two 
+        """Method to check whether the pixel lists attributed to two 
         clusters are identical"""
         
         pixels1 = self.pixels
@@ -305,6 +365,36 @@ class PixelCluster():
                 return False
                 
         return True
+    
+    def calc_pixel_range(self):
+        """Method to calculate the minimum and maximum range in x and y
+        of all pixels included in this cluster"""
+        
+        if len(self.pixels) > 1:
+            
+            xmin = 1e5
+            xmax = -1
+            ymin = 1e5
+            ymax = -1
+            
+            for p in self.pixels:
+                
+                xmin = min(p[0],xmin)
+                xmax = max(p[0],xmax)
+                ymin = min(p[1],ymin)
+                ymax = max(p[1],ymax)
+            
+            self.xyratio = float(xmax-xmin)/float(ymax-ymin)
+            
+        else:
+            
+            xmin = 0.0
+            xmax = 0.0
+            ymin = 0.0
+            ymax = 0.0
+            self.xyratio = 1.0
+        
+        self.range = [xmin, xmax, ymin, ymax]
         
 def construct_the_pixel_mask(setup, reduction_metadata,
                              open_image, banzai_bpm, integers_to_flag, log,
@@ -396,23 +486,16 @@ def find_clusters_saturated_pixels(setup,saturated_pixel_mask,image_shape,log):
 
     logs.ifverbose(log,setup,'\n')
     logs.ifverbose(log,setup,'\nAnalysing saturated pixels to look for clusters around bright objects')
-    
-    npix = saturated_pixel_mask.shape[0]*saturated_pixel_mask.shape[1]
-    
+        
     # Initially, every saturated pixel is considered to be in a 
     # unique cluster of 1 pixel.
     clusters = []
     
-    # The cluster_map is a pixel map indicating which cluster each 
-    # pixel currently belongs to.  If the pixel is not allocated to a cluster,
-    # the cluster_map entry = -1, otherwise the entry indicates the index
-    # of the cluster in the clusters list. 
-    cluster_map = np.zeros(image_shape,dtype=int)
-    cluster_map.fill(-1)
-    
     j = -1
     
     idx = np.where(saturated_pixel_mask == 1)
+    
+    logs.ifverbose(log,setup,'Image has a total of '+str(len(idx[0]))+' saturated pixels')
     
     for i in range(0,len(idx[0]),1):
         
@@ -423,8 +506,6 @@ def find_clusters_saturated_pixels(setup,saturated_pixel_mask,image_shape,log):
         
         clusters.append( PixelCluster(index=j, xc=x, yc=y) )
         
-        cluster_map[y,x] = j
-    
     # Iteratively merge clusters if they have neighbouring saturated pixels
     n_iter = 0
     max_iter = 5
@@ -517,6 +598,162 @@ def find_clusters_saturated_pixels(setup,saturated_pixel_mask,image_shape,log):
             iterate = False
             
         logs.ifverbose(log,setup,'\nContinue? '+repr(iterate)+'\n')
+        
+    return clusters
+
+def find_columns_with_blooming(saturated_pixel_mask, diagnostic_plots=False):
+    """Function to identify which pixel columns in an image are affected by
+    blooming.  
+    
+    The saturated pixel data is collapsed in the y-direction to create a single 
+    pixel row ('spectrum') with 0 for background pixels and >0 for saturated.  
+    Blooming affects several (typically ~10) consequtive columns, so affected 
+    regions of the image can be identified from peaks in the 1D 'spectrum'.
+    """
+    
+    columns = saturated_pixel_mask.sum(axis=0)
+    
+    idx = np.where(columns > 200)
+    
+    clusters = find_clusters_in_vector(idx[0])
+    
+    idx = np.where(columns == 0)[0]
+    
+    regions = []
+    
+    for c in clusters:
+        
+        sep = abs(idx - c.xc)
+        sep.sort()
+        
+        sat_region_width = (sep[0]+sep[1])
+        
+        xmin = int(max(1,c.xc-sat_region_width))
+        xmax = int(min(c.xc+sat_region_width,len(columns)))
+        
+        regions.append( [c.xc, xmin, xmax] )
+        
+    if diagnostic_plots:
+        fig = plt.figure()
+        
+        plt.plot(np.arange(0,len(columns),1), columns, 'm-', label='Columns')
+        plt.xlabel('X pixel column')
+        plt.ylabel('Accumulated saturation flag')
+        
+        plt.savefig('saturated_columns_spectrum.png')
+    
+    return regions
+    
+def find_rows_with_blooming(saturated_pixel_mask, diagnostic_plots=False):
+    """Function to identify which pixel rows in an image are affected by
+    blooming.  
+    
+    The saturated pixel data is collapsed in the x-direction to create a single 
+    pixel row ('spectrum') with 0 for background pixels and >0 for saturated.  
+    Blooming affects several (typically ~10) consequtive columns, so affected 
+    regions of the image can be identified from wide plateax in the 1D 'spectrum'.
+    """
+    
+    rows = saturated_pixel_mask.sum(axis=1)
+    
+    idx = np.where(rows > 10)
+    
+    clusters = find_clusters_in_vector(idx[0])
+    
+    idx = np.where(rows == 0)[0]
+    
+    regions = []
+    
+    for c in clusters:
+        
+        sep = abs(idx - c.xc)
+        sep.sort()
+        
+        sat_region_width = (sep[0]+sep[1])
+        
+        xmin = int(max(1,c.xc-sat_region_width))
+        xmax = int(min(c.xc+sat_region_width,len(rows)))
+        
+        regions.append( [c.xc, xmin, xmax] )
+        
+    if diagnostic_plots:
+        fig = plt.figure()
+        
+        plt.plot(np.arange(0,len(rows),1), rows, 'b--', label='Rows')
+        plt.title('Rows')
+        plt.xlabel('Y pixel row')
+        
+        plt.savefig('saturated_row_spectrum.png')
+    
+    return regions
+    
+
+def find_clusters_in_vector(vector,verbose=False):
+    """Function to identify clusters of contiguous values in an integer vector"""
+    
+    clusters = []
+    
+    for i in range(0,len(vector),1):
+        clusters.append( PixelCluster(index=i, xc=vector[i], yc=0) )    
+
+    n_iter = 0
+    max_iter = 3
+    
+    iterate = True
+    
+    while iterate:
+        
+        n_iter += 1
+    
+        mergers = []
+        remaining_clusters = {}
+        
+        if verbose: print('Iteration: '+str(n_iter))
+        
+        for ic,c in enumerate(clusters):
+            
+            if verbose: print('Cluster '+str(c.index)+' '+repr(c.pixels))
+            
+            if c.index not in mergers:
+                
+                n_c_mergers = 0
+            
+                for ik,k in enumerate(clusters):
+                    
+                    min_sep = c.calc_min_separation(k)
+                    
+                    if verbose: 
+                        print(' -> kluster '+str(k.index)+\
+                                ' separation='+str(min_sep))
+                    
+                    if ic != ik and abs(min_sep) <= 1:
+                        
+                        if verbose: 
+                            print(' --> Merged kluster '+str(k.index)+\
+                                    ' with '+str(c.index))
+                        
+                        n_c_mergers += 1
+                        
+                        c.merge_cluster(k)
+                        
+                        mergers.append(ik)
+                        
+                        if c.index not in remaining_clusters.keys():
+                            remaining_clusters[c.index] = c
+            
+                if n_c_mergers == 0:
+                    remaining_clusters[c.index] = c
+
+            if verbose: 
+                print('Mergers: '+repr(mergers))
+                print('Remaining clusters: '+repr(remaining_clusters))
+            
+        clusters = []
+        for c in remaining_clusters.values():
+            clusters.append(c)
+        
+        if len(mergers) == 0 or n_iter >= max_iter or len(clusters) == 1:
+            iterate = False
         
     return clusters
     
