@@ -21,7 +21,9 @@ from astropy.table import Table
 from photutils import datasets
 from photutils import DAOStarFinder
 import matplotlib.pyplot as plt
-import cv2
+from skimage import transform as tf
+from skimage import data
+from skimage import img_as_float64
 
 from pyDANDIA import config_utils
 from pyDANDIA import metadata
@@ -117,7 +119,7 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
         ref_fwhm_x = reduction_metadata.images_stats[1][ref_row_index]['FWHM_X'] 
         ref_fwhm_y = reduction_metadata.images_stats[1][ref_row_index]['FWHM_Y'] 
         ref_fwhm = (ref_fwhm_x**2 + ref_fwhm_y**2)**0.5
-        daofind = DAOStarFinder(fwhm = ref_fwhm, threshold = 4. * std_ref)    
+        daofind = DAOStarFinder(fwhm = ref_fwhm, threshold = 6. * std_ref)    
         ref_sources = daofind(reference_image - median_ref)
         ref_sources_x, ref_sources_y = np.copy(ref_sources['xcentroid']), np.copy(ref_sources['ycentroid'])
     ref_catalog = SkyCoord(ref_sources_x/float(central_region_x)*u.rad, ref_sources_y/float(central_region_x)*u.rad) 
@@ -133,7 +135,7 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
         data_fwhm_x = reduction_metadata.images_stats[1][row_index]['FWHM_X'] 
         data_fwhm_y = reduction_metadata.images_stats[1][row_index]['FWHM_Y'] 
         data_fwhm = (ref_fwhm_x**2 + ref_fwhm_y**2)**0.5
-        daofind = DAOStarFinder(fwhm = data_fwhm, threshold = 4. * std_data)    
+        daofind = DAOStarFinder(fwhm = data_fwhm, threshold = 6. * std_data)    
         data_sources = daofind(data_image - median_data)
         data_sources_x, data_sources_y = np.copy(data_sources['xcentroid'].data), np.copy(data_sources['ycentroid'].data)
         #correct for shift to facilitate cross-match
@@ -149,21 +151,19 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
         for idxref in range(len(idx_match)):
             idx = idx_match[idxref]
             if dist2d[idxref].rad*float(central_region_x)<3.:
-                pts1.append([ref_sources['xcentroid'].data[idx],ref_sources['ycentroid'].data[idx],0.])
-                pts2.append([data_sources['xcentroid'].data[idxref],data_sources['ycentroid'].data[idxref],0.])
+                pts2.append(ref_sources['xcentroid'].data[idx])
+                pts2.append(ref_sources['ycentroid'].data[idx])
+                pts1.append(data_sources['xcentroid'].data[idxref])
+                pts1.append(data_sources['ycentroid'].data[idxref])
         #permit translation again to be part of the least-squares problem
-        pts1 = np.float32(pts1)
-        pts2 = np.float32(pts2)
-        extend = lambda x: np.hstack([x, np.ones((x.shape[0], 1))])
-        pts1_input = extend(pts1)
-        pts2_input = extend(pts2)
-        #use the same lstsq as for umatrix:
-        trafo, resi, rank, sing = np.linalg.lstsq(pts1_input, pts2_input)
-        trafo_translation = np.float32([[trafo[0,0],trafo[0,1],-trafo[3,0]],[trafo[1,0],trafo[1,1],-trafo[3,1]]])
-        #trafo_translation = np.float32([[1.,0.,-trafo[3,0]],[0.,1.,-trafo[3,1]]])
-        #subctract negative values for cv2...
-        minval = np.min(data_image)
-        shifted = cv2.warpAffine(data_image-minval,trafo_translation,np.shape(reference_image))+minval
+        pts1 = np.array(pts1).reshape((len(pts1)/2,2))
+        pts2 = np.array(pts2).reshape((len(pts2)/2,2))
+                
+        tform = tf.estimate_transform('affine',pts1,pts2)
+        np.allclose(tform.inverse(tform(pts1)), pts1)
+        maxv = np.max(data_image)
+        shifted = tf.warp(img_as_float64(data_image/maxv),inverse_map = tform.inverse)
+        shifted = maxv * np.array(shifted)
 
         try:
              resampled_image_hdu = fits.PrimaryHDU(shifted)
