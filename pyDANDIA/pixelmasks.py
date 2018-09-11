@@ -2,11 +2,12 @@ import numpy as np
 import itertools
 
 
-def construct_a_master_mask(original_master_mask, list_of_masks):
+def construct_a_master_mask(original_master_mask, list_of_masks,log=None):
     master_mask = original_master_mask
     for index, mask in enumerate(list_of_masks[::-1]):
         master_mask += mask * 2 ** index
-
+        if log!=None:
+            log.info('-> Adding mask '+str(index)+' with values='+str(2**index))
     return master_mask
 
 

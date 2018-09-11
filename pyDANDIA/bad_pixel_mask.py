@@ -201,20 +201,18 @@ class BadPixelMask:
     
         pass
     
-    def mask_ccd_blooming(self,setup,reduction_metadata,image,log,
+    def mask_ccd_blooming(self,setup,reduction_metadata,image,log=None,
                           diagnostic_plots=False):
         """Method to identify and mask regions of an image where bright stars 
         have become so saturated that charge has bled along the columns, and
         a bright halo is created with a steep sky gradient."""
         
-        log.info('Masking blooming by saturated stars')
+        if log!=None: log.info('Masking blooming by saturated stars')
         
         psf_radius = reduction_metadata.reduction_parameters[1]['PSF_SIZE'][0]/2.0
         min_cluster_pix = int(np.pi * psf_radius * psf_radius)
         saturation = reduction_metadata.reduction_parameters[1]['MAXVAL'][0]
         
-        bloom_mask = np.zeros(self.saturated_pixels.shape)
-
         sat_columns = find_columns_with_blooming(self.saturated_pixels)
         
         sat_regions = []
@@ -238,7 +236,8 @@ class BadPixelMask:
             
             #hdu = fits.PrimaryHDU(sat_image_region)
             #hdu.writeto('image_region'+str(i)+'.fits', overwrite=True)
-            log.info('Region '+str(i)+' centred at '+str(r[4])+', '+str(r[5]))
+            if log!=None: 
+                log.info('Region '+str(i)+' centred at '+str(r[4])+', '+str(r[5]))
             
             # Histogram the bottom 10% of region and measure the background
             # using this to set the threshold
@@ -247,15 +246,17 @@ class BadPixelMask:
             
             (bkgd, bkgd_sigma, image_median, image_sigma) = estimate_background(section)
             
-            log.info('Image background value and sigma = '+str(bkgd)+\
+            if log!=None: 
+                log.info('Image background value and sigma = '+str(bkgd)+\
                                                   ', '+str(bkgd_sigma))
-            log.info('Image median value and sigma = '+str(image_median)+\
+                log.info('Image median value and sigma = '+str(image_median)+\
                                                   ', '+str(image_sigma))
                                                   
             threshold = bkgd + 3.0 * bkgd_sigma
             #threshold = image_median + 1.0 * image_sigma
             
-            log.info('Threshold above background = '+str(threshold))
+            if log!=None: 
+                log.info('Threshold above background = '+str(threshold))
             
             # Calc radial separation and angle of all pixels 
             # relative to the bloom centroid
@@ -277,14 +278,15 @@ class BadPixelMask:
                                               sat_image_region[idx].flatten(), 
                                               saturation, threshold)
             
-                log.info('Theta = '+str(tmin)+'rads, '+\
-                      'mask radius = '+str(mask_radius)+' pixels')
+                if log!=None: 
+                    log.info('Theta = '+str(tmin)+'rads, '+\
+                          'mask radius = '+str(mask_radius)+' pixels')
                 
                 jdx = np.where(radial_sep < mask_radius)
                 
                 kdx = select_common_indices_2D(idx, jdx)
                 
-                bloom_mask[yy[kdx],xx[kdx]] = 1
+                self.bloom_mask[yy[kdx],xx[kdx]] = 1
                 
                 tmin += dtheta
                 tmax = tmin + dtheta
@@ -485,64 +487,65 @@ def construct_the_pixel_mask(setup, reduction_metadata,
     
     log.info('Constructing the image bad pixel mask')
 
-    try:
-        bpm = BadPixelMask()
-        
-        image_dims = [reduction_metadata.reduction_parameters[1]['IMAGEY2'][0],
-                      reduction_metadata.reduction_parameters[1]['IMAGEX2'][0]]
-            
-        bpm.create_empty_masks(image_dims)
-        
-        if instrument_bpm == None:
-            
-            bpm.load_latest_instrument_mask(reduction_metadata.reduction_parameters[1]['INSTRID'][0],setup,log=log)
-            
-        else:
-            
-            bpm.instrument_mask = instrument_bpm.instrument_mask
-            
-            log.info('Included instrumental bad pixel mask data')
-            
-        if type(banzai_bpm) == type(fits.hdu.image.ImageHDU()):
-            
-            bpm.load_banzai_mask(banzai_bpm, log=log)
-        
-        # variables_pixel_mask = construct_the_variables_star_mask(open_image, variable_star_pixels=10)
+#    try:
+    bpm = BadPixelMask()
     
-        saturation_level = reduction_metadata.reduction_parameters[1]['MAXVAL']
+    image_dims = [reduction_metadata.reduction_parameters[1]['IMAGEY2'][0],
+                  reduction_metadata.reduction_parameters[1]['IMAGEX2'][0]]
         
-        bpm.mask_image_saturated_pixels(open_image, saturation_level, log=log)
+    bpm.create_empty_masks(image_dims)
     
-        bpm.mask_ccd_blooming(setup, reduction_metadata, open_image, log)
+    if instrument_bpm == None:
         
-        bpm.mask_image_low_level_pixels(open_image, low_level, log=log)
-    
-        list_of_masks = [bpm.instrument_mask, 
-                         bpm.banzai_mask, 
-                         bpm.saturated_pixels,
-                         bpm.bloom_mask,
-                         bpm.low_pixels]
+        bpm.load_latest_instrument_mask(reduction_metadata.reduction_parameters[1]['INSTRID'][0],setup,log=log)
         
-        bpm.master_mask = pixelmasks.construct_a_master_mask(bpm.master_mask, 
-                                                             list_of_masks)
+    else:
+        
+        bpm.instrument_mask = instrument_bpm.instrument_mask
+        
+        log.info('Included instrumental bad pixel mask data')
+        
+    if type(banzai_bpm) == type(fits.hdu.image.ImageHDU()):
+        
+        bpm.load_banzai_mask(banzai_bpm, log=log)
     
-        if log != None:
-            log.info('Successfully built a BPM')
-    
-        return bpm
+    # variables_pixel_mask = construct_the_variables_star_mask(open_image, variable_star_pixels=10)
 
-    except:
+    saturation_level = reduction_metadata.reduction_parameters[1]['MAXVAL']
+    
+    bpm.mask_image_saturated_pixels(open_image, saturation_level, log=log)
+
+    bpm.mask_ccd_blooming(setup, reduction_metadata, open_image, log=log)
+    
+    bpm.mask_image_low_level_pixels(open_image, low_level, log=log)
+
+    list_of_masks = [bpm.instrument_mask, 
+                     bpm.banzai_mask, 
+                     bpm.saturated_pixels,
+                     bpm.bloom_mask,
+                     bpm.low_pixels]
+    
+    bpm.master_mask = pixelmasks.construct_a_master_mask(bpm.master_mask, 
+                                                         list_of_masks,
+                                                         log=log)
+
+    if log != None:
+        log.info('Successfully built a BPM')
+
+    return bpm
+
+#    except:
 
         #master_mask = np.zeros(open_image.data.shape, int)
 
-        bpm = BadPixelMask()
+#        bpm = BadPixelMask()
         
-        bpm.create_empty_masks(open_image.data.shape)
+#        bpm.create_empty_masks(open_image.data.shape)
 
-        if log != None:
-            log.info('Error building the BPM; using zeroed array')
+#        if log != None:
+#            log.info('Error building the BPM; using zeroed array')
 
-    return bpm
+#    return bpm
 
 
 def find_clusters_saturated_pixels(setup,saturated_pixel_mask,image_shape,log):
