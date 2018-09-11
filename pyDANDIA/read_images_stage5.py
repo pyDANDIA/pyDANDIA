@@ -11,7 +11,8 @@ from pyDANDIA.sky_background import fit_sky_background, generate_sky_model_image
 from scipy.ndimage.interpolation import shift
 from astropy.stats import SigmaClip
 from photutils import Background2D, MedianBackground
-from scipy.misc import imresize
+from skimage.transform import resize
+
 import matplotlib.pyplot as plt
 
 def background_mesh_perc(image,perc=20,box=200):
@@ -32,7 +33,7 @@ def background_mesh_perc(image,perc=20,box=200):
             percentile_bkg[jdx,idx] = val
             idx += 1
         jdx += 1
-    result = imresize(percentile_bkg,size = np.shape(image),mode = 'F')
+    result = resize(percentile_bkg, np.shape(image),mode= 'reflect')	
     return result
 
 def background_mesh(image):
