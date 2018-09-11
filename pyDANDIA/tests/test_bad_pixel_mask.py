@@ -15,6 +15,7 @@ import numpy as np
 import glob
 from astropy.io import fits
 import mock
+import matplotlib.pyplot as plt
 
 params = {'red_dir': os.path.join(cwd, 'data', 'proc', 
                                    'ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip'), 
@@ -192,23 +193,24 @@ def test_mask_ccd_blooming():
     setup.verbosity = 2
     
     reduction_metadata = mock.MagicMock()
-    reduction_metadata.reduction_parameters = [0, {'PSF_SIZE': [8]}]
+    reduction_metadata.reduction_parameters = [0, {'PSF_SIZE': [8], 
+                                                   'MAXVAL': [1.4e5]}]
 
     log = logs.start_pipeline_log(setup.log_dir, 'test_mask_blooming')
     
     file_path = raw_input('Please enter the path to a bad pixel mask file: ')
     
-    with fits.open(file_path) as hdul:
-        
-        image = hdul[0].data
-        
-        image_shape = image.shape
-        
-        saturated_pixel_mask = np.zeros(image_shape)
-        
-        idx = np.where(hdul[3].data == 2)
-        
-        saturated_pixel_mask[idx] = 1
+    hdul = fits.open(file_path)
+    
+    image = hdul[0].data
+    
+    image_shape = image.shape
+    
+    saturated_pixel_mask = np.zeros(image_shape)
+    
+    idx = np.where(hdul[3].data == 2)
+    
+    saturated_pixel_mask[idx] = 1
         
     generate = False
     if generate:
@@ -227,7 +229,6 @@ def test_mask_ccd_blooming():
         xx,yy = np.meshgrid(x,y)
         model = 100000.0 * np.exp(-(((xx - 1010) / 16.0)**2 +((yy - 1000) / 16.0)**2) / 2)
         image[yy,xx] += model
-        
         
         saturated_pixel_mask = np.zeros(image_shape)
         
@@ -260,7 +261,8 @@ def test_mask_ccd_blooming():
     
     bpm.saturated_pixels = saturated_pixel_mask
     
-    bpm.mask_ccd_blooming(setup,reduction_metadata,image,log)
+    bpm.mask_ccd_blooming(setup,reduction_metadata,hdul[0],log,
+                          diagnostic_plots=True)
     
     logs.close_log(log)
     
@@ -291,7 +293,8 @@ def test_construct_the_pixel_mask():
     reduction_metadata.reduction_parameters = [0, {'IMAGEY2': [image_dims[0]], 
                                                    'IMAGEX2': [image_dims[1]],
                                                    'MAXVAL': [1.4e5],
-                                                   'INSTRID': ['fl15']}]
+                                                   'INSTRID': ['fl15'],
+                                                   'PSF_SIZE': [8.0]}]
     
     image_bad_pixel_mask = np.zeros(image_dims)
 
@@ -307,7 +310,7 @@ def test_construct_the_pixel_mask():
     logs.close_log(log)
 
     assert np.allclose(bpm.master_mask, image_bad_pixel_mask - 89)
-
+    
 def test_create_empty_masks():
     
     bpm = bad_pixel_mask.BadPixelMask()
@@ -342,7 +345,53 @@ def test_find_columns_with_blooming():
         saturated_pixel_mask[idx] = 1
     
     bad_pixel_mask.find_columns_with_blooming(saturated_pixel_mask)
+
+def test_select_pixels_in_theta_range():
     
+    x = np.arange(-np.pi, np.pi, (np.pi/180.0))
+    y = np.arange(-np.pi, np.pi, (np.pi/180.0))
+    theta = np.meshgrid(x,y)[0]
+
+    theta_min = 0.0
+    theta_max = (10.0*np.pi)/180.0
+    
+    idx = bad_pixel_mask.select_pixels_in_theta_range(theta, theta_min, theta_max)
+    
+    theta_selected = np.zeros(theta.shape)
+    theta_selected[idx] = theta[idx]
+    
+    fig = plt.figure(3)
+    plt.subplot(211)
+    plt.imshow(theta, cmap='hot')
+    plt.subplot(212)
+    plt.imshow(theta_selected,cmap='hot')
+    plt.colorbar()  
+    
+    plt.savefig('test_pixel_selection_by_theta.png')
+    plt.close(3)
+    
+    assert len(idx[0]) == 3600
+    assert len(idx[1]) == 3600
+
+def test_measure_mask_radius():
+    
+    x = np.arange(0.0,200.0,1.0)
+    y = 20.0 * np.e**(-0.05*x)
+    threshold = 10.0
+    
+    mask_radius = bad_pixel_mask.measure_mask_radius(x,y, 10000.0, threshold)
+    
+    fig = plt.figure(3)
+    plt.plot(x,y,'k-')
+    y2 = np.arange(0.0,y.max(),1.0)
+    plt.plot([mask_radius]*len(y2), y2, 'r-.')
+    plt.plot(x, [threshold]*len(x), 'b--')
+    plt.savefig('test_measure_mask_radius.png')
+    plt.close(3)
+                              
+    idx = np.where(y < threshold)
+    
+    assert mask_radius == x[idx[0][0]]
     
 if __name__ == '__main__':
     
@@ -354,8 +403,8 @@ if __name__ == '__main__':
     #test_id_neighbouring_pixels()
     #test_find_clusters_saturated_pixels()
     #test_create_empty_masks()
-    #test_construct_the_pixel_mask()
+    test_construct_the_pixel_mask()
     #test_find_columns_with_blooming()
-    
-    test_mask_ccd_blooming()
-    
+    #test_select_pixels_in_theta_range()
+    #test_measure_mask_radius()
+    #test_mask_ccd_blooming()

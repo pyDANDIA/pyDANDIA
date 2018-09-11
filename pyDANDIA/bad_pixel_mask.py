@@ -25,6 +25,7 @@ class BadPixelMask:
         self.instrument_mask = np.zeros([1])
         self.banzai_mask = np.zeros([1])
         self.saturated_pixels = np.zeros([1])
+        self.bloom_mask = np.zeros([1])
         self.low_pixels = np.zeros([1])
         self.variable_stars = np.zeros([1])
         self.master_mask = np.zeros([1])
@@ -34,6 +35,7 @@ class BadPixelMask:
         self.instrument_mask = np.zeros(image_dims,int)
         self.banzai_mask = np.zeros(image_dims,int)
         self.saturated_pixels = np.zeros(image_dims,int)
+        self.bloom_mask = np.zeros(image_dims,int)
         self.low_pixels = np.zeros(image_dims,int)
         self.master_mask = np.zeros(image_dims,int)
         
@@ -199,14 +201,20 @@ class BadPixelMask:
     
         pass
     
-    def mask_ccd_blooming(self,setup,reduction_metadata,image,log):
+    def mask_ccd_blooming(self,setup,reduction_metadata,image,log,
+                          diagnostic_plots=False):
         """Method to identify and mask regions of an image where bright stars 
         have become so saturated that charge has bled along the columns, and
         a bright halo is created with a steep sky gradient."""
         
+        log.info('Masking blooming by saturated stars')
+        
         psf_radius = reduction_metadata.reduction_parameters[1]['PSF_SIZE'][0]/2.0
         min_cluster_pix = int(np.pi * psf_radius * psf_radius)
-            
+        saturation = reduction_metadata.reduction_parameters[1]['MAXVAL'][0]
+        
+        bloom_mask = np.zeros(self.saturated_pixels.shape)
+
         sat_columns = find_columns_with_blooming(self.saturated_pixels)
         
         sat_regions = []
@@ -217,24 +225,86 @@ class BadPixelMask:
             
             sat_rows = find_rows_with_blooming(sat_image_region, 
                                                   diagnostic_plots=True)
-            
-            print('X center '+str(columns[0])+' range: '+str(columns[1])+' to '+str(columns[2]))
+                                                  
+            # Grow columns to include halo
             for rows in sat_rows:
-                print('Y center '+str(rows[0])+' range: '+str(rows[1])+' to '+str(rows[2]))
-            
-            sat_regions.append( [ columns[1], columns[2], rows[1], rows[2] ] )
+                sat_regions.append( [ int(columns[1]*0.95), int(columns[2]*1.05), 
+                                     rows[1], rows[2], 
+                                     columns[0], rows[0] ] )
             
         for i,r in enumerate(sat_regions):
             
-            sat_image_region = image[r[2]:r[3],r[0]:r[1]]
+            sat_image_region = image.data[r[2]:r[3],r[0]:r[1]]
             
-            hdu = fits.PrimaryHDU(sat_image_region)
-            hdu.writeto('image_section'+str(i)+'.fits', overwrite=True)
+            #hdu = fits.PrimaryHDU(sat_image_region)
+            #hdu.writeto('image_region'+str(i)+'.fits', overwrite=True)
+            log.info('Region '+str(i)+' centred at '+str(r[4])+', '+str(r[5]))
             
-#            cluster = find_clusters_saturated_pixels(setup,sat_image_region,
-#                                                     sat_image_region.shape,log)
+            # Histogram the bottom 10% of region and measure the background
+            # using this to set the threshold
+            nrows = sat_image_region.shape[0]
+            section = sat_image_region[0:int(nrows*0.1),:]
             
+            (bkgd, bkgd_sigma, image_median, image_sigma) = estimate_background(section)
+            
+            log.info('Image background value and sigma = '+str(bkgd)+\
+                                                  ', '+str(bkgd_sigma))
+            log.info('Image median value and sigma = '+str(image_median)+\
+                                                  ', '+str(image_sigma))
+                                                  
+            threshold = bkgd + 3.0 * bkgd_sigma
+            #threshold = image_median + 1.0 * image_sigma
+            
+            log.info('Threshold above background = '+str(threshold))
+            
+            # Calc radial separation and angle of all pixels 
+            # relative to the bloom centroid
+            x = np.arange(r[0],r[1],1)
+            y = np.arange(r[2],r[3],1)
+            (xx,yy) = np.meshgrid(x,y)
+            dx = xx - r[4]
+            dy = yy - r[5]
+            radial_sep = np.sqrt((dx*dx) + (dy*dy))
+            theta = np.arcsin(dy/radial_sep)
+            
+            dtheta = (10.0*np.pi)/180.0
+            tmin = -np.pi/2.0
+            tmax = tmin + dtheta
+            while tmax <= (np.pi/2.0) + dtheta:
+                idx = select_pixels_in_theta_range(theta, tmin, tmax)
+            
+                mask_radius = measure_mask_radius(radial_sep[idx].flatten(), 
+                                              sat_image_region[idx].flatten(), 
+                                              saturation, threshold)
+            
+                log.info('Theta = '+str(tmin)+'rads, '+\
+                      'mask radius = '+str(mask_radius)+' pixels')
                 
+                jdx = np.where(radial_sep < mask_radius)
+                
+                kdx = select_common_indices_2D(idx, jdx)
+                
+                bloom_mask[yy[kdx],xx[kdx]] = 1
+                
+                tmin += dtheta
+                tmax = tmin + dtheta
+                
+                # Order array of pixel values in increasing radial separation
+                if diagnostic_plots:
+                    fig = plt.figure(2)
+                    plt.plot(radial_sep[idx].flatten(),sat_image_region[idx].flatten(),'r.')
+                    threshold_line = np.arange(0,(radial_sep[idx].max()),1)
+                    plt.plot(threshold_line,
+                             [threshold]*len(threshold_line),'m-.')
+                    mask_line = np.arange(0,(sat_image_region[idx].max()),1)
+                    plt.plot([mask_radius]*len(mask_line), mask_line, 'k--')
+                    plt.savefig('test_theta'+str(round(tmin,3))+'.png')
+                    plt.close(2)
+            
+        if diagnostic_plots:
+            hdu = fits.PrimaryHDU(bloom_mask)
+            hdu.writeto('bloom_mask.fits', overwrite=True)
+        
 class PixelCluster():
     """Class describing the properties of clusters of pixels in an image"""
     
@@ -443,11 +513,14 @@ def construct_the_pixel_mask(setup, reduction_metadata,
         
         bpm.mask_image_saturated_pixels(open_image, saturation_level, log=log)
     
+        bpm.mask_ccd_blooming(setup, reduction_metadata, open_image, log)
+        
         bpm.mask_image_low_level_pixels(open_image, low_level, log=log)
     
         list_of_masks = [bpm.instrument_mask, 
                          bpm.banzai_mask, 
-                         bpm.saturated_pixels, 
+                         bpm.saturated_pixels,
+                         bpm.bloom_mask,
                          bpm.low_pixels]
         
         bpm.master_mask = pixelmasks.construct_a_master_mask(bpm.master_mask, 
@@ -634,7 +707,7 @@ def find_columns_with_blooming(saturated_pixel_mask, diagnostic_plots=False):
         regions.append( [c.xc, xmin, xmax] )
         
     if diagnostic_plots:
-        fig = plt.figure()
+        fig = plt.figure(1)
         
         plt.plot(np.arange(0,len(columns),1), columns, 'm-', label='Columns')
         plt.xlabel('X pixel column')
@@ -642,6 +715,8 @@ def find_columns_with_blooming(saturated_pixel_mask, diagnostic_plots=False):
         
         plt.savefig('saturated_columns_spectrum.png')
     
+        plt.close(1)
+        
     return regions
     
 def find_rows_with_blooming(saturated_pixel_mask, diagnostic_plots=False):
@@ -677,14 +752,16 @@ def find_rows_with_blooming(saturated_pixel_mask, diagnostic_plots=False):
         regions.append( [c.xc, xmin, xmax] )
         
     if diagnostic_plots:
-        fig = plt.figure()
+        fig = plt.figure(1)
         
         plt.plot(np.arange(0,len(rows),1), rows, 'b--', label='Rows')
         plt.title('Rows')
         plt.xlabel('Y pixel row')
         
         plt.savefig('saturated_row_spectrum.png')
-    
+        
+        plt.close(1)
+        
     return regions
     
 
@@ -756,4 +833,80 @@ def find_clusters_in_vector(vector,verbose=False):
             iterate = False
         
     return clusters
+
+def estimate_background(section):
+    """Function to estimate the count level of the sky background in a
+    section of an image, by histograming the pixel values and identifying
+    the peak of the values less than 2*median"""
     
+    idx = np.where(section <= 2.0*np.median(section))
+            
+    hist = np.histogram(section[idx].flatten(),bins=100)
+    
+    max_entries = hist[0].max()
+    i = np.where(hist[0] == max_entries)
+    bkgd = hist[1][i][0]
+    
+    idx = np.where(hist[0] > 200)
+    
+    bkgd_sigma = hist[1][idx].std()
+    
+    image_median = np.median(section)
+    image_sigma = section.std()
+    
+    return bkgd, bkgd_sigma, image_median, image_sigma
+
+def measure_mask_radius(radial_seps, pixel_values, saturation, threshold):
+    """Function to calculate the radius from a saturated and blooming star
+    to which pixels should be masked, based on when the wings of that star
+    drop below a pixel value threshold above the background. 
+    
+    :param 1D array radial_seps: Radial separations of pixels from the 
+                                 centroid of the saturated star
+    :param 1D array pixel_values: Counts in ADU of the pixels
+    :param float saturation:     Maximum counts after which the detector
+                                 behaves non-linearly
+    :param float threshold:      Threshold above background in ADU
+    
+    Note that the arrays provided are assumed to be vectors (i.e. flatten)
+    rather than retaining x,y positional information.
+    """
+    
+    # Exclude saturated pixels
+    idx = np.where(pixel_values < saturation)
+    
+    r = radial_seps[idx]
+    data = pixel_values[idx]
+    
+    # Sorting the non-saturated pixels into increasing order of radial 
+    # separation, locate the index where the pixel value first drops 
+    # below the threshold
+    idx = r.argsort()
+    jdx = np.where( (data[idx] - threshold) < 0.0 )
+    
+    mask_radius = r[idx][jdx[0][0]]
+    
+    return mask_radius
+    
+def select_pixels_in_theta_range(theta, theta_min, theta_max):
+    
+    idx1 = np.where(theta >= theta_min)
+    idx2 = np.where(theta <= theta_max)
+    
+    idx = select_common_indices_2D(idx1, idx2)
+    
+    return idx
+
+def select_common_indices_2D(idx, jdx):
+    """Function to select the common index pairs from two, 2D index arrays"""
+    
+    locs1 = zip( list(idx[0]), list(idx[1]) )
+    locs2 = zip( list(jdx[0]), list(jdx[1]) )
+    
+    kdx = list(set(locs1).intersection(set(locs2)))
+    
+    (idx,jdx) = zip(*kdx)
+    
+    kdx = (np.array(list(idx)), np.array(list(jdx)))
+    
+    return kdx
