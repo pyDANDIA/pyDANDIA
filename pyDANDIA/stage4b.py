@@ -16,6 +16,8 @@ from astropy.stats import sigma_clipped_stats
 from astropy import units as u
 from astropy.coordinates import SkyCoord
 from astropy.coordinates import match_coordinates_sky
+from random import shuffle
+from ccdproc import cosmicray_lacosmic
 
 from astropy.table import Table
 from photutils import datasets
@@ -96,7 +98,6 @@ def run_stage4b(setup):
         return status, report, reduction_metadata
  
     px_scale = float(reduction_metadata.reduction_parameters[1]['PIX_SCALE']) 
-
     resample_image(new_images, reference_image_name, reference_image_directory, reduction_metadata, setup, data_image_directory, resampled_directory_path, ref_row_index, px_scale, log = log)
 
     #append some metric for the kernel, perhaps its scale factor...
@@ -111,6 +112,7 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
     if len(new_images) > 0:
         reference_image_hdu = fits.open(os.path.join(reference_image_directory, reference_image_name),memmap=True)
         reference_image = reference_image_hdu[0].data
+        reference_image = cosmicray_lacosmic(reference_image, sigclip=7., objlim = 7, satlevel =  float(reduction_metadata.reduction_parameters[1]['MAXVAL'][0]))[0]
 #       reference_image, bright_reference_mask, reference_image_unmasked = open_reference(setup, reference_image_directory, reference_image_name, ref_extension = 0, log = log, central_crop = maxshift)
         #generate reference catalog
         central_region_x, central_region_y = np.shape(reference_image)
@@ -119,9 +121,11 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
         ref_fwhm_x = reduction_metadata.images_stats[1][ref_row_index]['FWHM_X'] 
         ref_fwhm_y = reduction_metadata.images_stats[1][ref_row_index]['FWHM_Y'] 
         ref_fwhm = (ref_fwhm_x**2 + ref_fwhm_y**2)**0.5
-        daofind = DAOStarFinder(fwhm = ref_fwhm, threshold = 6. * std_ref)    
+        daofind = DAOStarFinder(fwhm = max(ref_fwhm_x, ref_fwhm_y), ratio = min(ref_fwhm_x,ref_fwhm_y)/max(ref_fwhm_x,ref_fwhm_y), threshold = 6. * std_ref, exclude_border = True)    
         ref_sources = daofind(reference_image - median_ref)
         ref_sources_x, ref_sources_y = np.copy(ref_sources['xcentroid']), np.copy(ref_sources['ycentroid'])
+
+    #ref_sources_x, ref_sources_y =    ref_sources_x[flxsort], ref_sources_y[flxsort]
     ref_catalog = SkyCoord(ref_sources_x/float(central_region_x)*u.rad, ref_sources_y/float(central_region_x)*u.rad) 
 
     for new_image in new_images:
@@ -129,23 +133,24 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
         x_shift, y_shift = -reduction_metadata.images_stats[1][row_index]['SHIFT_X'], -reduction_metadata.images_stats[1][row_index]['SHIFT_Y'] 
         data_image_hdu = fits.open(os.path.join(data_image_directory, new_image),memmap=True)
         data_image = data_image_hdu[0].data
+        data_image = cosmicray_lacosmic(data_image, sigclip=7., objlim = 7, satlevel =  float(reduction_metadata.reduction_parameters[1]['MAXVAL'][0]))[0]
         central_region_x, central_region_y = np.shape(data_image)
         center_x, center_y = central_region_x/2, central_region_y/2
         mean_data, median_data, std_data = sigma_clipped_stats(data_image[center_x-central_region_x/4:center_x+central_region_x/4,center_y-central_region_y/4:center_y+central_region_y/4], sigma = 3.0, iters = 5)    
         data_fwhm_x = reduction_metadata.images_stats[1][row_index]['FWHM_X'] 
         data_fwhm_y = reduction_metadata.images_stats[1][row_index]['FWHM_Y'] 
         data_fwhm = (ref_fwhm_x**2 + ref_fwhm_y**2)**0.5
-        daofind = DAOStarFinder(fwhm = data_fwhm, threshold = 6. * std_data)    
+        daofind = DAOStarFinder(fwhm = max(data_fwhm_x,data_fwhm_y),ratio = min(data_fwhm_x,data_fwhm_y)/max(data_fwhm_x,data_fwhm_y) , threshold = 6. * std_data, exclude_border = True)    
         data_sources = daofind(data_image - median_data)
         data_sources_x, data_sources_y = np.copy(data_sources['xcentroid'].data), np.copy(data_sources['ycentroid'].data)
+        #data_sources_x, data_sources_y = data_sources_x[flxsort], data_sources_y[flxsort]
         #correct for shift to facilitate cross-match
-
         data_sources_x -= x_shift
         data_sources_y -= y_shift
         data_catalog = SkyCoord(data_sources_x/float(central_region_x)*u.rad, data_sources_y/float(central_region_x)*u.rad) 
 
         idx_match, dist2d, dist3d = match_coordinates_sky( data_catalog,ref_catalog, storekdtree='kdtree_sky')  
-        #reformat points for cv2
+        #reformat points for scikit
         pts1=[]
         pts2=[]
         for idxref in range(len(idx_match)):
@@ -155,23 +160,27 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
                 pts2.append(ref_sources['ycentroid'].data[idx])
                 pts1.append(data_sources['xcentroid'].data[idxref])
                 pts1.append(data_sources['ycentroid'].data[idxref])
-        #permit translation again to be part of the least-squares problem
-        pts1 = np.array(pts1).reshape((len(pts1)/2,2))
-        pts2 = np.array(pts2).reshape((len(pts2)/2,2))
-                
-        tform = tf.estimate_transform('affine',pts1,pts2)
-        np.allclose(tform.inverse(tform(pts1)), pts1)
-        maxv = np.max(data_image)
-        shifted = tf.warp(img_as_float64(data_image/maxv),inverse_map = tform.inverse)
-        shifted = maxv * np.array(shifted)
-
-        try:
-             resampled_image_hdu = fits.PrimaryHDU(shifted)
-             resampled_image_hdu.writeto(os.path.join(resampled_directory_path,new_image),overwrite = True)
-        except Exception as e:
-            if log is not None:
-                logs.ifverbose(log, setup,'resampling failed:' + new_image + '. skipping! '+str(e))
-            else:
-                print(str(e))
+            if len(pts1)>4000:
+                break
+        #resample image if there is a sufficient number of stars
+        if len(pts1)>10:
+            #permit translation again to be part of the least-squares problem
+            pts1 = np.array(pts1).reshape((len(pts1)/2,2))
+            pts2 = np.array(pts2).reshape((len(pts2)/2,2))               
+            tform = tf.estimate_transform('affine',pts1,pts2)
+            np.allclose(tform.inverse(tform(pts1)), pts1)    
+            maxv = np.max(data_image)
+            shifted = tf.warp(img_as_float64(data_image/maxv),inverse_map = tform.inverse)
+            shifted = maxv * np.array(shifted)
+    	    #cosmic ray rejection
+            
+            try:
+                 resampled_image_hdu = fits.PrimaryHDU(shifted)
+                 resampled_image_hdu.writeto(os.path.join(resampled_directory_path,new_image),overwrite = True)
+            except Exception as e:
+                if log is not None:
+                    logs.ifverbose(log, setup,'resampling failed:' + new_image + '. skipping! '+str(e))
+                else:
+                    print(str(e))
 
 

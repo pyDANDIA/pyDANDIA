@@ -22,7 +22,7 @@ def open_reference_subimages(setup, reduction_metadata, kernel_size, max_adu, ma
     #load all reference subimages
     ref_image1 = fits.open(os.path.join(reference_image_directory, reference_image_name), mmap=True)
     for substamp_idx in range(len(reduction_metadata.stamps[1])):
-        print substamp_idx,'of',len(reduction_metadata.stamps[1])
+        print(substamp_idx,'of',len(reduction_metadata.stamps[1]))
         subset_slice = [int(reduction_metadata.stamps[1][substamp_idx]['Y_MIN']),int(reduction_metadata.stamps[1][substamp_idx]['Y_MAX']),int(reduction_metadata.stamps[1][substamp_idx]['X_MIN']),int(reduction_metadata.stamps[1][substamp_idx]['X_MAX'])]       
         reference_image, bright_reference_mask, reference_image_unmasked = open_reference(setup, reference_image_directory, reference_image_name, kernel_size, max_adu, ref_extension = 0, log = None, central_crop = maxshift, subset = subset_slice,ref_image1=ref_image1, min_adu = 200.)
         reference_stamps.append([reference_image,bright_reference_mask,reference_image_unmasked])       

@@ -13,12 +13,17 @@ import numpy as np
 import os
 from astropy.io import fits
 import sys
+from skimage import transform as tf
+from skimage import data
+from skimage import img_as_float64
 
 from pyDANDIA import config_utils
 
 from pyDANDIA import metadata
 from pyDANDIA import logs
 from pyDANDIA import convolution
+
+
 
 def run_stage4(setup):
     """Main driver function to run stage 4: image alignement.
@@ -226,7 +231,7 @@ def correlation_shift(reference_image, target_image):
 
 
 
-    :return: [good_shift_y, good_shift_x], the shifts of this image
+    :return: data
     :rtype: array_like
     """
 
@@ -243,4 +248,95 @@ def correlation_shift(reference_image, target_image):
     good_shift_y = y_shift - y_center
     good_shift_x = x_shift - x_center
     return good_shift_y, good_shift_x
+
+
+def resample_image(new_images, reference_image_name, reference_image_directory, reduction_metadata, setup, data_image_directory, resampled_directory_path, ref_row_index, px_scale, log = None):  
+    """
+    Resample images so that they are better aligned with the resulting data images.
+
+    :param object new_images: the reference image data (i.e image.data)
+    :param object reference_image_name: the image data of interest (i.e image.data)
+    :param object reference_image_directory: the image data of interest (i.e image.data)
+    :param object reduction_metadata: the image data of interest (i.e image.data)
+    :param object target_image: the image data of interest (i.e image.data)
+    :param object target_image: the image data of interest (i.e image.data)
+    :param object target_image: the image data of interest (i.e image.data)
+
+
+    """
+
+    if len(new_images) > 0:
+        reference_image_hdu = fits.open(os.path.join(reference_image_directory, reference_image_name),memmap=True)
+        reference_image = reference_image_hdu[0].data
+#       reference_image, bright_reference_mask, reference_image_unmasked = open_reference(setup, reference_image_directory, reference_image_name, ref_extension = 0, log = log, central_crop = maxshift)
+        #generate reference catalog
+        central_region_x, central_region_y = np.shape(reference_image)
+        center_x, center_y = central_region_x/2, central_region_y/2
+        mean_ref, median_ref, std_ref = sigma_clipped_stats(reference_image[center_x-central_region_x/4:center_x+central_region_x/4,center_y-central_region_y/4:center_y+central_region_y/4], sigma = 3.0, iters = 5)    
+        ref_fwhm_x = reduction_metadata.images_stats[1][ref_row_index]['FWHM_X'] 
+        ref_fwhm_y = reduction_metadata.images_stats[1][ref_row_index]['FWHM_Y'] 
+        ref_fwhm = (ref_fwhm_x**2 + ref_fwhm_y**2)**0.5
+        daofind = DAOStarFinder(fwhm = ref_fwhm, threshold = 5. * std_ref)    
+        ref_sources = daofind(reference_image - median_ref)
+        ref_sources_x, ref_sources_y = np.copy(ref_sources['xcentroid']), np.copy(ref_sources['ycentroid'])
+    ref_catalog = SkyCoord(ref_sources_x/float(central_region_x)*u.rad, ref_sources_y/float(central_region_x)*u.rad) 
+
+    for new_image in new_images:
+        row_index = np.where(reduction_metadata.images_stats[1]['IM_NAME'] == new_image)[0][0]
+        x_shift, y_shift = -reduction_metadata.images_stats[1][row_index]['SHIFT_X'], -reduction_metadata.images_stats[1][row_index]['SHIFT_Y'] 
+        data_image_hdu = fits.open(os.path.join(data_image_directory, new_image),memmap=True)
+        data_image = data_image_hdu[0].data
+        central_region_x, central_region_y = np.shape(data_image)
+        center_x, center_y = central_region_x/2, central_region_y/2
+        mean_data, median_data, std_data = sigma_clipped_stats(data_image[center_x-central_region_x/4:center_x+central_region_x/4,center_y-central_region_y/4:center_y+central_region_y/4], sigma = 3.0, iters = 5)    
+        data_fwhm_x = reduction_metadata.images_stats[1][row_index]['FWHM_X'] 
+        data_fwhm_y = reduction_metadata.images_stats[1][row_index]['FWHM_Y'] 
+        data_fwhm = (ref_fwhm_x**2 + ref_fwhm_y**2)**0.5
+        daofind = DAOStarFinder(fwhm = data_fwhm, threshold = 5. * std_data)    
+        data_sources = daofind(data_image - median_data)
+        data_sources_x, data_sources_y = np.copy(data_sources['xcentroid'].data), np.copy(data_sources['ycentroid'].data)
+        #correct for shift to facilitate cross-match
+
+        data_sources_x -= x_shift
+        data_sources_y -= y_shift
+        data_catalog = SkyCoord(data_sources_x/float(central_region_x)*u.rad, data_sources_y/float(central_region_x)*u.rad) 
+
+        idx_match, dist2d, dist3d = match_coordinates_sky( data_catalog,ref_catalog, storekdtree='kdtree_sky')  
+        #reformat points for cv2
+        pts1=[]
+        pts2=[]
+#        idx_match = shuffle(idx_match)
+        for idxref in range(len(idx_match)):
+            idx = idx_match[idxref]
+            if dist2d[idxref].rad*float(central_region_x)<2.5:
+                pts2.append(ref_sources['xcentroid'].data[idx])
+                pts2.append(ref_sources['ycentroid'].data[idx])
+                pts1.append(data_sources['xcentroid'].data[idxref])
+                pts1.append(data_sources['ycentroid'].data[idxref])
+            if len(pts1)>2500:
+                break
+        #permit translation again to be part of the least-squares problem
+        pts1 = np.array(pts1).reshape((len(pts1)/2,2))
+        pts2 = np.array(pts2).reshape((len(pts2)/2,2))
+                
+        print len(pts1),len(pts2)
+#        tform = tf.estimate_transform('polynomial',pts2,pts1)
+        tform = tf.estimate_transform('affine',pts1,pts2)
+ 
+        np.allclose(tform.inverse(tform(pts1)), pts1)
+        maxv = np.max(data_image)
+        shifted = tf.warp(img_as_float64(data_image/maxv),inverse_map = tform.inverse)
+ #       shifted = tf.warp(img_as_float64(data_image/maxv),inverse_map = tform)
+
+        shifted = maxv * np.array(shifted)
+
+        try:
+             resampled_image_hdu = fits.PrimaryHDU(shifted)
+             resampled_image_hdu.writeto(os.path.join(resampled_directory_path,new_image),overwrite = True)
+        except Exception as e:
+            if log is not None:
+                logs.ifverbose(log, setup,'resampling failed:' + new_image + '. skipping! '+str(e))
+            else:
+                print(str(e))
+
 
