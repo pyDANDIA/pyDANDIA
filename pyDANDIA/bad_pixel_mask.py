@@ -487,65 +487,65 @@ def construct_the_pixel_mask(setup, reduction_metadata,
     
     log.info('Constructing the image bad pixel mask')
 
-#    try:
-    bpm = BadPixelMask()
+    try:
+        bpm = BadPixelMask()
+        
+        image_dims = [reduction_metadata.reduction_parameters[1]['IMAGEY2'][0],
+                      reduction_metadata.reduction_parameters[1]['IMAGEX2'][0]]
+            
+        bpm.create_empty_masks(image_dims)
+        
+        if instrument_bpm == None:
+            
+            bpm.load_latest_instrument_mask(reduction_metadata.reduction_parameters[1]['INSTRID'][0],setup,log=log)
+            
+        else:
+            
+            bpm.instrument_mask = instrument_bpm.instrument_mask
+            
+            log.info('Included instrumental bad pixel mask data')
+            
+        if type(banzai_bpm) == type(fits.hdu.image.ImageHDU()):
+            
+            bpm.load_banzai_mask(banzai_bpm, log=log)
+        
+        # variables_pixel_mask = construct_the_variables_star_mask(open_image, variable_star_pixels=10)
     
-    image_dims = [reduction_metadata.reduction_parameters[1]['IMAGEY2'][0],
-                  reduction_metadata.reduction_parameters[1]['IMAGEX2'][0]]
+        saturation_level = reduction_metadata.reduction_parameters[1]['MAXVAL']
         
-    bpm.create_empty_masks(image_dims)
+        bpm.mask_image_saturated_pixels(open_image, saturation_level, log=log)
     
-    if instrument_bpm == None:
+        bpm.mask_ccd_blooming(setup, reduction_metadata, open_image, log=log)
         
-        bpm.load_latest_instrument_mask(reduction_metadata.reduction_parameters[1]['INSTRID'][0],setup,log=log)
-        
-    else:
-        
-        bpm.instrument_mask = instrument_bpm.instrument_mask
-        
-        log.info('Included instrumental bad pixel mask data')
-        
-    if type(banzai_bpm) == type(fits.hdu.image.ImageHDU()):
-        
-        bpm.load_banzai_mask(banzai_bpm, log=log)
+        bpm.mask_image_low_level_pixels(open_image, low_level, log=log)
     
-    # variables_pixel_mask = construct_the_variables_star_mask(open_image, variable_star_pixels=10)
-
-    saturation_level = reduction_metadata.reduction_parameters[1]['MAXVAL']
+        list_of_masks = [bpm.instrument_mask, 
+                         bpm.banzai_mask, 
+                         bpm.saturated_pixels,
+                         bpm.bloom_mask,
+                         bpm.low_pixels]
+        
+        bpm.master_mask = pixelmasks.construct_a_master_mask(bpm.master_mask, 
+                                                             list_of_masks,
+                                                             log=log)
     
-    bpm.mask_image_saturated_pixels(open_image, saturation_level, log=log)
-
-    bpm.mask_ccd_blooming(setup, reduction_metadata, open_image, log=log)
+        if log != None:
+            log.info('Successfully built a BPM')
     
-    bpm.mask_image_low_level_pixels(open_image, low_level, log=log)
+        return bpm
 
-    list_of_masks = [bpm.instrument_mask, 
-                     bpm.banzai_mask, 
-                     bpm.saturated_pixels,
-                     bpm.bloom_mask,
-                     bpm.low_pixels]
-    
-    bpm.master_mask = pixelmasks.construct_a_master_mask(bpm.master_mask, 
-                                                         list_of_masks,
-                                                         log=log)
-
-    if log != None:
-        log.info('Successfully built a BPM')
-
-    return bpm
-
-#    except:
+    except:
 
         #master_mask = np.zeros(open_image.data.shape, int)
 
-#        bpm = BadPixelMask()
+        bpm = BadPixelMask()
         
-#        bpm.create_empty_masks(open_image.data.shape)
+        bpm.create_empty_masks(open_image.data.shape)
 
-#        if log != None:
-#            log.info('Error building the BPM; using zeroed array')
+        if log != None:
+            log.info('Error building the BPM; using zeroed array')
 
-#    return bpm
+    return bpm
 
 
 def find_clusters_saturated_pixels(setup,saturated_pixel_mask,image_shape,log):
