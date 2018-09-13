@@ -53,7 +53,12 @@ def run_stage5(setup):
     #determine kernel size based on maximum FWHM
     fwhm_max = 0.
     shift_max = 0
+    shifts = []
     for stats_entry in reduction_metadata.images_stats[1]:
+        if np.isfinite(float(stats_entry['SHIFT_X'])):
+            shifts.append(float(stats_entry['SHIFT_X']))
+        if np.isfinite(float(stats_entry['SHIFT_Y'])):
+            shifts.append(float(stats_entry['SHIFT_Y']))
         if float(stats_entry['FWHM_X'])> fwhm_max:
             fwhm_max = stats_entry['FWHM_X']
         if float(stats_entry['FWHM_Y'])> fwhm_max:
@@ -62,19 +67,17 @@ def run_stage5(setup):
             shift_max = abs(float(stats_entry['SHIFT_X']))
         if abs(float(stats_entry['SHIFT_Y']))> shift_max:
             shift_max = abs(float(stats_entry['SHIFT_Y']))
-#    maxshift = int(shift_max) + 2
-#    maxshift = 0
     #image smaller or equal 500x500
     large_format_image = False
-
     sigma_max = fwhm_max/(2.*(2.*np.log(2.))**0.5)
     # Factor 4 corresponds to the radius of 2*FWHM the old pipeline
     kernel_size = int(4.*float(reduction_metadata.reduction_parameters[1]['KER_RAD'][0]) * fwhm_max)
     if kernel_size:
         if kernel_size % 2 == 0:
             kernel_size = kernel_size + 1
-    kernel_size = min(17,kernel_size)
-    maxshift = 2 * kernel_size   
+    kernel_size = min(13,kernel_size)
+    shifts  = np.array(shifts)
+    maxshift = int(np.median(shifts) + 2. * np.std(shifts))
     # find the images that need to be processed
     all_images = reduction_metadata.find_all_images(setup, reduction_metadata,
                                                     os.path.join(setup.red_dir, 'data'), log=log)
@@ -148,7 +151,10 @@ def smoothing_2sharp_images(reduction_metadata, ref_fwhm_x, ref_fwhm_y, ref_sigm
 
 def subtract_small_format_image(new_images, reference_image_name, reference_image_directory, reduction_metadata, setup, data_image_directory, kernel_size, max_adu, ref_stats, maxshift, kernel_directory_path, diffim_directory_path, log = None):  
     if len(new_images) > 0:
-        reference_image, bright_reference_mask, reference_image_unmasked = open_reference(setup, reference_image_directory, reference_image_name, kernel_size, max_adu, ref_extension = 0, mask_extension = 3,log = log, central_crop = maxshift)
+        if os.path.exists(os.path.join(reduction_metadata.data_architecture[1]['REF_PATH'][0],'master_mask.fits')):
+            master_mask = fits.open(os.path.join(reduction_metadata.data_architecture[1]['REF_PATH'][0],'master_mask.fits'))
+            master_mask = np.where(master_mask[0].data > 0.1*np.max(master_mask[0].data))
+        reference_image, bright_reference_mask, reference_image_unmasked = open_reference(setup, reference_image_directory, reference_image_name, kernel_size, max_adu, ref_extension = 0, log = log, central_crop = maxshift, master_mask = master_mask)
         if os.path.exists(os.path.join(kernel_directory_path,'unweighted_u_matrix.npy')):
             umatrix, kernel_size_u, max_adu_restored = np.load(os.path.join(kernel_directory_path,'unweighted_u_matrix.npy'))
             if (kernel_size_u != kernel_size) or (max_adu_restored != max_adu):
@@ -209,7 +215,7 @@ def open_reference_stamps(setup, reduction_metadata, reference_image_directory, 
         #prepare subset slice based on metadata
 
         subset_slice = [int(reduction_metadata.stamps[1][substamp_idx]['Y_MIN']),int(reduction_metadata.stamps[1][substamp_idx]['Y_MAX']),int(reduction_metadata.stamps[1][substamp_idx]['X_MIN']),int(reduction_metadata.stamps[1][substamp_idx]['X_MAX'])]
-        reference_image, bright_reference_mask, reference_image_unmasked = open_reference(setup, reference_image_directory, reference_image_name, kernel_size, max_adu, ref_extension = 0, mask_extension = 1, log = log, central_crop = maxshift, subset = subset_slice, ref_image1 = ref_image1, min_adu = min_adu)
+        reference_image, bright_reference_mask, reference_image_unmasked = open_reference(setup, reference_image_directory, reference_image_name, kernel_size, max_adu, ref_extension = 0, log = log, central_crop = maxshift, subset = subset_slice, ref_image1 = ref_image1, min_adu = min_adu)
         reference_pool_stamps.append([reference_image,kernel_size, bright_reference_mask, reference_image_unmasked])
     return reference_pool_stamps
 

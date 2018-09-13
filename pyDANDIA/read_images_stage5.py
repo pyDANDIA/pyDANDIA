@@ -15,8 +15,12 @@ from skimage.transform import resize
 from ccdproc import cosmicray_lacosmic
 import matplotlib.pyplot as plt
 
-def background_mesh_perc(image,perc=50,box=200):
+def background_mesh_perc(image,perc=50,box_guess=200):
     #generate slices, iterate over centers
+    if box_guess > int(np.shape(image)[0]/5) and box_guess > int(np.shape(image)[1]/5):
+        box = min(int(np.shape(image)[0]/5), int(np.shape(image)[1]/5))
+    else:
+        box = box_guess
     centerx = box/2
     centery = box/2
     halfbox = box/2
@@ -26,10 +30,12 @@ def background_mesh_perc(image,perc=50,box=200):
     percentile_bkg = np.zeros((len(xcen_range),len(ycen_range)))
     idx = 0
     jdx = 0
+    perc5 = np.percentile(image,5)
     for xcen in xcen_range:
         idx = 0
         for ycen in ycen_range:
-            val =  np.percentile(image[xcen - halfbox:xcen + halfbox,ycen - halfbox:ycen+halfbox],perc)
+            positive = image[xcen - halfbox:xcen + halfbox,ycen - halfbox:ycen+halfbox] > perc5
+            val =  np.percentile(image[xcen - halfbox:xcen + halfbox,ycen - halfbox:ycen+halfbox][positive],perc)
             percentile_bkg[jdx,idx] = val
             idx += 1
         jdx += 1
@@ -157,7 +163,7 @@ def open_data_image(setup, data_image_directory, data_image_name, reference_mask
 
     return data_extended, data_image_unmasked
 
-def open_reference(setup, ref_image_directory, ref_image_name, kernel_size, max_adu, ref_extension = 0, mask_extension = None, log = None, central_crop = None, subset = None, ref_image1 = None, min_adu = None):
+def open_reference(setup, ref_image_directory, ref_image_name, kernel_size, max_adu, ref_extension = 0, log = None, central_crop = None, subset = None, ref_image1 = None, min_adu = None, master_mask = []):
     '''
     reading difference image for constructing u matrix
 
@@ -171,20 +177,9 @@ def open_reference(setup, ref_image_directory, ref_image_name, kernel_size, max_
 
     if ref_image1 == None:
         ref_image = fits.open(os.path.join(ref_image_directory, ref_image_name), mmap=True)
-    #crop subimage
-    if mask_extension != None and subset == None:     
-        if len(ref_image)<mask_extension+1:
-            bad_pixel_mask = None
-        else:
-            bad_pixel_mask = ref_image[mask_extension].data
     if subset != None and ref_image1 == None:
-        if mask_extension != None:
-            bad_pixel_mask = ref_image[mask_extension].data[subset[0]:subset[1],subset[2]:subset[3]]
         ref_image[ref_extension].data=ref_image[ref_extension].data[subset[0]:subset[1],subset[2]:subset[3]]
     if subset != None and ref_image1 != None:
-        if mask_extension != None:
-            bad_pixel_mask = ref_image1[mask_extension].data[subset[0]:subset[1],subset[2]:subset[3]]
-
         ref_image = fits.HDUList(fits.PrimaryHDU(ref_image1[ref_extension].data[subset[0]:subset[1],subset[2]:subset[3]]))
     
 	#increase kernel size by 1.5 and define circular mask
@@ -199,8 +194,8 @@ def open_reference(setup, ref_image_directory, ref_image_name, kernel_size, max_
                 mask_kernel[idx, jdx] = 0.
     img_shape = np.shape(ref_image[ref_extension].data) 
     ref50pc = np.median(ref_image[ref_extension].data)
-    if mask_extension != None and bad_pixel_mask.all != None:
-        ref_image[ref_extension].data[bad_pixel_mask>0] = max_adu + ref50pc + 1.
+    if master_mask != []:
+        ref_image[ref_extension].data[master_mask] = max_adu + ref50pc + 1.
 
     ref_bright_mask_1 = (ref_image[ref_extension].data > max_adu + ref50pc)       
     ref_image[ref_extension].data = ref_image[ref_extension].data - background_mesh_perc(ref_image[ref_extension].data)
