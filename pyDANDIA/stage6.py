@@ -129,10 +129,10 @@ def run_stage6(setup):
    
             reference_header = reduction_metadata.headers_summary[1][index_reference]
 
-	    # create the reference table in db
+        # create the reference table in db
             ingest_reference_in_db(setup, reference_header)
-	    conn = db_phot.get_connection(dsn=setup.red_dir+'phot.db')
-	    ref_image_id = db_ai.query_to_astropy_table(conn,"SELECT refimg_id FROM reference_images")[0][0]
+            conn = db_phot.get_connection(dsn=setup.red_dir+'phot.db')
+            ref_image_id = db_ai.query_to_astropy_table(conn,"SELECT refimg_id FROM reference_images")[0][0]
             conn.commit()
             
             logs.ifverbose(log, setup,
@@ -165,7 +165,7 @@ def run_stage6(setup):
         data = []
         diffim_directory = os.path.join(reduction_metadata.data_architecture[1]['OUTPUT_DIRECTORY'].data[0],'diffim')
         images_directory = reduction_metadata.data_architecture[1]['IMAGES_PATH'].data[0]
-        photometric_table = np.zeros((10,len(ref_star_catalog),16))
+        photometric_table = np.zeros((145,len(ref_star_catalog),16))
         compt_db = 0
 
 
@@ -184,14 +184,14 @@ def run_stage6(setup):
         kernel_size = min(21,kernel_size)
         for idx,new_image in enumerate(new_images[:]):
 
-	    	
- 	    index_image = np.where(new_image == reduction_metadata.headers_summary[1]['IMAGES'].data)[0][0]
+            
+            index_image = np.where(new_image == reduction_metadata.headers_summary[1]['IMAGES'].data)[0][0]
             image_header = reduction_metadata.headers_summary[1][index_image]
 
             ingest_exposure_in_db(setup,  image_header, ref_image_id)
             conn = db_phot.get_connection(dsn=setup.red_dir+'phot.db')
 
-	    image_id = db_ai.query_to_astropy_table(conn,"SELECT exposure_id FROM exposures WHERE exposure_name='%s'"%new_image)[0][0]
+            image_id = db_ai.query_to_astropy_table(conn,"SELECT exposure_id FROM exposures WHERE exposure_name='%s'"%new_image)[0][0]
 
             conn.commit()
             exposures_id.append(image_id) 
@@ -208,29 +208,32 @@ def run_stage6(setup):
             save_control_stars_of_the_difference_image(setup, new_image, difference_image, star_coordinates)
 
             phot_table, control_zone = photometry_on_the_difference_image(setup, reduction_metadata, log,ref_star_catalog,difference_image,  psf_model, sky_model, kernel_image,kernel_error, ref_exposure_time)
-	    try:	
-            	photometric_table[compt_db,:,:] = phot_table
-	    except:
-		import pdb; pdb.set_trace()	
-            #save_control_zone_of_residuals(setup, new_image, control_zone)     
+            compt_db +=1
+            #import pdb; pdb.set_trace()    
+            try:    
+                    photometric_table[compt_db,:,:] = phot_table
 
-            #ingest_photometric_table_in_db(setup, photometric_table) 
-            compt_db += 1
+            except:
 
-            if compt_db >9:
+                 #save_control_zone_of_residuals(setup, new_image, control_zone)     
+  
+                 #ingest_photometric_table_in_db(setup, photometric_table) 
+                 compt_db += 1
 
-		    ingest_photometric_table_in_db(setup, exposures_id, star_indexes, photometric_table)
-	            photometric_table = np.zeros((10,len(ref_star_catalog),16))
-		    exposures_id = []
-		    compt_db = 0
+            #if compt_db >9:
+
+             #   ingest_photometric_table_in_db(setup, exposures_id, star_indexes, photometric_table)
+             #   photometric_table = np.zeros((10,len(ref_star_catalog),16))
+             #   exposures_id = []
+             #   compt_db = 0
 
             
        
-
-    ingest_photometric_table_in_db(setup, exposures_id, star_indexes, photometric_table)
+        import pdb; pdb.set_trace()    
+        ingest_photometric_table_in_db(setup, exposures_id, star_indexes, photometric_table)
     
-    reduction_metadata.update_reduction_metadata_reduction_status(new_images, stage_number=6, status=1, log=log)
-    reduction_metadata.save_updated_metadata(
+        reduction_metadata.update_reduction_metadata_reduction_status(new_images, stage_number=6, status=1, log=log)
+        reduction_metadata.save_updated_metadata(
         reduction_metadata.data_architecture[1]['OUTPUT_DIRECTORY'][0],
         reduction_metadata.data_architecture[1]['METADATA_NAME'][0],
         log=log)
@@ -425,7 +428,7 @@ def image_substraction(setup, reduction_metadata, reference_image_data, kernel_d
     image_shifted = shift(background_image, (-yshift-1,-xshift-1), cval=0.) 
 
    
-    #import pdb;pdb.set_trace()	
+    #import pdb;pdb.set_trace()    
 
     difference_image = model-image_shifted 
 
@@ -496,7 +499,7 @@ def ingest_the_stars_in_db(setup,star_catalog):
      indexes = db_ai.query_to_astropy_table(conn,"SELECT star_id FROM stars")['star_id']
      
      if len(indexes) == 0:
-	 
+     
          print('I create a new star catalog for the db')
 
          new_table = star_catalog[['RA_J2000','DEC_J2000']]
@@ -524,8 +527,8 @@ def ingest_reference_in_db(setup, reference_header):
 
      conn = db_phot.get_connection(dsn=setup.red_dir+'phot.db')
 
-     name = reference_header['IMAGES']	
-     cam_filter = reference_header['FILTKEY']	
+     name = reference_header['IMAGES']    
+     cam_filter = reference_header['FILTKEY']    
      new_table = Table([[name],[cam_filter]],names=('refimg_name','filter_id'))
 
      db_ai.load_astropy_table(conn, 'reference_images', new_table)
@@ -575,10 +578,10 @@ def ingest_exposure_in_db(setup,  image_header, ref_image_id):
      conn = db_phot.get_connection(dsn=setup.red_dir+'phot.db')
 
 
-
+     #import pdb; pdb.set_trace()    
      image_name =  image_header['IMAGES']
-     exposure_time = image_header['EXPKEY']	
-     new_table = Table([[image_name],[ref_image_id],[exposure_time]],names=('exposure_name','reference_image','exposure_time'))
+     exposure_time = float(image_header['EXPKEY'])
+     new_table = Table([[image_name],[exposure_time]],names=('exposure_name','exposure_time'))
 
      db_ai.load_astropy_table(conn, 'exposures', new_table)
      conn.commit()
@@ -600,7 +603,7 @@ def ingest_exposure_in_db(setup,  image_header, ref_image_id):
      #c_170_exposure_name = 'TEXT'
 
 def ingest_photometric_table_in_db(setup, exposures_indexes, star_indexes, photometric_table):
-	
+    
      #if photometric_table exists
      if len(photometric_table) !=0 :
          conn = db_phot.get_connection(dsn=setup.red_dir+'phot.db')
@@ -610,10 +613,10 @@ def ingest_photometric_table_in_db(setup, exposures_indexes, star_indexes, photo
              for ind_star,star in enumerate(star_indexes):
 
                  phot_table = photometric_table[ind_exp,ind_star,:]
-	         diff_flux = phot_table[6]	
+                 diff_flux = phot_table[6]    
                  new_table = Table([[exposure],[star],[diff_flux]],names=('exposure_id','star_id','diff_flux'))
              
-     	         db_ai.load_astropy_table(conn, 'phot', new_table)
+                 db_ai.load_astropy_table(conn, 'phot', new_table)
          conn.commit()
      #what need to be filled...
      #c_000_phot_id = 'INTEGER PRIMARY KEY'

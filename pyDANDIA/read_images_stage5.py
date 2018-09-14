@@ -21,9 +21,9 @@ def background_mesh_perc(image,perc=50,box_guess=200):
         box = min(int(np.shape(image)[0]/5), int(np.shape(image)[1]/5))
     else:
         box = box_guess
-    centerx = box/2
-    centery = box/2
-    halfbox = box/2
+    centerx = int(box/2)
+    centery = int(box/2)
+    halfbox = int(box/2)
     image_shape = np.shape(image)
     xcen_range = range(centerx,image_shape[0],box) 
     ycen_range = range(centery,image_shape[1],box)

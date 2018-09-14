@@ -10,8 +10,8 @@ import numpy as np
 from astropy.io import fits
 import glob
 import copy 
-import logs
-import pixelmasks
+from pyDANDIA import logs
+from pyDANDIA import pixelmasks
 import matplotlib.pyplot as plt
 
 class BadPixelMask:

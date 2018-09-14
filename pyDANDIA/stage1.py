@@ -18,7 +18,7 @@ import os
 import sys
 from pyDANDIA import  metadata
 from pyDANDIA import  logs
-import quality_control
+from pyDANDIA import quality_control
 
 def run_stage1(setup, rerun_all=None):
     """

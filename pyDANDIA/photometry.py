@@ -144,7 +144,9 @@ def run_psf_photometry_on_difference_image(setup,reduction_metadata,log,ref_star
     
     :param array ref_star_catalog: catalog of objects detected in the image
     """
- 
+    #import matplotlib.pyplot as plt
+    #plt.imshow(np.log10(difference_image))
+    #plt.show()
 
     psf_size = reduction_metadata.reduction_parameters[1]['PSF_SIZE'][0]
     half_psf = psf_size/2
@@ -236,7 +238,7 @@ def run_psf_photometry_on_difference_image(setup,reduction_metadata,log,ref_star
           psf_fit /= np.max(psf_fit)
          
           residuals = np.copy(data)
-
+          
         except:
              import pdb; pdb.set_trace()
              
@@ -263,7 +265,7 @@ def run_psf_photometry_on_difference_image(setup,reduction_metadata,log,ref_star
           rejected_points = 0
         
           intensities,cov = np.polyfit(psf_fit[mask2],data[mask2],1,w=1/weight[mask2],cov=True)
-       	
+       	   
           (flux, flux_err) =  (intensities[0],(cov[0][0])**0.5)
 
 

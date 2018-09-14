@@ -283,6 +283,7 @@ def correlation_shift(reference_image, target_image):
 
 
 def resample_image(new_images, reference_image_name, reference_image_directory, reduction_metadata, setup, data_image_directory, resampled_directory_path, ref_row_index, px_scale, log = None, mask_extension_in = -1):  
+
     if len(new_images) > 0:
         reference_image_hdu = fits.open(os.path.join(reference_image_directory, reference_image_name),memmap=True)
         reference_image = reference_image_hdu[0].data
@@ -291,8 +292,8 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
 #       reference_image, bright_reference_mask, reference_image_unmasked = open_reference(setup, reference_image_directory, reference_image_name, ref_extension = 0, log = log, central_crop = maxshift)
         #generate reference catalog
         central_region_x, central_region_y = np.shape(reference_image)
-        center_x, center_y = central_region_x/2, central_region_y/2
-        mean_ref, median_ref, std_ref = sigma_clipped_stats(reference_image[center_x-central_region_x/4:center_x+central_region_x/4,center_y-central_region_y/4:center_y+central_region_y/4], sigma = 3.0, iters = 5)    
+        center_x, center_y = int(central_region_x/2), int(central_region_y/2)
+        mean_ref, median_ref, std_ref = sigma_clipped_stats(reference_image[center_x-int(central_region_x/4):center_x+int(central_region_x/4),center_y-int(central_region_y/4):center_y+int(central_region_y/4)], sigma = 3.0, iters = 5)    
         ref_fwhm_x = reduction_metadata.images_stats[1][ref_row_index]['FWHM_X'] 
         ref_fwhm_y = reduction_metadata.images_stats[1][ref_row_index]['FWHM_Y'] 
         ref_fwhm = (ref_fwhm_x**2 + ref_fwhm_y**2)**0.5
@@ -316,8 +317,8 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
             mask_extension = mask_extension_in
             mask_image = np.array(data_image_hdu[mask_extension].data,dtype=float)
         central_region_x, central_region_y = np.shape(data_image)
-        center_x, center_y = central_region_x/2, central_region_y/2
-        mean_data, median_data, std_data = sigma_clipped_stats(data_image[center_x-central_region_x/4:center_x+central_region_x/4,center_y-central_region_y/4:center_y+central_region_y/4], sigma = 3.0, iters = 5)    
+        center_x, center_y = int(central_region_x/2), int(central_region_y/2)
+        mean_data, median_data, std_data = sigma_clipped_stats(data_image[center_x-int(central_region_x/4):center_x+int(central_region_x/4),center_y-int(central_region_y/4):center_y+int(central_region_y/4)], sigma = 3.0, iters = 5)    
         data_fwhm_x = reduction_metadata.images_stats[1][row_index]['FWHM_X'] 
         data_fwhm_y = reduction_metadata.images_stats[1][row_index]['FWHM_Y'] 
         data_fwhm = (ref_fwhm_x**2 + ref_fwhm_y**2)**0.5
@@ -366,29 +367,32 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
                         shifted_mask = tf.warp(img_as_float64(shifted_mask/maxvmask),inverse_map = tform.inverse)
                         shifted_mask = maxvmask * shifted_mask
                     shifted = maxv * np.array(shifted)
-    	    #cosmic ray rejection
-            try:
-                 resampled_image_hdu = fits.PrimaryHDU(shifted)
-                 resampled_image_hdu.writeto(os.path.join(resampled_directory_path,new_image),overwrite = True)
-                 if mask_extension > -1:
-                     if os.path.exists(os.path.join(reduction_metadata.data_architecture[1]['REF_PATH'][0],'master_mask.fits')):
-                         mask = fits.open(os.path.join(reduction_metadata.data_architecture[1]['REF_PATH'][0],'master_mask.fits'))
-                         bpm_mask = shifted_mask > 0.
-                         mask[0].data[bpm_mask] = mask[0].data[bpm_mask] + 1
-                         mask[0].data  = np.array(mask[0].data,dtype=np.int)
-                         mask.writeto(os.path.join(reduction_metadata.data_architecture[1]['REF_PATH'][0],'master_mask.fits'), overwrite = True)
-                     else:
-                         bpm_mask = shifted_mask > 0.
-                         mask_out = np.zeros(np.shape(shifted_mask))
-                         mask_out[bpm_mask] = 1.
-                         resampled_mask_hdu = fits.PrimaryHDU(np.array(mask_out,dtype=np.int))
-                         resampled_mask_hdu.writeto(os.path.join(reduction_metadata.data_architecture[1]['REF_PATH'][0],'master_mask.fits'), overwrite = True)
-                        
-            except Exception as e:
-                if log is not None:
-                    logs.ifverbose(log, setup,'resampling failed:' + new_image + '. skipping! '+str(e))
-                else:
-                    print(str(e))
+        #cosmic ray rejection
+        try:
+         resampled_image_hdu = fits.PrimaryHDU(shifted)
+         resampled_image_hdu.writeto(os.path.join(resampled_directory_path,new_image),overwrite = True)
+         if mask_extension > -1:
+             if os.path.exists(os.path.join(reduction_metadata.data_architecture[1]['REF_PATH'][0],'master_mask.fits')):
+                 mask = fits.open(os.path.join(reduction_metadata.data_architecture[1]['REF_PATH'][0],'master_mask.fits'))
+                 bpm_mask = shifted_mask > 0.
+                 mask[0].data[bpm_mask] = mask[0].data[bpm_mask] + 1
+                 mask[0].data  = np.array(mask[0].data,dtype=np.int)
+                 mask.writeto(os.path.join(reduction_metadata.data_architecture[1]['REF_PATH'][0],'master_mask.fits'), overwrite = True)
+             else:
+                 bpm_mask = shifted_mask > 0.
+                 mask_out = np.zeros(np.shape(shifted_mask))
+                 mask_out[bpm_mask] = 1.
+                 resampled_mask_hdu = fits.PrimaryHDU(np.array(mask_out,dtype=np.int))
+                 resampled_mask_hdu.writeto(os.path.join(reduction_metadata.data_architecture[1]['REF_PATH'][0],'master_mask.fits'), overwrite = True)
+                
+        except Exception as e:
+         import pdb; pdb.set_trace()
+         resampled_image_hdu = fits.PrimaryHDU(data_image)
+         resampled_image_hdu.writeto(os.path.join(resampled_directory_path,new_image),overwrite = True)
+         if log is not None:
+             logs.ifverbose(log, setup,'resampling failed:' + new_image + '. skipping! '+str(e))
+         else:
+             print(str(e))
 
 def reformat_catalog(idx_match, dist2d, ref_sources, data_sources, central_region_x, distance_threshold = 1.5, max_points = 2000):
     pts1=[]
@@ -403,8 +407,9 @@ def reformat_catalog(idx_match, dist2d, ref_sources, data_sources, central_regio
                 pts1.append(data_sources['ycentroid'].data[idxref])
                 if len(pts1)>max_points:
                     break
-    pts1 = np.array(pts1).reshape((len(pts1)/2,2))
-    pts2 = np.array(pts2).reshape((len(pts2)/2,2))               
+    
+    pts1 = np.array(pts1).reshape(int(len(pts1)/2),2)
+    pts2 = np.array(pts2).reshape(int(len(pts2)/2),2)               
     return pts1,pts2
 
 

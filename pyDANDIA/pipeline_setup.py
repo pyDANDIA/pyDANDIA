@@ -7,8 +7,6 @@ Created on Fri Oct 13 13:56:46 2017
 
 from os import getcwd, path
 from sys import path as systempath
-cwd = getcwd()
-systempath.append(path.join(cwd,'../'))
 
 class PipelineSetup:
     """Class describing the fundamental parameters needed to identify

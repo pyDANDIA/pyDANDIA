@@ -22,8 +22,8 @@ from pyDANDIA import pixelmasks
 #import metadata
 #import pixelmasks
 from pyDANDIA import logs
-import quality_control
-import bad_pixel_mask
+from pyDANDIA import quality_control
+from pyDANDIA import bad_pixel_mask
 
 def run_stage0(setup):
     """Main driver function to run stage 0: data preparation.    
@@ -641,7 +641,7 @@ def construct_the_stamps(open_image, stamp_size=None, arcseconds_stamp_size=(110
     stamps = [[stamps_x_min.shape[1] * i + j, stamps_y_min[i, j], stamps_y_max[i, j], stamps_x_min[i, j],
                stamps_x_max[i, j]]
               for i in range(stamps_x_min.shape[0]) for j in range(stamps_x_min.shape[1])]
-    print stamps
+
     status = 'OK'
     report = 'Completed successfully'
     return status, report, np.array(stamps)

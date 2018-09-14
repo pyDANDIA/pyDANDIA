@@ -6,7 +6,7 @@ Created on Mon Aug 27 13:34:31 2018
 """
 import os
 from astropy.io import fits
-import metadata
+from pyDANDIA import metadata
 
 def verify_stage0_output(setup,log):
     """Function to verify that stage 0 has produced the expected output. 
