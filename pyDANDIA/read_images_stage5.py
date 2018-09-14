@@ -15,15 +15,19 @@ from skimage.transform import resize
 from ccdproc import cosmicray_lacosmic
 import matplotlib.pyplot as plt
 
-def background_mesh_perc(image,perc=50,box_guess=200):
+def background_mesh_perc(image1,perc=50,box_guess=300, master_mask = []):
+    image = np.copy(image1)
+    zero_mask = (image == 0.)
+    if master_mask != []:
+        image[master_mask] = np.median(image1)
     #generate slices, iterate over centers
     if box_guess > int(np.shape(image)[0]/5) and box_guess > int(np.shape(image)[1]/5):
         box = min(int(np.shape(image)[0]/5), int(np.shape(image)[1]/5))
     else:
         box = box_guess
-    centerx = int(box/2)
-    centery = int(box/2)
-    halfbox = int(box/2)
+    centerx = box/2
+    centery = box/2
+    halfbox = box/2
     image_shape = np.shape(image)
     xcen_range = range(centerx,image_shape[0],box) 
     ycen_range = range(centery,image_shape[1],box)
@@ -39,7 +43,8 @@ def background_mesh_perc(image,perc=50,box_guess=200):
             percentile_bkg[jdx,idx] = val
             idx += 1
         jdx += 1
-    result = resize(percentile_bkg, np.shape(image),mode= 'reflect')	
+    result = resize(percentile_bkg, np.shape(image),mode= 'symmetric')	
+    result[zero_mask] =0.
     return result
 
 def background_mesh(image):
@@ -144,7 +149,8 @@ def open_data_image(setup, data_image_directory, data_image_name, reference_mask
 
     if xshift>img_shape[0] or yshift>img_shape[1]:
         return []
-    data_image[data_extension].data = shift(data_image[data_extension].data, (-yshift,-xshift), cval=0.)
+    if xshift!=0 and yshift!=0:
+        data_image[data_extension].data = shift(data_image[data_extension].data, (-yshift,-xshift), cval=0.)
     data_image_unmasked = np.copy(data_image[data_extension].data)
     if central_crop != None:
         tmp_image = np.zeros(np.shape(data_image[data_extension].data))
@@ -156,7 +162,7 @@ def open_data_image(setup, data_image_directory, data_image_name, reference_mask
                  kernel_size] = np.array(data_image[data_extension].data, float)
     
     #replace saturated pixels with random noise or 0, bkg_sigma:
-    bkg_sigma = np.std(data_image_unmasked < img50pc) / (1.-2./np.pi)**0.5
+    #bkg_sigma = np.std(data_image_unmasked < img50pc) / (1.-2./np.pi)**0.5
     #apply consistent mask    
     data_image_unmasked[reference_mask[kernel_size:-kernel_size,kernel_size:-kernel_size]] = 0.#np.random.randn(len(data_image_unmasked[reference_mask[kernel_size:-kernel_size,kernel_size:-kernel_size]]))*bkg_sigma
     data_extended[reference_mask] = 0.
