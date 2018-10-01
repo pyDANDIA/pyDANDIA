@@ -6,3 +6,5 @@ datetime
 matplotlib
 photutils
 opencv-python
+Cython
+astroquery
