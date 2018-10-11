@@ -300,19 +300,19 @@ class MetaData:
         
         layer_name = 'phot_calib'
         
-        names = [ 'star_index', 'cal_ref_mag', 
+        names = [ 'star_index', 'cal_ref_mag', 'cal_ref_mag_err',
                  '_RAJ2000', '_DEJ2000',
                  'imag', 'e_imag', 'rmag', 'e_rmag', 'gmag', 'e_gmag',
                  'clean'
                  ]
         
-        formats = [ 'int', 'float', 
+        formats = [ 'int', 'float', 'float',
                    'float', 'float',
                    'float', 'float','float', 'float','float', 'float',
                    'int'
                    ]
                    
-        units = [ None, 'mag', 
+        units = [ None, 'mag', 'mag',
                  'deg', 'deg',
                  'mag', 'mag', 'mag', 'mag', 'mag', 'mag',
                  None
