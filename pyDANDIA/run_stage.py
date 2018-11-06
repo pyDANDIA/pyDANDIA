@@ -16,7 +16,6 @@ from pyDANDIA import stage1
 from pyDANDIA import stage2
 from pyDANDIA import stage3
 from pyDANDIA import stage4
-from pyDANDIA import stage4b
 from pyDANDIA import stage5
 #from pyDANDIA.db import astropy_interface
 #from pyDANDIA import stage6
@@ -63,9 +62,6 @@ def run_stage_stand_alone():
 
         (status, report) = stage4.run_stage4(setup)
 
-    elif params['stage'] == 'stage4b':
-        
-        (status, report) = stage4b.run_stage4b(setup)
         
     elif params['stage'] == 'stage5':
         

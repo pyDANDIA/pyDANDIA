@@ -48,7 +48,7 @@ def background_mesh_perc(image1,perc=50,box_guess=300, master_mask = []):
                 percentile_bkg[jdx, idx] = 0
             idx += 1
         jdx += 1
-   
+
     result = resize(percentile_bkg, np.shape(image),mode= 'symmetric')	
     result[zero_mask] =0.
     return result
