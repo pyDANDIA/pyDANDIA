@@ -842,13 +842,6 @@ def fit_star_existing_model_with_kernel(setup,data, x_cen, y_cen, psf_radius,
     
     fitted_model.update_psf_parameters(psf_params)
     
-    
-        
-   
-        
-
-    
-    
     good_fit = check_fit_quality(setup,data,sky_bkgd,fitted_model)
 
     return fitted_model, good_fit
@@ -890,10 +883,10 @@ def check_fit_quality(setup,psf_stamp_data,sky_model,fitted_model):
     
     max_peak_flux = psf_stamp_data.max() + 0.1*psf_stamp_data.max()
     
-    if model_pars[0] > max_peak_flux:
+    if model_pars[0] > max_peak_flux or model_pars[0] <= 0.0:
         
         good_fit = False
-    
+        
     return good_fit
 
 def fit_multiple_stars(data_stamps, Y_data, X_data, psf_model='Moffat2D', background_model='Constant'):
@@ -927,7 +920,7 @@ def plot3d(xdata, ydata, zdata):
     plt.show()
 
 def build_psf(setup, reduction_metadata, log, image, ref_star_catalog, 
-              sky_model, diagnostics=True):
+              sky_model, psf_diameter, diagnostics=True):
     """Function to build a PSF model based on the PSF stars
     selected from a reference image."""
     
@@ -936,11 +929,11 @@ def build_psf(setup, reduction_metadata, log, image, ref_star_catalog,
     log.info('Building a PSF model based on the reference image')
     
     # Cut large stamps around selected PSF stars
-    psf_size = reduction_metadata.reduction_parameters[1]['PSF_SIZE'][0]
+    #psf_size = reduction_metadata.reduction_parameters[1]['PSF_SIZE'][0]
     
     psf_model_type = 'Moffat2D'
 
-    logs.ifverbose(log,setup,' -> Applying PSF size='+str(psf_size))
+    logs.ifverbose(log,setup,' -> Applying PSF size='+str(psf_diameter))
 
     idx = np.where(ref_star_catalog[:,15] == 1.0)
     psf_idx = ref_star_catalog[idx[0],0]
@@ -956,7 +949,7 @@ def build_psf(setup, reduction_metadata, log, image, ref_star_catalog,
     
     log.info('Cutting stamps for '+str(len(psf_star_centres))+' PSF stars')
     
-    stamp_dims = (int(psf_size)*4, int(psf_size)*4)
+    stamp_dims = (int(psf_diameter)*4, int(psf_diameter)*4)
 
     logs.ifverbose(log,setup,' -> Stamp dimensions='+repr(stamp_dims))
 
@@ -973,7 +966,7 @@ def build_psf(setup, reduction_metadata, log, image, ref_star_catalog,
                            'initial_psf_master_stamp.png'))
         
     # Build an initial PSF: fit a PSF model to the high S/N stamp
-    init_psf_model = fit_psf_model(setup,log,psf_model_type,psf_size,
+    init_psf_model = fit_psf_model(setup,log,psf_model_type, psf_diameter,
                                    sky_model.background_type(),
                                     master_stamp, diagnostics=diagnostics)
     
@@ -981,7 +974,7 @@ def build_psf(setup, reduction_metadata, log, image, ref_star_catalog,
         
         psf_image = generate_psf_image(init_psf_model.psf_type(),
                                    init_psf_model.get_parameters(),
-                                    stamp_dims, psf_size)
+                                    stamp_dims, psf_diameter)
                                     
         output_stamp_image(psf_image,
                            os.path.join(setup.red_dir,'ref',
@@ -1007,31 +1000,35 @@ def build_psf(setup, reduction_metadata, log, image, ref_star_catalog,
         
     # Re-build the final PSF by fitting a PSF model to the updated high 
     # S/N stamp
-    psf_model = fit_psf_model(setup,log,psf_model_type,psf_size,
+    psf_model = fit_psf_model(setup,log,psf_model_type,psf_diameter,
                                    sky_model.background_type(),
                                     master_stamp, diagnostics=diagnostics)
 
     psf_image = generate_psf_image(psf_model.psf_type(),
                                    psf_model.get_parameters(),
-                                    stamp_dims, psf_size)
+                                    stamp_dims, psf_diameter)
 
     header = fits.Header()
-    
     psf_params = psf_model.get_parameters()
-    
-    for i,key in enumerate(psf_model.model):
-        
+    for i,key in enumerate(psf_model.model):    
         header[key[0:8].upper()] = psf_params[i]
-    
     header['PSFTYPE'] = psf_model.psf_type()
     
     hdu = fits.PrimaryHDU(psf_image, header=header)
-    
     hdulist = fits.HDUList([hdu])
-    
     hdulist.writeto(os.path.join(setup.red_dir,'ref','psf_model.fits'),
                                      overwrite=True)
     
+    hdu = fits.PrimaryHDU(master_stamp.data)
+    hdulist = fits.HDUList([hdu])
+    hdulist.writeto(os.path.join(setup.red_dir,'ref','master_stamp.fits'),
+                                     overwrite=True)
+    
+    hdu = fits.PrimaryHDU( master_stamp.data-psf_image )
+    hdulist = fits.HDUList([hdu])
+    hdulist.writeto(os.path.join(setup.red_dir,'ref','master_stamp_residuals.fits'),
+                                     overwrite=True)
+                                     
     log.info('Completed build of PSF model with status '+status)
     
     return psf_model, status
@@ -1214,13 +1211,16 @@ def coadd_stamps(setup, stamps, log, diagnostics=True):
         
     return master_stamp
 
-def fit_psf_model(setup,log,psf_model_type,psf_size,sky_model_type,stamp_image, 
+def fit_psf_model(setup,log,psf_model_type,psf_diameter,sky_model_type,stamp_image, 
                   diagnostics=False):
     """Function to fit a PSF model to a stamp image"""
     
     half_stamp = stamp_image.shape[0]/2
-    half_psf = int(psf_size / 2.0)
-    
+    if (psf_diameter % 2) != 0:
+        half_psf = int(psf_diameter / 2.0) + 1
+    else:
+        half_psf = int(psf_diameter / 2.0)
+
     xmin = int(half_stamp - half_psf)
     xmax = int(half_stamp + half_psf)
     ymin = int(half_stamp - half_psf)
@@ -1228,7 +1228,8 @@ def fit_psf_model(setup,log,psf_model_type,psf_size,sky_model_type,stamp_image,
     
     #Y_data, X_data = np.indices(stamp_image.shape)
     
-    Y_data, X_data = np.indices([int(round(psf_size,0)),int(round(psf_size,0))])
+    #Y_data, X_data = np.indices([int(round(psf_diameter,0)),int(round(psf_diameter,0))])
+    Y_data, X_data = np.indices([2*half_psf,2*half_psf])
     
     if diagnostics:
         
@@ -1252,7 +1253,7 @@ def fit_psf_model(setup,log,psf_model_type,psf_size,sky_model_type,stamp_image,
     if diagnostics:
         
         psf_stamp = generate_psf_image(psf_model_type,psf_fit[0],
-                                       substamp.shape, psf_size)
+                                       substamp.shape, psf_diameter)
         
         hdu = fits.PrimaryHDU(psf_stamp)
         hdulist = fits.HDUList([hdu])
@@ -1281,7 +1282,7 @@ def generate_psf_image(psf_model_type,psf_model_pars,stamp_dims,psf_size):
         
         x_centre = stamp_dims[1] / 2.0
         y_centre = stamp_dims[0] / 2.0
-    
+        
         new_psf_model_pars[ix] = x_centre
         new_psf_model_pars[iy] = y_centre
     
@@ -1452,22 +1453,31 @@ def subtract_psf_from_image(image,psf_model,xstar,ystar,dx,dy,
     dxc = corners[1] - corners[0]
     dyc = corners[3] - corners[2]
     
-    Y_data, X_data = np.indices([int(dyc),int(dxc)])
-    
-    psf_image = psf_model.psf_model(Y_data, X_data, psf_model.get_parameters())
-    
-    residuals = np.copy(image)
+    if dxc > 0 and dyc > 0:
+
+        Y_data, X_data = np.indices([int(dyc),int(dxc)])
+
+        psf_params = psf_model.get_parameters()
+        psf_params[1] = (dy/2.0) + (ystar-int(ystar))
+        psf_params[2] = (dx/2.0) + (xstar-int(xstar))
+        
+        psf_image = psf_model.psf_model(Y_data, X_data, psf_params)
+
+        residuals = np.copy(image)
     
     #output_stamp_image(residuals[corners[2]:corners[3],corners[0]:corners[1]],
     #                   '/Users/rstreet/software/pyDANDIA/pyDANDIA/tests/data/subtractions/presubtraction_'+str(round(xstar,0))+'_'+str(round(ystar,0))+'.png')
     #output_stamp_image(psf_image,
     #                   '/Users/rstreet/software/pyDANDIA/pyDANDIA/tests/data/subtractions/residuals_psf_model_'+str(round(xstar,0))+'_'+str(round(ystar,0))+'.png')
     
-    residuals[corners[2]:corners[3],corners[0]:corners[1]] -= psf_image
+        residuals[corners[2]:corners[3],corners[0]:corners[1]] -= psf_image
     
     #output_stamp_image(residuals[corners[2]:corners[3],corners[0]:corners[1]],
     #                   '/Users/rstreet/software/pyDANDIA/pyDANDIA/tests/data/subtractions/residuals_'+str(round(xstar,0))+'_'+str(round(ystar,0))+'.png')
     
+    else:
+        residuals = np.copy(image)
+        
     return residuals,corners
 
 def subtract_psf_from_image_with_kernel(image,psf_model,xstar,ystar,dx,dy, kernel, 

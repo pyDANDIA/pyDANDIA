@@ -33,6 +33,9 @@ def run_stage3(setup):
                                               'reduction_parameters' )
     reduction_metadata.load_a_layer_from_file( setup.red_dir, 
                                               'pyDANDIA_metadata.fits', 
+                                              'headers_summary' )
+    reduction_metadata.load_a_layer_from_file( setup.red_dir, 
+                                              'pyDANDIA_metadata.fits', 
                                               'images_stats' )
     reduction_metadata.load_a_layer_from_file( setup.red_dir, 
                                               'pyDANDIA_metadata.fits', 
@@ -42,10 +45,10 @@ def run_stage3(setup):
     
     if sane: 
     
-        meta_pars = extract_parameters_stage3(reduction_metadata)
+        meta_pars = extract_parameters_stage3(reduction_metadata,log)
     
         sane = sanity_checks(reduction_metadata,log,meta_pars)
-    
+
     if sane:
         
         scidata = fits.getdata(meta_pars['ref_image_path'])
@@ -71,10 +74,14 @@ def run_stage3(setup):
                                                      
         reduction_metadata.create_star_catalog_layer(ref_star_catalog,log=log)
         
-                                                    
+        
+        psf_size = round( (meta_pars['ref_fwhm'] * 2.0), 0 )
+        log.info('Calculated size of PSF = '+str(psf_size)+'pix')
+        
         (psf_model,psf_status) = psf.build_psf(setup, reduction_metadata, 
                                             log, scidata, 
                                             ref_star_catalog, sky_model,
+                                            psf_size,
                                             diagnostics=False)
         
         ref_star_catalog = photometry.run_psf_photometry(setup, 
@@ -84,8 +91,9 @@ def run_stage3(setup):
                                              meta_pars['ref_image_path'],
                                              psf_model,
                                              sky_model,
-                                             centroiding=True)
-                                                         
+                                             psf_size=psf_size,
+                                             centroiding=False)
+                                             
         reduction_metadata.create_star_catalog_layer(ref_star_catalog,log=log)
         
         reduction_metadata.save_a_layer_to_file(setup.red_dir, 
@@ -160,7 +168,7 @@ def sanity_checks(reduction_metadata,log,meta_pars):
     
     return True
 
-def extract_parameters_stage3(reduction_metadata):
+def extract_parameters_stage3(reduction_metadata,log):
     """Function to extract the metadata parameters necessary for this stage.
     
     :param MetaData reduction_metadata: pipeline metadata for this dataset
@@ -182,11 +190,16 @@ def extract_parameters_stage3(reduction_metadata):
     
     idx = np.where(reduction_metadata.images_stats[1]['IM_NAME'].data ==  reduction_metadata.data_architecture[1]['REF_IMAGE'][0])
 
-
     if len(idx[0]) > 0:
     
         meta_pars['ref_sky_bkgd'] = reduction_metadata.images_stats[1]['SKY'].data[idx[0][0]]
-
+        
+        fwhmx = reduction_metadata.images_stats[1]['FWHM_X'].data[idx[0][0]]
+        fwhmy = reduction_metadata.images_stats[1]['FWHM_Y'].data[idx[0][0]]
+        pixscale = reduction_metadata.reduction_parameters[1]['PIX_SCALE'][0]
+        
+        meta_pars['ref_fwhm'] = np.sqrt( fwhmx*fwhmx + fwhmy*fwhmy ) / pixscale
+        
     else:
         
         meta_pars['ref_sky_bkgd'] = None
@@ -200,6 +213,11 @@ def extract_parameters_stage3(reduction_metadata):
     except AttributeError:
         
         meta_pars['sky_model_type'] = 'constant'
-        
+    
+    if len(meta_pars) > 0:
+        log.info('Extracted metadata parameters:')
+        for key, value in meta_pars.items():
+            log.info(key+' = '+str(value))
+    
     return meta_pars
     

@@ -8,3 +8,4 @@ photutils
 opencv-python
 Cython
 astroquery
+scikit-image
