@@ -22,6 +22,7 @@ import multiprocessing as mp
 from pyDANDIA import config_utils
 from pyDANDIA import metadata
 from pyDANDIA import logs
+from pyDANDIA import psf
 
 def run_stage5(setup):
     """Main driver function to run stage 5: kernel_solution
@@ -76,6 +77,7 @@ def run_stage5(setup):
         if kernel_size % 2 == 0:
             kernel_size = kernel_size + 1
     kernel_size = min(13,kernel_size)
+    kernel_size = 5
     shifts  = np.array(shifts)
     maxshift = int(np.median(shifts) + 2. * np.std(shifts))
     # find the images that need to be processed
@@ -170,6 +172,15 @@ def subtract_small_format_image(new_images, reference_image_name, reference_imag
             hdutmp = fits.PrimaryHDU(umatrix)
             hdutmp.writeto(os.path.join(kernel_directory_path,'unweighted_u_matrix.fits'),overwrite=True)
 
+    #bright_reference_mask[:50,:] = True
+    #bright_reference_mask[-50:,:] = True
+    ##bright_reference_mask[:,-50:] = True
+    #bright_reference_mask[:,:50] = True
+
+
+
+
+
     for new_image in new_images:
         row_index = np.where(reduction_metadata.images_stats[1]['IM_NAME'] == new_image)[0][0]
         ref_fwhm_x, ref_fwhm_y, ref_sigma_x, ref_sigma_y = ref_stats
@@ -180,7 +191,23 @@ def subtract_small_format_image(new_images, reference_image_name, reference_imag
         try:
             data_image, data_image_unmasked = open_data_image(setup, data_image_directory, new_image, bright_reference_mask, kernel_size, max_adu, xshift = x_shift, yshift = y_shift, sigma_smooth = smoothing, central_crop = maxshift)
             missing_data_mask = (data_image == 0.)
-            b_vector = bvector_constant(reference_image, data_image, kernel_size)
+            #reference_image[bright_reference_mask] = 0
+            #data_image[bright_reference_mask] = 0
+
+            y, x = np.indices(reference_image.shape)
+            result = psf.fit_background(reference_image, y, x, background_model='Gradient')
+
+            bkg_mod = psf.GradientBackground()
+            bkg_ref = bkg_mod.background_model(y, x, result[0])
+
+            result = psf.fit_background(data_image, y, x, background_model='Gradient')
+
+            bkg_mod = psf.GradientBackground()
+            bkg_img = bkg_mod.background_model(y, x, result[0])
+            import pdb;
+            pdb.set_trace()
+
+            b_vector = bvector_constant(reference_image-bkg_ref, data_image-bkg_img, kernel_size)
             kernel_matrix, bkg_kernel, kernel_uncertainty  = kernel_solution(umatrix, b_vector, kernel_size, circular = False)
             pscale = np.sum(kernel_matrix)                
             np.save(os.path.join(kernel_directory_path,'kernel_'+new_image+'.npy'),[kernel_matrix,bkg_kernel])
