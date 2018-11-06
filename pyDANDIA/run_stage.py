@@ -58,10 +58,10 @@ def run_stage_stand_alone():
         
         (status, report) = stage3.run_stage3(setup)
 
-
     elif params['stage'] == 'stage4':
-        
+
         (status, report) = stage4.run_stage4(setup)
+
         
     elif params['stage'] == 'stage5':
         

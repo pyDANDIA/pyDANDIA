@@ -12,28 +12,45 @@ from scipy.ndimage.interpolation import shift
 from astropy.stats import SigmaClip
 from photutils import Background2D, MedianBackground
 from skimage.transform import resize
-
+from ccdproc import cosmicray_lacosmic
 import matplotlib.pyplot as plt
 
-def background_mesh_perc(image,perc=20,box=200):
+def background_mesh_perc(image1,perc=50,box_guess=300, master_mask = []):
+
+    image = np.copy(image1)
+    zero_mask = (image == 0.)
+    if master_mask != []:
+        image[master_mask] = np.median(image1)
     #generate slices, iterate over centers
-    centerx = box/2
-    centery = box/2
-    halfbox = box/2
+    if box_guess > int(np.shape(image)[0]/5) and box_guess > int(np.shape(image)[1]/5):
+        box = min(int(np.shape(image)[0]/5), int(np.shape(image)[1]/5))
+    else:
+        box = box_guess
+    centerx = int(box/2)
+    centery = int(box/2)
+    halfbox = int(box/2)
     image_shape = np.shape(image)
     xcen_range = range(centerx,image_shape[0],box) 
     ycen_range = range(centery,image_shape[1],box)
     percentile_bkg = np.zeros((len(xcen_range),len(ycen_range)))
     idx = 0
     jdx = 0
+    perc5 = np.percentile(image,5)
     for xcen in xcen_range:
         idx = 0
         for ycen in ycen_range:
-            val =  np.percentile(image[xcen - halfbox:xcen + halfbox,ycen - halfbox:ycen+halfbox],perc)
-            percentile_bkg[jdx,idx] = val
+            try:
+                positive = image[xcen - halfbox:xcen + halfbox,ycen - halfbox:ycen+halfbox] > perc5
+                val =  np.percentile(image[xcen - halfbox:xcen + halfbox,ycen - halfbox:ycen+halfbox][positive],perc)
+
+                percentile_bkg[jdx,idx] = val
+            except:
+                percentile_bkg[jdx, idx] = 0
             idx += 1
         jdx += 1
-    result = resize(percentile_bkg, np.shape(image),mode= 'reflect')	
+
+    result = resize(percentile_bkg, np.shape(image),mode= 'symmetric')	
+    result[zero_mask] =0.
     return result
 
 def background_mesh(image):
@@ -100,7 +117,6 @@ def read_images_for_substamps(ref_image_filename, data_image_filename, kernel_si
     data_extended[bright_mask] = 0.    
     #half_kernel_mask
     
-
     return ref_extended, data_extended, bright_mask, ref_complete
 
 def open_data_image(setup, data_image_directory, data_image_name, reference_mask, kernel_size,
@@ -127,7 +143,9 @@ def open_data_image(setup, data_image_directory, data_image_name, reference_mask
         data_image = fits.HDUList(fits.PrimaryHDU(data_image1[data_extension].data[subset[0]:subset[1],subset[2]:subset[3]]))
 
     img50pc = np.median(data_image[data_extension].data)
+    zero_parts = data_image[data_extension].data == 0.
     data_image[data_extension].data = data_image[data_extension].data - background_mesh_perc(data_image[data_extension].data)
+    data_image[data_extension].data[zero_parts] = 0.
 
     img_shape = np.shape(data_image[data_extension].data)
     shifted = np.zeros(img_shape)
@@ -137,7 +155,8 @@ def open_data_image(setup, data_image_directory, data_image_name, reference_mask
 
     if xshift>img_shape[0] or yshift>img_shape[1]:
         return []
-    data_image[data_extension].data = shift(data_image[data_extension].data, (-yshift,-xshift), cval=0.)
+    if xshift!=0 and yshift!=0:
+        data_image[data_extension].data = shift(data_image[data_extension].data, (-yshift,-xshift), cval=0.)
     data_image_unmasked = np.copy(data_image[data_extension].data)
     if central_crop != None:
         tmp_image = np.zeros(np.shape(data_image[data_extension].data))
@@ -149,14 +168,14 @@ def open_data_image(setup, data_image_directory, data_image_name, reference_mask
                  kernel_size] = np.array(data_image[data_extension].data, float)
     
     #replace saturated pixels with random noise or 0, bkg_sigma:
-    bkg_sigma = np.std(data_image_unmasked < img50pc) / (1.-2./np.pi)**0.5
+    #bkg_sigma = np.std(data_image_unmasked < img50pc) / (1.-2./np.pi)**0.5
     #apply consistent mask    
     data_image_unmasked[reference_mask[kernel_size:-kernel_size,kernel_size:-kernel_size]] = 0.#np.random.randn(len(data_image_unmasked[reference_mask[kernel_size:-kernel_size,kernel_size:-kernel_size]]))*bkg_sigma
     data_extended[reference_mask] = 0.
 
     return data_extended, data_image_unmasked
 
-def open_reference(setup, ref_image_directory, ref_image_name, kernel_size, max_adu, ref_extension = 0, mask_extension = None, log = None, central_crop = None, subset = None, ref_image1 = None, min_adu = None):
+def open_reference(setup, ref_image_directory, ref_image_name, kernel_size, max_adu, ref_extension = 0, log = None, central_crop = None, subset = None, ref_image1 = None, min_adu = None, master_mask = []):
     '''
     reading difference image for constructing u matrix
 
@@ -170,28 +189,13 @@ def open_reference(setup, ref_image_directory, ref_image_name, kernel_size, max_
 
     if ref_image1 == None:
         ref_image = fits.open(os.path.join(ref_image_directory, ref_image_name), mmap=True)
-    #crop subimage
     if subset != None and ref_image1 == None:
-        if mask_extension != None:
-            bad_pixel_mask = ref_image[mask_extension].data[subset[0]:subset[1],subset[2]:subset[3]]
         ref_image[ref_extension].data=ref_image[ref_extension].data[subset[0]:subset[1],subset[2]:subset[3]]
     if subset != None and ref_image1 != None:
-        if mask_extension != None:
-            bad_pixel_mask = ref_image1[mask_extension].data[subset[0]:subset[1],subset[2]:subset[3]]
-
         ref_image = fits.HDUList(fits.PrimaryHDU(ref_image1[ref_extension].data[subset[0]:subset[1],subset[2]:subset[3]]))
- 
-    #add low pass filter
-    ftrafo = fftpack.fft2((ref_image[ref_extension].data).astype(float))
-    ftrafoshift = fftpack.fftshift(ftrafo)
-    mask = circular_mask(10, ref_image[ref_extension].data)
-    ftrafoshift[mask] = 0.
-    filtered_image = np.abs(fftpack.ifft2(fftpack.ifftshift(ftrafoshift)).real)
-    stdval, medval = np.std(filtered_image),np.median(filtered_image)
-    mask_lowpass = filtered_image > medval+1.*stdval
-
+    
 	#increase kernel size by 1.5 and define circular mask
-    kernel_size_plus = int(kernel_size) + int(kernel_size/2)
+    kernel_size_plus = int(kernel_size) + int(kernel_size)
     mask_kernel = np.ones(kernel_size_plus * kernel_size_plus, dtype=float)
     mask_kernel = mask_kernel.reshape((kernel_size_plus, kernel_size_plus))
     xyc = int(kernel_size_plus / 2)
@@ -202,8 +206,8 @@ def open_reference(setup, ref_image_directory, ref_image_name, kernel_size, max_
                 mask_kernel[idx, jdx] = 0.
     img_shape = np.shape(ref_image[ref_extension].data) 
     ref50pc = np.median(ref_image[ref_extension].data)
-    if mask_extension != None:
-        ref_image[ref_extension].data[bad_pixel_mask>0] = max_adu + ref50pc + 1.
+    if master_mask != []:
+        ref_image[ref_extension].data[master_mask] = max_adu + ref50pc + 1.
 
     ref_bright_mask_1 = (ref_image[ref_extension].data > max_adu + ref50pc)       
     ref_image[ref_extension].data = ref_image[ref_extension].data - background_mesh_perc(ref_image[ref_extension].data)
@@ -216,10 +220,7 @@ def open_reference(setup, ref_image_directory, ref_image_name, kernel_size, max_
 
     mask_extended = np.zeros((np.shape(ref_image[ref_extension].data)[0] + 2 * kernel_size,
                              np.shape(ref_image[ref_extension].data)[1] + 2 * kernel_size))
-    filter_mask = np.zeros((np.shape(ref_image[ref_extension].data)[0] + 2 * kernel_size,
-                             np.shape(ref_image[ref_extension].data)[1] + 2 * kernel_size))
     mask_extended[kernel_size:-kernel_size, kernel_size:-kernel_size][ref_bright_mask_1] = 1.
-    filter_mask[kernel_size:-kernel_size, kernel_size:-kernel_size][mask_lowpass] = 1.
 
     ref_extended = np.zeros((np.shape(ref_image[ref_extension].data)[0] + 2 * kernel_size,
                              np.shape(ref_image[ref_extension].data)[1] + 2 * kernel_size))
@@ -233,15 +234,17 @@ def open_reference(setup, ref_image_directory, ref_image_name, kernel_size, max_
     #increase mask size to kernel size
     mask_propagate = convolve2d(mask_propagate, mask_kernel, mode='same')
     bright_mask = mask_propagate > 0.
-    filter_mask = filter_mask > 0.
     ref_extended[bright_mask] = 0.   
-    ref_extended[filter_mask] = 0.
       
     #replace saturated pixels with random noise or zero:
     bkg_sigma = np.std(ref_image_unmasked < np.median(ref_image_unmasked)) / (1.-2./np.pi)**0.5
     #apply consistent mask    
-    ref_image_unmasked[bright_mask[kernel_size:-kernel_size,kernel_size:-kernel_size]] = 0.# np.random.randn(len(ref_image_unmasked[bright_mask[kernel_size:-kernel_size,kernel_size:-kernel_size]]))*bkg_sigma
-    return ref_extended, bright_mask, ref_image_unmasked
+    ref_extended = cosmicray_lacosmic(ref_extended, sigclip=7, objlim = 7., satlevel = max_adu)[0]
+    ref_image_unmasked = cosmicray_lacosmic(ref_image_unmasked, sigclip=7, objlim = 7, satlevel = max_adu)[0]
+    ref_image_unmasked[bright_mask[kernel_size:-kernel_size,kernel_size:-kernel_size]] = 0. # np.random.randn(len(ref_image_unmasked[bright_mask[kernel_size:-kernel_size,kernel_size:-kernel_size]]))*bkg_sigma
+ 
+ 
+    return np.array(ref_extended,dtype = float), bright_mask, np.array(ref_image_unmasked, dtype=float)
    
 def open_images(setup, ref_image_directory, data_image_directory, ref_image_name,
                 data_image_name, kernel_size, max_adu, ref_extension = 0, 

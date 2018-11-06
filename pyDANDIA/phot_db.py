@@ -114,12 +114,12 @@ class Exposures(TableDef):
     c_050_exposure_ellipticity = 'REAL'
     c_060_exposure_ellipticity_err = 'REAL'
     c_110_airmass = 'REAL'
-    c_120_exposure_time = 'INTEGER'
+    c_120_exposure_time = 'REAL'
     c_130_moon_phase = 'REAL'
     c_140_moon_separation = 'REAL'
     c_150_delta_x = 'REAL'
     c_160_delta_y = 'REAL'    
-    c_170_exposure_name = 'TEXT'
+    c_001_exposure_name = 'TEXT'
 
 class Stars(TableDef):
     """The object list.
@@ -214,6 +214,7 @@ def feed_to_table_many(conn, table_name, names, tuples):
     !!! careful not to include the PRIMARY KEY column for the table in the 
         names or tuples !!!
     """
+
     conn.executemany("INSERT OR REPLACE INTO %s (%s) VALUES (%s)"%(
         table_name, ",".join(names), ",".join("?"*len(names))),
         tuples)

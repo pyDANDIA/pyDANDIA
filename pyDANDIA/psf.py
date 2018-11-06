@@ -492,9 +492,9 @@ class GradientBackground(BackgroundModel):
         self.background_parameters = collections.namedtuple(
             'parameters', self.model)
 
-        for key, value in parameters.items():
+        for index, key in enumerate(self.model):
 
-            setattr(self.background_parameters, key, value)
+            setattr(self.background_parameters, key, parameters[index])
 
     def background_model(self, Y_background, X_background, parameters):
 
@@ -610,6 +610,42 @@ class Image(object):
             y_centers.append(star_positions[0])
 
         return [np.array(intensities), np.array(y_centers), np.array(x_centers)]
+
+
+def fit_background(data, Y_data, X_data, background_model='Constant'):
+
+
+
+    if background_model == 'Constant':
+
+        back_model = ConstantBackground()
+
+    if background_model == 'Gradient':
+
+        back_model = GradientBackground()
+
+
+    guess_back = back_model.background_guess()
+
+    guess =  guess_back
+
+    fit = optimize.leastsq(error_background_fit_function, guess, args=(
+        data,  back_model, Y_data, X_data), full_output=1)
+
+    return fit
+
+def error_background_fit_function(params, data,background, Y_data, X_data):
+
+
+    back_params = params
+
+
+    back_model = background.background_model(Y_data, X_data, back_params)
+
+    residuals = np.ravel(data - back_model)
+
+    return residuals
+
 
 
 def fit_star(data, Y_data, X_data, psf_model='Moffat2D', background_model='Constant'):
