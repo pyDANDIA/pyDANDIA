@@ -307,7 +307,7 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
         ref_fwhm_x = reduction_metadata.images_stats[1][ref_row_index]['FWHM_X'] 
         ref_fwhm_y = reduction_metadata.images_stats[1][ref_row_index]['FWHM_Y'] 
         ref_fwhm = (ref_fwhm_x**2 + ref_fwhm_y**2)**0.5
-        daofind = DAOStarFinder(fwhm = max(ref_fwhm_x, ref_fwhm_y), ratio = min(ref_fwhm_x,ref_fwhm_y)/max(ref_fwhm_x,ref_fwhm_y), threshold = 10. * std_ref, exclude_border = True)
+        daofind = DAOStarFinder(fwhm = max(ref_fwhm_x, ref_fwhm_y), ratio = min(ref_fwhm_x,ref_fwhm_y)/max(ref_fwhm_x,ref_fwhm_y), threshold = 20. * std_ref, exclude_border = True)
         ref_sources = daofind(reference_image - bkg_ref)
         ref_sources_x, ref_sources_y = np.copy(ref_sources['xcentroid']), np.copy(ref_sources['ycentroid'])
 
@@ -338,7 +338,7 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
         data_fwhm_x = reduction_metadata.images_stats[1][row_index]['FWHM_X'] 
         data_fwhm_y = reduction_metadata.images_stats[1][row_index]['FWHM_Y'] 
         data_fwhm = (ref_fwhm_x**2 + ref_fwhm_y**2)**0.5
-        daofind = DAOStarFinder(fwhm = min(data_fwhm_x,data_fwhm_y),ratio = min(data_fwhm_x,data_fwhm_y)/max(data_fwhm_x,data_fwhm_y) , threshold = 10. * std_data, exclude_border = True)
+        daofind = DAOStarFinder(fwhm = min(data_fwhm_x,data_fwhm_y),ratio = min(data_fwhm_x,data_fwhm_y)/max(data_fwhm_x,data_fwhm_y) , threshold = 20. * std_data, exclude_border = True)
         data_sources = daofind(data_image - bkg_img)
 
         data_sources_x, data_sources_y = np.copy(data_sources['xcentroid'].data), np.copy(data_sources['ycentroid'].data)
@@ -364,7 +364,7 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
         if len(pts1)>3:
 
 
-            pts1 = np.c_[ data_sources_x -200, data_sources_y -200][matching[:,1]]
+            pts1 = np.c_[ data_sources_x -int(central_region_x/2), data_sources_y -int(central_region_y/2)][matching[:,1]]
 
             #guess = [-x_shift,-y_shift,0]
             #result = so.differential_evolution(fit_transformation,[[-100,100],[-100,100],[0,2*np.pi]], args=(reference_image,data_image),popsize=10)
@@ -384,15 +384,15 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
             #np.allclose(tform.inverse(tform(pts1)), pts1)
             maxv = np.max(data_image)
             shifted = tf.warp(img_as_float64(data_image/maxv),inverse_map = tform.inverse)
-            shifted = manual_transformation(tform.params, (-200-x_shift,-200-y_shift), img_as_float64(data_image/maxv))
+            shifted = manual_transformation(tform.params, (-int(central_region_x/2)-x_shift,-int(central_region_y/2)-y_shift), img_as_float64(data_image/maxv))
 
             if mask_extension>-1:
                 maxvmask = np.max(mask_image)
                 shifted_mask = tf.warp(img_as_float64(mask_image/maxvmask),inverse_map = tform.inverse)
-                shifted_mask = manual_transformation(tform.params, (-200 - x_shift, -200 - y_shift),mask_image)
+                shifted_mask = manual_transformation(tform.params, (-int(central_region_x/2) - x_shift, -int(central_region_y/2) - y_shift),mask_image)
 
                 shifted_mask = shifted_mask * maxvmask
-            #shifted = maxv * np.array(shifted)
+            shifted = maxv * np.array(shifted)
             import matplotlib.pyplot as plt
 
             fig,ax = plt.subplots(2,1,sharex=True,sharey=True)
