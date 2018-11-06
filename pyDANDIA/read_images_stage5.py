@@ -16,6 +16,7 @@ from ccdproc import cosmicray_lacosmic
 import matplotlib.pyplot as plt
 
 def background_mesh_perc(image1,perc=50,box_guess=300, master_mask = []):
+
     image = np.copy(image1)
     zero_mask = (image == 0.)
     if master_mask != []:
@@ -38,11 +39,16 @@ def background_mesh_perc(image1,perc=50,box_guess=300, master_mask = []):
     for xcen in xcen_range:
         idx = 0
         for ycen in ycen_range:
-            positive = image[xcen - halfbox:xcen + halfbox,ycen - halfbox:ycen+halfbox] > perc5
-            val =  np.percentile(image[xcen - halfbox:xcen + halfbox,ycen - halfbox:ycen+halfbox][positive],perc)
-            percentile_bkg[jdx,idx] = val
+            try:
+                positive = image[xcen - halfbox:xcen + halfbox,ycen - halfbox:ycen+halfbox] > perc5
+                val =  np.percentile(image[xcen - halfbox:xcen + halfbox,ycen - halfbox:ycen+halfbox][positive],perc)
+
+                percentile_bkg[jdx,idx] = val
+            except:
+                percentile_bkg[jdx, idx] = 0
             idx += 1
         jdx += 1
+   
     result = resize(percentile_bkg, np.shape(image),mode= 'symmetric')	
     result[zero_mask] =0.
     return result
