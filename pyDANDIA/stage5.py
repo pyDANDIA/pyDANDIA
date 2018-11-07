@@ -77,6 +77,7 @@ def run_stage5(setup):
         if kernel_size % 2 == 0:
             kernel_size = kernel_size + 1
     kernel_size = min(13,kernel_size)
+    #kernel_size = 5
     shifts  = np.array(shifts)
     maxshift = int(np.median(shifts) + 2. * np.std(shifts))
     # find the images that need to be processed
@@ -171,7 +172,10 @@ def subtract_small_format_image(new_images, reference_image_name, reference_imag
             hdutmp = fits.PrimaryHDU(umatrix)
             hdutmp.writeto(os.path.join(kernel_directory_path,'unweighted_u_matrix.fits'),overwrite=True)
 
-
+    #bright_reference_mask[:200,:] = True
+    #bright_reference_mask[-200:,:] = True
+    #bright_reference_mask[:,:200] = True
+    #bright_reference_mask[:,-200:] = True
 
 
 

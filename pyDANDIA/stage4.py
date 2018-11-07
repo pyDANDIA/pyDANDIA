@@ -301,7 +301,7 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
         ref_fwhm_x = reduction_metadata.images_stats[1][ref_row_index]['FWHM_X'] 
         ref_fwhm_y = reduction_metadata.images_stats[1][ref_row_index]['FWHM_Y'] 
         ref_fwhm = (ref_fwhm_x**2 + ref_fwhm_y**2)**0.5
-        daofind = DAOStarFinder(fwhm = max(ref_fwhm_x, ref_fwhm_y), ratio = min(ref_fwhm_x,ref_fwhm_y)/max(ref_fwhm_x,ref_fwhm_y), threshold = 20. * std_ref, exclude_border = True)
+        daofind = DAOStarFinder(fwhm = max(ref_fwhm_x, ref_fwhm_y), ratio = min(ref_fwhm_x,ref_fwhm_y)/max(ref_fwhm_x,ref_fwhm_y), threshold = 3. * std_ref, exclude_border = True)
         ref_sources = daofind(reference_image - median_ref)
         ref_sources_x, ref_sources_y = np.copy(ref_sources['xcentroid']), np.copy(ref_sources['ycentroid'])
 
@@ -328,7 +328,7 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
         data_fwhm_x = reduction_metadata.images_stats[1][row_index]['FWHM_X'] 
         data_fwhm_y = reduction_metadata.images_stats[1][row_index]['FWHM_Y'] 
         data_fwhm = (ref_fwhm_x**2 + ref_fwhm_y**2)**0.5
-        daofind = DAOStarFinder(fwhm = min(data_fwhm_x,data_fwhm_y),ratio = min(data_fwhm_x,data_fwhm_y)/max(data_fwhm_x,data_fwhm_y) , threshold = 20. * std_data, exclude_border = True)
+        daofind = DAOStarFinder(fwhm = min(data_fwhm_x,data_fwhm_y),ratio = min(data_fwhm_x,data_fwhm_y)/max(data_fwhm_x,data_fwhm_y) , threshold = 3. * std_data, exclude_border = True)
         data_sources = daofind(data_image - median_data)
 
         data_sources_x, data_sources_y = np.copy(data_sources['xcentroid'].data), np.copy(data_sources['ycentroid'].data)
@@ -342,64 +342,96 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
 
         idx_match, dist2d, dist3d = match_coordinates_sky( data_catalog,ref_catalog, storekdtree='kdtree_sky')  
         #reformat points for scikit
-        pts1, pts2, matching = reformat_catalog(idx_match, dist2d, ref_sources, data_sources,float(central_region_x), distance_threshold = 10., max_points = 3000)
+        #pts1, pts2, matching = reformat_catalog(idx_match, dist2d, ref_sources, data_sources,float(central_region_x), distance_threshold = 10., max_points = 3000)
 
         pts1, pts2, matching = reformat_catalog2(np.c_[ref_sources['xcentroid'],ref_sources['ycentroid']], np.c_[data_sources['xcentroid']-x_shift,data_sources['ycentroid']-y_shift],
                                                  distance_threshold=8)
         #pts1 = np.c_[]
         #resample image if there is a sufficient number of stars
-        if len(pts1)>3:
+        if len(pts1)>10:
 
 
-            pts1 = np.c_[ data_sources_x -int(central_region_x/2), data_sources_y -int(central_region_y/2)][matching[:,1]]
-
-
+            #pts1 = np.c_[ data_sources_x -int(central_region_x/2), data_sources_y -int(central_region_y/2)][matching[:,1]]
+            #pts1 = np.c_[data_sources_x - int(central_region_x / 2), data_sources_y - int(central_region_y / 2)][
+             #   matching[:, 1]]
+            pts1 = np.c_[data_sources_x+x_shift , data_sources_y +y_shift][ matching[:, 1]]
             tform = tf.estimate_transform('affine',pts1,pts2)
-            rota = np.linalg.lstsq(np.c_[pts1,[1]*len(pts1)],np.c_[pts2,[1]*len(pts1)])
+            tform3 = tf.PolynomialTransform()
+            tform3.estimate(pts2, pts1,order=2)
+            #import pdb;
+            #pdb.set_trace()
+            #warped = tf.warp(data_image / np.max(data_image), tform3)
+            #import matplotlib.pyplot as plt
 
-            maxv = np.max(data_image)
+            #fig,ax = plt.subplots(2,1,sharex=True,sharey=True)
+
+            #ax[0].imshow(reference_image)
+
+
+
+            #ax[1].imshow(warped)
+
+            #plt.show()
+
+
+
+            #rota = np.linalg.lstsq(np.c_[pts1,[1]*len(pts1)],np.c_[pts2,[1]*len(pts1)])
+
+            maxv = np.max(np.abs(data_image))
             #shifted = tf.warp(img_as_float64(data_image/maxv),inverse_map = tform.inverse)
-            shifted = manual_transformation(tform.params, (-int(central_region_x/2)-x_shift,-int(central_region_y/2)-y_shift), img_as_float64(data_image/maxv))
-
+            #shifted = manual_transformation(tform.params, (-int(central_region_x/2)-x_shift,-int(central_region_y/2)-y_shift),data_image)
+            shifted = tf.warp(img_as_float64(data_image/maxv), tform3,order=1)
             if mask_extension>-1:
                 maxvmask = np.max(mask_image)
                 #shifted_mask = tf.warp(img_as_float64(mask_image/maxvmask),inverse_map = tform.inverse)
-                shifted_mask = manual_transformation(tform.params, (-int(central_region_x/2) - x_shift, -int(central_region_y/2) - y_shift),mask_image)
-
+                #shifted_mask = manual_transformation(tform.params, (-int(central_region_x/2) - x_shift, -int(central_region_y/2) - y_shift),mask_image/maxvmask)
+                shifted_mask = tf.warp(mask_image / maxvmask, tform3)
                 shifted_mask = shifted_mask * maxvmask
+
             shifted = maxv * np.array(shifted)
 
 
+            for repeat in range(0):
+                mean_shifted, median_shifted, std_shifted = sigma_clipped_stats(
+                    shifted[center_x - int(central_region_x / 4):center_x + int(central_region_x / 4),
+                    center_y - int(central_region_y / 4):center_y + int(central_region_y / 4)], sigma=3.0, iters=5)
 
-            for repeat in range(3):
-                daofind = DAOStarFinder(fwhm = min(data_fwhm_x,data_fwhm_y),ratio = min(data_fwhm_x,data_fwhm_y)/max(data_fwhm_x,data_fwhm_y) , threshold = 10 * std_data, exclude_border = True)
-                data_sources = daofind(shifted - median_data)
+                daofind = DAOStarFinder(fwhm = min(data_fwhm_x,data_fwhm_y),ratio = min(data_fwhm_x,data_fwhm_y)/max(data_fwhm_x,data_fwhm_y) , threshold = 20 * std_shifted, exclude_border = True)
+
+                data_sources = daofind(shifted - mean_shifted)
                 data_sources_x, data_sources_y = np.copy(data_sources['xcentroid'].data), np.copy(data_sources['ycentroid'].data)
                 data_catalog = SkyCoord(data_sources_x/float(central_region_x)*u.rad, data_sources_y/float(central_region_y)*u.rad)
                 idx_match, dist2d, dist3d = match_coordinates_sky( data_catalog,ref_catalog, storekdtree='kdtree_sky')  
                 #reformat points for scikit
-                pts1, pts2, matching = reformat_catalog(idx_match, dist2d, ref_sources, data_sources, float(central_region_x),distance_threshold = 1.4, max_points = 3000)
+                #pts1, pts2, matching = reformat_catalog(idx_match, dist2d, ref_sources, data_sources, float(central_region_x),distance_threshold = 1.4, max_points = 3000)
                 pts1, pts2, matching = reformat_catalog2(np.c_[ref_sources['xcentroid'], ref_sources['ycentroid']],
                                                          np.c_[data_sources['xcentroid'] , data_sources[
                                                              'ycentroid'] ],
                                                          distance_threshold=8)
+
+
             #resample image if there is a sufficient number of stars
-                if len(pts1)>5:
+                if len(pts1)>10:
                     #permit translation again to be part of the least-squares problem
-                    pts1 = np.c_[data_sources_x - 200, data_sources_y - 200][matching[:, 1]]
+                    pts1 = np.c_[data_sources_x , data_sources_y ][matching[:, 1]]
                     tform = tf.estimate_transform('affine',pts1,pts2)
-                    np.allclose(tform.inverse(tform(pts1)), pts1)    
+                    np.allclose(tform.inverse(tform(pts1)), pts1)
+                    tform3 = tf.PolynomialTransform()
+                    tform3.estimate(pts2, pts1, order=2)
                     maxv = np.max(shifted)
-                    shifted = tf.warp(img_as_float64(shifted/maxv),inverse_map = tform.inverse)
-                    shifted = manual_transformation(tform.params, (-int(central_region_x/2) - x_shift, -int(central_region_y/2)- y_shift), img_as_float64(data_image/maxv))
+                    #shifted = tf.warp(img_as_float64(shifted/maxv),inverse_map = tform.inverse)
+                    #shifted = manual_transformation(tform.params, (-int(central_region_x/2), - int(central_region_y/2)), img_as_float64(shifted/maxv))
+                    shifted = tf.warp(img_as_float64(shifted / maxv), tform3, order=1)
 
                     if mask_extension>-1:
                         maxvmask = np.max(shifted_mask)
-                        shifted_mask = tf.warp(img_as_float64(shifted_mask/maxvmask),inverse_map = tform.inverse)
+                        shifted_mask = manual_transformation(tform.params, ( -int(central_region_x/2), - int(central_region_y/2)),
+                                                             shifted_mask / maxvmask)
                         shifted_mask = maxvmask * shifted_mask
                     shifted = maxv * np.array(shifted)
         #cosmic ray rejection
         try:
+
 
             shifted = cosmicray_lacosmic(shifted, sigclip=4., objlim = 4)[0]
             pxs = float(np.shape(shifted)[0]*np.shape(shifted)[1])
@@ -422,7 +454,6 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
                          resampled_mask_hdu.writeto(os.path.join(reduction_metadata.data_architecture[1]['REF_PATH'][0],'master_mask.fits'), overwrite = True)
                 
         except Exception as e:
-         import pdb; pdb.set_trace()
          resampled_image_hdu = fits.PrimaryHDU(data_image)
          resampled_image_hdu.writeto(os.path.join(resampled_directory_path,new_image),overwrite = True)
          if log is not None:
