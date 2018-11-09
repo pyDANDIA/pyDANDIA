@@ -165,6 +165,8 @@ def run_stage6(setup):
         data = []
         diffim_directory = os.path.join(reduction_metadata.data_architecture[1]['OUTPUT_DIRECTORY'].data[0],'diffim')
         images_directory = reduction_metadata.data_architecture[1]['IMAGES_PATH'].data[0]
+        images_directory = os.path.join(setup.red_dir, 'resampled')
+
         photometric_table = np.zeros((145,len(ref_star_catalog),16))
         compt_db = 0
 
@@ -214,8 +216,10 @@ def run_stage6(setup):
                     photometric_table[compt_db,:,:] = phot_table
 
             except:
+                 import pdb;
+                 pdb.set_trace()
 
-                 #save_control_zone_of_residuals(setup, new_image, control_zone)     
+                #save_control_zone_of_residuals(setup, new_image, control_zone)
   
                  #ingest_photometric_table_in_db(setup, photometric_table) 
                  compt_db += 1
@@ -486,6 +490,7 @@ def photometry_on_the_difference_image(setup, reduction_metadata, log, star_cata
 
     #return table
     return differential_photometry
+
 
 
 

@@ -265,7 +265,9 @@ def run_psf_photometry_on_difference_image(setup,reduction_metadata,log,ref_star
           rejected_points = 0
         
           intensities,cov = np.polyfit(psf_fit[mask2],data[mask2],1,w=1/weight[mask2],cov=True)
-       	   
+       	  #import matplotlib.pyplot as plt
+          #plt.errorbar(psf_fit[mask2],data[mask2],yerr=weight[mask2],fmt='.k')
+          #plt.show()
           (flux, flux_err) =  (intensities[0],(cov[0][0])**0.5)
 
 
