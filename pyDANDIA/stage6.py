@@ -71,7 +71,7 @@ def run_stage6(setup):
                              control_stars['y_pixel'].data]
 
     for index,key in enumerate(starlist.columns.keys()):
-    
+
         if index != 0:
 
      
@@ -129,12 +129,12 @@ def run_stage6(setup):
    
             reference_header = reduction_metadata.headers_summary[1][index_reference]
 
-        # create the reference table in db
-            ingest_reference_in_db(setup, reference_header)
+            # create the reference table in db
+            ingest_reference_in_db(setup, reference_header,reference_image_directory,reference_image_name)
             conn = db_phot.get_connection(dsn=setup.red_dir+'phot.db')
             ref_image_id = db_ai.query_to_astropy_table(conn,"SELECT refimg_id FROM reference_images")[0][0]
             conn.commit()
-            
+
             logs.ifverbose(log, setup,
                            'I found the reference frame:' + reference_image_name)
         except KeyError:
@@ -164,26 +164,13 @@ def run_stage6(setup):
 
         data = []
         diffim_directory = os.path.join(reduction_metadata.data_architecture[1]['OUTPUT_DIRECTORY'].data[0],'diffim')
-        images_directory = reduction_metadata.data_architecture[1]['IMAGES_PATH'].data[0]
-        images_directory = os.path.join(setup.red_dir, 'resampled')
 
-        photometric_table = np.zeros((145,len(ref_star_catalog),16))
+        photometric_table = np.zeros((len(new_images),len(ref_star_catalog),16))
         compt_db = 0
 
 
-        fwhm_max = 0.
-        shift_max = 0
-        for stats_entry in reduction_metadata.images_stats[1]:
-              if float(stats_entry['FWHM_X'])> fwhm_max:
-                   fwhm_max = stats_entry['FWHM_X']
-              if float(stats_entry['FWHM_Y'])> fwhm_max:
-                   fwhm_max = stats_entry['FWHM_Y']
-        kernel_size = int(4.*float(reduction_metadata.reduction_parameters[1]['KER_RAD'][0]) * fwhm_max)
-        if kernel_size:
-            if kernel_size % 2 == 0:
-                 kernel_size = kernel_size + 1
 
-        kernel_size = min(21,kernel_size)
+
         for idx,new_image in enumerate(new_images[:]):
 
             
@@ -199,25 +186,23 @@ def run_stage6(setup):
             exposures_id.append(image_id) 
 
             log.info('Starting difference photometry of '+new_image)
-            target_image,date = open_an_image(setup, images_directory, new_image, image_index=0, log=None)
+            #target_image,date = open_an_image(setup, images_directory, new_image, image_index=0, log=None)
             kernel_image,kernel_error,kernel_bkg = find_the_associated_kernel(setup, kernels_directory, new_image)
          
-            difference_image = subtract_images(target_image, reference_image, kernel_image, kernel_size, kernel_bkg)
-         
+           # difference_image = subtract_images(target_image, reference_image, kernel_image, kernel_size, kernel_bkg)
+            difference_image = open_an_image(setup,diffim_directory,'diff_'+new_image,0,log=None)[0]
 
             time.append(date)
 
-            save_control_stars_of_the_difference_image(setup, new_image, difference_image, star_coordinates)
+            #save_control_stars_of_the_difference_image(setup, new_image, difference_image, star_coordinates)
 
             phot_table, control_zone = photometry_on_the_difference_image(setup, reduction_metadata, log,ref_star_catalog,difference_image,  psf_model, sky_model, kernel_image,kernel_error, ref_exposure_time)
-            compt_db +=1
-            #import pdb; pdb.set_trace()    
-            try:    
+            try:
                     photometric_table[compt_db,:,:] = phot_table
+                    phot_table = np.zeros(phot_table.shape)
+                    compt_db +=1
 
             except:
-                 import pdb;
-                 pdb.set_trace()
 
                 #save_control_zone_of_residuals(setup, new_image, control_zone)
   
@@ -231,9 +216,8 @@ def run_stage6(setup):
              #   exposures_id = []
              #   compt_db = 0
 
-            
-       
-        import pdb; pdb.set_trace()    
+        import pdb;
+        pdb.set_trace()
         ingest_photometric_table_in_db(setup, exposures_id, star_indexes, photometric_table)
     
         reduction_metadata.update_reduction_metadata_reduction_status(new_images, stage_number=6, status=1, log=log)
@@ -265,6 +249,8 @@ def background_subtract(setup, image, max_adu):
     sky_model_image = generate_sky_model_image(sky_params)
     
     return image - sky_model_image
+
+
 
 
 def open_an_image(setup, image_directory, image_name,
@@ -528,13 +514,23 @@ def find_stars_indexes_in_db(setup):
 
 
 
-def ingest_reference_in_db(setup, reference_header):
+def ingest_reference_in_db(setup, reference_header,reference_image_directory,reference_image_name):
 
-     conn = db_phot.get_connection(dsn=setup.red_dir+'phot.db')
+    names = ('telescope_id', 'instrument_id', 'filter_id', 'refimg_fwhm', 'refimg_fwhm_err', 'refimg_ellipticity',
+             'refimge_ellipticity_err', 'refimg_name', 'wcsfrcat', 'wcsimcat', 'wcsmatch', 'wcsnref', 'wcstol',
+             'wcsra', 'wcsdec', 'wequinox', 'wepoch', 'radecsys', 'cdelt1', 'cdelt2', 'crota1', 'crota2', 'secpix1',
+             'secpix2',
+             'wcssep', 'equinox', 'cd1_1', 'cd1_2', 'cd2_1', 'cd2_2', 'epoch')
 
-     name = reference_header['IMAGES']    
-     cam_filter = reference_header['FILTKEY']    
-     new_table = Table([[name],[cam_filter]],names=('refimg_name','filter_id'))
+    conn = db_phot.get_connection(dsn=setup.red_dir+'phot.db')
+
+     name = reference_image_name
+     cam_filter = reference_header['FILTKEY']
+     telescope_id = name.split('-')[0]
+     camera_id = name.split('-')[1]
+
+     new_table = Table([[name],[cam_filter],[telescope_id],[camera_id]],names=('refimg_name','filter_id','telescope_id',
+                                                                   'instrument_id'))
 
      db_ai.load_astropy_table(conn, 'reference_images', new_table)
      conn.commit()
@@ -577,7 +573,8 @@ def ingest_reference_in_db(setup, reference_header):
      #c_152_epoch = 'INTEGER'
      #
 
-     
+
+
 def ingest_exposure_in_db(setup,  image_header, ref_image_id):
 
      conn = db_phot.get_connection(dsn=setup.red_dir+'phot.db')
@@ -608,7 +605,12 @@ def ingest_exposure_in_db(setup,  image_header, ref_image_id):
      #c_170_exposure_name = 'TEXT'
 
 def ingest_photometric_table_in_db(setup, exposures_indexes, star_indexes, photometric_table):
-    
+
+
+     names =('exposure_id','star_id','reference_mag','reference_mag_err','reference_flux','reference_flux_err',
+             'diff_flux','diff_flux_err','magnitude','magnitude_err','phot_scale_factor','phot_scale_factor_err',
+             'local_background','local_background_err','residual_x','residual_y')
+
      #if photometric_table exists
      if len(photometric_table) !=0 :
          conn = db_phot.get_connection(dsn=setup.red_dir+'phot.db')
@@ -618,29 +620,13 @@ def ingest_photometric_table_in_db(setup, exposures_indexes, star_indexes, photo
              for ind_star,star in enumerate(star_indexes):
 
                  phot_table = photometric_table[ind_exp,ind_star,:]
-                 diff_flux = phot_table[6]    
-                 new_table = Table([[exposure],[star],[diff_flux]],names=('exposure_id','star_id','diff_flux'))
+
+                 phot_table = [[i] for i in phot_table ]
+
+                 new_table = Table(phot_table,names=names)
              
                  db_ai.load_astropy_table(conn, 'phot', new_table)
          conn.commit()
-     #what need to be filled...
-     #c_000_phot_id = 'INTEGER PRIMARY KEY'
-     #c_010_exposure_id = 'INTEGER REFERENCES exposures(exposure_id)'
-     #c_020_star_id ='INTEGER REFERENCES stars(star_id)'
-     #c_022_reference_mag = 'REAL'
-     #c_025_reference_mag_err= 'REAL'
-     #c_022_reference_flux = 'DOUBLE PRECISION'
-     #c_025_reference_flux_err= 'DOUBLE PRECISION'
-     #c_030_diff_flux = 'DOUBLE PRECISION'
-     #c_040_diff_flux_err = 'DOUBLE PRECISION'
-     #c_050_magnitude = 'REAL'
-     #c_060_magnitude_err = 'REAL'
-     #c_070_phot_scale_factor = 'REAL'
-     ##c_080_phot_scale_factor_err = 'REAL'
-     #c_090_local_background = 'DOUBLE PRECISION'
-     #c_100_local_background_err = 'DOUBLE PRECISION'
-     #c_130_residual_x = 'REAL'
-     #c_140_residual_y = 'REAL'
 
 
 
