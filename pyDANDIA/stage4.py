@@ -306,7 +306,7 @@ def point_transformation(params,pts1):
 
     return model
 
-def iterate_on_resampling(pts1,pts2,matching, threshold_rms = 0.05, threshold_star = 10):
+def iterate_on_resampling(pts1,pts2,matching, xshift,yshift,threshold_rms = 0.05, threshold_star = 10):
 
     print('Sigma clipping on the resampling')
     RMS = 2*threshold_rms
@@ -327,7 +327,9 @@ def iterate_on_resampling(pts1,pts2,matching, threshold_rms = 0.05, threshold_st
         pts2 = np.delete(pts2, bad, axis=0)
 
         if len(pts1)<threshold_star:
-                break
+            tform = tf.SimilarityTransform(translation=(-xshift, -yshift))
+
+            break
         tform = tf.estimate_transform('affine', pts1[:, :2], pts2[:, :2])
         model = point_transformation(tform.params, pts1)
         distances = (pts2[:, 0] - model[0]) ** 2 + (pts2[:, 1] - model[1]) ** 2
@@ -426,7 +428,7 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
 
 
 
-            model_final = iterate_on_resampling(pts1, pts2, matching, threshold_rms=0.05, threshold_star=10)
+            model_final = iterate_on_resampling(pts1, pts2, matching, x_shift,y_shift,threshold_rms=0.05, threshold_star=10)
 
         else:
 
