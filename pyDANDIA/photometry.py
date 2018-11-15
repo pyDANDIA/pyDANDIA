@@ -51,8 +51,12 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
     psf_size = reduction_metadata.reduction_parameters[1]['PSF_SIZE'][0]
     half_psf = int(float(psf_size)/2.0)
     
+    exp_time = extract_exptime(reduction_metadata,
+                               os.path.basename(image_path))
+    
     logs.ifverbose(log,setup,'Applying '+psf_model.psf_type()+\
                     ' PSF of diameter='+str(psf_size))
+    logs.ifverbose(log,setup,'Scaling fluxes by exposure time '+str(exp_time)+'s')
     
     Y_data, X_data = np.indices((int(psf_size),int(psf_size)))
     
@@ -98,10 +102,10 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
                     
             (flux, flux_err) = fitted_model.calc_flux(Y_grid, X_grid)
             
-            (mag, mag_err) = convert_flux_to_mag(flux, flux_err)
+            (mag, mag_err, flux_scaled, flux_err_scaled) = convert_flux_to_mag(flux, flux_err, exp_time=exp_time)
             
-            ref_star_catalog[j,5] = flux
-            ref_star_catalog[j,6] = flux_err
+            ref_star_catalog[j,5] = flux_scaled
+            ref_star_catalog[j,6] = flux_err_scaled
             ref_star_catalog[j,7] = mag
             ref_star_catalog[j,8] = mag_err
             
@@ -282,7 +286,7 @@ def run_psf_photometry_on_difference_image(setup,reduction_metadata,log,ref_star
           list_delta_flux_error.append(flux_err)        
 
 
-          (mag, mag_err) = convert_flux_to_mag(flux_tot/ ref_exposure_time, flux_err_tot/ ref_exposure_time)
+          (mag, mag_err,flux_scaled,flux_err_scaled) = convert_flux_to_mag(flux_tot, flux_err_tot, exp_time=ref_exposure_time)
 
 
           list_mag.append(mag)
@@ -326,7 +330,7 @@ def run_psf_photometry_on_difference_image(setup,reduction_metadata,log,ref_star
     #return  difference_image_photometry, control_zone
     return  np.array(difference_image_photometry).T     ,1
 
-def convert_flux_to_mag(flux, flux_err):
+def convert_flux_to_mag(flux, flux_err, exp_time=None):
     """Function to convert the flux of a star from its fitted PSF model 
     and its uncertainty onto the magnitude scale.
     
@@ -342,6 +346,14 @@ def convert_flux_to_mag(flux, flux_err):
         
         return ZP - 2.5 * np.log10(flux)
     
+    if exp_time != None:
+        
+        frac_err = flux_err / flux
+        
+        flux = flux / exp_time
+        
+        flux_err = flux * frac_err
+        
     if flux < 0.0 or flux_err < 0.0:
         
         mag = 0.0
@@ -355,7 +367,7 @@ def convert_flux_to_mag(flux, flux_err):
         
         mag_err = (2.5/np.log(10.0))*flux_err/flux
         
-    return mag, mag_err
+    return mag, mag_err, flux, flux_err
     
 def plot_ref_mag_errors(setup,ref_star_catalog):
     """Function to output a diagnostic plot of the fitted PSF magnitudes
@@ -384,3 +396,12 @@ def plot_ref_mag_errors(setup,ref_star_catalog):
 
     plt.close(1)
     
+def extract_exptime(reduction_metadata,image_name):
+    """Function to look up the exposure time for the indicated image from
+    the headers_summary in the reduction metadata"""
+    
+    idx = list(reduction_metadata.headers_summary[1]['IMAGES']).index(image_name)
+    
+    exp_time = float(reduction_metadata.headers_summary[1]['EXPKEY'][idx])
+    
+    return exp_time

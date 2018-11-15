@@ -18,7 +18,6 @@ import catalog_utils
 import psf
 from astropy.table import Table
 
-
 TEST_DATA = os.path.join(cwd,'data')
 TEST_DIR = os.path.join(cwd,'data','proc',
                         'ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip')
@@ -113,7 +112,51 @@ def test_plot_ref_mag_errors():
     
     assert os.path.isfile(plot_file)
 
+def test_extract_exptime():
+    
+    
+    setup = pipeline_setup.pipeline_setup({'red_dir': TEST_DIR})
+    
+    reduction_metadata = metadata.MetaData()
+    reduction_metadata.load_a_layer_from_file( setup.red_dir, 
+                                              'pyDANDIA_metadata.fits', 
+                                              'reduction_parameters' )
+    reduction_metadata.load_a_layer_from_file( setup.red_dir, 
+                                              'pyDANDIA_metadata.fits', 
+                                              'images_stats' )
+    reduction_metadata.load_a_layer_from_file( setup.red_dir, 
+                                              'pyDANDIA_metadata.fits', 
+                                              'data_architecture' )
+    reduction_metadata.load_a_layer_from_file( setup.red_dir, 
+                                              'pyDANDIA_metadata.fits', 
+                                              'headers_summary' )
+    
+    image_name = reduction_metadata.data_architecture[1]['REF_IMAGE'][0]
+
+    exp_time = photometry.extract_exptime(reduction_metadata,image_name)
+    
+    assert(exp_time == 300.0)
+
+
+def test_convert_flux_to_mag():
+    
+    def nearly_equal(a,b,sig_fig=5):
+        return ( a==b or 
+                 int(a*10**sig_fig) == int(b*10**sig_fig)
+               )
+
+    f = 1000.0
+    ferr = np.sqrt(f)
+    expt = 30.0
+    
+    (m,merr,f_scaled,ferr_scaled) = photometry.convert_flux_to_mag(f,ferr,exp_time=expt)
+    
+    assert nearly_equal(m, 21.1, sig_fig=1)
+    assert nearly_equal(merr, 0.034, sig_fig=3)
+    
 if __name__ == '__main__':
     
-    test_run_psf_photometry()
-    test_plot_ref_mag_errors()
+    #test_run_psf_photometry()
+    #test_plot_ref_mag_errors()
+    #test_extract_exptime()
+    test_convert_flux_to_mag()

@@ -37,6 +37,9 @@ def run_stage3(setup):
     reduction_metadata.load_a_layer_from_file( setup.red_dir, 
                                               'pyDANDIA_metadata.fits', 
                                               'data_architecture' )
+    reduction_metadata.load_a_layer_from_file( setup.red_dir, 
+                                              'pyDANDIA_metadata.fits', 
+                                              'headers_summary' )
     
     sane = check_metadata(reduction_metadata,log)
     
