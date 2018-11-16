@@ -6,9 +6,10 @@ Created on Mon Jun 18 14:49:11 2018
 """
 
 from sys import argv, exit
-from os import path
+from os import path, mkdir
 from pyDANDIA import  metadata
 from shutil import copyfile
+from astropy.table import Column
 
 def assign_ref_image():
     """Function to manually set the reference image to be used for a 
@@ -67,7 +68,16 @@ def update_metadata(params):
                                               'pyDANDIA_metadata.fits', 
                                               'data_architecture' )
     
-    reduction_metadata.data_architecture[1]['REF_IMAGE'][0] = params['ref_image']
+    try:
+        reduction_metadata.data_architecture[1]['REF_IMAGE'][0] = params['ref_image']
+    
+    except KeyError:
+        ref_path = path.join(params['red_dir'], 'ref')
+        col1 = Column([ref_path], name='REF_PATH')
+        reduction_metadata.data_architecture[1].add_column(col1)
+        
+        col2 = Column([params['ref_image']], name='REF_IMAGE')
+        reduction_metadata.data_architecture[1].add_column(col2)
     
     reduction_metadata.save_a_layer_to_file(params['red_dir'], 
                                                 'pyDANDIA_metadata.fits',
@@ -79,6 +89,9 @@ def copy_image_to_ref(params):
     src = path.join(params['red_dir'],'data',params['ref_image'])
     dest = path.join(params['red_dir'],'ref',params['ref_image'])
     
+    if path.isdir(path.join(params['red_dir'],'ref')) == False:
+        mkdir(path.join(params['red_dir'],'ref'))
+        
     copyfile(src, dest)
     
 
