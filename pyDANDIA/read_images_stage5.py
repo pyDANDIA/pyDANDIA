@@ -209,7 +209,7 @@ def open_reference(setup, ref_image_directory, ref_image_name, kernel_size, max_
     if master_mask != []:
         ref_image[ref_extension].data[master_mask] = max_adu + ref50pc + 1.
 
-    ref_bright_mask_1 = (ref_image[ref_extension].data > max_adu + ref50pc)       
+    ref_bright_mask_1 = (ref_image[ref_extension].data > max_adu + ref50pc)
     ref_image[ref_extension].data = ref_image[ref_extension].data - background_mesh_perc(ref_image[ref_extension].data)
 
     ref_image_unmasked = np.copy(ref_image[ref_extension].data)
@@ -234,8 +234,8 @@ def open_reference(setup, ref_image_directory, ref_image_name, kernel_size, max_
     #increase mask size to kernel size
     mask_propagate = convolve2d(mask_propagate, mask_kernel, mode='same')
     bright_mask = mask_propagate > 0.
-    ref_extended[bright_mask] = 0.   
-      
+    ref_extended[bright_mask] = 0.
+
     #replace saturated pixels with random noise or zero:
     bkg_sigma = np.std(ref_image_unmasked < np.median(ref_image_unmasked)) / (1.-2./np.pi)**0.5
     #apply consistent mask    
