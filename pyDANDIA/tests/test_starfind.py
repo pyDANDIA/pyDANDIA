@@ -14,11 +14,13 @@ import metadata
 import stage3
 import logs
 from astropy.io import fits
+import pipeline_setup
+import numpy as np
 
 cwd = getcwd()
 TEST_DATA = path.join(cwd,'data')
 
-TEST_DIR = os.path.join(cwd,'data','proc',
+TEST_DIR = path.join(cwd,'data','proc',
                         'ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip')
                         
 def test_star_finder(output=False):
@@ -26,21 +28,28 @@ def test_star_finder(output=False):
     
     setup = pipeline_setup.pipeline_setup({'red_dir': TEST_DIR})
     
-    meta = stage3.TmpMeta(TEST_DATA)
+    meta = metadata.MetaData()
+    meta.load_a_layer_from_file( setup.red_dir, 
+                                'pyDANDIA_metadata.fits', 
+                                'data_architecture' )
+    meta.load_a_layer_from_file( setup.red_dir, 
+                                'pyDANDIA_metadata.fits', 
+                                'images_stats' )
     
-    log = logs.start_stage_log(meta.log_dir, 'test_star_find')
+    reference_image_path = path.join(str(meta.data_architecture[1]['REF_PATH'][0]),
+                                     str(meta.data_architecture[1]['REF_IMAGE'][0]))
+
+    log = logs.start_stage_log( cwd, 'test_starfind' )
     
-    scidata = fits.getdata(meta.reference_image_path)
+    log.info(setup.summary())
     
-    sources = starfind.detect_sources(setup,meta,scidata,log)
+    scidata = fits.getdata(reference_image_path)
     
-    assert len(sources) == 990
+    sources = starfind.detect_sources(setup,meta,reference_image_path,scidata,log)
+
+    assert len(sources) == 986
+    assert type(sources) == type(np.zeros([10]))
     
-    if output == True:
-        catalog_file = str(meta.reference_image_path).replace('.fits','_sources.txt')
-        sources.write(catalog_file, format='ascii')
-        log.info('Output source catalog to '+catalog_file)
-        
     logs.close_stage_log(log)
     
 if __name__ == '__main__':

@@ -153,8 +153,16 @@ class Moffat2D(PSFModel):
         
         flux_err = np.sqrt(flux)
         
-        return flux, flux_err	
-
+        return flux, flux_err
+    
+    def normalize_psf(self,psf_diameter):
+        
+        Y_data, X_data = np.indices((int(psf_diameter),int(psf_diameter)))
+    
+        (f_total,ferr) = self.calc_flux(Y_data,X_data)
+        
+        self.psf_parameters.intensity = self.psf_parameters.intensity / f_total
+        
 class Gaussian2D(PSFModel):
 
     def psf_type(self):
@@ -230,6 +238,14 @@ class Gaussian2D(PSFModel):
         flux_err = np.sqrt(flux)
         
         return flux, flux_err
+    
+    def normalize_psf(self,psf_diameter):
+        
+        Y_data, X_data = np.indices((int(psf_diameter),int(psf_diameter)))
+    
+        (f_total,ferr) = self.calc_flux(Y_data,X_data)
+        
+        self.psf_parameters.intensity = self.psf_parameters.intensity / f_total
         
 class BivariateNormal(PSFModel):
     def psf_type():
@@ -309,7 +325,15 @@ class BivariateNormal(PSFModel):
         flux_err = np.sqrt(flux)
         
         return flux, flux_err
-
+    
+    def normalize_psf(self,psf_diameter):
+        
+        Y_data, X_data = np.indices((int(psf_diameter),int(psf_diameter)))
+    
+        (f_total,ferr) = self.calc_flux(Y_data,X_data)
+        
+        self.psf_parameters.intensity = self.psf_parameters.intensity / f_total
+        
 class Lorentzian2D(PSFModel):
 
     def psf_type():
@@ -381,7 +405,15 @@ class Lorentzian2D(PSFModel):
         flux_err = np.sqrt(flux)
         
         return flux, flux_err
-
+    
+    def normalize_psf(self,psf_diameter):
+        
+        Y_data, X_data = np.indices((int(psf_diameter),int(psf_diameter)))
+    
+        (f_total,ferr) = self.calc_flux(Y_data,X_data)
+        
+        self.psf_parameters.intensity = self.psf_parameters.intensity / f_total
+        
 class BackgroundModel(object):
 
     __metaclass__ = abc.ABCMeta
@@ -736,8 +768,7 @@ def fit_star_existing_model(setup,data, x_cen, y_cen, psf_radius,
     
     sky_bkgd = sky_model.background_model(X_data,Y_data,
                                           sky_model.get_parameters())
-    
-    
+        
     # Recenter the PSF temporarily to the middle of the stamp to be fitted
     # NOTE PSF parameters in order intensity, Y, X
     psf_params = psf_model.get_parameters()
@@ -1005,6 +1036,7 @@ def build_psf(setup, reduction_metadata, log, image, ref_star_catalog,
     init_psf_model = fit_psf_model(setup,log,psf_model_type, psf_diameter,
                                    sky_model.background_type(),
                                     master_stamp, diagnostics=diagnostics)
+    init_psf_model.normalize_psf(psf_diameter)
     
     if diagnostics:
         
@@ -1036,7 +1068,8 @@ def build_psf(setup, reduction_metadata, log, image, ref_star_catalog,
     psf_model = fit_psf_model(setup,log,psf_model_type,psf_diameter,
                                    sky_model.background_type(),
                                     master_stamp, diagnostics=diagnostics)
-
+    psf_model.normalize_psf(psf_diameter)
+    
     psf_image = generate_psf_image(psf_model.psf_type(),
                                    psf_model.get_parameters(),
                                     stamp_dims, psf_diameter)
@@ -1286,6 +1319,10 @@ def fit_psf_model(setup,log,psf_model_type,psf_diameter,sky_model_type,stamp_ima
     for p in psf_fit[0]:
         log.info(str(p))
     
+    fitted_model = get_psf_object( psf_model_type )
+    
+    fitted_model.update_psf_parameters(psf_fit[0])
+    
     if diagnostics:
         
         psf_stamp = generate_psf_image(psf_model_type,psf_fit[0],
@@ -1296,10 +1333,6 @@ def fit_psf_model(setup,log,psf_model_type,psf_diameter,sky_model_type,stamp_ima
         hdulist.writeto(os.path.join(setup.red_dir,
                                      'ref','psf.fits'),
                                      overwrite=True)
-    
-    fitted_model = get_psf_object( psf_model_type )
-    
-    fitted_model.update_psf_parameters(psf_fit[0])
     
     logs.ifverbose(log,setup,' -> Parameters of fitted PSF model: '+\
                     repr(fitted_model.get_parameters()))

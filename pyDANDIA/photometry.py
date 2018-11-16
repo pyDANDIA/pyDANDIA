@@ -24,8 +24,8 @@ def linear_func(p,x):
 
 
 def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
-                       image_path,psf_model,sky_model,centroiding=True,
-                       diagnostics=True, psf_size=None):
+                       image_path,psf_model,sky_model,ref_flux,
+                       centroiding=True,diagnostics=True, psf_size=None):
     """Function to perform PSF fitting photometry on all stars for a single
     image.
     
@@ -36,6 +36,7 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
     :param str image_path: Path to image to be photometered
     :param PSFModel object psf_model: PSF to be fitted to each star
     :param BackgroundModel object sky_model: Model for the image sky background
+    :param float ref_flux: Reference flux value for optimized PSF measurement
     :param boolean centroiding: Switch to (dis)-allow re-fitting of each star's
                                 x, y centroid.  Default=allowed (True)
     
@@ -63,6 +64,7 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
     
     Y_data, X_data = np.indices((int(psf_size),int(psf_size)))
     
+
     for j in range(0,len(ref_star_catalog),1):
         
         xstar = ref_star_catalog[j,1]
@@ -391,7 +393,7 @@ def plot_ref_mag_errors(setup,ref_star_catalog):
     
     plt.plot(ref_star_catalog[idx,7], ref_star_catalog[idx,8],'k.')
 
-    plt.yscale('log')    
+    plt.yscale('log')
     
     plt.xlabel('Instrumental magnitude')
 

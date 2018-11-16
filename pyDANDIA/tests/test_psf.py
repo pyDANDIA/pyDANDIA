@@ -491,15 +491,35 @@ def test_subtract_psf_from_image():
     hdulist = fits.HDUList([hdu])
     hdulist.writeto(image_file.replace('.fits','_res.fits'),
                                  overwrite=True)
+
+def test_psf_normalization():
+    
+    psf_model = psf.get_psf_object('Moffat2D')
+
+    params = [1000.0, 10.0, 10.0, 5.0, 10.0]
+    
+    psf_diameter = 10.0
+    
+    psf_model.update_psf_parameters(params)
+    
+    psf_model.normalize_psf(psf_diameter)
+    
+    Y_data, X_data = np.indices( (int(psf_diameter),int(psf_diameter)) )
+    
+    (f,ferr) = psf_model.calc_flux(Y_data, X_data)
+    
+    assert(f == 1.0)
     
 if __name__ == '__main__':
     
     #test_cut_image_stamps()
     #test_extract_sub_stamp()
-    test_fit_star_existing_model()
+    #test_fit_star_existing_model()
     #test_find_psf_companion_stars()
     #test_subtract_companions_from_psf_stamps()
     #test_fit_psf_model()
     #test_build_psf()
     #test_subtract_psf_from_image()
     #test_fit_sim_star_existing_model()
+    test_psf_normalization()
+    

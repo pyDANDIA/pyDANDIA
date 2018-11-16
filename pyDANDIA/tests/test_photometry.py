@@ -66,6 +66,8 @@ def test_run_psf_photometry():
     sky_model = psf.ConstantBackground()
     sky_model.background_parameters.constant = 5000.0
 
+    ref_flux = 12.0
+    
     log.info('Performing PSF fitting photometry on '+os.path.basename(image_path))
 
 #(setup,reduction_metadata,log,ref_star_catalog,
@@ -75,6 +77,7 @@ def test_run_psf_photometry():
                                                      log,ref_star_catalog,
                                                      image_path,
                                                      psf_model,sky_model,
+                                                     ref_flux,
                                                      centroiding=True,
                                                      diagnostics=True)
     
@@ -159,12 +162,13 @@ def test_convert_flux_to_mag():
     
     assert nearly_equal(m, 21.1, sig_fig=1)
     assert nearly_equal(merr, 0.034, sig_fig=3)
+
     
 if __name__ == '__main__':
     
-    #test_run_psf_photometry()
+    test_run_psf_photometry()
     #test_plot_ref_mag_errors()
     #test_extract_exptime()
-    test_convert_flux_to_mag()
-    test_run_psf_photometry()
+    #test_convert_flux_to_mag()
+    #test_run_psf_photometry()
     #test_plot_ref_mag_errors()

@@ -61,7 +61,9 @@ def run_stage3(setup):
                                         (scidata-meta_pars['ref_sky_bkgd']),
                                         log,
                                         diagnostics=False)
-
+        
+        ref_flux = find_reference_flux(detected_source)
+        
         ref_star_catalog = wcs.reference_astrometry(setup,log,
                                         meta_pars['ref_image_path'],
                                         detected_sources,
@@ -94,6 +96,7 @@ def run_stage3(setup):
                                              meta_pars['ref_image_path'],
                                              psf_model,
                                              sky_model,
+                                             ref_flux,
                                              psf_size=psf_size,
                                              centroiding=False)
                                              
@@ -223,4 +226,25 @@ def extract_parameters_stage3(reduction_metadata,log):
             log.info(key+' = '+str(value))
     
     return meta_pars
+    
+def find_reference_flux(detected_sources):
+    """Function to identify the faintest star in the detected sources
+    catalogue.  This will be used as the reference flux in the calculation
+    of optimized photometry, following the method of Naylor (1997)
+    
+    Input:
+    :param array detected_sources: Array of sources in the frame produced by
+                                    DAOfind
+    
+    Output:
+    :param float ref_flux: Reference flux
+    """
+    
+    idx = np.where(detected_sources[:,9] > 0.0)
+    
+    idx = np.where( detected_sources[idx,9] == detected_sources[idx,9].min())
+    
+    ref_flux = detected_sources[idx[0][0],9]
+    
+    return ref_flux
     
