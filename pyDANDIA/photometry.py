@@ -157,7 +157,7 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
     if size_stamp % 2 == 0:
         size_stamp += 1
 
-    Y_data, X_data = np.indices((size_stamp + 1, size_stamp + 1))
+    Y_data, X_data = np.indices((size_stamp , size_stamp))
 
     list_image_id = []
     list_star_id = []
@@ -181,7 +181,7 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
     list_align_y = []
 
     phot_scale_factor = np.sum(kernel)
-    error_phot_scale_factor = (np.sum(kernel_error)) ** 0.5
+    error_phot_scale_factor = (np.dot([1]*len(kernel_error),np.dot(kernel_error,[1]*len(kernel_error)))**2) ** 0.25
 
     # kernel /=phot_scale_factor
 
@@ -210,8 +210,8 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
         X_grid = X_data + (int(np.round(xstar)) - half_psf)
         Y_grid = Y_data + (int(np.round(ystar)) - half_psf)
 
-        logs.ifverbose(log, setup, ' -> Star ' + str(j) + ' at position (' + \
-                       str(xstar) + ', ' + str(ystar) + ')')
+        #logs.ifverbose(log, setup, ' -> Star ' + str(j) + ' at position (' + \
+        #               str(xstar) + ', ' + str(ystar) + ')')
 
         psf_parameters[1] = xstar
         psf_parameters[2] = ystar
@@ -223,9 +223,9 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
                                                              correlate=None, auto_correlation=None)
         try:
 
-            max_x = int(np.min([difference_image.shape[0], np.max(X_data + (int(np.round(xstar)) - half_psf))]))
+            max_x = int(np.min([difference_image.shape[0], np.max(X_data + (int(np.round(xstar)) - half_psf))+1]))
             min_x = int(np.max([0, np.min(X_data + (int(np.round(xstar)) - half_psf))]))
-            max_y = int(np.min([difference_image.shape[1], np.max(Y_data + (int(np.round(ystar)) - half_psf))]))
+            max_y = int(np.min([difference_image.shape[1], np.max(Y_data + (int(np.round(ystar)) - half_psf))+1]))
             min_y = int(np.max([0, np.min(Y_data + (int(np.round(ystar)) - half_psf))]))
 
             data = difference_image[min_y:max_y, min_x:max_x]
@@ -247,31 +247,51 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
         good_fit = True
         if good_fit == True:
 
-            logs.ifverbose(log, setup, ' -> Star ' + str(j) +
-                           ' subtracted from the residuals')
+            #logs.ifverbose(log, setup, ' -> Star ' + str(j) +
+            #              ' subtracted from the residuals')
 
             center = (psf_fit.shape)
             xx, yy = np.indices(psf_fit.shape)
             mask = ((xx - center[0] / 2) ** 2 + (yy - center[1] / 2) ** 2) < radius ** 2
             mask2 = ((xx - center[0] / 2) ** 2 + (yy - center[1] / 2) ** 2) < 2 * radius ** 2
 
-            weight1 = 0.5 + np.abs(data + 0.25) ** 0.5
-            weight2 = -0.5 + np.abs(data + 0.25) ** 0.5
+            weight1 = (0.5 + np.abs(data + 0.25) ** 0.5)
+            weight2 = (-0.5 + np.abs(data + 0.25) ** 0.5)
             weight = (weight1 ** 2 + weight2 ** 2) ** 0.5
+            try:
+                intensities, cov = np.polyfit(psf_fit[mask2], data[mask2], 1, w=1 / weight[mask2], cov=True)
 
-            intensities, cov = np.polyfit(psf_fit[mask2], data[mask2], 1, w=1 / weight[mask2], cov=True)
+            except:
 
-            (flux, flux_err) = (intensities[0], (cov[0][0]) ** 0.5)
+                import pdb;
+                pdb.set_trace()
+            (flux, flux_err) = (intensities[0], cov[0][0]**0.5)
 
             (back, back_err) = (intensities[1], cov[1][1] ** 0.5)
 
+
+            #flux_err = np.std(data-psf_fit*flux-back)*phot_scale_factor
+
             flux_tot = ref_flux - flux / phot_scale_factor
-            flux_err_tot = (error_ref_flux ** 2 + (flux_err / phot_scale_factor) ** 2) ** 0.5
+            flux_err_tot = (error_ref_flux ** 2 + (flux_err / phot_scale_factor) ** 2 +0
+                            ) ** 0.5
+
+            SNR = flux_tot/flux_err_tot
+
+            flux_tot /= ref_exposure_time
+            flux_err_tot = flux_tot/SNR
+            #if (j == 2687) :
+            #    #pass
+            #   import pdb;
+            #   pdb.set_trace()
 
             list_delta_flux.append(flux)
             list_delta_flux_error.append(flux_err)
 
-            (mag, mag_err) = convert_flux_to_mag(flux_tot / ref_exposure_time, flux_err_tot / ref_exposure_time)
+            (mag, mag_err) = convert_flux_to_mag(flux_tot, flux_err_tot )
+            #if (mag_err<0.1) & (mag!=0):
+            #    import pdb;
+            #    pdb.set_trace()
 
             list_mag.append(mag)
             list_mag_error.append(mag_err)

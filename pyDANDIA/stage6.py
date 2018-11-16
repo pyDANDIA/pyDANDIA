@@ -107,8 +107,7 @@ def run_stage6(setup):
     time = []
     exposures_id = []
     photometric_table = []
-    import pdb;
-    pdb.set_trace()
+
     if len(new_images) > 0:
 
         # find the reference image
