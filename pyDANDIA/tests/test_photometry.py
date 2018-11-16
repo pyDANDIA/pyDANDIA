@@ -36,19 +36,21 @@ def test_run_psf_photometry():
     reduction_metadata.load_a_layer_from_file( setup.red_dir, 
                                               'pyDANDIA_metadata.fits', 
                                               'images_stats' )
-
+    reduction_metadata.load_a_layer_from_file( setup.red_dir, 
+                                              'pyDANDIA_metadata.fits', 
+                                              'data_architecture' )
+    reduction_metadata.load_a_layer_from_file( setup.red_dir, 
+                                              'pyDANDIA_metadata.fits',
+                                              'star_catalog' )
     log.info('Read metadata')
     
-    # NOTE: Once stage 2 is complete, the reference image path should be
-    # extracted directly from the metadata.
-    reduction_metadata.reference_image_path = os.path.join(TEST_DATA, 
-                            'lsc1m005-fl15-20170701-0144-e91_cropped.fits')
-                            
-    image_path = reduction_metadata.reference_image_path
+    image_path = os.path.join(reduction_metadata.data_architecture[1]['REF_PATH'][0],
+                           reduction_metadata.data_architecture[1]['REF_IMAGE'][0])
     
-    star_catalog_file = os.path.join(TEST_DATA,'star_catalog.fits')
-                            
-    ref_star_catalog = catalog_utils.read_ref_star_catalog_file(star_catalog_file)
+    ref_star_catalog = np.zeros((len(reduction_metadata.star_catalog[1]),9))
+    ref_star_catalog[:,0] = reduction_metadata.star_catalog[1]['star_index']
+    ref_star_catalog[:,1] = reduction_metadata.star_catalog[1]['x_pixel']
+    ref_star_catalog[:,2] = reduction_metadata.star_catalog[1]['y_pixel']
     
     psf_model = psf.get_psf_object('Moffat2D')
     
@@ -62,15 +64,19 @@ def test_run_psf_photometry():
     psf_model.update_psf_parameters(psf_params)
 
     sky_model = psf.ConstantBackground()
-    sky_model.background_parameters.constant = 1345.0
+    sky_model.background_parameters.constant = 5000.0
 
     log.info('Performing PSF fitting photometry on '+os.path.basename(image_path))
 
+#(setup,reduction_metadata,log,ref_star_catalog,
+#                       image_path,psf_model,sky_model,centroiding=True):
+                           
     ref_star_catalog = photometry.run_psf_photometry(setup,reduction_metadata,
                                                      log,ref_star_catalog,
                                                      image_path,
                                                      psf_model,sky_model,
-                                                     centroiding=True)
+                                                     centroiding=True,
+                                                     diagnostics=True)
     
     assert ref_star_catalog[:,5].max() > 0.0
     assert ref_star_catalog[:,6].max() > 0.0
@@ -160,3 +166,5 @@ if __name__ == '__main__':
     #test_plot_ref_mag_errors()
     #test_extract_exptime()
     test_convert_flux_to_mag()
+    test_run_psf_photometry()
+    #test_plot_ref_mag_errors()

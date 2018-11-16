@@ -24,7 +24,8 @@ def linear_func(p,x):
 
 
 def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
-                       image_path,psf_model,sky_model,centroiding=True):
+                       image_path,psf_model,sky_model,centroiding=True,
+                       diagnostics=True, psf_size=None):
     """Function to perform PSF fitting photometry on all stars for a single
     image.
     
@@ -48,12 +49,14 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
     data = fits.getdata(image_path)
     residuals = np.copy(data)
     
-    psf_size = reduction_metadata.reduction_parameters[1]['PSF_SIZE'][0]
+    if psf_size == None:
+        psf_size = reduction_metadata.reduction_parameters[1]['PSF_SIZE'][0]
+
     half_psf = int(float(psf_size)/2.0)
     
     exp_time = extract_exptime(reduction_metadata,
                                os.path.basename(image_path))
-    
+                               
     logs.ifverbose(log,setup,'Applying '+psf_model.psf_type()+\
                     ' PSF of diameter='+str(psf_size))
     logs.ifverbose(log,setup,'Scaling fluxes by exposure time '+str(exp_time)+'s')
@@ -71,11 +74,11 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
         logs.ifverbose(log,setup,' -> Star '+str(j)+' at position ('+\
         str(xstar)+', '+str(ystar)+')')
         
-        (fitted_model,good_fit) = psf.fit_star_existing_model(setup, data, 
+        (fitted_model,good_fit) = psf.fit_star_existing_model(setup, residuals, 
                                                xstar, ystar, psf_size, 
                                                psf_model, sky_model, 
                                                centroiding=centroiding,
-                                               diagnostics=False)
+                                               diagnostics=diagnostics)
         
         logs.ifverbose(log, setup,' -> Star '+str(j)+
         ' fitted model parameters = '+repr(fitted_model.get_parameters())+
@@ -86,20 +89,26 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
             sub_psf_model = psf.get_psf_object('Moffat2D')
             
             pars = fitted_model.get_parameters()
-            pars[1] = (psf_size/2.0) + (ystar-int(ystar))
-            pars[2] = (psf_size/2.0) + (xstar-int(xstar))
+            pars[1] = half_psf + (ystar-int(ystar))
+            pars[2] = half_psf + (xstar-int(xstar))
             
             sub_psf_model.update_psf_parameters(pars)
             
-            (res_image,corners) = psf.subtract_psf_from_image(data,sub_psf_model,
+            (res_image,corners) = psf.subtract_psf_from_image(residuals,sub_psf_model,
                                                     xstar,ystar,
                                                     psf_size, psf_size)
             
             residuals[corners[2]:corners[3],corners[0]:corners[1]] = res_image[corners[2]:corners[3],corners[0]:corners[1]]
             
+            hdu = fits.PrimaryHDU(res_image[corners[2]:corners[3],corners[0]:corners[1]])
+            hdulist = fits.HDUList([hdu])
+            file_path = os.path.join(setup.red_dir,'ref',\
+            'psf_star_stamp_residuals'+str(round(xstar,0))+'_'+str(round(ystar,0))+'.fits')
+            hdulist.writeto(file_path,overwrite=True)
+        
             logs.ifverbose(log, setup,' -> Star '+str(j)+
             ' subtracted PSF from the residuals')
-                    
+            
             (flux, flux_err) = fitted_model.calc_flux(Y_grid, X_grid)
             
             (mag, mag_err, flux_scaled, flux_err_scaled) = convert_flux_to_mag(flux, flux_err, exp_time=exp_time)

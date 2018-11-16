@@ -47,6 +47,8 @@ def test_build_psf():
     
     log.info('Read in catalog of '+str(len(ref_star_catalog))+' stars')
     
+    psf_diameter = 8.0
+    
     psf_stars_idx = np.zeros(len(ref_star_catalog))
     psf_stars_idx[400:500] = 1
     ref_star_catalog[:,13] = psf_stars_idx
@@ -60,7 +62,8 @@ def test_build_psf():
     sky_model.background_parameters.constant = 1345.0
 
     (psf_model, status) = psf.build_psf(setup, reduction_metadata, log, ref_image, 
-                              ref_star_catalog, sky_model, diagnostics=True)
+                              ref_star_catalog, sky_model, psf_diameter,
+                              diagnostics=True)
     
     logs.close_log(log)
     
@@ -153,10 +156,10 @@ def test_fit_star_existing_model():
     image = fits.getdata(image_file)
     
     psf_model = psf.Moffat2D()
-    x_cen = 194.654006958
     y_cen = 180.184967041
+    x_cen = 194.654006958
     psf_radius = 8.0
-    psf_params = [ 103301.241291, x_cen, y_cen, 226.750731765,
+    psf_params = [ 103301.241291, y_cen, x_cen, 226.750731765,
                   13004.8930993, 103323.763627 ]
     psf_model.update_psf_parameters(psf_params)
     
@@ -166,14 +169,99 @@ def test_fit_star_existing_model():
     
     (fitted_model,good_fit) = psf.fit_star_existing_model(setup, image, x_cen, y_cen, 
                                 psf_radius, psf_model, sky_model,
+                                centroiding=True,
                                 diagnostics=True)
                                 
     fitted_params = fitted_model.get_parameters()
-       
-    for i in range(3,5,1):
+    
+    for i in range(0,5,1):
+        print(psf_model.model[i]+': True = '+str(psf_params[i])+', fitted = '+str(fitted_params[i]))
         
-        assert fitted_params[i] == psf_params[i]
+        #if i >= 3:        
+         #   assert fitted_params[i] == psf_params[i]
+    print('Good fit? '+repr(good_fit))
+    
+    sub_psf_model = psf.get_psf_object('Moffat2D')
+            
+    pars = fitted_model.get_parameters()
+    pars[1] = (psf_radius/2.0) + (y_cen-int(y_cen))
+    pars[2] = (psf_radius/2.0) + (x_cen-int(x_cen))
+    
+    sub_psf_model.update_psf_parameters(pars)
+    
+    (residuals,corners) = psf.subtract_psf_from_image(image,sub_psf_model,
+                            x_cen,y_cen,
+                            psf_radius, psf_radius,
+                            diagnostics=True)
+    
+    hdu = fits.PrimaryHDU(residuals)
+    hdulist = fits.HDUList([hdu])
+    hdulist.writeto(os.path.join(TEST_DATA,'ref','sim_star_psf_diff.fits'),
+                                     overwrite=True)
 
+                                     
+def test_fit_sim_star_existing_model():
+    """Function to test the function of fitting a pre-existing PSF and sky-
+    background model to an image at a stars known location, optimizing just for
+    the star's intensity rather than for all parameters."""
+    
+    setup = pipeline_setup.pipeline_setup({'red_dir': TEST_DIR})
+
+    image = np.zeros((100,100))
+    image = np.random.rand(image.shape[0],image.shape[1])
+    image += 300.0
+    
+    x_cen = 50.0
+    y_cen = 50.0
+    psf_params = [ 103301.241291, x_cen, y_cen, 226.750731765,
+                  13004.8930993, 103323.763627 ]
+    psf_radius = 8.0
+                  
+    sim_star = psf.Moffat2D()
+    sim_star.update_psf_parameters(psf_params)
+    
+    sim_star_image = psf.generate_psf_image('Moffat2D',psf_params,image.shape,psf_radius)
+    image += sim_star_image
+    
+    hdu = fits.PrimaryHDU(image)
+    hdulist = fits.HDUList([hdu])
+    hdulist.writeto(os.path.join(TEST_DATA,'sim_star_psf.fits'),
+                                     overwrite=True)
+    
+    
+    psf_fit_params = [ 1.0, x_cen, y_cen, 226.750731765,
+                  13004.8930993, 103323.763627 ]
+    psf_model = psf.Moffat2D()
+    psf_model.update_psf_parameters(psf_fit_params)
+    
+    sky_model = psf.ConstantBackground()
+    sky_model.constant = 300.0
+    sky_model.background_parameters.constant = 300.0
+    
+    (fitted_model,good_fit) = psf.fit_star_existing_model(setup, image, 
+                                                        x_cen, y_cen, 
+                                                        psf_radius, psf_model, 
+                                                        sky_model,
+                                                        diagnostics=True)
+    
+    fitted_params = fitted_model.get_parameters()
+    
+    for i in range(0,5,1):
+        print(psf_model.model[i]+': True = '+str(psf_params[i])+', fitted = '+str(fitted_params[i]))
+        
+        #assert fitted_params[i] == psf_params[i]
+
+    fitted_star_image = psf.generate_psf_image('Moffat2D',fitted_params,
+                                               image.shape,psf_radius)
+
+    diff_image = image - fitted_star_image
+    
+    hdu = fits.PrimaryHDU(diff_image)
+    hdulist = fits.HDUList([hdu])
+    hdulist.writeto(os.path.join(TEST_DATA,'sim_star_psf_diff.fits'),
+                                     overwrite=True)
+    
+    
 def test_subtract_companions_from_psf_stamps():
     """Function to test the function which removes companion stars from the 
     surrounds of a PSF star in a PSF star stamp image."""
@@ -408,10 +496,10 @@ if __name__ == '__main__':
     
     #test_cut_image_stamps()
     #test_extract_sub_stamp()
-    #test_fit_star_existing_model()
+    test_fit_star_existing_model()
     #test_find_psf_companion_stars()
     #test_subtract_companions_from_psf_stamps()
     #test_fit_psf_model()
     #test_build_psf()
-    test_subtract_psf_from_image()
-    
+    #test_subtract_psf_from_image()
+    #test_fit_sim_star_existing_model()
