@@ -55,36 +55,55 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
 
     half_psf = int(float(psf_size)/2.0)
     
-    exp_time = extract_exptime(reduction_metadata,
-                               os.path.basename(image_path))
-                               
+    exp_time = reduction_metadata.extract_exptime(os.path.basename(image_path))
+    
+    gain = reduction_metadata.get_gain()
+    
     logs.ifverbose(log,setup,'Applying '+psf_model.psf_type()+\
                     ' PSF of diameter='+str(psf_size))
     logs.ifverbose(log,setup,'Scaling fluxes by exposure time '+str(exp_time)+'s')
     
     Y_data, X_data = np.indices((int(psf_size),int(psf_size)))
     
-
+    Y_image, X_image = np.indices(data.shape)
+    
+    sky_bkgd = sky_model.background_model(data.shape,sky_model.get_parameters())
+    
     for j in range(0,len(ref_star_catalog),1):
         
         xstar = ref_star_catalog[j,1]
         ystar = ref_star_catalog[j,2]
         
-        X_grid = X_data + (int(xstar) - half_psf)
-        Y_grid = Y_data + (int(ystar) - half_psf)
-        
         logs.ifverbose(log,setup,' -> Star '+str(j)+' at position ('+\
         str(xstar)+', '+str(ystar)+')')
         
-        (fitted_model,good_fit) = psf.fit_star_existing_model(setup, residuals, 
+        X_grid = X_data + (int(xstar) - half_psf)
+        Y_grid = Y_data + (int(ystar) - half_psf)
+        
+        corners = psf.calc_stamp_corners(xstar, ystar, psf_size, psf_size, 
+                                    data.shape[1], data.shape[0],
+                                    over_edge=True)
+                                    
+        logs.ifverbose(log,setup,' -> Corners of PSF stamp '+repr(corners))
+        
+        psf_sky_bkgd = sky_bkgd[corners[2]:corners[3],corners[0]:corners[1]]
+        var_sky = psf_sky_bkgd.std()**2
+        
+        psf_data = residuals[corners[2]:corners[3],corners[0]:corners[1]]
+        
+        (fitted_model,good_fit) = psf.fit_star_existing_model(setup, psf_data, 
                                                xstar, ystar, psf_size, 
-                                               psf_model, sky_model, 
+                                               psf_model, psf_sky_bkgd, 
                                                centroiding=centroiding,
                                                diagnostics=diagnostics)
         
         logs.ifverbose(log, setup,' -> Star '+str(j)+
         ' fitted model parameters = '+repr(fitted_model.get_parameters())+
         ' good fit? '+repr(good_fit))
+        
+        (flux, flux_err) = fitted_model.calc_optimized_flux(ref_flux,var_sky,
+                                                            Y_grid,X_grid,
+                                                            gain,residuals)
         
         if good_fit == True:
             
@@ -407,12 +426,3 @@ def plot_ref_mag_errors(setup,ref_star_catalog):
 
     plt.close(1)
     
-def extract_exptime(reduction_metadata,image_name):
-    """Function to look up the exposure time for the indicated image from
-    the headers_summary in the reduction metadata"""
-    
-    idx = list(reduction_metadata.headers_summary[1]['IMAGES']).index(image_name)
-    
-    exp_time = float(reduction_metadata.headers_summary[1]['EXPKEY'][idx])
-    
-    return exp_time

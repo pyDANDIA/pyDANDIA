@@ -42,6 +42,9 @@ def test_run_psf_photometry():
     reduction_metadata.load_a_layer_from_file( setup.red_dir, 
                                               'pyDANDIA_metadata.fits',
                                               'star_catalog' )
+    reduction_metadata.load_a_layer_from_file( setup.red_dir, 
+                                              'pyDANDIA_metadata.fits',
+                                              'headers_summary' )
     log.info('Read metadata')
     
     image_path = os.path.join(reduction_metadata.data_architecture[1]['REF_PATH'][0],
@@ -70,9 +73,6 @@ def test_run_psf_photometry():
     
     log.info('Performing PSF fitting photometry on '+os.path.basename(image_path))
 
-#(setup,reduction_metadata,log,ref_star_catalog,
-#                       image_path,psf_model,sky_model,centroiding=True):
-                           
     ref_star_catalog = photometry.run_psf_photometry(setup,reduction_metadata,
                                                      log,ref_star_catalog,
                                                      image_path,

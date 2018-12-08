@@ -705,6 +705,33 @@ class MetaData:
                 for key in layer[1].keys()[1:]:
 
                     self.update_column_to_layer('reduction_status', key,length_table*['0'])
+    
+    def get_gain(self):
+        """Convenience method to return the camera gain, if the 
+        reduction_parameters layer has been loaded.  Otherwise, None is given.
+        """
+        
+        try:
+            gain = float(self.reduction_parameters[1]['GAIN'])
+        except:
+            gain = None
+        return gain
+    
+    def extract_exptime(self,image_name):
+        """Convenience method to look up the exposure time for the indicated  
+        image from the headers_summary in the reduction metadata"""
+        
+        try:
+            idx = list(self.headers_summary[1]['IMAGES']).index(image_name)
+            
+            exp_time = float(self.headers_summary[1]['EXPKEY'][idx])
+        
+        except TypeError:
+            
+            raise AttributeError('Cannot extract image exposure time as reduction headers summary not loaded into metadata')
+            
+        return exp_time
+    
 ###
 def set_pars(self, par_dict):
     for key, value in par_dict.items():

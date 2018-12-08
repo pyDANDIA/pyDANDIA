@@ -75,9 +75,16 @@ def model_sky_background(setup,reduction_metadata,log,ref_star_catalog):
         sky_params['a0'] = sky_fit[0][0]
         sky_params['a1'] = sky_fit[0][1]
         sky_params['a2'] = sky_fit[0][2]
-          
+    
+    
     sky_model = generate_sky_model(sky_params)
-        
+    
+    sky_model_image = sky_model.background_model(star_masked_image.shape())
+    
+    sky_sigma = (star_masked_image - sky_model_image).std()
+    
+    sky_model.varience = sky_sigma * sky_sigma
+    
     return sky_model
     
 def build_psf_mask(setup,psf_size,diagnostics=False):

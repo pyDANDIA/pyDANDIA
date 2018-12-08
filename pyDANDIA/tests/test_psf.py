@@ -19,6 +19,7 @@ import psf
 import catalog_utils
 from astropy.io import fits
 from astropy.nddata import Cutout2D
+import photometry
 
 TEST_DATA = os.path.join(cwd,'data')
 TEST_DIR = os.path.join(cwd,'data','proc',
@@ -155,6 +156,8 @@ def test_fit_star_existing_model():
                               
     image = fits.getdata(image_file)
     
+    Y_image, X_image = np.indices(image.shape)
+    
     psf_model = psf.Moffat2D()
     y_cen = 180.184967041
     x_cen = 194.654006958
@@ -166,9 +169,17 @@ def test_fit_star_existing_model():
     sky_model = psf.ConstantBackground()
     sky_model.constant = 1345.0
     sky_model.background_parameters.constant = 1345.0
+    sky_bkgd = sky_model.background_model(X_image,Y_image,
+                                          sky_model.get_parameters())
+                                          
+    corners = calc_stamp_corners(xstar, ystar, psf_radius, psf_radius, 
+                                    image.shape[1], image.shape[0],
+                                    over_edge=True)
+    
+    psf_sky_bkgd = sky_bkgd[corners[2]:corners[3],corners[0]:corners[1]]
     
     (fitted_model,good_fit) = psf.fit_star_existing_model(setup, image, x_cen, y_cen, 
-                                psf_radius, psf_model, sky_model,
+                                psf_radius, psf_model, psf_sky_bkgd,
                                 centroiding=True,
                                 diagnostics=True)
                                 
@@ -199,7 +210,133 @@ def test_fit_star_existing_model():
     hdulist.writeto(os.path.join(TEST_DATA,'ref','sim_star_psf_diff.fits'),
                                      overwrite=True)
 
-                                     
+def test_fit_existing_psf_stamp():
+    """Function to test the function of fitting a pre-existing PSF and sky-
+    background model to an image at a stars known location, optimizing just for
+    the star's intensity rather than for all parameters."""
+    
+    setup = pipeline_setup.pipeline_setup({'red_dir': TEST_DATA})
+
+    image_file = os.path.join(TEST_DATA, 
+                            'lsc1m005-fl15-20170701-0144-e91_cropped.fits')
+                              
+    image = fits.getdata(image_file)
+    
+    Y_image, X_image = np.indices(image.shape)
+    
+    # Calculate the corners of the stamp surrounding the PSF of the star
+    # to be subtracted
+    y_cen = 180.184967041
+    x_cen = 194.654006958
+    psf_radius = 8.0
+    corners = psf.calc_stamp_corners(x_cen, y_cen, psf_radius, psf_radius, 
+                                    image.shape[1], image.shape[0],
+                                    over_edge=True)
+    x_psf_cen = x_cen - corners[0]
+    y_psf_cen = y_cen - corners[2]
+    
+    # Construct PSF model
+    psf_model = psf.Moffat2D()
+    psf_params = [ 1.0, y_psf_cen, x_psf_cen, 226.750731765,
+                  13004.8930993, 103323.763627 ]
+    psf_model.update_psf_parameters(psf_params)
+    
+    # Construct sky background model
+    sky_model = psf.ConstantBackground()
+    sky_model.constant = 1600.0
+    sky_model.background_parameters.constant = 1345.0
+    sky_bkgd = sky_model.background_model(X_image,Y_image,
+                                          sky_model.get_parameters())
+    
+    # Extract the stamp section of the image and sky background data
+    psf_sky_bkgd = sky_bkgd[corners[2]:corners[3],corners[0]:corners[1]]
+    
+    psf_image_data = image[corners[2]:corners[3],corners[0]:corners[1]]
+    
+    Y_data, X_data = np.indices(psf_image_data.shape)
+    
+    hdu = fits.PrimaryHDU(psf_image_data)
+    hdulist = fits.HDUList([hdu])
+    hdulist.writeto(os.path.join(TEST_DATA,'ref','psf_image_data.fits'),
+                                     overwrite=True)
+    
+    # Fit PSF model to the stamp data
+    (fitted_model,good_fit) = psf.fit_existing_psf_stamp(setup, x_psf_cen, y_psf_cen, psf_radius, 
+                            psf_model, psf_image_data, psf_sky_bkgd,
+                            centroiding=True, diagnostics=False)
+    
+    fitted_params = fitted_model.get_parameters()
+    
+    psf_model_image = psf_model.psf_model(Y_data, X_data, fitted_params)
+    
+    hdu = fits.PrimaryHDU(psf_model_image)
+    hdulist = fits.HDUList([hdu])
+    hdulist.writeto(os.path.join(TEST_DATA,'ref','psf_model_image.fits'),
+                                     overwrite=True)
+    res = psf_image_data-psf_model_image
+    
+    y = int(y_psf_cen)
+    x = int(x_psf_cen)
+    print(x,y,psf_image_data[y,x], psf_model_image[y,x],res[y,x])
+
+    hdu = fits.PrimaryHDU(psf_image_data-psf_model_image)
+    hdulist = fits.HDUList([hdu])
+    hdulist.writeto(os.path.join(TEST_DATA,'ref','psf_diff_image.fits'),
+                                     overwrite=True)
+
+    for i in range(0,5,1):
+        print(psf_model.model[i]+': True = '+str(psf_params[i])+', fitted = '+str(fitted_params[i]))
+        
+        #if i >= 3:        
+         #   assert fitted_params[i] == psf_params[i]
+    print('Good fit? '+repr(good_fit))
+    
+    sub_psf_model = psf.get_psf_object('Moffat2D')
+            
+    pars = fitted_model.get_parameters()
+    pars[1] = (psf_radius/2.0) + (y_cen-int(y_cen))
+    pars[2] = (psf_radius/2.0) + (x_cen-int(x_cen))
+    
+    sub_psf_model.update_psf_parameters(pars)
+
+    (residuals,corners,psf_image) = psf.subtract_psf_from_image(psf_image_data,sub_psf_model,
+                            x_psf_cen,y_psf_cen, 
+                            psf_image_data.shape[0],psf_image_data.shape[1],
+                            diagnostics=True)
+    
+    hdu = fits.PrimaryHDU(residuals)
+    hdulist = fits.HDUList([hdu])
+    hdulist.writeto(os.path.join(TEST_DATA,'ref','star_psf_diff.fits'),
+                                     overwrite=True)
+    
+    fig = plt.figure(1,(20,10))
+    plt.subplot(1,2,1)
+    
+    xvalues = np.arange(0,corners[3],1)
+    plt.plot(xvalues,(psf_image_data[y,:]-psf_sky_bkgd[y,:]),'k-',label='Data-sky')
+    plt.plot(xvalues,psf_model_image[y,:],'b-',label='Fitted PSF')
+    plt.plot(xvalues,residuals[y,:],'r--',label='Residuals')
+    plt.plot(xvalues,[psf_sky_bkgd.mean()]*len(xvalues),'m-.',label='Sky')
+    
+    plt.xlabel('X [pixel]')
+    plt.ylabel('Counts')
+    plt.legend()
+    
+    plt.subplot(1,2,2)
+    
+    yvalues = np.arange(0,corners[1],1)
+    plt.plot(yvalues,(psf_image_data[:,x]-psf_sky_bkgd[:,x]),'k-',label='Data-sky')
+    plt.plot(yvalues,psf_model_image[:,x],'b-',label='Fitted PSF')
+    plt.plot(yvalues,residuals[:,x],'r--',label='Residuals')
+    plt.plot(yvalues,[psf_sky_bkgd.mean()]*len(yvalues),'m-.',label='Sky')
+    
+    plt.xlabel('Y [pixel]')
+    plt.ylabel('Counts')
+    plt.legend()
+    
+    plt.savefig(os.path.join(TEST_DATA,'ref','psf_fit_proj.png'),bbox_inches='tight')
+    plt.close(1)
+    
 def test_fit_sim_star_existing_model():
     """Function to test the function of fitting a pre-existing PSF and sky-
     background model to an image at a stars known location, optimizing just for
@@ -216,7 +353,7 @@ def test_fit_sim_star_existing_model():
     psf_params = [ 103301.241291, x_cen, y_cen, 226.750731765,
                   13004.8930993, 103323.763627 ]
     psf_radius = 8.0
-                  
+    
     sim_star = psf.Moffat2D()
     sim_star.update_psf_parameters(psf_params)
     
@@ -237,11 +374,12 @@ def test_fit_sim_star_existing_model():
     sky_model = psf.ConstantBackground()
     sky_model.constant = 300.0
     sky_model.background_parameters.constant = 300.0
+    sky_bkgd = sky_model.background_model(image.shape)
     
     (fitted_model,good_fit) = psf.fit_star_existing_model(setup, image, 
                                                         x_cen, y_cen, 
                                                         psf_radius, psf_model, 
-                                                        sky_model,
+                                                        sky_bkgd,
                                                         diagnostics=True)
     
     fitted_params = fitted_model.get_parameters()
@@ -254,6 +392,11 @@ def test_fit_sim_star_existing_model():
     fitted_star_image = psf.generate_psf_image('Moffat2D',fitted_params,
                                                image.shape,psf_radius)
 
+    hdu = fits.PrimaryHDU(fitted_star_image)
+    hdulist = fits.HDUList([hdu])
+    hdulist.writeto(os.path.join(TEST_DATA,'sim_star_fitted_psf.fits'),
+                                     overwrite=True)
+                                     
     diff_image = image - fitted_star_image
     
     hdu = fits.PrimaryHDU(diff_image)
@@ -509,6 +652,36 @@ def test_psf_normalization():
     (f,ferr) = psf_model.calc_flux(Y_data, X_data)
     
     assert(f == 1.0)
+
+def test_calc_stamp_corners():
+    
+    image_file = os.path.join(TEST_DATA, 
+                              'lsc1m005-fl15-20170701-0144-e91_cropped.fits')
+                              
+    image = fits.getdata(image_file)
+    
+    Y_image, X_image = np.indices(image.shape)
+    
+    # Calculate the corners of the stamp surrounding the PSF of the star
+    # to be subtracted
+    y_cen = 197.0
+    x_cen = 184.0
+    psf_radius = 8.0
+    corners = psf.calc_stamp_corners(x_cen, y_cen, psf_radius, psf_radius, 
+                                    image.shape[1], image.shape[0],
+                                    over_edge=True, diagnostics=False)
+    
+    sub_image_data = image[corners[2]:corners[3],corners[0]:corners[1]]
+    
+    hdu = fits.PrimaryHDU(sub_image_data)
+    hdulist = fits.HDUList([hdu])
+    hdulist.writeto(os.path.join(TEST_DATA,'ref','corner_image.fits'),
+                                     overwrite=True)
+    
+    assert(corners[0] == 180)
+    assert(corners[1] == 188)
+    assert(corners[2] == 193)
+    assert(corners[3] == 201)
     
 if __name__ == '__main__':
     
@@ -520,6 +693,7 @@ if __name__ == '__main__':
     #test_fit_psf_model()
     #test_build_psf()
     #test_subtract_psf_from_image()
-    #test_fit_sim_star_existing_model()
-    test_psf_normalization()
-    
+    test_fit_sim_star_existing_model()
+    #test_psf_normalization()
+    #test_fit_existing_psf_stamp()
+    #test_calc_stamp_corners()

@@ -162,6 +162,36 @@ class Moffat2D(PSFModel):
         (f_total,ferr) = self.calc_flux(Y_data,X_data)
         
         self.psf_parameters.intensity = self.psf_parameters.intensity / f_total
+    
+    def calc_optimized_flux(self,ref_flux,var_sky,Y_star,X_star,gain,residuals):
+        """Method to compute the flux and flux error in a star's PSF fit, 
+        following the method of Naylor (1997).
+        
+        :param float ref_flux: Reference flux for the image
+        :param float var_sky: Varience in the sky background for the image
+        :param np.indices X_star,Y_star: Indices of the pixel size of the PSF
+        :param float gain: Detector gain in e-/ADU
+        :param array residuals: Data SECTION - sky background SECTION
+        
+        Note the input data and sky model arrays should be pre-cut to match the
+        size of the PSF
+        
+        Returns:
+        :param float flux: Flux measure for the star
+        :param float flux_err: Uncertainty on the flux measurement
+        """
+        
+        Pij = self.psf_model_star(Y_star, X_star)
+        
+        Vij = var_sky + (ref_flux * Pij)/np.sqrt(gain)
+        
+        Wij = (Pij / Vij) / ((Pij*Pij)/Vij).sum()
+        
+        flux = (Wij * residuals).sum()
+        
+        flux_err = np.sqrt( (Wij*Wij * Vij).sum() )
+        
+        return flux, flux_err
         
 class Gaussian2D(PSFModel):
 
@@ -424,7 +454,8 @@ class BackgroundModel(object):
         self.model = None
         self.background_parameters = None
         self.define_background_parameters()
-
+        self.varience = None
+        
     @abc.abstractproperty
     def define_background_parameters(self, background_data, parameters):
 
@@ -480,12 +511,14 @@ class ConstantBackground(BackgroundModel):
 
             setattr(self.background_parameters, key, parameters[index])
 
-    def background_model(self, Y_background, X_background, parameters):
+    def background_model(self, data_shape, parameters=None):
 
-        self.update_background_parameters(parameters)
+        if parameters != None:
+            self.update_background_parameters(parameters)
 
-        model = np.ones(Y_background.shape) * \
+        model = np.ones(data_shape) * \
             self.background_parameters.constant
+            
         return model
 
     def background_guess(self):
@@ -503,6 +536,12 @@ class ConstantBackground(BackgroundModel):
             params.append(getattr(self.background_parameters,par))
         
         return params
+    
+    def calc_variance(self):
+        """
+        """
+
+        
 
 class GradientBackground(BackgroundModel):
 
@@ -529,13 +568,18 @@ class GradientBackground(BackgroundModel):
 
             setattr(self.background_parameters, key, parameters[index])
 
-    def background_model(self, Y_background, X_background, parameters):
-
-        self.update_background_parameters(parameters)
-
-        model = np.ones(Y_background.shape) * self.background_parameters.a0
-        model = model + ( self.background_parameters.a1 * X_background ) + \
-                    + ( self.background_parameters.a2 * Y_background )
+    def background_model(self, data_shape, parameters=None):
+        
+        if parameters != None:
+            self.update_background_parameters(parameters)
+        
+        
+        Y_data, X_data = np.indices(data_shape)
+    
+        model = np.ones(data_shape) * self.background_parameters.a0
+        
+        model = model + ( self.background_parameters.a1 * X_data ) + \
+                    + ( self.background_parameters.a2 * Y_data )
         
         return model
 
@@ -647,8 +691,6 @@ class Image(object):
 
 def fit_background(data, Y_data, X_data, background_model='Constant'):
 
-
-
     if background_model == 'Constant':
 
         back_model = ConstantBackground()
@@ -656,7 +698,6 @@ def fit_background(data, Y_data, X_data, background_model='Constant'):
     if background_model == 'Gradient':
 
         back_model = GradientBackground()
-
 
     guess_back = back_model.background_guess()
 
@@ -678,8 +719,6 @@ def error_background_fit_function(params, data,background, Y_data, X_data):
     residuals = np.ravel(data - back_model)
 
     return residuals
-
-
 
 def fit_star(data, Y_data, X_data, psf_model='Moffat2D', background_model='Constant'):
 
@@ -714,23 +753,21 @@ def error_star_fit_function(params, data, psf, background, Y_data, X_data):
     return residuals
 
 
-def fit_star_existing_model(setup,data, x_cen, y_cen, psf_radius, 
-                            input_psf_model, sky_model,
-                            centroiding=True,
-                            diagnostics=False):
+def fit_existing_psf_stamp(setup, x_cen, y_cen, psf_radius, 
+                            input_psf_model, psf_image_data, psf_sky_bkgd,
+                            centroiding=True, diagnostics=False):
     """Function to fit an existing PSF and sky model to a star at a given 
     location in an image, optimizing only the peak intensity of the PSF rather 
     than all parameters.
     
     :param SetUp setup: Fundamental reduction parameters
     :param array data: image data to be fitted
-    :param float x_cen: the x-pixel location of the PSF to be fitted in the 
-                        coordinates of the image
-    :param float x_cen: the x-pixel location of the PSF to be fitted in the 
-                        coordinates of the image
+    :param float x_cen: the x-pixel location of the PSF center in the stamp
+    :param float y_cen: the y-pixel location of the PSF center in the stamp
     :param float psf_radius: the radius of data to fit the PSF to
     :param PSFModel input_psf_model: existing psf model
-    :param BackgroundModel sky_model: existing model for the image sky background
+    :param array psf_image_data: image stamp surrounding the PSF
+    :param BackgroundModel psf_sky_bkgd: image sky background surrounding the PSF
     :param boolean centroiding: Switch to (dis)-allow re-fitting of each star's
                                 x, y centroid.  Default=allowed (True)
     :param boolean diagnostics: optional switch for diagnostic output
@@ -739,18 +776,18 @@ def fit_star_existing_model(setup,data, x_cen, y_cen, psf_radius,
     
     :param PSFModel fitted_model: PSF model for the star with optimized intensity
     """
-    
+                                
     psf_model = get_psf_object(input_psf_model.psf_type())
     psf_model.update_psf_parameters(input_psf_model.get_parameters())
     
-    stamp_dims = (2.0*psf_radius, 2.0*psf_radius)
-    
-    stamps = cut_image_stamps(setup, data, np.array([[x_cen,y_cen]]), 
-                              stamp_dims, log=None, 
-                                over_edge=True)
-    
-    stamp_centre = ( (x_cen - stamps[0].xmin_original), 
-                    (y_cen - stamps[0].ymin_original) )
+    # Recenter the PSF temporarily to the middle of the stamp to be fitted
+    # NOTE PSF parameters in order intensity, Y, X
+    #psf_params = psf_model.get_parameters()
+    #psf_params[1] = stamp_centre[1]
+    #psf_params[2] = stamp_centre[0]
+    #psf_model.update_psf_parameters(psf_params)
+
+    Y_data, X_data = np.indices(psf_image_data.shape)
     
     if diagnostics:
         
@@ -763,29 +800,103 @@ def fit_star_existing_model(setup,data, x_cen, y_cen, psf_radius,
 
         hdulist.writeto(file_path,overwrite=True)
 
-    
-    Y_data, X_data = np.indices(stamps[0].data.shape)
-    
-    sky_bkgd = sky_model.background_model(X_data,Y_data,
-                                          sky_model.get_parameters())
-        
-    # Recenter the PSF temporarily to the middle of the stamp to be fitted
-    # NOTE PSF parameters in order intensity, Y, X
-    psf_params = psf_model.get_parameters()
-    psf_params[1] = stamp_centre[1]
-    psf_params[2] = stamp_centre[0]
-    psf_model.update_psf_parameters(psf_params)
-    
     if centroiding:
         
         init_par = [ psf_model.get_parameters()[0], 
-                    stamp_centre[1], stamp_centre[0] ]
+                    y_cen, x_cen ]
     else:
         
         init_par = [ psf_model.get_parameters()[0] ]
 
     fit = optimize.leastsq(error_star_fit_existing_model, init_par, 
-        args=(stamps[0].data, psf_model, sky_bkgd, Y_data, X_data), 
+        args=(psf_image_data, psf_model, psf_sky_bkgd, Y_data, X_data), 
+        full_output=1)
+
+    fitted_model = get_psf_object( psf_model.psf_type() )
+    
+    psf_params = psf_model.get_parameters()
+    psf_params[0] = fit[0][0]
+    
+    if centroiding:
+        psf_params[1] = fit[0][1]
+        psf_params[2] = fit[0][2]
+    
+    fitted_model.update_psf_parameters(psf_params)
+    
+    good_fit = check_fit_quality(setup,psf_image_data,psf_sky_bkgd,fitted_model)
+    
+    return fitted_model, good_fit
+
+def fit_star_existing_model(setup, data, x_cen, y_cen, psf_radius, 
+                            input_psf_model, psf_sky_bkgd,
+                            centroiding=True,
+                            diagnostics=False):
+    """Function to fit an existing PSF and sky model to a star at a given 
+    location in an image, optimizing only the peak intensity of the PSF rather 
+    than all parameters.
+    
+    :param SetUp setup: Fundamental reduction parameters
+    :param array data: image data to be fitted
+    :param float x_cen: the x-pixel location of the PSF to be fitted in the 
+                        coordinates of the image data array
+    :param float x_cen: the x-pixel location of the PSF to be fitted in the 
+                        coordinates of the image data array
+    :param float psf_radius: the radius of data to fit the PSF to
+    :param PSFModel input_psf_model: existing psf model
+    :param array psf_sky_bkgd: sky background image data array for the region
+                                of the PSF
+    :param boolean centroiding: Switch to (dis)-allow re-fitting of each star's
+                                x, y centroid.  Default=allowed (True)
+    :param boolean diagnostics: optional switch for diagnostic output
+    
+    Returns
+    
+    :param PSFModel fitted_model: PSF model for the star with optimized intensity
+    """
+    
+    psf_model = get_psf_object(input_psf_model.psf_type())
+    psf_model.update_psf_parameters(input_psf_model.get_parameters())
+    
+    #stamp_dims = (2.0*psf_radius, 2.0*psf_radius)
+    
+    #stamps = cut_image_stamps(setup, data, np.array([[x_cen,y_cen]]), 
+    #                          stamp_dims, log=None, 
+    #                            over_edge=True)
+    
+    #stamp_centre = ( (x_cen - stamps[0].xmin_original), 
+    #                (y_cen - stamps[0].ymin_original) )
+    
+    if diagnostics:
+        
+        hdu = fits.PrimaryHDU(data)
+        
+        hdulist = fits.HDUList([hdu])
+
+        file_path = os.path.join(setup.red_dir,'ref',\
+        'fit_star_stamp_'+str(round(x_cen,0))+'_'+str(round(y_cen,0))+'.fits')
+
+        hdulist.writeto(file_path,overwrite=True)
+
+    
+    Y_data, X_data = np.indices(data.shape)
+    
+    # Recenter the PSF temporarily to the middle of the stamp to be fitted
+    # NOTE PSF parameters in order intensity, Y, X
+    psf_params = psf_model.get_parameters()
+    psf_params[1] = y_cen
+    psf_params[2] = x_cen
+    psf_model.update_psf_parameters(psf_params)
+    
+    if centroiding:
+        
+        init_par = [ psf_model.get_parameters()[0], 
+                    y_cen, x_cen ]
+    else:
+        
+        init_par = [ psf_model.get_parameters()[0] ]
+    
+    fit = optimize.leastsq(error_star_fit_existing_model, init_par, 
+        args=(data, psf_model, psf_sky_bkgd, Y_data, X_data), 
         full_output=1)
 
     fitted_model = get_psf_object( psf_model.psf_type() )
@@ -801,7 +912,7 @@ def fit_star_existing_model(setup,data, x_cen, y_cen, psf_radius,
     
     if diagnostics:
         
-        Y_data, X_data = np.indices(stamps[0].data.shape)
+        Y_data, X_data = np.indices(data.shape)
         
         pars = fitted_model.get_parameters()
         
@@ -812,19 +923,18 @@ def fit_star_existing_model(setup,data, x_cen, y_cen, psf_radius,
         hdulist = fits.HDUList([hdu])
 
         file_path = os.path.join(setup.red_dir,'ref',\
-        'psf_star_model_stamp_'+str(round(x_cen,0))+'_'+str(round(y_cen,0))+'.fits')
+        'fit_star_model_stamp_'+str(round(x_cen,0))+'_'+str(round(y_cen,0))+'.fits')
         
         hdulist.writeto(file_path,overwrite=True)
     
-    # Add the stamp x,y offset back to the star centroid:
     psf_params = fitted_model.get_parameters()
     psf_params[0] = fit[0][0]
-    psf_params[1] = stamps[0].ymin_original + psf_params[1]
-    psf_params[2] = stamps[0].xmin_original + psf_params[2]
+    psf_params[1] = psf_params[1]
+    psf_params[2] = psf_params[2]
     
     fitted_model.update_psf_parameters(psf_params)
     
-    good_fit = check_fit_quality(setup,stamps[0].data,sky_bkgd,fitted_model)
+    good_fit = check_fit_quality(setup,data,psf_sky_bkgd,fitted_model)
     
     return fitted_model, good_fit
 
@@ -918,9 +1028,9 @@ def fit_star_existing_model_with_kernel(setup,data, x_cen, y_cen, psf_radius,
 
 def error_star_fit_existing_model(params, data, psf_model, sky_bkgd, 
                                   Y_data, X_data):
-
+    
     sky_subtracted_data = data - sky_bkgd
-
+    
     psf_image = psf_model.psf_model_star(Y_data, X_data, star_params=params)
     
     residuals = np.ravel(sky_subtracted_data - psf_image)
@@ -1182,8 +1292,8 @@ def calc_stamp_corners(xcen, ycen, dx, dy, maxx, maxy, over_edge=False,
                         reference frame
     :param float ycen: y-pixel location of the box centre in the wider image
                         reference frame
-    :param float dx: full width of the box in the x-direction
-    :param float dy: full width of the box in the y-direction
+    :param int dx: full width of the box in the x-direction
+    :param int dy: full width of the box in the y-direction
     :param int maxx: Maximum possible x-dimension, bounded by the edge of the 
                     original image
     :param int maxy: Maximum possible y-dimension, bounded by the edge of the 
@@ -1200,13 +1310,31 @@ def calc_stamp_corners(xcen, ycen, dx, dy, maxx, maxy, over_edge=False,
                         If over_edge=False, a tuple of None entries will be
                         returned if a box intersects any edge of the frame.
     """
-    xmin = int(xcen) - int(float(dx)/2.0)
-    xmax = int(xcen) + int(float(dx)/2.0)
-    ymin = int(ycen) - int(float(dy)/2.0)
-    ymax = int(ycen) + int(float(dy)/2.0)
+    
+    x = int(xcen)
+    y = int(ycen)
+    
+    if np.mod(dx,2) > 0:
+        dx = int(dx) + 1
+        halfx = (dx - 1)/2
+    else:
+        halfx = int(dx)/2
+    
+    if np.mod(dy,2) > 0:
+        dy = int(dy) + 1
+        halfy = (dy - 1)/2
+    else:
+        halfy = int(dy)/2
+
+    xmin = int(x) - halfx
+    xmax = int(x) + halfx
+    ymin = int(y) - halfy
+    ymax = int(y) + halfy
     
     if diagnostics:
-        print('CORNERS: ',xcen,ycen,xmin, xmax, ymin, ymax, maxx, maxy)
+        print('Center: ',xcen,ycen)
+        print('Limits: ',maxx,maxy,dx,dy)
+        print('CORNERS: ',xmin, xmax, ymin, ymax)
         
     if xmin >= 0 and xmax < maxx and ymin >= 0 and ymax < maxy:
         
