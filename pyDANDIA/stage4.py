@@ -293,6 +293,7 @@ def correlation_shift(reference_image, target_image):
 
 
 def quick_pos_fit(params, pts1, pts2, e_pts1):
+
     model = point_transformation(params, pts1)
 
     distance = (pts2[:, 0] - model[0]) ** 2 + (pts2[:, 1] - model[1]) ** 2
@@ -301,9 +302,11 @@ def quick_pos_fit(params, pts1, pts2, e_pts1):
 
 
 def point_transformation(params, pts1):
-    rota = params.reshape(3, 3)
-
-    model = np.dot(rota, pts1.T)
+    #import pdb;
+    #pdb.set_trace()
+    rota = tf.AffineTransform
+    rota.params = params.reshape(3,3)
+    model = np.dot(rota.params, pts1.T)
 
     return model
 
@@ -368,13 +371,16 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
                                 ratio=min(ref_fwhm_x, ref_fwhm_y) / max(ref_fwhm_x, ref_fwhm_y), threshold=3. * std_ref,
                                 exclude_border=True)
         ref_sources = daofind.find_stars(reference_image - median_ref)
-        ref_sources_x, ref_sources_y = np.copy(ref_sources['xcentroid']), np.copy(ref_sources['ycentroid'])
+        ref_sources = reduction_metadata.star_catalog[1]
+
+
+        # ref_sources_x, ref_sources_y = np.copy(ref_sources['xcentroid']), np.copy(ref_sources['ycentroid'])
 
     for new_image in new_images:
         print (new_image)
         row_index = np.where(reduction_metadata.images_stats[1]['IM_NAME'] == new_image)[0][0]
         x_shift, y_shift = -reduction_metadata.images_stats[1][row_index]['SHIFT_X'], - \
-        reduction_metadata.images_stats[1][row_index]['SHIFT_Y']
+            reduction_metadata.images_stats[1][row_index]['SHIFT_Y']
 
         data_image_hdu = fits.open(os.path.join(data_image_directory, new_image), memmap=True)
         data_image = data_image_hdu[0].data
@@ -397,58 +403,68 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
         data_fwhm = (ref_fwhm_x ** 2 + ref_fwhm_y ** 2) ** 0.5
         daofind2 = DAOStarFinder(fwhm=max(data_fwhm_x, data_fwhm_y),
                                  ratio=min(data_fwhm_x, data_fwhm_y) / max(data_fwhm_x, data_fwhm_y),
-                                 threshold=3. * std_data, exclude_border=True)
+                                 threshold=10. * std_data, exclude_border=True)
 
-        data_sources = daofind2.find_stars(data_image - median_data)
 
-        data_sources_x, data_sources_y = np.copy(data_sources['xcentroid'].data), np.copy(
-            data_sources['ycentroid'].data)
-
-        # correct for shift to facilitate cross-match
-        data_sources_x -= x_shift
-        data_sources_y -= y_shift
-
-        pts1, pts2, matching = reformat_catalog2(np.c_[ref_sources['xcentroid'], ref_sources['ycentroid']], np.c_[
-            data_sources['xcentroid'] - x_shift, data_sources['ycentroid'] - y_shift],
-                                                 distance_threshold=8)
         # pts1 = np.c_[]
         # resample image if there is a sufficient number of stars
-        if len(pts1) > 10:
-
+        try:
             # pts1 = np.c_[ data_sources_x -int(central_region_x/2), data_sources_y -int(central_region_y/2)][matching[:,1]]
             # pts1 = np.c_[data_sources_x - int(central_region_x / 2)-1, data_sources_y - int(central_region_y / 2)-1][matching[:, 1]]
+            data_sources = daofind2.find_stars(data_image - median_data)
 
+            data_sources_x, data_sources_y = np.copy(data_sources['xcentroid'].data), np.copy(
+                data_sources['ycentroid'].data)
+
+            # correct for shift to facilitate cross-match
+            data_sources_x -= x_shift
+            data_sources_y -= y_shift
+
+            pts1, pts2, matching = reformat_catalog2(np.c_[ref_sources['x_pixel'], ref_sources['y_pixel']], np.c_[
+                data_sources['xcentroid'] - x_shift, data_sources['ycentroid'] - y_shift],
+                                                     distance_threshold=8)
             pts1 = np.c_[data_sources_x + x_shift, data_sources_y + y_shift][matching[:, 1]]
             pts2[:, 0] -= 0
             pts2[:, 1] -= 0
-            order = ref_sources['flux'][matching[:, 0]].argsort()
+            order = ref_sources['ref_flux'][matching[:, 0]].argsort()
 
-            pts1 = pts1[order][-3000:]
-            pts2 = pts2[order][-3000:]
-            # e_flux = 0.6 * data_fwhm / data_sources['flux'][matching[:, 1]][order][-3000:].data ** 0.5
+            pts1 = pts1[order][:]
+            pts2 = pts2[order][:]
+            e_flux = 0.6 * data_fwhm / data_sources['flux'][matching[:, 1]][order][:].data ** 0.5
 
 
             # model_robust, inliers = ransac(( pts1,pts2), tf. AffineTransform,min_samples=10, residual_threshold=0.05, max_trials=300)
             pts1 = np.c_[pts1, [1] * len(pts1)]
             pts2 = np.c_[pts2, [1] * len(pts2)]
 
-            model_final = iterate_on_resampling(pts1, pts2, matching, x_shift, y_shift, threshold_rms=0.05,
-                                                threshold_star=10)
-
-        else:
+            # model_final = iterate_on_resampling(pts1, pts2, matching, x_shift, y_shift, threshold_rms=0.05,
+            #threshold_star = 10)
+            model_robust, inliers = ransac((pts1[:, :2], pts2[:, :2]), tf.AffineTransform, min_samples=10, residual_threshold = 0.1, max_trials = 100)
+            model_final = model_robust
+            guess = model_final.params.ravel()
+            res = so.leastsq(quick_pos_fit, guess, args=(pts1[inliers], pts2[inliers], e_flux[inliers]), full_output=True)
+            model_final.params = res[0].reshape(3, 3)
+        except:
 
             model_final = tf.SimilarityTransform(translation=(-x_shift, -y_shift))
 
-        maxv = np.max(np.abs((data_image)))
-        shifted = tf.warp(data_image / maxv, inverse_map=model_final.inverse, preserve_range=True)
+
+
+        shifted = tf.warp(data_image, inverse_map=model_final.inverse, preserve_range=True)
 
         if mask_extension > -1:
-            maxvmask = np.max(mask_image)
-            shifted_mask = tf.warp(mask_image / maxvmask, inverse_map=model_final.inverse)
-            shifted_mask = shifted_mask * maxvmask
-
-        shifted *= maxv
-
+            shifted_mask = tf.warp(mask_image, inverse_map=model_final.inverse, preserve_range=True)
+        # import pdb;
+        # pdb.set_trace()
+        manual_transformation(model_final.params, (0, 0), data_image)
+        #import matplotlib.pyplot as plt
+        #fff,aaa = plt.subplots(3,1,sharex=True,sharey=True)
+        #aaa[0].imshow(reference_image,vmin=0,vmax=10000)
+        #aaa[1].imshow(shifted,vmin=0,vmax=10000)
+        #aaa[2].imshow(shifted-reference_image,vmin=-10000,vmax=10000)
+        #plt.show()
+        #import pdb;
+        #pdb.set_trace()
         try:
 
             # shifted = cosmicray_lacosmic(shifted, sigclip=4., objlim = 4)[0]
@@ -554,22 +570,23 @@ def manual_transformation(matrix, center, data_image):
     shear = np.arctan2(-matrix[0, 1], matrix[1, 1]) - rot
 
     translation = matrix[0:2, 2]
-    translation[0] += center[0]
-    translation[1] += center[1]
+    print(rot, shear, translation)
+    # translation[0] += center[0]
+    # translation[1] += center[1]
 
-    good_matrix = np.array([
-        [scale_x * np.cos(rot), -scale_y * np.sin(rot + shear), 0],
-        [scale_x * np.sin(rot), scale_y * np.cos(rot + shear), 0],
-        [0, 0, 1]])
+    # good_matrix = np.array([
+    #    [scale_x * np.cos(rot), -scale_y * np.sin(rot + shear), 0],
+    #    [scale_x * np.sin(rot), scale_y * np.cos(rot + shear), 0],
+    #    [0, 0, 1]])
 
-    good_matrix[0:2, 2] = translation
+    # good_matrix[0:2, 2] = translation
     # matrix[0:2,2] = translation
-    good_matrix = np.linalg.inv(matrix)
+    # good_matrix = np.linalg.inv(matrix)
     # good_matrix = matrix
-    model = tf._warps_cy._warp_fast(data_image, good_matrix, output_shape=None, order=0, mode='constant', cval=0)
+    # model = tf._warps_cy._warp_fast(data_image, good_matrix, output_shape=None, order=0, mode='constant', cval=0)
     # i#mport matplotlib.pyplot as plt
     # plt.imshow(rr)
     # plt.show()
     # import pdb;
     # pdb.set_trace()
-    return model
+    # return model
