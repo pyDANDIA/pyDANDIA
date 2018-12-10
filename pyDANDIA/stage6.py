@@ -91,6 +91,7 @@ def run_stage6(setup):
     psf_model = fits.open(reduction_metadata.data_architecture[1]['REF_PATH'].data[0] + '/psf_model.fits')
 
     psf_type = psf_model[0].header['PSFTYPE']
+
     psf_parameters = [0, psf_model[0].header['Y_CENTER'],
                       psf_model[0].header['X_CENTER'],
                       psf_model[0].header['GAMMA'],
@@ -193,6 +194,7 @@ def run_stage6(setup):
                                                                           ref_star_catalog, difference_image, psf_model,
                                                                           sky_model, kernel_image, kernel_error,
                                                                           ref_exposure_time)
+            psf_model.update_psf_parameters(psf_parameters)
             try:
                 photometric_table[compt_db, :, :] = phot_table
                 phot_table = np.zeros(phot_table.shape)
