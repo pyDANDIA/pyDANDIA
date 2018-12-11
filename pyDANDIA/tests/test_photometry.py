@@ -17,6 +17,7 @@ import photometry
 import catalog_utils
 import psf
 from astropy.table import Table
+from astropy.io import fits
 
 TEST_DATA = os.path.join(cwd,'data')
 TEST_DIR = os.path.join(cwd,'data','proc',
@@ -91,6 +92,10 @@ def test_run_psf_photometry():
 def test_sim_run_psf_photometry():
     """Function to test the PSF-fitting photometry module for a single image"""
     
+    # Simulation parameters:
+    image_path = os.path.join(TEST_DATA,'sim_star_phot.fits')
+    sky_value = 300.0
+    
     setup = pipeline_setup.pipeline_setup({'red_dir': TEST_DIR})
     
     log = logs.start_stage_log( cwd, 'test_photometry' )
@@ -99,11 +104,17 @@ def test_sim_run_psf_photometry():
     reduction_metadata.load_a_layer_from_file( setup.red_dir, 
                                               'pyDANDIA_metadata.fits', 
                                               'reduction_parameters' )
+    reduction_metadata.load_a_layer_from_file( setup.red_dir, 
+                                              'pyDANDIA_metadata.fits',
+                                              'headers_summary' )
+    
+    row = reduction_metadata.headers_summary[1][-1]
+    row['IMAGES'] = os.path.basename(image_path)
     
     # Generate test image:
     image = np.zeros((100,100))
     image = np.random.rand(image.shape[0],image.shape[1])
-    image += 300.0
+    image += sky_value
     
     # Simulated star parameters
     x_cen = 50.0
@@ -122,35 +133,31 @@ def test_sim_run_psf_photometry():
     # Output sim image for the record:
     hdu = fits.PrimaryHDU(image)
     hdulist = fits.HDUList([hdu])
-    hdulist.writeto(os.path.join(TEST_DATA,'sim_star_phot.fits'),
-                                     overwrite=True)
+    hdulist.writeto(image_path, overwrite=True)
     
-    # Construct a test ref_star_catalog
-    ref_star_catalog = np.zeros((len(reduction_metadata.star_catalog[1]),9))
-    ref_star_catalog[:,0] = reduction_metadata.star_catalog[1]['star_index']
-    ref_star_catalog[:,1] = reduction_metadata.star_catalog[1]['x_pixel']
-    ref_star_catalog[:,2] = reduction_metadata.star_catalog[1]['y_pixel']
+    # Construct a test ref_star_catalog:
+    ref_star_catalog = np.zeros( (1,9) )
+    ref_star_catalog[0,0] = 1
+    ref_star_catalog[0,1] = x_cen
+    ref_star_catalog[0,2] = y_cen
     
+    # Initialise th PSF model to be fitted:
     psf_model = psf.get_psf_object('Moffat2D')
-    
-    xstar = 194.654006958
-    ystar = 180.184967041
-    psf_size = 8.0
-    x_cen = psf_size + (xstar-int(xstar))
-    y_cen = psf_size + (ystar-int(ystar))
-    psf_params = [ 5807.59961215, x_cen, y_cen, 7.02930822229, 11.4997891585 ]
-    
+    psf_params = [ 1.0, x_cen, y_cen, 226.750731765,
+                  13004.8930993, 103323.763627 ]
     psf_model.update_psf_parameters(psf_params)
 
     sky_model = psf.ConstantBackground()
-    sky_model.background_parameters.constant = 5000.0
+    sky_model.background_parameters.constant = sky_value
 
     ref_flux = 12.0
     
-    ref_star_catalog = run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
+    ref_star_catalog = photometry.run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
                        image_path,psf_model,sky_model,ref_flux,
                        centroiding=True,diagnostics=True, psf_size=None)
-                       
+    
+    print(ref_star_catalog)
+    
 def test_plot_ref_mag_errors():
     """Function to test the plotting function"""
     
@@ -229,9 +236,10 @@ def test_convert_flux_to_mag():
     
 if __name__ == '__main__':
     
-    test_run_psf_photometry()
+    #test_run_psf_photometry()
     #test_plot_ref_mag_errors()
     #test_extract_exptime()
     #test_convert_flux_to_mag()
     #test_run_psf_photometry()
     #test_plot_ref_mag_errors()
+    test_sim_run_psf_photometry()
