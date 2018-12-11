@@ -32,7 +32,7 @@ def reference_astrometry(setup,log,image_path,detected_sources,diagnostics=True)
     catalog_file = path.join(setup.red_dir,'ref', 'star_catalog.fits')
     
     log.info('Querying ViZier for 2MASS sources within the field of view...')
-    radius = hdu[0].header['NAXIS1']*image_wcs.wcs.cd[0,0]*60.0/2.0
+    radius = hdu[0].header['NAXIS1']*hdu[0].header['PIXSCALE']*60.0/2.0
     catalog_sources = search_vizier_for_2mass_sources(str(image_wcs.wcs.crval[0]), \
                                                       str(image_wcs.wcs.crval[1]), \
                                                      radius)

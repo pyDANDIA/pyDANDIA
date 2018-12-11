@@ -14,6 +14,7 @@ from photutils import Background2D, MedianBackground
 from skimage.transform import resize
 from ccdproc import cosmicray_lacosmic
 import matplotlib.pyplot as plt
+from pyDANDIA import psf
 
 def background_mesh_perc(image1,perc=50,box_guess=300, master_mask = []):
 
@@ -22,8 +23,8 @@ def background_mesh_perc(image1,perc=50,box_guess=300, master_mask = []):
     if master_mask != []:
         image[master_mask] = np.median(image1)
     #generate slices, iterate over centers
-    if box_guess > int(np.shape(image)[0]/5) and box_guess > int(np.shape(image)[1]/5):
-        box = min(int(np.shape(image)[0]/5), int(np.shape(image)[1]/5))
+    if box_guess > int(np.shape(image)[0]/10) and box_guess > int(np.shape(image)[1]/10):
+        box = min(int(np.shape(image)[0]/10), int(np.shape(image)[1]/10))
     else:
         box = box_guess
     centerx = int(box/2)
@@ -144,9 +145,20 @@ def open_data_image(setup, data_image_directory, data_image_name, reference_mask
 
     img50pc = np.median(data_image[data_extension].data)
     zero_parts = data_image[data_extension].data == 0.
+    #import pdb;
+    #pdb.set_trace()
     data_image[data_extension].data = data_image[data_extension].data - background_mesh_perc(data_image[data_extension].data)
-    data_image[data_extension].data[zero_parts] = 0.
+    #mask =  (data_image[data_extension].data < np.percentile(data_image[data_extension].data.ravel(), 95)) & (data_image[data_extension].data!=0)
 
+
+    #yfit,xfit=np.indices(data_image[0].data.shape)
+    #res = psf.fit_background(data_image[0].data,yfit,xfit,mask,background_model='Gradient')
+    ##bb = psf.GradientBackground()
+    #momo=bb.background_model(yfit,xfit,res[0])
+    #data_image[data_extension].data = data_image[data_extension].data-momo
+    data_image[data_extension].data[zero_parts] = 0.
+    #import pdb;
+    #pdb.set_trace()
     img_shape = np.shape(data_image[data_extension].data)
     shifted = np.zeros(img_shape)
     #smooth data image
@@ -172,6 +184,8 @@ def open_data_image(setup, data_image_directory, data_image_name, reference_mask
     #apply consistent mask    
     data_image_unmasked[reference_mask[kernel_size:-kernel_size,kernel_size:-kernel_size]] = 0.#np.random.randn(len(data_image_unmasked[reference_mask[kernel_size:-kernel_size,kernel_size:-kernel_size]]))*bkg_sigma
     data_extended[reference_mask] = 0.
+
+
 
     return data_extended, data_image_unmasked
 
@@ -209,8 +223,16 @@ def open_reference(setup, ref_image_directory, ref_image_name, kernel_size, max_
     if master_mask != []:
         ref_image[ref_extension].data[master_mask] = max_adu + ref50pc + 1.
 
-    ref_bright_mask_1 = (ref_image[ref_extension].data > max_adu + ref50pc)       
+    ref_bright_mask_1 = (ref_image[ref_extension].data > max_adu + ref50pc)
     ref_image[ref_extension].data = ref_image[ref_extension].data - background_mesh_perc(ref_image[ref_extension].data)
+    #mask = (ref_image[ref_extension].data<np.percentile(ref_image[ref_extension].data.ravel(),95)) & (ref_image[ref_extension].data!=0)
+
+
+    #yfit, xfit = np.indices(ref_image[0].data.shape)
+    #res = psf.fit_background(ref_image[0].data, yfit, xfit, mask, background_model='Gradient')
+    #bb = psf.GradientBackground()
+    #momo = bb.background_model(yfit, xfit, res[0])
+    #ref_image[ref_extension].data = ref_image[ref_extension].data - momo
 
     ref_image_unmasked = np.copy(ref_image[ref_extension].data)
     if central_crop != None:
@@ -234,8 +256,8 @@ def open_reference(setup, ref_image_directory, ref_image_name, kernel_size, max_
     #increase mask size to kernel size
     mask_propagate = convolve2d(mask_propagate, mask_kernel, mode='same')
     bright_mask = mask_propagate > 0.
-    ref_extended[bright_mask] = 0.   
-      
+    ref_extended[bright_mask] = 0.
+
     #replace saturated pixels with random noise or zero:
     bkg_sigma = np.std(ref_image_unmasked < np.median(ref_image_unmasked)) / (1.-2./np.pi)**0.5
     #apply consistent mask    

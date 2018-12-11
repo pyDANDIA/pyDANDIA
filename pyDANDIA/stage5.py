@@ -192,7 +192,7 @@ def subtract_small_format_image(new_images, reference_image_name, reference_imag
 
 
             b_vector = bvector_constant(reference_image, data_image, kernel_size)
-            kernel_matrix, bkg_kernel, kernel_uncertainty  = kernel_solution(umatrix, b_vector, kernel_size, circular = False)
+            kernel_matrix, bkg_kernel, kernel_uncertainty = kernel_solution(umatrix, b_vector, kernel_size, circular = False)
             pscale = np.sum(kernel_matrix)                
             np.save(os.path.join(kernel_directory_path,'kernel_'+new_image+'.npy'),[kernel_matrix,bkg_kernel])
             kernel_header = fits.Header()
@@ -567,11 +567,16 @@ def kernel_solution(u_matrix, b_vector, kernel_size, circular = True):
     #For better stability: solve the least square problem via np.linalg.lstsq
     #inv_umatrix = np.linalg.inv(u_matrix)
     #a_vector = np.dot(inv_umatrix, b_vector)
+
     lstsq_result = np.linalg.lstsq(np.array(u_matrix), np.array(b_vector))    
     a_vector = lstsq_result[0]
     mse = 1.#lstsq_result
     #a_vector_err = np.copy(np.diagonal(np.matrix(np.dot(u_matrix.T, u_matrix)).I))
-    a_vector_err = np.copy(np.diagonal(np.linalg.lstsq(u_matrix, np.identity(u_matrix.shape[0]))[0]))
+    residuals = b_vector/10
+    ### approximate error before sig_b_vector....
+    a_vector_err = np.copy((np.linalg.lstsq(u_matrix, np.identity(u_matrix.shape[0])*residuals)))[0]
+    #import pdb;
+    #pdb.set_trace()
     #MSE: mean square error of the residuals
     output_kernel = np.zeros(kernel_size * kernel_size, dtype=float)
     if len(a_vector)>kernel_size*kernel_size:
@@ -580,13 +585,13 @@ def kernel_solution(u_matrix, b_vector, kernel_size, circular = True):
         output_kernel = a_vector
     output_kernel = output_kernel.reshape((kernel_size, kernel_size))
     err_kernel = np.zeros(kernel_size * kernel_size, dtype=float)
-    if len(a_vector)>kernel_size*kernel_size:
-        err_kernel = (a_vector_err*lstsq_result[3])[:-1]
-        err_kernel = err_kernel.reshape((kernel_size, kernel_size))
-    else:
-        err_kernel = (a_vector_err*lstsq_result[3])
-        err_kernel = err_kernel.reshape((kernel_size, kernel_size))
-     
+    #if len(a_vector)>kernel_size*kernel_size:
+    #    err_kernel = (a_vector_err*lstsq_result[3])[:-1]
+    #    err_kernel = err_kernel.reshape((kernel_size, kernel_size))
+    #else:
+    #    err_kernel = (a_vector_err*lstsq_result[3])
+    #    err_kernel = err_kernel.reshape((kernel_size, kernel_size))
+    #
     if circular:
         xyc = int(kernel_size / 2)
         radius_square = (xyc)**2
@@ -594,11 +599,13 @@ def kernel_solution(u_matrix, b_vector, kernel_size, circular = True):
             for jdx in range(kernel_size):
                 if (idx - xyc)**2 + (jdx - xyc)**2 >= radius_square:
                     output_kernel[idx, jdx] = 0.
-                    err_kernel[idx, jdx] = 0.
+                    #err_kernel[idx, jdx] = 0.
 
     output_kernel_2 = np.flip(np.flip(output_kernel, 0), 1)
-    err_kernel_2 = np.flip(np.flip(err_kernel, 0), 1)
+    #err_kernel_2 = np.flip(np.flip(err_kernel, 0), 1)
     #err_kernel_2 = err_kernel
+    err_kernel_2 = a_vector_err
+
     return output_kernel_2, a_vector[-1], err_kernel_2
 
 def kernel_solution_pool(input_pars):
