@@ -4,7 +4,7 @@ Created on Thu Oct 26 15:26:00 2017
 
 @author: rstreet
 """
-
+import pytest
 import os
 import sys
 cwd = os.getcwd()
@@ -344,12 +344,12 @@ def test_fit_sim_star_existing_model():
     
     setup = pipeline_setup.pipeline_setup({'red_dir': TEST_DIR})
 
-    image = np.zeros((100,100))
+    image = np.zeros((8,8))
     image = np.random.rand(image.shape[0],image.shape[1])
     image += 300.0
     
-    x_cen = 50.0
-    y_cen = 50.0
+    x_cen = 4.0
+    y_cen = 4.0
     psf_params = [ 103301.241291, x_cen, y_cen, 226.750731765,
                   13004.8930993, 103323.763627 ]
     psf_radius = 8.0
@@ -682,6 +682,43 @@ def test_calc_stamp_corners():
     assert(corners[1] == 188)
     assert(corners[2] == 193)
     assert(corners[3] == 201)
+
+def test_calc_optimized_flux():
+    """Function to test the calculation of the optimized flux, given a PSF
+    model"""
+    
+    gain = 1.0
+    var_sky = 10.0
+    ref_flux = 12.0
+    
+    psf_model = psf.get_psf_object('Moffat2D')
+    model_params = [1.0, 5.0, 5.0, 5.0, 10.0]
+    psf_model.update_psf_parameters(model_params)
+    
+    star_psf = psf.get_psf_object('Moffat2D')
+    star_params = [15000.0, 5.0, 5.0, 5.0, 10.0]
+    star_psf.update_psf_parameters(star_params)
+    
+    psf_diameter = 10.0
+    
+    Y_data, X_data = np.indices((int(psf_diameter),int(psf_diameter)))
+    
+    psf_image = psf_model.psf_model(Y_data, X_data, model_params)
+    star_psf_image = star_psf.psf_model(Y_data, X_data, star_params)
+    
+    hdu = fits.PrimaryHDU(star_psf_image)
+    hdulist = fits.HDUList([hdu])
+    hdulist.writeto(os.path.join(TEST_DIR,'sim_star_optimize_flux.fits'),
+                                     overwrite=True)
+    
+    (flux, flux_err) = psf_model.calc_optimized_flux(ref_flux, var_sky, 
+                                  Y_data, X_data, 
+                                  gain, star_psf_image)
+                                  
+    print('Flux = '+str(flux)+' +/- '+str(flux_err))
+    
+    assert flux == pytest.approx(star_params[0], 1e-5)
+#
     
 if __name__ == '__main__':
     
@@ -693,7 +730,9 @@ if __name__ == '__main__':
     #test_fit_psf_model()
     #test_build_psf()
     #test_subtract_psf_from_image()
-    test_fit_sim_star_existing_model()
+    #test_fit_sim_star_existing_model()
     #test_psf_normalization()
     #test_fit_existing_psf_stamp()
     #test_calc_stamp_corners()
+    test_calc_optimized_flux()
+    

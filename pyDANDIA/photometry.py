@@ -78,46 +78,52 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
         logs.ifverbose(log,setup,' -> Star '+str(j)+' at position ('+\
         str(xstar)+', '+str(ystar)+')')
         
-        X_grid = X_data + (int(xstar) - half_psf)
-        Y_grid = Y_data + (int(ystar) - half_psf)
+        Y_grid, X_grid = np.indices((int(psf_size),int(psf_size)))
         
         corners = psf.calc_stamp_corners(xstar, ystar, psf_size, psf_size, 
                                     data.shape[1], data.shape[0],
                                     over_edge=True)
-                                    
+        
+        xstar_psf = xstar - corners[0]
+        ystar_psf = ystar - corners[2]
+        
         logs.ifverbose(log,setup,' -> Corners of PSF stamp '+repr(corners))
         
-        psf_sky_bkgd = sky_bkgd[corners[2]:corners[3],corners[0]:corners[1]]
-        var_sky = psf_sky_bkgd.std()**2
+        #psf_sky_bkgd = sky_bkgd[corners[2]:corners[3],corners[0]:corners[1]]
         
         psf_data = residuals[corners[2]:corners[3],corners[0]:corners[1]]
         
-        (fitted_model,good_fit) = psf.fit_star_existing_model(setup, psf_data, 
-                                               xstar, ystar, psf_size, 
-                                               psf_model, psf_sky_bkgd, 
-                                               centroiding=centroiding,
-                                               diagnostics=diagnostics)
+        #(fitted_model,good_fit) = psf.fit_star_existing_model(setup, psf_data, 
+        #                                       xstar_psf, ystar_psf, psf_size, 
+        #                                       psf_model, psf_sky_bkgd, 
+        #                                       centroiding=centroiding,
+        #                                       diagnostics=diagnostics)
+        
+        #logs.ifverbose(log, setup,' -> Star '+str(j)+
+        #' fitted model parameters = '+repr(fitted_model.get_parameters())+
+        #' good fit? '+repr(good_fit))
+        
+        (flux, flux_err, Fij) = psf_model.calc_optimized_flux(ref_flux,
+                                                         sky_model.varience,
+                                                         Y_grid,X_grid,
+                                                         gain,psf_data)
         
         logs.ifverbose(log, setup,' -> Star '+str(j)+
-        ' fitted model parameters = '+repr(fitted_model.get_parameters())+
-        ' good fit? '+repr(good_fit))
+        ' measured optimized flux = '+repr(flux)+' +/- '+str(flux_err))
         
-        (flux, flux_err) = fitted_model.calc_optimized_flux(ref_flux,var_sky,
-                                                            Y_grid,X_grid,
-                                                            gain,residuals)
-        
+        good_fit = True
         if good_fit == True:
-
-            sub_psf_model = psf.get_psf_object('Moffat2D')
-
-            pars = fitted_model.get_parameters()
-
-            pars[1] = half_psf + (ystar-int(ystar))
-            pars[2] = half_psf + (xstar-int(xstar))
             
-            sub_psf_model.update_psf_parameters(pars)
+            #sub_psf_model = psf.get_psf_object('Moffat2D')
+
+            #pars = fitted_model.get_parameters()
+
+            #pars[1] = half_psf + (ystar-int(ystar))
+            #pars[2] = half_psf + (xstar-int(xstar))
             
-            (res_image,corners) = psf.subtract_psf_from_image(residuals,sub_psf_model,
+            #sub_psf_model.update_psf_parameters(pars)
+            
+            (res_image,corners,psf_image) = psf.subtract_psf_from_image(residuals,Fij,
                                                     xstar,ystar,
                                                     psf_size, psf_size)
             
@@ -131,8 +137,6 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
         
             logs.ifverbose(log, setup,' -> Star '+str(j)+
             ' subtracted PSF from the residuals')
-            
-            (flux, flux_err) = fitted_model.calc_flux(Y_grid, X_grid)
             
             (mag, mag_err, flux_scaled, flux_err_scaled) = convert_flux_to_mag(flux, flux_err, exp_time=exp_time)
             
@@ -463,7 +467,7 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
             list_delta_flux.append(flux)
             list_delta_flux_error.append(flux_err)
 
-            (mag, mag_err) = convert_flux_to_mag(flux_tot, flux_err_tot)
+            (mag, mag_err,ftmp,fetemp) = convert_flux_to_mag(flux_tot, flux_err_tot)
 
 
             list_mag.append(mag)
@@ -519,6 +523,9 @@ def convert_flux_to_mag(flux, flux_err, exp_time=None):
     
     :param float mag: Measured star magnitude
     :param float flux_mag: Uncertainty in measured magnitude
+    :param float flux: Total flux, scaled by the exposure time if given
+    :param float flux_err: Uncertainty on total flux, scaled by the exposure 
+                            time, if given
     """
 
     def flux2mag(ZP, flux):
@@ -548,7 +555,7 @@ def convert_flux_to_mag(flux, flux_err, exp_time=None):
 
         mag_err = (2.5 / np.log(10.0)) * flux_err / flux
 
-    return mag, mag_err
+    return mag, mag_err, flux, flux_err
 
 
     

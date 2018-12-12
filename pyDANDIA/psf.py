@@ -176,15 +176,33 @@ class Moffat2D(PSFModel):
         
         Pij = self.psf_model_star(Y_star, X_star)
         
+        hdu = fits.PrimaryHDU(Pij)
+        hdulist = fits.HDUList([hdu])
+        hdulist.writeto('optimize_flux_Pij.fits', overwrite=True)
+    
         Vij = var_sky + (ref_flux * Pij)/np.sqrt(gain)
+        
+        hdu = fits.PrimaryHDU(Vij)
+        hdulist = fits.HDUList([hdu])
+        hdulist.writeto('optimize_flux_Vij.fits', overwrite=True)
         
         Wij = (Pij / Vij) / ((Pij*Pij)/Vij).sum()
         
-        flux = (Wij * residuals).sum()
+        hdu = fits.PrimaryHDU(Wij)
+        hdulist = fits.HDUList([hdu])
+        hdulist.writeto('optimize_flux_Wij.fits', overwrite=True)
         
-        flux_err = np.sqrt( (Wij*Wij * Vij).sum() )
+        Fij = (Wij * residuals).sum()
+        flux = Fij.sum()
         
-        return flux, flux_err
+        hdu = fits.PrimaryHDU(Fij)
+        hdulist = fits.HDUList([hdu])
+        hdulist.writeto('optimize_flux_fluximage.fits', overwrite=True)
+        
+        var_psf = (Wij*Wij * Vij).sum()
+        flux_err = np.sqrt( var_psf + flux )
+        
+        return flux, flux_err, Fij
         
 class Gaussian2D(PSFModel):
 
@@ -512,13 +530,6 @@ class ConstantBackground(BackgroundModel):
             params.append(getattr(self.background_parameters, par))
 
         return params
-    
-    def calc_variance(self):
-        """
-        """
-
-        
-
 
 class GradientBackground(BackgroundModel):
 
@@ -895,8 +906,8 @@ def fit_star_existing_model(setup, data, x_cen, y_cen, psf_radius,
 
     Y_data, X_data = np.indices(data.shape)
 
-    sky_bkgd = sky_model.background_model(X_data, Y_data,
-                                          sky_model.get_parameters())
+    #sky_bkgd = sky_model.background_model(X_data, Y_data,
+                                          #sky_model.get_parameters())
 
     # Recenter the PSF temporarily to the middle of the stamp to be fitted
     # NOTE PSF parameters in order intensity, Y, X
@@ -904,7 +915,7 @@ def fit_star_existing_model(setup, data, x_cen, y_cen, psf_radius,
     psf_params[1] = y_cen
     psf_params[2] = x_cen
     psf_model.update_psf_parameters(psf_params)
-
+    
     if centroiding:
         init_par = [ psf_model.get_parameters()[0], 
                     y_cen, x_cen ]
@@ -914,7 +925,7 @@ def fit_star_existing_model(setup, data, x_cen, y_cen, psf_radius,
     fit = optimize.leastsq(error_star_fit_existing_model, init_par, 
         args=(data, psf_model, psf_sky_bkgd, Y_data, X_data), 
         full_output=1)
-        
+    
     fitted_model = get_psf_object(psf_model.psf_type())
 
     psf_params = psf_model.get_parameters()
@@ -1040,7 +1051,7 @@ def error_star_fit_existing_model(params, data, psf_model, sky_bkgd,
     sky_subtracted_data = data - sky_bkgd
     
     psf_image = psf_model.psf_model_star(Y_data, X_data, star_params=params)
-
+    
     residuals = np.ravel(sky_subtracted_data - psf_image)
 
     return residuals
@@ -1650,7 +1661,7 @@ def subtract_companions_from_psf_stamps(setup, reduction_metadata, log,
     return clean_stamps
 
 
-def subtract_psf_from_image(image, psf_model, xstar, ystar, dx, dy,
+def subtract_psf_from_image(image, psf_image, xstar, ystar, dx, dy,
                             diagnostics=True):
     """Function to subtract a PSF Model from an array of image pixel data
     at a specified location.
@@ -1678,11 +1689,11 @@ def subtract_psf_from_image(image, psf_model, xstar, ystar, dx, dy,
 
         Y_data, X_data = np.indices([int(dyc),int(dxc)])
 
-        psf_params = psf_model.get_parameters()
-        psf_params[1] = (dy/2.0) + (ystar-int(ystar))
-        psf_params[2] = (dx/2.0) + (xstar-int(xstar))
+        #psf_params = psf_model.get_parameters()
+        #psf_params[1] = (dy/2.0) + (ystar-int(ystar))
+        #psf_params[2] = (dx/2.0) + (xstar-int(xstar))
         
-        psf_image = psf_model.psf_model(Y_data, X_data, psf_params)
+        #psf_image = psf_model.psf_model(Y_data, X_data, psf_params)
 
         residuals = np.copy(image)
     

@@ -143,13 +143,14 @@ def test_sim_run_psf_photometry():
     
     # Initialise th PSF model to be fitted:
     psf_model = psf.get_psf_object('Moffat2D')
-    psf_params = [ 1.0, x_cen, y_cen, 226.750731765,
+    psf_params = [ 1.0, (psf_radius/2.0), (psf_radius/2.0), 226.750731765,
                   13004.8930993, 103323.763627 ]
     psf_model.update_psf_parameters(psf_params)
 
     sky_model = psf.ConstantBackground()
     sky_model.background_parameters.constant = sky_value
-
+    sky_model.varience = np.sqrt(sky_value)
+    
     ref_flux = 12.0
     
     ref_star_catalog = photometry.run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
