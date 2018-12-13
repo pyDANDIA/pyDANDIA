@@ -48,13 +48,13 @@ def test_find_reference_flux():
     
     detected_sources = starfind.detect_sources(setup,meta,reference_image_path,scidata,log)
 
-    ref_flux = stage3.find_reference_flux(detected_sources)
+    ref_flux = stage3.find_reference_flux(detected_sources,log)
     
     assert(type(ref_flux) == type(np.sqrt(9.0)))
     assert(ref_flux > 0.0)
     
 if __name__ == '__main__':
     
-    #test_run_stage3()
-    test_find_reference_flux()
     
+    test_find_reference_flux()
+    test_run_stage3()

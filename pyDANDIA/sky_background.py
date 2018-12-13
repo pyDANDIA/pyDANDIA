@@ -79,7 +79,7 @@ def model_sky_background(setup,reduction_metadata,log,ref_star_catalog):
     
     sky_model = generate_sky_model(sky_params)
     
-    sky_model_image = sky_model.background_model(star_masked_image.shape())
+    sky_model_image = sky_model.background_model(star_masked_image.shape)
     
     sky_sigma = (star_masked_image - sky_model_image).std()
     
@@ -329,7 +329,7 @@ def generate_sky_model_image(params):
     
     Y_data, X_data = np.indices((params['ny'],params['nx']))
 
-    sky_bkgd = sky_model.background_model(Y_data, X_data, p)
+    sky_bkgd = sky_model.background_model(Y_data.shape, parameters=p)
     
     return sky_bkgd
 

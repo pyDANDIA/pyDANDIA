@@ -110,30 +110,46 @@ def test_sim_run_psf_photometry():
     
     row = reduction_metadata.headers_summary[1][-1]
     row['IMAGES'] = os.path.basename(image_path)
+    exp_time = float(row['EXPKEY'])
     
     # Generate test image:
-    image = np.zeros((100,100))
+    maxx = 100
+    maxy = 100
+    image = np.zeros((maxy,maxx))
     image = np.random.rand(image.shape[0],image.shape[1])
     image += sky_value
     
     # Simulated star parameters
     x_cen = 50.0
     y_cen = 50.0
-    psf_params = [ 103301.241291, x_cen, y_cen, 226.750731765,
-                  13004.8930993, 103323.763627 ]
     psf_radius = 8.0
+    psf_params = [ 103301.241291, psf_radius/2.0, psf_radius/2.0, 226.750731765,
+                  13004.8930993, 103323.763627 ]
+    Y_data, X_data = np.indices((int(psf_radius),int(psf_radius)))
     
     # Adding star to the sim image:
     sim_star = psf.Moffat2D()
     sim_star.update_psf_parameters(psf_params)
     
     sim_star_image = psf.generate_psf_image('Moffat2D',psf_params,image.shape,psf_radius)
-    image += sim_star_image
+    sim_star_image = sim_star.psf_model(Y_data, X_data, psf_params)
+    (star_flux,ferr) = sim_star.calc_flux(Y_data, X_data)
+    star_flux = star_flux / exp_time
+    
+    corners = psf.calc_stamp_corners(x_cen, y_cen, psf_radius, psf_radius,
+                                 image.shape[1], image.shape[0],
+                                 over_edge=True)
+                    
+    image[corners[2]:corners[3],corners[0]:corners[1]] += sim_star_image
     
     # Output sim image for the record:
     hdu = fits.PrimaryHDU(image)
     hdulist = fits.HDUList([hdu])
     hdulist.writeto(image_path, overwrite=True)
+    hdu = fits.PrimaryHDU(sim_star_image)
+    hdulist = fits.HDUList([hdu])
+    hdulist.writeto(os.path.join(TEST_DATA,'sim_star_psf.fits'), 
+                    overwrite=True)
     
     # Construct a test ref_star_catalog:
     ref_star_catalog = np.zeros( (1,9) )
@@ -157,7 +173,8 @@ def test_sim_run_psf_photometry():
                        image_path,psf_model,sky_model,ref_flux,
                        centroiding=True,diagnostics=True, psf_size=None)
     
-    print(ref_star_catalog)
+    assert ref_star_catalog[0,5] > 0.0
+    assert ref_star_catalog[0,5] <= star_flux
     
 def test_plot_ref_mag_errors():
     """Function to test the plotting function"""

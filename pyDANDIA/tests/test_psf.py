@@ -688,8 +688,8 @@ def test_calc_optimized_flux():
     model"""
     
     gain = 1.0
-    var_sky = 10.0
-    ref_flux = 12.0
+    var_sky = 0.0
+    ref_flux = 1.0
     
     psf_model = psf.get_psf_object('Moffat2D')
     model_params = [1.0, 5.0, 5.0, 5.0, 10.0]
@@ -704,21 +704,25 @@ def test_calc_optimized_flux():
     Y_data, X_data = np.indices((int(psf_diameter),int(psf_diameter)))
     
     psf_image = psf_model.psf_model(Y_data, X_data, model_params)
+    psf_model.normalize_psf(psf_diameter)
+    
     star_psf_image = star_psf.psf_model(Y_data, X_data, star_params)
+    star_flux = star_psf_image.sum()
+    print('Star flux input = '+str(star_flux))
     
     hdu = fits.PrimaryHDU(star_psf_image)
     hdulist = fits.HDUList([hdu])
     hdulist.writeto(os.path.join(TEST_DIR,'sim_star_optimize_flux.fits'),
                                      overwrite=True)
     
-    (flux, flux_err) = psf_model.calc_optimized_flux(ref_flux, var_sky, 
+    (flux, flux_err, Fij) = psf_model.calc_optimized_flux(ref_flux, var_sky, 
                                   Y_data, X_data, 
                                   gain, star_psf_image)
                                   
     print('Flux = '+str(flux)+' +/- '+str(flux_err))
-    
-    assert flux == pytest.approx(star_params[0], 1e-5)
-#
+
+    assert flux == pytest.approx(star_flux, 1.0)
+
     
 if __name__ == '__main__':
     

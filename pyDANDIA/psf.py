@@ -156,7 +156,8 @@ class Moffat2D(PSFModel):
         
         self.psf_parameters.intensity = self.psf_parameters.intensity / f_total
     
-    def calc_optimized_flux(self,ref_flux,var_sky,Y_star,X_star,gain,residuals):
+    def calc_optimized_flux(self,ref_flux,var_sky,Y_star,X_star,gain,
+                            residuals):
         """Method to compute the flux and flux error in a star's PSF fit, 
         following the method of Naylor (1997).
         
@@ -174,6 +175,10 @@ class Moffat2D(PSFModel):
         :param float flux_err: Uncertainty on the flux measurement
         """
         
+        hdu = fits.PrimaryHDU(residuals)
+        hdulist = fits.HDUList([hdu])
+        hdulist.writeto('optimize_flux_input_data.fits', overwrite=True)
+    
         Pij = self.psf_model_star(Y_star, X_star)
         
         hdu = fits.PrimaryHDU(Pij)
@@ -192,7 +197,7 @@ class Moffat2D(PSFModel):
         hdulist = fits.HDUList([hdu])
         hdulist.writeto('optimize_flux_Wij.fits', overwrite=True)
         
-        Fij = (Wij * residuals).sum()
+        Fij = (Wij * residuals)
         flux = Fij.sum()
         
         hdu = fits.PrimaryHDU(Fij)
@@ -550,9 +555,9 @@ class GradientBackground(BackgroundModel):
 
         self.background_parameters = collections.namedtuple(
             'parameters', self.model)
-
+        
         for index, key in enumerate(self.model):
-            setattr(self.background_parameters, key, parameters[index])
+            setattr(self.background_parameters, key, parameters[key])
 
     def background_model(self, data_shape, parameters=None):
         
@@ -774,7 +779,7 @@ def error_star_fit_function(params, data, psf, background, Y_data, X_data):
     back_params = params[len(psf.psf_parameters._fields):]
 
     psf_model = psf.psf_model(Y_data, X_data, psf_params)
-    back_model = background.background_model(Y_data, X_data, back_params)
+    back_model = background.background_model(Y_data.shape, parameters=back_params)
 
     residuals = np.ravel(data - psf_model - back_model)
 
@@ -1131,7 +1136,7 @@ def build_psf(setup, reduction_metadata, log, image, ref_star_catalog,
 
     psf_model_type = 'Moffat2D'
 
-    logs.ifverbose(log, setup, ' -> Applying PSF size=' + str(psf_size))
+    logs.ifverbose(log, setup, ' -> Applying PSF size=' + str(psf_diameter))
 
     idx = np.where(ref_star_catalog[:, 15] == 1.0)
     psf_idx = ref_star_catalog[idx[0], 0]
@@ -1169,8 +1174,9 @@ def build_psf(setup, reduction_metadata, log, image, ref_star_catalog,
     
     if diagnostics:
         psf_image = generate_psf_image(init_psf_model.psf_type(),
+                                       init_psf_model.get_parameters(),
                                        stamp_dims, psf_diameter)
-                                    
+
         output_fits(psf_image, 
                     os.path.join(setup.red_dir,'ref','initial_psf_model.fits'))
     
@@ -1623,10 +1629,15 @@ def subtract_companions_from_psf_stamps(setup, reduction_metadata, log,
                     sub_psf_model.update_psf_parameters(pars)
                     log.info('Made sub PSF model centered at '+str(pars[2])+', '+str(pars[1]))
                     
+                    Y_grid, X_grid = np.indices(s.data.shape)
+                    sky_model_bkgd = sky_bkgd = sky_model.background_model(Y_grid.shape,
+                                                                           sky_model.get_parameters())
+                    
                     (comp_psf,good_fit) = fit_star_existing_model(setup, s.data, 
                                                        pars[2], pars[1],
                                                        psf_diameter, 
-                                                       sub_psf_model, sky_model)
+                                                       sub_psf_model, 
+                                                       sky_model_bkgd)
                     
                     logs.ifverbose(log,setup,' -> Fitted PSF parameters for companion '+
                             str(star_data[0]+1)+': '+repr(comp_psf.get_parameters())+' Good fit? '+repr(good_fit))

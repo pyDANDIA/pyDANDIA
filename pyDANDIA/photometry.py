@@ -30,6 +30,9 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
     """Function to perform PSF fitting photometry on all stars for a single
     image.
     
+    Updated to implement the optimized photometry algorithm by 
+    Naylor, T., 1998, MNRAS, 296, 339.
+    
     :param SetUp object setup: Essential reduction parameters
     :param MetaData reduction_metadata: pipeline metadata for this dataset
     :param logging log: Open reduction log object
@@ -89,19 +92,7 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
         
         logs.ifverbose(log,setup,' -> Corners of PSF stamp '+repr(corners))
         
-        #psf_sky_bkgd = sky_bkgd[corners[2]:corners[3],corners[0]:corners[1]]
-        
         psf_data = residuals[corners[2]:corners[3],corners[0]:corners[1]]
-        
-        #(fitted_model,good_fit) = psf.fit_star_existing_model(setup, psf_data, 
-        #                                       xstar_psf, ystar_psf, psf_size, 
-        #                                       psf_model, psf_sky_bkgd, 
-        #                                       centroiding=centroiding,
-        #                                       diagnostics=diagnostics)
-        
-        #logs.ifverbose(log, setup,' -> Star '+str(j)+
-        #' fitted model parameters = '+repr(fitted_model.get_parameters())+
-        #' good fit? '+repr(good_fit))
         
         (flux, flux_err, Fij) = psf_model.calc_optimized_flux(ref_flux,
                                                          sky_model.varience,
@@ -110,50 +101,18 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
         
         logs.ifverbose(log, setup,' -> Star '+str(j)+
         ' measured optimized flux = '+repr(flux)+' +/- '+str(flux_err))
+            
+        (mag, mag_err, flux_scaled, flux_err_scaled) = convert_flux_to_mag(flux, flux_err, exp_time=exp_time)
         
-        good_fit = True
-        if good_fit == True:
-            
-            #sub_psf_model = psf.get_psf_object('Moffat2D')
-
-            #pars = fitted_model.get_parameters()
-
-            #pars[1] = half_psf + (ystar-int(ystar))
-            #pars[2] = half_psf + (xstar-int(xstar))
-            
-            #sub_psf_model.update_psf_parameters(pars)
-            
-            (res_image,corners,psf_image) = psf.subtract_psf_from_image(residuals,Fij,
-                                                    xstar,ystar,
-                                                    psf_size, psf_size)
-            
-            residuals[corners[2]:corners[3],corners[0]:corners[1]] = res_image[corners[2]:corners[3],corners[0]:corners[1]]
-            
-            hdu = fits.PrimaryHDU(res_image[corners[2]:corners[3],corners[0]:corners[1]])
-            hdulist = fits.HDUList([hdu])
-            file_path = os.path.join(setup.red_dir,'ref',\
-            'psf_star_stamp_residuals'+str(round(xstar,0))+'_'+str(round(ystar,0))+'.fits')
-            hdulist.writeto(file_path,overwrite=True)
+        ref_star_catalog[j,5] = flux_scaled
+        ref_star_catalog[j,6] = flux_err_scaled
+        ref_star_catalog[j,7] = mag
+        ref_star_catalog[j,8] = mag_err
         
-            logs.ifverbose(log, setup,' -> Star '+str(j)+
-            ' subtracted PSF from the residuals')
-            
-            (mag, mag_err, flux_scaled, flux_err_scaled) = convert_flux_to_mag(flux, flux_err, exp_time=exp_time)
-            
-            ref_star_catalog[j,5] = flux_scaled
-            ref_star_catalog[j,6] = flux_err_scaled
-            ref_star_catalog[j,7] = mag
-            ref_star_catalog[j,8] = mag_err
-            
-            logs.ifverbose(log,setup,' -> Star '+str(j)+
-            ' flux='+str(flux)+' +/- '+str(flux_err)+' ADU, '
-            'mag='+str(mag)+' +/- '+str(mag_err)+' mag')
+        logs.ifverbose(log,setup,' -> Star '+str(j)+
+        ' flux='+str(flux)+' +/- '+str(flux_err)+' ADU, '
+        'mag='+str(mag)+' +/- '+str(mag_err)+' mag')
     
-        else:
-
-            logs.ifverbose(log, setup, ' -> Star ' + str(j) +
-                           ' No photometry possible from poor PSF fit')
-
     res_image_path = os.path.join(setup.red_dir, 'ref', os.path.basename(image_path).replace('.fits', '_res.fits'))
 
     hdu = fits.PrimaryHDU(residuals)

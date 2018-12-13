@@ -37,7 +37,7 @@ def test_gradient_background():
     
     model.update_background_parameters(params)
     
-    sky_model = model.background_model(Y_data, X_data, params)
+    sky_model = model.background_model(Y_data.shape, parameters=params)
     
     fig = plt.figure(1)
     
@@ -169,6 +169,12 @@ def test_model_sky_background():
     reduction_metadata.load_a_layer_from_file( setup.red_dir, 
                                               'pyDANDIA_metadata.fits', 
                                               'images_stats' )
+    reduction_metadata.load_a_layer_from_file( setup.red_dir, 
+                                              'pyDANDIA_metadata.fits', 
+                                              'data_architecture' )
+    reduction_metadata.load_a_layer_from_file( setup.red_dir, 
+                                              'pyDANDIA_metadata.fits', 
+                                              'star_catalog' )
 
     log.info('Read metadata')
 
@@ -177,11 +183,12 @@ def test_model_sky_background():
                                                            'lsc1m005-fl15-20170701-0144-e91_cropped.fits')
     reduction_metadata.background_type = 'constant'
     
-    ref_star_catalog_file = os.path.join(cwd,'data','star_catalog.fits')
-    
-    ref_star_catalog = catalog_utils.read_ref_star_catalog_file(ref_star_catalog_file)
-    
-    log.info('Read reference image star catalog from '+ref_star_catalog_file)
+    ref_star_catalog = np.zeros((len(reduction_metadata.star_catalog[1]['star_index'].data),3))
+    ref_star_catalog[:,0] = range(0,len(ref_star_catalog),1)
+    ref_star_catalog[:,1] = reduction_metadata.star_catalog[1]['x_pixel'].data
+    ref_star_catalog[:,2] = reduction_metadata.star_catalog[1]['y_pixel'].data
+        
+    log.info('Read reference image star catalog from metadata')
         
     sky_model = sky_background.model_sky_background(setup,reduction_metadata,
                                                   log,ref_star_catalog)

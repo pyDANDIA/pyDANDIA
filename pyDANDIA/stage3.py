@@ -62,7 +62,7 @@ def run_stage3(setup):
                                         log,
                                         diagnostics=False)
         
-        ref_flux = find_reference_flux(detected_source)
+        ref_flux = find_reference_flux(detected_sources,log)
         
         ref_star_catalog = wcs.reference_astrometry(setup,log,
                                         meta_pars['ref_image_path'],
@@ -227,7 +227,7 @@ def extract_parameters_stage3(reduction_metadata,log):
     
     return meta_pars
     
-def find_reference_flux(detected_sources):
+def find_reference_flux(detected_sources,log):
     """Function to identify the faintest star in the detected sources
     catalogue.  This will be used as the reference flux in the calculation
     of optimized photometry, following the method of Naylor (1997)
@@ -245,6 +245,9 @@ def find_reference_flux(detected_sources):
     idx = np.where( detected_sources[idx,9] == detected_sources[idx,9].min())
     
     ref_flux = detected_sources[idx[0][0],9]
+    
+    log.info('Measured reference flux of faintest star (used for normalization) = '+\
+                    str(ref_flux))
     
     return ref_flux
     
