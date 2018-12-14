@@ -419,10 +419,14 @@ def test_subtract_companions_from_psf_stamps():
     reduction_metadata.load_a_layer_from_file( setup.red_dir, 
                                               'pyDANDIA_metadata.fits', 
                                               'reduction_parameters' )
-
-    star_catalog_file = os.path.join(TEST_DATA,'star_catalog.fits')
-                            
-    ref_star_catalog = catalog_utils.read_ref_star_catalog_file(star_catalog_file)
+    reduction_metadata.load_a_layer_from_file( setup.red_dir, 
+                                              'pyDANDIA_metadata.fits', 
+                                              'star_catalog' )
+    
+    ref_star_catalog = np.zeros((len(reduction_metadata.star_catalog[1]),9))
+    ref_star_catalog[:,0] = reduction_metadata.star_catalog[1]['star_index']
+    ref_star_catalog[:,1] = reduction_metadata.star_catalog[1]['x_pixel']
+    ref_star_catalog[:,2] = reduction_metadata.star_catalog[1]['y_pixel']
     
     log.info('Read in catalog of '+str(len(ref_star_catalog))+' stars')
     
@@ -471,7 +475,7 @@ def test_subtract_companions_from_psf_stamps():
         psf_model = psf.Moffat2D()
         x_cen = psf_size + (psf_x-int(psf_x))
         y_cen = psf_size + (psf_x-int(psf_y))
-        psf_radius = 8.0
+        psf_diameter = 8.0
         psf_params = [ 103301.241291, x_cen, y_cen, 226.750731765,
                       13004.8930993, 103323.763627 ]
         psf_model.update_psf_parameters(psf_params)
@@ -483,8 +487,8 @@ def test_subtract_companions_from_psf_stamps():
                                             reduction_metadata, log, 
                                             ref_star_catalog, psf_idx, 
                                             stamps,stamp_centres,
-                                            psf_model,sky_model,diagnostics=True)
-    
+                                            psf_model,sky_model,psf_diameter,
+                                            diagnostics=True)
     logs.close_log(log)
 
 
@@ -503,10 +507,15 @@ def test_find_psf_companion_stars():
                                               'pyDANDIA_metadata.fits', 
                                               'reduction_parameters' )
 
-    star_catalog_file = os.path.join(TEST_DATA,'star_catalog.fits')
-                            
-    ref_star_catalog = catalog_utils.read_ref_star_catalog_file(star_catalog_file)
+    reduction_metadata.load_a_layer_from_file( setup.red_dir, 
+                                              'pyDANDIA_metadata.fits', 
+                                              'star_catalog' )
     
+    ref_star_catalog = np.zeros((len(reduction_metadata.star_catalog[1]),9))
+    ref_star_catalog[:,0] = reduction_metadata.star_catalog[1]['star_index']
+    ref_star_catalog[:,1] = reduction_metadata.star_catalog[1]['x_pixel']
+    ref_star_catalog[:,2] = reduction_metadata.star_catalog[1]['y_pixel']
+        
     log.info('Read in catalog of '+str(len(ref_star_catalog))+' stars')
     
     psf_idx = 18
@@ -730,7 +739,7 @@ if __name__ == '__main__':
     #test_extract_sub_stamp()
     #test_fit_star_existing_model()
     #test_find_psf_companion_stars()
-    #test_subtract_companions_from_psf_stamps()
+    test_subtract_companions_from_psf_stamps()
     #test_fit_psf_model()
     #test_build_psf()
     #test_subtract_psf_from_image()
@@ -738,5 +747,5 @@ if __name__ == '__main__':
     #test_psf_normalization()
     #test_fit_existing_psf_stamp()
     #test_calc_stamp_corners()
-    test_calc_optimized_flux()
+    #test_calc_optimized_flux()
     
