@@ -1631,6 +1631,7 @@ def subtract_companions_from_psf_stamps(setup, reduction_metadata, log,
                     # region of the full image
                     Y_grid, X_grid = np.indices(s.data.shape)
                     sky_model_bkgd = sky_bkgd = sky_model.background_model(Y_grid.shape,
+                                                                           sky_model.get_parameters())
                     
                     s.data[corners[2]:corners[3],corners[0]:corners[1]] = sky_model_bkgd[corners[2]:corners[3],corners[0]:corners[1]]
                     
