@@ -699,13 +699,15 @@ def test_calc_optimized_flux():
     gain = 1.0
     var_sky = 0.0
     ref_flux = 1.0
+    x_star = 5.0
+    y_star = 5.0
     
     psf_model = psf.get_psf_object('Moffat2D')
-    model_params = [1.0, 5.0, 5.0, 5.0, 10.0]
+    model_params = [1.0, y_star, x_star, 5.0, 10.0]
     psf_model.update_psf_parameters(model_params)
     
     star_psf = psf.get_psf_object('Moffat2D')
-    star_params = [15000.0, 5.0, 5.0, 5.0, 10.0]
+    star_params = [15000.0, y_star, x_star, 5.0, 10.0]
     star_psf.update_psf_parameters(star_params)
     
     psf_diameter = 10.0
@@ -725,13 +727,58 @@ def test_calc_optimized_flux():
                                      overwrite=True)
     
     (flux, flux_err, Fij) = psf_model.calc_optimized_flux(ref_flux, var_sky, 
-                                  Y_data, X_data, 
+                                  y_star, x_star, Y_data, X_data, 
                                   gain, star_psf_image)
                                   
     print('Flux = '+str(flux)+' +/- '+str(flux_err))
 
     assert flux == pytest.approx(star_flux, 1.0)
 
+
+def test_calc_optimized_flux_edge():
+    """Function to test the calculation of the optimized flux, given a PSF
+    model on the edge of the image and hence with an asymmetric stamp."""
+    
+    gain = 1.0
+    var_sky = 0.0
+    ref_flux = 1.0
+    x_star = 2.0
+    y_star = 5.0
+    
+    psf_model = psf.get_psf_object('Moffat2D')
+    model_params = [1.0, y_star, x_star, 5.0, 10.0]
+    psf_model.update_psf_parameters(model_params)
+    
+    star_psf = psf.get_psf_object('Moffat2D')
+    star_params = [15000.0, y_star, x_star, 5.0, 10.0]
+    star_psf.update_psf_parameters(star_params)
+    
+    psf_diameter = 10.0
+    stamp_width = 10.0
+    stamp_height = 5.0
+    
+    Y_data, X_data = np.indices((int(stamp_height),int(stamp_width)))
+    
+    psf_image = psf_model.psf_model(Y_data, X_data, model_params)
+    psf_model.normalize_psf(psf_diameter)
+    
+    star_psf_image = star_psf.psf_model(Y_data, X_data, star_params)
+    star_flux = star_psf_image.sum()
+    print('Star flux input = '+str(star_flux))
+    
+    hdu = fits.PrimaryHDU(star_psf_image)
+    hdulist = fits.HDUList([hdu])
+    hdulist.writeto(os.path.join(TEST_DIR,'sim_star_optimize_flux.fits'),
+                                     overwrite=True)
+    print('Output test image to '+os.path.join(TEST_DIR,'sim_star_optimize_flux.fits'))
+    
+    (flux, flux_err, Fij) = psf_model.calc_optimized_flux(ref_flux, var_sky, 
+                                  y_star, x_star, Y_data, X_data, 
+                                  gain, star_psf_image)
+                                  
+    print('Flux = '+str(flux)+' +/- '+str(flux_err))
+
+    assert flux == pytest.approx(star_flux, 1.0)
     
 if __name__ == '__main__':
     
@@ -739,7 +786,7 @@ if __name__ == '__main__':
     #test_extract_sub_stamp()
     #test_fit_star_existing_model()
     #test_find_psf_companion_stars()
-    test_subtract_companions_from_psf_stamps()
+    #test_subtract_companions_from_psf_stamps()
     #test_fit_psf_model()
     #test_build_psf()
     #test_subtract_psf_from_image()
@@ -748,4 +795,4 @@ if __name__ == '__main__':
     #test_fit_existing_psf_stamp()
     #test_calc_stamp_corners()
     #test_calc_optimized_flux()
-    
+    test_calc_optimized_flux_edge()

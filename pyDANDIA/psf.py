@@ -156,13 +156,16 @@ class Moffat2D(PSFModel):
         
         self.psf_parameters.intensity = self.psf_parameters.intensity / f_total
     
-    def calc_optimized_flux(self,ref_flux,var_sky,Y_star,X_star,gain,
+    def calc_optimized_flux(self,ref_flux,var_sky,y_star,x_star,
+                            Y_star,X_star,gain,
                             residuals):
         """Method to compute the flux and flux error in a star's PSF fit, 
         following the method of Naylor (1997).
         
         :param float ref_flux: Reference flux for the image
         :param float var_sky: Varience in the sky background for the image
+        :param float x_star, ystar: Centroid of the star in the X_star, Y_star 
+                                    grid coordinates
         :param np.indices X_star,Y_star: Indices of the pixel size of the PSF
         :param float gain: Detector gain in e-/ADU
         :param array residuals: Data SECTION - sky background SECTION
@@ -1211,12 +1214,6 @@ def build_psf(setup, reduction_metadata, log, image, ref_star_catalog,
     
     output_fits(psf_image, 
                 os.path.join(setup.red_dir,'ref','psf_model.fits'))
-                
-    output_fits(master_stamp.data, 
-                os.path.join(setup.red_dir,'ref','master_stamp.fits'))
-    
-    output_fits( (master_stamp.data-psf_image), 
-                os.path.join(setup.red_dir,'ref','master_stamp_residuals.fits'))
                                      
     log.info('Completed build of PSF model with status '+status)
     
