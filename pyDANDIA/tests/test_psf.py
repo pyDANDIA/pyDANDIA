@@ -742,8 +742,8 @@ def test_calc_optimized_flux_edge():
     gain = 1.0
     var_sky = 0.0
     ref_flux = 1.0
-    x_star = 2.0
-    y_star = 5.0
+    x_star = 5.0
+    y_star = 2.0
     
     psf_model = psf.get_psf_object('Moffat2D')
     model_params = [1.0, y_star, x_star, 5.0, 10.0]

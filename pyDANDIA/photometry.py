@@ -52,8 +52,6 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
     log.info('Starting photometry of ' + os.path.basename(image_path))
 
     data = fits.getdata(image_path)
-    residuals = np.copy(data)
-    
     if psf_size == None:
         psf_size = reduction_metadata.reduction_parameters[1]['PSF_SIZE'][0]
 
@@ -80,47 +78,52 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
         
         logs.ifverbose(log,setup,' -> Star '+str(j)+' at position ('+\
         str(xstar)+', '+str(ystar)+')')
-        
-        Y_grid, X_grid = np.indices((int(psf_size),int(psf_size)))
-        
+                
         corners = psf.calc_stamp_corners(xstar, ystar, psf_size, psf_size, 
                                     data.shape[1], data.shape[0],
                                     over_edge=True)
         
-        xstar_psf = xstar - corners[0]
-        ystar_psf = ystar - corners[2]
+        dx = corners[1] - corners[0]
+        dy = corners[3] - corners[2]
         
-        logs.ifverbose(log,setup,' -> Corners of PSF stamp '+repr(corners))
-        
-        psf_data = residuals[corners[2]:corners[3],corners[0]:corners[1]]
-        
-        (flux, flux_err, Fij) = psf_model.calc_optimized_flux(ref_flux,
-                                                         sky_model.varience,
-                                                         Y_grid,X_grid,
-                                                         gain,psf_data)
-        
-        logs.ifverbose(log, setup,' -> Star '+str(j)+
-        ' measured optimized flux = '+repr(flux)+' +/- '+str(flux_err))
+        logs.ifverbose(log,setup,' -> Corners of PSF stamp '+repr(corners)+\
+                        ', dimensions dx='+str(dx)+', dy='+str(dy))
             
-        (mag, mag_err, flux_scaled, flux_err_scaled) = convert_flux_to_mag(flux, flux_err, exp_time=exp_time)
+        if dx >= psf_size-1 and dy >= psf_size-1:
+            Y_grid, X_grid = np.indices((int(dy),int(dx)))
+            
+            xstar_psf = xstar - corners[0]
+            ystar_psf = ystar - corners[2]
+                    
+            psf_data = data[corners[2]:corners[3],corners[0]:corners[1]]
+            
+            logs.ifverbose(log,setup,' -> Shape of PSF stamp '+repr(psf_data.shape))
+            logs.ifverbose(log,setup,' -> Centroid of star in stamp '+\
+                                            repr(xstar_psf)+', '+repr(ystar_psf))
+            
+            (flux, flux_err, Fij) = psf_model.calc_optimized_flux(ref_flux,
+                                                             sky_model.varience,
+                                                             ystar_psf, xstar_psf,
+                                                             Y_grid,X_grid,
+                                                             gain,psf_data)
+            
+            logs.ifverbose(log, setup,' -> Star '+str(j)+
+            ' measured optimized flux = '+repr(flux)+' +/- '+str(flux_err))
+            
+            (mag, mag_err, flux_scaled, flux_err_scaled) = convert_flux_to_mag(flux, flux_err, exp_time=exp_time)
+            
+            ref_star_catalog[j,5] = flux_scaled
+            ref_star_catalog[j,6] = flux_err_scaled
+            ref_star_catalog[j,7] = mag
+            ref_star_catalog[j,8] = mag_err
+            
+            logs.ifverbose(log,setup,' -> Star '+str(j)+
+            ' flux='+str(flux)+' +/- '+str(flux_err)+' ADU, '
+            'mag='+str(mag)+' +/- '+str(mag_err)+' mag')
         
-        ref_star_catalog[j,5] = flux_scaled
-        ref_star_catalog[j,6] = flux_err_scaled
-        ref_star_catalog[j,7] = mag
-        ref_star_catalog[j,8] = mag_err
-        
-        logs.ifverbose(log,setup,' -> Star '+str(j)+
-        ' flux='+str(flux)+' +/- '+str(flux_err)+' ADU, '
-        'mag='+str(mag)+' +/- '+str(mag_err)+' mag')
-    
-    res_image_path = os.path.join(setup.red_dir, 'ref', os.path.basename(image_path).replace('.fits', '_res.fits'))
-
-    hdu = fits.PrimaryHDU(residuals)
-    hdulist = fits.HDUList([hdu])
-    hdulist.writeto(res_image_path, overwrite=True)
-
-    logs.ifverbose(log, setup, 'Output residuals image ' + res_image_path)
-
+        else:
+            logs.ifverbose(log, setup,' -> Star stamp smaller than PSF diameter, '+str(psf_size))
+            
     plot_ref_mag_errors(setup, ref_star_catalog)
 
     log.info('Completed photometry')
@@ -516,7 +519,6 @@ def convert_flux_to_mag(flux, flux_err, exp_time=None):
 
     return mag, mag_err, flux, flux_err
 
-
     
 def plot_ref_mag_errors(setup,ref_star_catalog):
     """Function to output a diagnostic plot of the fitted PSF magnitudes
@@ -541,6 +543,8 @@ def plot_ref_mag_errors(setup,ref_star_catalog):
 
     plt.axis([xmax, xmin, ymin, ymax])
 
+    plt.grid()
+    
     plt.savefig(file_path)
 
     plt.close(1)
