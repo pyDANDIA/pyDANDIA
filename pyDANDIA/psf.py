@@ -1702,14 +1702,8 @@ def subtract_psf_from_image(image, psf_model, star_data, corners,
 
         residuals = np.copy(image)
     
-        output_fits(psf_image,
-                          '/Users/rstreet/software/pyDANDIA/pyDANDIA/tests/data/subtractions/comp_psf_model_'+str(round(star_data[1],0))+'_'+str(round(star_data[2],0))+'.fits')
-        
         residuals -= psf_image
         
-        output_fits(residuals,
-                          '/Users/rstreet/software/pyDANDIA/pyDANDIA/tests/data/subtractions/residuals_psf_model_'+str(round(star_data[1],0))+'_'+str(round(star_data[2],0))+'.fits')
-                          
     else:
         residuals = np.copy(image)
         psf_image = np.copy(image)
