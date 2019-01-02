@@ -87,7 +87,7 @@ def run_stage3(setup):
                                             log, scidata, 
                                             ref_star_catalog, sky_model,
                                             psf_size,
-                                            diagnostics=True)
+                                            diagnostics=False)
         
         ref_star_catalog = photometry.run_psf_photometry(setup, 
                                              reduction_metadata, 
