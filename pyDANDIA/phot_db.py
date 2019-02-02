@@ -126,24 +126,47 @@ class Stars(TableDef):
     """
     c_000_star_id = 'INTEGER PRIMARY KEY'
     c_010_ra = 'DOUBLE PRECISION'
-    c_020_dec = 'DOUBLE PRECISION'
+    c_020_dec = 'DOUBLE PRECISION'    
     c_100_type = 'TEXT'
-
     pc_000_raindex = (
         'CREATE INDEX IF NOT EXISTS stars_ra ON stars (ra)')
     pc_010_decindex = (
         'CREATE INDEX IF NOT EXISTS stars_dec ON stars (dec)')
 
+class ReferencePhotometry(TableDef):
+   """The table storing the primary information on the measurements taken.
+   """
+   c_000_ref_phot_id = 'INTEGER PRIMARY KEY'
+   c_018_reference_image = 'INTEGER REFERENCES reference_images(refimg_id)'
+   c_021_star_id = 'INTEGER REFERENCES stars(star_id)'
+   c_022_reference_mag_i = 'REAL'
+   c_023_reference_mag_err_i= 'REAL'
+   c_024_reference_flux_i = 'DOUBLE PRECISION'
+   c_025_reference_flux_err_i = 'DOUBLE PRECISION'
+   c_026_reference_mag_r = 'REAL'
+   c_027_reference_mag_err_r = 'REAL'
+   c_028_reference_flux_r  = 'DOUBLE PRECISION'
+   c_029_reference_flux_err_r = 'DOUBLE PRECISION'
+   c_030_reference_mag_g = 'REAL'
+   c_031_reference_mag_err_g = 'REAL'
+   c_032_reference_flux_g = 'DOUBLE PRECISION'
+   c_033_reference_flux_err_g = 'DOUBLE PRECISION'
+   c_041_cal_reference_mag_i = 'REAL'
+   c_042_cal_reference_mag_err_i= 'REAL'
+   c_043_cal_reference_mag_r = 'REAL'
+   c_044_cal_reference_mag_err_r = 'REAL'
+   c_045_cal_reference_mag_g = 'REAL'
+   c_046_cal_reference_mag_err_g = 'REAL'
+   c_052_reference_x = 'REAL'
+   c_053_reference_y = 'REAL' 
+    
 class PhotometryPoints(TableDef):
     """The table storing the primary information on the measurements taken.
     """
     c_000_phot_id = 'INTEGER PRIMARY KEY'
     c_010_exposure_id = 'INTEGER REFERENCES exposures(exposure_id)'
-    c_020_star_id ='INTEGER REFERENCES stars(star_id)'
-    c_022_reference_mag = 'REAL'
-    c_025_reference_mag_err= 'REAL'
-    c_022_reference_flux = 'DOUBLE PRECISION'
-    c_025_reference_flux_err= 'DOUBLE PRECISION'
+    c_020_star_id = 'INTEGER REFERENCES stars(star_id)'
+    c_025_ref_phot_id = 'INTEGER REFERENCES ref_phot(ref_phot_id)'
     c_030_diff_flux = 'DOUBLE PRECISION'
     c_040_diff_flux_err = 'DOUBLE PRECISION'
     c_050_magnitude = 'REAL'
@@ -164,6 +187,7 @@ EXPOSURES_TD = Exposures("exposures")
 REFERENCE_IMAGES_TD = ReferenceImages("reference_images")
 STARS_TD = Stars("stars")
 PHOTOMETRY_TD = PhotometryPoints("phot")
+REFERENCEPHOT_TD = ReferencePhotometry("ref_phot")
 
 
 def ensure_table(conn, table_def):
@@ -187,7 +211,7 @@ def get_connection(dsn=database_file_path):
         detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES)
     conn.execute("PRAGMA foreign_keys=ON")
     ensure_tables(conn, 
-        EXPOSURES_TD, REFERENCE_IMAGES_TD, STARS_TD, PHOTOMETRY_TD)
+        EXPOSURES_TD, REFERENCE_IMAGES_TD, STARS_TD, PHOTOMETRY_TD, REFERENCEPHOT_TD)
     return conn
 
 
