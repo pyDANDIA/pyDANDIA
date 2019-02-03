@@ -7,6 +7,7 @@ Created on Thu Jul 20 12:35:17 2017
 import os
 import sys
 from astropy.io import fits
+from astropy import table
 import numpy as np
 from pyDANDIA import  logs
 from pyDANDIA import  metadata
@@ -17,6 +18,7 @@ from pyDANDIA import  wcs
 from pyDANDIA import  psf
 from pyDANDIA import  psf_selection
 from pyDANDIA import  photometry
+from pyDANDIA import  phot_db
 
 VERSION = 'pyDANDIA_stage3_v0.2'
 
@@ -106,6 +108,13 @@ def run_stage3(setup):
                                                 'pyDANDIA_metadata.fits',
                                                 'star_catalog', log=log)
         
+        ref_db_id = add_reference_image_to_db(setup, reduction_metadata, log=log)
+        
+        star_ids = ingest_stars_to_db(setup, ref_star_catalog, log=log)
+        
+        ingest_star_catalog_to_db(setup, ref_star_catalog, ref_db_id, star_ids,
+                                  meta_pars['bandpass'], log=log)
+                              
         status = 'OK'
         report = 'Completed successfully'
         
@@ -206,6 +215,8 @@ def extract_parameters_stage3(reduction_metadata,log):
         
         meta_pars['ref_fwhm'] = np.sqrt( fwhmx*fwhmx + fwhmy*fwhmy ) / pixscale
         
+        meta_pars['bandpass'] = reduction_metadata.headers_summary[1]['FILTKEY'].data[idx[0]][0]
+        
     else:
         
         meta_pars['ref_sky_bkgd'] = None
@@ -242,7 +253,7 @@ def find_reference_flux(detected_sources,log):
     
     idx = np.where(detected_sources[:,9] > 0.0)
     
-    idx = np.where( detected_sources[idx,9] == detected_sources[idx,9].min())
+    idx = np.where( detected_sources[idx,9] == detected_sources[idx,9].min() )
     
     ref_flux = detected_sources[idx[0][0],9]
     
@@ -250,4 +261,101 @@ def find_reference_flux(detected_sources,log):
                     str(ref_flux))
     
     return ref_flux
+
+def add_reference_image_to_db(setup, reduction_metadata, log=None):
+    """Function to ingest the reference image and corresponding star catalogue 
+    to the photometry DB"""
     
+    conn = phot_db.get_connection(dsn=setup.phot_db_path)
+    
+    ref_image_name = reduction_metadata.data_architecture[1]['REF_IMAGE'].data[0]
+    ref_image_dir = reduction_metadata.data_architecture[1]['REF_PATH'].data[0]
+    
+    idx = np.where(ref_image_name == reduction_metadata.headers_summary[1]['IMAGES'].data)[0][0]
+    ref_header = reduction_metadata.headers_summary[1][idx]
+    
+    query = 'SELECT refimg_name FROM reference_images'
+    t = phot_db.query_to_astropy_table(conn, query, args=())
+    print(t)
+    
+    if len(t) == 0 or ref_image_name not in t[0]['refimg_name']:
+        phot_db.ingest_reference_in_db(conn, setup, ref_header, 
+                                   ref_image_dir, ref_image_name)
+        
+        query = 'SELECT refimg_name FROM reference_images WHERE refimg_name='+ref_image_name
+        t = phot_db.query_to_astropy_table(conn, query, args=())
+        
+        ref_db_id = t[0]['refimg_id']
+        
+        if log!=None:
+            log.info('Added reference image to phot_db as entry '+str(ref_db_id))
+        
+    else:
+        
+        query = 'SELECT refimg_name FROM reference_images WHERE refimg_name='+ref_image_name
+        print(query)
+        t = phot_db.query_to_astropy_table(conn, query, args=())
+        
+        ref_db_id = t[0]['refimg_id']
+        
+        if log!=None:
+            log.info('Reference image already in phot_db')
+
+    return ref_db_id
+    
+def ingest_stars_to_db(setup, ref_star_catalog, log=None):
+    """Function to ingest the detected stars to the photometry database"""
+    
+    conn = phot_db.get_connection(dsn=setup.phot_db_path)
+    
+    data = [ table.Column(name='ra', data=ref_star_catalog[:,3]),
+             table.Column(name='dec', data=ref_star_catalog[:,4]) ]
+    
+    stars = table.Table(data=data)
+    
+    phot_db.ingest_astropy_table(conn, 'Stars', stars)
+
+    star_ids = []
+    for j in range(0,len(ref_star_catalog),1):
+        
+        star_ids.append( box_search_on_postion(conn, 
+                                     ref_star_catalog[j,3], 
+                                     ref_star_catalog[j,4], 
+                                     1.0/3600.0, 1.0/3600.0) )
+    
+    return star_ids
+    
+def ingest_star_catalog_to_db(setup, ref_star_catalog, ref_db_id, star_ids,
+                              bandpass, log=None):
+    """Function to ingest the reference image photometry data for all stars
+    detected in this image.
+    
+    Important: This function only ingests the photometry for a single bandpass,
+                and only for instrumental rather than calibrated data, since
+                the latter is produced by a different stage of the pipeline.
+    
+    :param Setup setup: Pipeline setup configuration
+    :param np.array ref_star_catalog: Reference image photometry data
+    :param int ref_db_id: Primary key of the reference image in the phot_db
+    :param list star_ids: List of the DB primary keys of stars in the catalog
+    :param str bandpass: Filter bandpass of the reference image {g, r, i}
+    :param Log log: Logger object [optional]
+    """
+    
+    conn = phot_db.get_connection(dsn=setup.phot_db_path)
+   
+    ref_ids = np.zeros(len(ref_star_catalog), dtype='int')
+    ref_ids.fill(ref_db_id)
+    
+    data = [ table.Column(name='reference_image', data=ref_ids),
+              table.Column(name='star_id', data=np.array(star_ids)),
+              table.Column(name='mag_'+bandpass, data=ref_star_catalog[:,7]),
+              table.Column(name='mag_err_'+bandpass, data=ref_star_catalog[:,8]),
+              table.Column(name='flux_'+bandpass, data=ref_star_catalog[:,5]),
+              table.Column(name='flux_err_'+bandpass, data=ref_star_catalog[:,6]),
+              table.Column(name='reference_x'+bandpass, data=ref_star_catalog[:,1]),
+              table.Column(name='reference_y'+bandpass, data=ref_star_catalog[:,2]) ]
+    
+    ref_phot = table.Table(data=data)
+    
+    phot_db.ingest_astropy_table(conn, 'ReferencePhotometry', ref_phot)

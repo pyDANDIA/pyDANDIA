@@ -16,6 +16,7 @@ class PipelineSetup:
     def __init__(self):
         self.red_dir = None
         self.log_dir = None
+        self.phot_db_path = None
         self.pipeline_config_dir = None
         self.software_dir = getcwd()
         self.verbosity = 0
@@ -24,6 +25,7 @@ class PipelineSetup:
         output = 'Reduction directory: '+repr(self.red_dir)+'\n'+\
                 'Log directory: '+repr(self.log_dir)+'\n'+\
                 'Pipeline configuration directory: '+repr(self.pipeline_config_dir)+'\n'+\
+                'Photometric database path: '+repr(self.phot_db_path)+'\n'+\
                 'Software directory: '+repr(self.software_dir)+'\n'+\
                 'Verbosity level: '+str(self.verbosity)
         return output
@@ -35,6 +37,8 @@ def pipeline_setup(params):
     setup = PipelineSetup()
     
     setup.red_dir = params['red_dir']
+    
+    setup.phot_db_path = path.join(params['red_dir'],'..','phot.db')
     
     for key in ['log_dir', 'pipeline_config_dir', 'software_dir', 'verbosity']:
         
