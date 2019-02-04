@@ -139,7 +139,7 @@ class ReferencePhotometry(TableDef):
     """
     
     c_000_ref_phot_id = 'INTEGER PRIMARY KEY'
-    c_018_reference_image = 'INTEGER REFERENCES reference_images(refimg_id)'
+    c_018_reference_images = 'INTEGER REFERENCES reference_images(refimg_id)'
     c_021_star_id = 'INTEGER REFERENCES stars(star_id)'
     c_022_reference_mag_i = 'REAL'
     c_023_reference_mag_err_i= 'REAL'
@@ -240,6 +240,8 @@ def feed_to_table(conn, table_name, names, values):
         
     finally:
 
+        conn.commit()
+
         cursor.close()
 
 
@@ -251,12 +253,18 @@ def feed_to_table_many(conn, table_name, names, tuples):
         names or tuples !!!
     """
 
+    #print(table_name)
+    #print(tuples)
+    #print(names)
     command = 'INSERT OR REPLACE INTO ' + str(table_name) + ' (' +\
                                         ','.join(names) + ') ' +\
                                         ' VALUES ('+\
                                          ','.join("?"*len(names)) + ')'
-    
+    #print(command)
     conn.executemany(command, tuples)
+    
+    conn.commit()
+
 
 def feed_to_table_many_dict(conn, table_name, rows):
     """dumps a list of (structurally identical!) dictionaries to the database.
@@ -355,10 +363,6 @@ def ingest_astropy_table(conn, db_table_name, table):
     """ingests an astropy table into db_table_name via conn.
     """
 
-    print(db_table_name)
-    print(table.colnames)
-    print([tuple(r) for r in table])
-    
     feed_to_table_many(
         conn,
         db_table_name,
@@ -399,7 +403,7 @@ def box_search_on_position(conn, ra_centre, dec_centre, dra, ddec):
     dec_min = dec_centre - ddec
     dec_max = dec_centre + ddec
     
-    query = 'SELECT star_id FROM stars WHERE ra BETWEEN '+\
+    query = 'SELECT star_id,ra,dec FROM stars WHERE ra BETWEEN '+\
             str(ra_min)+' AND '+str(ra_max)+\
             ' AND dec BETWEEN '+\
             str(dec_min)+' AND '+str(dec_max)

@@ -67,17 +67,16 @@ def test_ingest_astropy_table():
     
     n_entries = 2000
     
-    data = [ table.Column(name='star_id', data=np.arange(1,n_entries+1,1, dtype='int')),
-              table.Column(name='ra', data=np.linspace(269.0,272.0,n_entries)),
+    data = [ table.Column(name='ra', data=np.linspace(269.0,272.0,n_entries)),
               table.Column(name='dec', data=np.linspace(-27.5, -28.9, n_entries)) ]
-    
+              
     stars = table.Table(data=data)
 
     phot_db.ingest_astropy_table(conn, 'Stars', stars)
     
     query = 'SELECT star_id, ra, dec FROM stars'
     t = phot_db.query_to_astropy_table(conn, query, args=())
-    print(t)
+    
     assert len(t) == n_entries
     
 def test_ingest_reference_in_db():
@@ -130,14 +129,14 @@ def test_box_search_on_position():
     ddec = 0.1
     
     results = phot_db.box_search_on_position(conn, ra_centre, dec_centre, dra, ddec)
-
+    
     assert len(results) == len(tuples)
     
 if __name__ == '__main__':
     
     #test_get_connection()
     #test_feed_to_table_many()
-    #test_ingest_astropy_table()
-    test_ingest_reference_in_db()
+    test_ingest_astropy_table()
+    #test_ingest_reference_in_db()
     #test_box_search_on_position()
     

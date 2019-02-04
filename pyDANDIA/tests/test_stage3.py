@@ -85,9 +85,10 @@ def test_add_reference_image_to_db():
     t = phot_db.query_to_astropy_table(conn, query, args=())
     
     assert (ref_image_name in t[0]['refimg_name'])
-    assert type(ref_db_id) == type(1)
+    assert type(ref_db_id) == type(np.int64(1))
     
     logs.close_log(log)
+    conn.close()
 
 def test_ingest_stars_to_db():
     
@@ -98,8 +99,6 @@ def test_ingest_stars_to_db():
     
     if os.path.isfile(setup.phot_db_path):
         os.remove(setup.phot_db_path)
-    
-    conn = phot_db.get_connection(dsn=db_file_path)
     
     meta = metadata.MetaData()
     meta.load_a_layer_from_file( setup.red_dir, 
@@ -115,14 +114,17 @@ def test_ingest_stars_to_db():
     
     star_ids = stage3.ingest_stars_to_db(setup, ref_star_catalog, log=log)
     
-    print(db_file_path)
+    
+    conn = phot_db.get_connection(dsn=db_file_path)
     
     query = 'SELECT star_id, ra, dec FROM stars'
     t = phot_db.query_to_astropy_table(conn, query, args=())
-    print(t)
-    #assert (len(t) == len(ref_star_catalog))
+
+    assert (len(star_ids) == len(ref_star_catalog))
+    assert (len(t) == len(ref_star_catalog))
     
     logs.close_log(log)
+    conn.close()
 
 def test_ingest_star_catalog_to_db():
     
@@ -168,13 +170,22 @@ def test_ingest_star_catalog_to_db():
                                      ref_db_id, star_ids,
                                      bandpass, log=log)
     
+    conn = phot_db.get_connection(dsn=db_file_path)
+    
+    query = 'SELECT reference_images, star_id, reference_mag_i, reference_mag_err_i FROM ref_phot'
+    t = phot_db.query_to_astropy_table(conn, query, args=())
+    
+    assert (len(star_ids) == len(ref_star_catalog))
+    assert (len(t) == len(ref_star_catalog))
+    
     logs.close_log(log)
+    conn.close()
 
 if __name__ == '__main__':
     
     #test_find_reference_flux()
     #test_run_stage3()
-    test_add_reference_image_to_db()
+    #test_add_reference_image_to_db()
     #test_ingest_stars_to_db()
-    #test_ingest_star_catalog_to_db()
+    test_ingest_star_catalog_to_db()
     
