@@ -216,7 +216,7 @@ def extract_parameters_stage3(reduction_metadata,log):
         
         meta_pars['ref_fwhm'] = np.sqrt( fwhmx*fwhmx + fwhmy*fwhmy ) / pixscale
         
-        meta_pars['bandpass'] = reduction_metadata.headers_summary[1]['FILTKEY'].data[idx[0]][0]
+        meta_pars['bandpass'] = str(reduction_metadata.headers_summary[1]['FILTKEY'].data[idx[0]][0]).replace('p','')
         
     else:
         
@@ -325,7 +325,7 @@ def ingest_stars_to_db(setup, ref_star_catalog, log=None):
                                      ref_star_catalog[j,3], 
                                      ref_star_catalog[j,4], 
                                      1.0/3600.0, 1.0/3600.0)
-        log.info(results)
+
         if len(results) == 1:
             
             star_ids.append( results['star_id'][0] )
@@ -378,7 +378,7 @@ def ingest_star_catalog_to_db(setup, ref_star_catalog, ref_db_id, star_ids,
     ref_ids = np.zeros(len(ref_star_catalog), dtype='int')
     ref_ids.fill(ref_db_id)
     
-    data = [ table.Column(name='reference_images', data=ref_ids),
+    data = [  table.Column(name='reference_images', data=ref_ids),
               table.Column(name='star_id', data=np.array(star_ids)),
               table.Column(name='reference_mag_'+bandpass, data=ref_star_catalog[:,7]),
               table.Column(name='reference_mag_err_'+bandpass, data=ref_star_catalog[:,8]),

@@ -253,14 +253,11 @@ def feed_to_table_many(conn, table_name, names, tuples):
         names or tuples !!!
     """
 
-    #print(table_name)
-    #print(tuples)
-    #print(names)
     command = 'INSERT OR REPLACE INTO ' + str(table_name) + ' (' +\
                                         ','.join(names) + ') ' +\
                                         ' VALUES ('+\
                                          ','.join("?"*len(names)) + ')'
-    #print(command)
+  
     conn.executemany(command, tuples)
     
     conn.commit()
