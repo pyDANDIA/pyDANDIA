@@ -26,7 +26,7 @@ from pyDANDIA import config_utils
 from pyDANDIA import metadata
 from pyDANDIA import logs
 from pyDANDIA import convolution
-from pyDANDIA import astropy_interface as db_ai
+#from pyDANDIA import astropy_interface as db_ai
 from pyDANDIA import phot_db as db_phot
 from pyDANDIA import sky_background
 from pyDANDIA import psf

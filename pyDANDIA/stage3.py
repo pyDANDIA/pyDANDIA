@@ -21,7 +21,7 @@ from pyDANDIA import  photometry
 from pyDANDIA import  phot_db
 from pyDANDIA import  utilities
 
-VERSION = 'pyDANDIA_stage3_v0.2'
+VERSION = 'pyDANDIA_stage3_v0.3'
 
 def run_stage3(setup):
     """Driver function for pyDANDIA Stage 3: 
@@ -280,9 +280,10 @@ def add_reference_image_to_db(setup, reduction_metadata, log=None):
     
     if len(t) == 0 or ref_image_name not in t[0]['refimg_name']:
         phot_db.ingest_reference_in_db(conn, setup, ref_header, 
-                                   ref_image_dir, ref_image_name)
+                                   ref_image_dir, ref_image_name,
+                                   ref_header['OBJKEY'], VERSION)
         
-        query = 'SELECT refimg_id,refimg_name FROM reference_images WHERE refimg_name="'+ref_image_name+'"'
+        query = 'SELECT refimg_id,refimg_name,current_best FROM reference_images WHERE refimg_name="'+ref_image_name+'"'
         t = phot_db.query_to_astropy_table(conn, query, args=())
         
         ref_db_id = t[0]['refimg_id']
@@ -302,15 +303,18 @@ def add_reference_image_to_db(setup, reduction_metadata, log=None):
 
     return ref_db_id
     
-def ingest_stars_to_db(setup, ref_star_catalog, log=None):
+def ingest_stars_to_db(setup, ref_star_catalog, refimg_id, refimg_name, log=None):
     """Function to ingest the detected stars to the photometry database"""
     
     conn = phot_db.get_connection(dsn=setup.phot_db_path)
     
     data = [ table.Column(name='ra', data=ref_star_catalog[:,3]),
-             table.Column(name='dec', data=ref_star_catalog[:,4]) ]
+             table.Column(name='dec', data=ref_star_catalog[:,4]),
+             table.Column(name='reference_images', 
+                                  data=[refimg_id]*len(ref_star_catalog)) ]
     
     stars = table.Table(data=data)
+    print(stars)
     
     if log!=None:
         log.info('Build stars table for ingest, length='+str(len(stars)))
@@ -318,6 +322,10 @@ def ingest_stars_to_db(setup, ref_star_catalog, log=None):
         
     phot_db.ingest_astropy_table(conn, 'Stars', stars)
     
+    phot_db.set_foreign_key(conn, ['stars', 'reference_images'], 
+                            'reference_images', 'refimg_id', 
+                            'refimg_name', refimg_name)
+                    
     star_ids = []
     for j in range(0,len(ref_star_catalog),1):
         
@@ -325,7 +333,8 @@ def ingest_stars_to_db(setup, ref_star_catalog, log=None):
                                      ref_star_catalog[j,3], 
                                      ref_star_catalog[j,4], 
                                      1.0/3600.0, 1.0/3600.0)
-
+        log.info(results)
+        
         if len(results) == 1:
             
             star_ids.append( results['star_id'][0] )
@@ -357,7 +366,7 @@ def ingest_stars_to_db(setup, ref_star_catalog, log=None):
     return star_ids
     
 def ingest_star_catalog_to_db(setup, ref_star_catalog, ref_db_id, star_ids,
-                              bandpass, log=None):
+                              log=None):
     """Function to ingest the reference image photometry data for all stars
     detected in this image.
     
@@ -369,7 +378,6 @@ def ingest_star_catalog_to_db(setup, ref_star_catalog, ref_db_id, star_ids,
     :param np.array ref_star_catalog: Reference image photometry data
     :param int ref_db_id: Primary key of the reference image in the phot_db
     :param list star_ids: List of the DB primary keys of stars in the catalog
-    :param str bandpass: Filter bandpass of the reference image {g, r, i}
     :param Log log: Logger object [optional]
     """
     
@@ -380,12 +388,12 @@ def ingest_star_catalog_to_db(setup, ref_star_catalog, ref_db_id, star_ids,
     
     data = [  table.Column(name='reference_images', data=ref_ids),
               table.Column(name='star_id', data=np.array(star_ids)),
-              table.Column(name='reference_mag_'+bandpass, data=ref_star_catalog[:,7]),
-              table.Column(name='reference_mag_err_'+bandpass, data=ref_star_catalog[:,8]),
-              table.Column(name='reference_flux_'+bandpass, data=ref_star_catalog[:,5]),
-              table.Column(name='reference_flux_err_'+bandpass, data=ref_star_catalog[:,6]),
-              table.Column(name='reference_x_'+bandpass, data=ref_star_catalog[:,1]),
-              table.Column(name='reference_y_'+bandpass, data=ref_star_catalog[:,2]) ]
+              table.Column(name='reference_mag', data=ref_star_catalog[:,7]),
+              table.Column(name='reference_mag_err', data=ref_star_catalog[:,8]),
+              table.Column(name='reference_flux', data=ref_star_catalog[:,5]),
+              table.Column(name='reference_flux_err', data=ref_star_catalog[:,6]),
+              table.Column(name='reference_x', data=ref_star_catalog[:,1]),
+              table.Column(name='reference_y', data=ref_star_catalog[:,2]) ]
     
     ref_phot = table.Table(data=data)
     

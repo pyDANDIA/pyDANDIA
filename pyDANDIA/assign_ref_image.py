@@ -29,8 +29,8 @@ def get_args_check_sanity():
     
     if len(argv) == 1:
         
-        params['red_dir'] = raw_input('Please enter the path to the reduction directory: ')
-        params['ref_image'] = raw_input('Please enter the name of the image to use as reference: ')
+        params['red_dir'] = input('Please enter the path to the reduction directory: ')
+        params['ref_image'] = input('Please enter the name of the image to use as reference: ')
         
     else:
         

@@ -71,6 +71,7 @@ class ReferenceImages(TableDef):
     c_020_telescope_id = 'TEXT'
     c_030_instrument_id = 'TEXT'
     c_040_filter_id = 'TEXT'
+    c_045_field_id = 'TEXT'
     c_050_refimg_fwhm = 'REAL'
     c_060_refimg_fwhm_err = 'REAL'
     c_070_refimg_ellipticity = 'REAL'
@@ -103,6 +104,8 @@ class ReferenceImages(TableDef):
     c_150_cd2_1 = 'DOUBLE PRECISION'
     c_151_cd2_2 = 'DOUBLE PRECISION'
     c_152_epoch = 'INTEGER'
+    c_160_stage3_version = 'TEXT'
+    c_170_current_best = 'INTEGER'
 
 class Exposures(TableDef):
     """The table storing individual sky exposures.
@@ -128,6 +131,7 @@ class Stars(TableDef):
     c_000_star_id = 'INTEGER PRIMARY KEY'
     c_010_ra = 'DOUBLE PRECISION'
     c_020_dec = 'DOUBLE PRECISION'    
+    c_030_reference_images = 'INTEGER REFERENCES reference_images(refimg_id)'
     c_100_type = 'TEXT'
     pc_000_raindex = (
         'CREATE INDEX IF NOT EXISTS stars_ra ON stars (ra)')
@@ -141,35 +145,20 @@ class ReferencePhotometry(TableDef):
     c_000_ref_phot_id = 'INTEGER PRIMARY KEY'
     c_018_reference_images = 'INTEGER REFERENCES reference_images(refimg_id)'
     c_021_star_id = 'INTEGER REFERENCES stars(star_id)'
-    c_022_reference_mag_i = 'REAL'
-    c_023_reference_mag_err_i= 'REAL'
-    c_024_reference_flux_i = 'DOUBLE PRECISION'
-    c_025_reference_flux_err_i = 'DOUBLE PRECISION'
-    c_026_reference_mag_r = 'REAL'
-    c_027_reference_mag_err_r = 'REAL'
-    c_028_reference_flux_r  = 'DOUBLE PRECISION'
-    c_029_reference_flux_err_r = 'DOUBLE PRECISION'
-    c_030_reference_mag_g = 'REAL'
-    c_031_reference_mag_err_g = 'REAL'
-    c_032_reference_flux_g = 'DOUBLE PRECISION'
-    c_033_reference_flux_err_g = 'DOUBLE PRECISION'
-    c_041_cal_reference_mag_i = 'REAL'
-    c_042_cal_reference_mag_err_i= 'REAL'
-    c_043_cal_reference_mag_r = 'REAL'
-    c_044_cal_reference_mag_err_r = 'REAL'
-    c_045_cal_reference_mag_g = 'REAL'
-    c_046_cal_reference_mag_err_g = 'REAL'
-    c_052_reference_x_g = 'REAL'
-    c_053_reference_y_g = 'REAL' 
-    c_052_reference_x_r = 'REAL'
-    c_053_reference_y_r = 'REAL'  
-    c_052_reference_x_i = 'REAL'
-    c_053_reference_y_i = 'REAL' 
+    c_022_reference_mag = 'REAL'
+    c_023_reference_mag_err = 'REAL'
+    c_024_reference_flux = 'DOUBLE PRECISION'
+    c_025_reference_flux_err = 'DOUBLE PRECISION'
+    c_041_cal_reference_mag = 'REAL'
+    c_042_cal_reference_mag_err = 'REAL'
+    c_052_reference_x = 'REAL'
+    c_053_reference_y = 'REAL'
     
 class PhotometryPoints(TableDef):
     """The table storing the primary information on the measurements taken.
     """
     c_000_phot_id = 'INTEGER PRIMARY KEY'
+    c_005_reference_images = 'INTEGER REFERENCES reference_images(refimg_id)'
     c_010_exposure_id = 'INTEGER REFERENCES exposures(exposure_id)'
     c_020_star_id = 'INTEGER REFERENCES stars(star_id)'
     c_025_ref_phot_id = 'INTEGER REFERENCES ref_phot(ref_phot_id)'
@@ -183,7 +172,9 @@ class PhotometryPoints(TableDef):
     c_100_local_background_err = 'DOUBLE PRECISION'
     c_130_residual_x = 'REAL'
     c_140_residual_y = 'REAL'
-
+    c_150_stage6_version = 'TEXT'
+    c_160_current_best = 'INTEGER'
+    
     pc_000_datesindex = (
         'CREATE INDEX IF NOT EXISTS phot_objs ON phot (star_id)')
 
@@ -220,12 +211,43 @@ def get_connection(dsn=database_file_path):
         EXPOSURES_TD, REFERENCE_IMAGES_TD, STARS_TD, PHOTOMETRY_TD, REFERENCEPHOT_TD)
     return conn
 
+def update_table_entry(conn,table_name,key_name,search_key,entry_id,value):
+    """Function to commit a single-value entry for a single keyword in a
+    given table
+    
+    :param Connection conn: Open DB connection object
+    :param string table_name: Name of the DB table to insert into
+    :param string key_name: Entry keyword to be modified in the DB table
+    :param string search_key: Search keyword to identify entry (normally the
+                                table PK)
+    :param int entry_id: PK index in table of the entry to be modified
+    :param dtype value: Values of the keyword to be set
+    """
+    
+    cursor = conn.cursor()
+    try:
+        
+        command = 'UPDATE '+str(table_name)+ ' SET '+key_name+' = '+str(value)+\
+                 ' where '+search_key+' = '+str(entry_id)
+
+        cursor.execute(command)
+        
+    finally:
+
+        conn.commit()
+
+        cursor.close()
 
 def feed_to_table(conn, table_name, names, values):
     """makes a row out of names and values and inserts it into table_name.
 
     This returns the value of last_insert_rowid(), whether or not that
     actually has a meaning.
+    
+    :param Connection conn: Open DB connection object
+    :param string table_name: Name of the DB table to insert into
+    :param list names: List of entry keywords in the DB table
+    :param list values: List of values corresponding to the keywords
     """
     cursor = conn.cursor()
     try:
@@ -257,12 +279,30 @@ def feed_to_table_many(conn, table_name, names, tuples):
                                         ','.join(names) + ') ' +\
                                         ' VALUES ('+\
                                          ','.join("?"*len(names)) + ')'
-  
+    
     conn.executemany(command, tuples)
     
     conn.commit()
 
 
+def set_foreign_key(conn, table_names, key_name, entry_id, 
+                    search_key, search_string):
+    """Dumps a sequence of tuples into table_name, where foreign keys 
+    require a table JOIN.
+
+    names gives the sequence of column names per tuple element.
+    !!! careful not to include the PRIMARY KEY column for the table in the 
+        names or tuples !!!
+    """
+
+    command = 'INSERT OR REPLACE INTO '+table_names[0]+' '+key_name+\
+                ' SELECT '+entry_id+' FROM '+table_names[1]+\
+                ' WHERE '+search_key+'="'+search_string+'"'
+    
+    conn.executemany(command)
+    
+    conn.commit()
+    
 def feed_to_table_many_dict(conn, table_name, rows):
     """dumps a list of (structurally identical!) dictionaries to the database.
     """
@@ -296,13 +336,15 @@ sqlite3.register_adapter(np.float32, _adaptFloat)
 sqlite3.register_adapter(np.float64, _adaptFloat)
 
 def ingest_reference_in_db(conn, setup, reference_header, 
-                           reference_image_directory, reference_image_name):
+                           reference_image_directory, reference_image_name,
+                           field_id, version):
     """Function to ingest a ReferenceImage to the photometric database
 
     Parameters added:
         c_020_telescope_id = 'TEXT'
         c_030_instrument_id = 'TEXT'
         c_040_filter_id = 'TEXT'
+        c_045_field_id = 'TEXT'
         c_050_refimg_fwhm = 'REAL'
         c_060_refimg_fwhm_err = 'REAL'
         c_070_refimg_ellipticity = 'REAL'
@@ -335,26 +377,39 @@ def ingest_reference_in_db(conn, setup, reference_header,
         c_150_cd2_1 = 'DOUBLE PRECISION'
         c_151_cd2_2 = 'DOUBLE PRECISION'
         c_152_epoch = 'INTEGER'
+        c_160_stage3_version = 'TEXT'
+        c_170_current_best = 'INTEGER'
     """
 
-    names = ('refimg_name', 'telescope_id', 'instrument_id', 'filter_id', 'refimg_fwhm', 'refimg_fwhm_err', 'refimg_ellipticity',
+    names = ('refimg_name', 'telescope_id', 'instrument_id', 
+             'filter_id', 'field_id', 'refimg_fwhm', 'refimg_fwhm_err', 'refimg_ellipticity',
              'refimge_ellipticity_err', 'refimg_name', 'wcsfrcat', 'wcsimcat', 'wcsmatch', 'wcsnref', 'wcstol',
              'wcsra', 'wcsdec', 'wequinox', 'wepoch', 'radecsys', 'cdelt1', 'cdelt2', 'crota1', 'crota2', 'secpix1',
              'secpix2',
-             'wcssep', 'equinox', 'cd1_1', 'cd1_2', 'cd2_1', 'cd2_2', 'epoch')
-
-    name = reference_image_name
-    cam_filter = reference_header['FILTKEY']
-    telescope_id = name.split('-')[0]
-    camera_id = name.split('-')[1]
-
-    new_table = table.Table([[name], [cam_filter], [telescope_id], [camera_id]],
-                      names=('refimg_name', 'filter_id', 'telescope_id',
-                             'instrument_id'))
-
+             'wcssep', 'equinox', 'cd1_1', 'cd1_2', 'cd2_1', 'cd2_2', 'epoch',
+             'stage3_version', 'current_best')
+                            
+    data = [ table.Column(name='refimg_name', data=[reference_image_name]),
+                  table.Column(name='filter_id', data=[reference_header['FILTKEY']]),
+                  table.Column(name='telescope_id', data=[reference_image_name.split('-')[0]]),
+                  table.Column(name='instrument_id', data=[reference_image_name.split('-')[1]]),
+                  table.Column(name='field_id', data=[field_id]),
+                  table.Column(name='stage3_version', data=[version]) ]
+            
+    new_table = table.Table(data=data)
+    
     ingest_astropy_table(conn, 'reference_images', new_table)
     conn.commit()
+    
+    # Workaround for known bug with sqlite3 ingestion of integer data, which
+    # it mis-interprets as binary 'Blobs'.  
+    query = 'SELECT refimg_name,refimg_id,current_best FROM reference_images'
+    t = query_to_astropy_table(conn, query, args=())
+    ref_id = t['refimg_id'].data[-1]
 
+    update_table_entry(conn,'reference_images','current_best','refimg_id',ref_id,1)
+    
+    conn.commit()
 
 def ingest_astropy_table(conn, db_table_name, table):
     """ingests an astropy table into db_table_name via conn.
@@ -378,8 +433,7 @@ def query_to_astropy_table(conn, query, args=()):
     def getColumn(index):
         return [t[index] for t in tuples]
     
-    data = [
-        table.Column(name=k,
+    data = [table.Column(name=k,
             data=getColumn(i))
         for i,k in enumerate(keys)]
     return table.Table(data=data)

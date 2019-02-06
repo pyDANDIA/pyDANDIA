@@ -67,6 +67,9 @@ def test_add_reference_image_to_db():
     
     log = logs.start_stage_log( cwd, 'test_stage3' )
     
+    if os.path.isfile(setup.phot_db_path):
+        os.remove(setup.phot_db_path)
+        
     meta = metadata.MetaData()
     meta.load_a_layer_from_file( setup.red_dir, 
                                 'pyDANDIA_metadata.fits', 
@@ -77,13 +80,14 @@ def test_add_reference_image_to_db():
     
     ref_image_name = meta.data_architecture[1]['REF_IMAGE'].data[0]
     
-    ref_db_id = stage3.add_reference_image_to_db(setup, meta, log=log)
+    ref_db_id = stage3.add_reference_image_to_db(setup, meta, 
+                                                 log=log)
     
     conn = phot_db.get_connection(dsn=setup.phot_db_path)
     
-    query = 'SELECT refimg_name FROM reference_images'
+    query = 'SELECT refimg_name,stage3_version,current_best,field_id FROM reference_images'
     t = phot_db.query_to_astropy_table(conn, query, args=())
-    
+    print(t)
     assert (ref_image_name in t[0]['refimg_name'])
     assert type(ref_db_id) == type(np.int64(1))
     
@@ -100,10 +104,29 @@ def test_ingest_stars_to_db():
     if os.path.isfile(setup.phot_db_path):
         os.remove(setup.phot_db_path)
     
+    conn = phot_db.get_connection(dsn=db_file_path)
+    
     meta = metadata.MetaData()
     meta.load_a_layer_from_file( setup.red_dir, 
                                 'pyDANDIA_metadata.fits', 
                                 'star_catalog' )
+    
+    meta.load_a_layer_from_file( setup.red_dir, 
+                                'pyDANDIA_metadata.fits', 
+                                'headers_summary' )
+    meta.load_a_layer_from_file( setup.red_dir, 
+                                'pyDANDIA_metadata.fits', 
+                                'data_architecture' )
+    
+    ref_image_name = meta.data_architecture[1]['REF_IMAGE'].data[0]
+    
+    ref_db_id = stage3.add_reference_image_to_db(setup, meta, 
+                                                 log=log)
+
+    query = 'SELECT refimg_id, refimg_name FROM reference_images'
+    t = phot_db.query_to_astropy_table(conn, query, args=())
+    print(t)
+    print(ref_db_id)
     
     ref_star_catalog = np.zeros([len(meta.star_catalog[1]),5])
     ref_star_catalog[:,0] = meta.star_catalog[1]['star_index'].data
@@ -112,10 +135,8 @@ def test_ingest_stars_to_db():
     ref_star_catalog[:,3] = meta.star_catalog[1]['RA_J2000'].data
     ref_star_catalog[:,4] = meta.star_catalog[1]['DEC_J2000'].data
     
-    star_ids = stage3.ingest_stars_to_db(setup, ref_star_catalog, log=log)
-    
-    
-    conn = phot_db.get_connection(dsn=db_file_path)
+    star_ids = stage3.ingest_stars_to_db(setup, ref_star_catalog, ref_db_id,
+                                         log=log)
     
     query = 'SELECT star_id, ra, dec FROM stars'
     t = phot_db.query_to_astropy_table(conn, query, args=())
@@ -184,8 +205,8 @@ def test_ingest_star_catalog_to_db():
 if __name__ == '__main__':
     
     #test_find_reference_flux()
-    test_run_stage3()
+    #test_run_stage3()
     #test_add_reference_image_to_db()
-    #test_ingest_stars_to_db()
+    test_ingest_stars_to_db()
     #test_ingest_star_catalog_to_db()
     

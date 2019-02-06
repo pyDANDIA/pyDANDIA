@@ -9,3 +9,5 @@ opencv-python
 Cython
 astroquery
 scikit-image
+ccdproc
+setuptools
