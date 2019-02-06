@@ -1352,7 +1352,7 @@ def calc_stamp_corners(xcen, ycen, dx, dy, maxx, maxy, over_edge=False,
         
     if xmin >= 0 and xmax < maxx and ymin >= 0 and ymax < maxy:
 
-        return (xmin, xmax, ymin, ymax)
+        return np.array([xmin, xmax, ymin, ymax]).astype(int)
 
     else:
 
@@ -1370,7 +1370,7 @@ def calc_stamp_corners(xcen, ycen, dx, dy, maxx, maxy, over_edge=False,
             if diagnostics:
                 print('CORNERS: ', xmin, xmax, ymin, ymax)
 
-            return (xmin, xmax, ymin, ymax)
+            return np.array([xmin, xmax, ymin, ymax]).astype(int)
 
 
 def coadd_stamps(setup, stamps, log, diagnostics=True):
@@ -1939,7 +1939,7 @@ def extract_sub_stamp(setup, log, sidx, stamp, xcen, ycen, dx, dy, diagnostics=F
         xmidss = int((x2 - x1) / 2)
         ymidss = int((y2 - y1) / 2)
 
-        substamp = Cutout2D(stamp.data[y1:y2, x1:x2], (xmidss, ymidss), (y2 - y1, x2 - x1), copy=True)
+        substamp = Cutout2D(stamp.data[int(y1):int(y2), int(x1):int(x2)], (xmidss, ymidss), (int(y2 - y1), int(x2 - x1)), copy=True)
 
         if diagnostics:
             fig = plt.figure(1)
