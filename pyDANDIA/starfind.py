@@ -136,10 +136,10 @@ def starfind(setup, path_to_image, reduction_metadata, plot_it=False,
                besty1 = y1
                besty2 = y2
                
-    #mean, median, std = sigma_clipped_stats(scidata[1:ymax, 1:xmax], sigma=3.0, iters=5)
+    #mean, median, std = sigma_clipped_stats(scidata[1:ymax, 1:xmax], sigma=3.0, maxiters=5)
     # Evaluate mean, median and standard deviation for the selected subregion
     mean, median, std = sigma_clipped_stats(scidata[besty1:besty2, bestx1:bestx2],
-                                            sigma=3.0, iters=5)
+                                            sigma=3.0, maxiters=5)
     
     # Identify stars
     daofind = DAOStarFinder(fwhm=3.0, threshold=5.*std)
