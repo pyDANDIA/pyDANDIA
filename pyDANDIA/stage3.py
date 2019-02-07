@@ -111,11 +111,11 @@ def run_stage3(setup):
         
         ref_db_id = add_reference_image_to_db(setup, reduction_metadata, log=log)
         
-        star_ids = ingest_stars_to_db(setup, ref_star_catalog, log=log)
-        
+        star_ids = ingest_stars_to_db(setup, ref_star_catalog, 
+                                      meta_pars['ref_image_name'], log=log)
+
         ingest_star_catalog_to_db(setup, ref_star_catalog, ref_db_id, star_ids,
-                                  meta_pars['bandpass'], log=log)
-                              
+                                  log=log)
         status = 'OK'
         report = 'Completed successfully'
         
@@ -199,10 +199,12 @@ def extract_parameters_stage3(reduction_metadata,log):
     try:
         
         meta_pars['ref_image_path'] = str(reduction_metadata.data_architecture[1]['REF_PATH'][0]) +'/'+ str(reduction_metadata.data_architecture[1]['REF_IMAGE'][0])
-    
+        meta_pars['ref_image_name'] = str(reduction_metadata.data_architecture[1]['REF_IMAGE'][0])
+        
     except AttributeError:
         
         meta_pars['ref_image_path'] = None
+        meta_pars['ref_image_name'] = None
     
     idx = np.where(reduction_metadata.images_stats[1]['IM_NAME'].data ==  reduction_metadata.data_architecture[1]['REF_IMAGE'][0])
 
@@ -279,6 +281,7 @@ def add_reference_image_to_db(setup, reduction_metadata, log=None):
     t = phot_db.query_to_astropy_table(conn, query, args=())
     
     if len(t) == 0 or ref_image_name not in t[0]['refimg_name']:
+        
         phot_db.ingest_reference_in_db(conn, setup, ref_header, 
                                    ref_image_dir, ref_image_name,
                                    ref_header['OBJKEY'], VERSION)
@@ -303,60 +306,30 @@ def add_reference_image_to_db(setup, reduction_metadata, log=None):
 
     return ref_db_id
     
-def ingest_stars_to_db(setup, ref_star_catalog, refimg_name, log=None):
+def ingest_stars_to_db(setup, ref_star_catalog, ref_image_name, log=None):
     """Function to ingest the detected stars to the photometry database"""
     
     conn = phot_db.get_connection(dsn=setup.phot_db_path)
     
-    data = [ table.Column(name='ra', data=ref_star_catalog[:,3]),
-             table.Column(name='dec', data=ref_star_catalog[:,4]) ]
-    
-    stars = table.Table(data=data)
+    query = 'SELECT refimg_id FROM reference_images WHERE refimg_name="'+\
+                ref_image_name+'"'
+    t = phot_db.query_to_astropy_table(conn, query, args=())
+
+    refimg_id = t['refimg_id'].data[0]
     
     if log!=None:
-        log.info('Build stars table for ingest, length='+str(len(stars)))
+        log.info('Ingesting stars detected in reference image '+ref_image_name+', refimg_id='+str(refimg_id))
         log.info('Length of ref_star_catalog = '+str(len(ref_star_catalog)))
-        
-    phot_db.ingest_astropy_table(conn, 'Stars', stars)
-    
-    phot_db.update_with_foreign_key(conn, ['stars', 'reference_images'], 
-                            'reference_images', 'refimg_id', 
-                            'refimg_name', refimg_name)
     
     star_ids = []
+    
     for j in range(0,len(ref_star_catalog),1):
         
-        results = phot_db.box_search_on_position(conn, 
-                                     ref_star_catalog[j,3], 
-                                     ref_star_catalog[j,4], 
-                                     1.0/3600.0, 1.0/3600.0)
-        log.info(results)
-        
-        if len(results) == 1:
-            
-            star_ids.append( results['star_id'][0] )
-            
-        elif len(results) > 1:
-            
-            ref_star = (ref_star_catalog[j,3], ref_star_catalog[j,4])
-            
-            separations = np.zeros(len(results))
-            
-            for j in range(0,len(results),1):
-                
-                match_star = (results['ra'][j], results['dec'][j])
-                
-                separations[j] = utilities.separation_two_points(ref_star,
-                                                                 match_star)
-            
-            star_ids.append( results['star_id'][separations.argsort()[0]] )
-            
-        else:
-            
-            if log!=None:
-                log.info('ERROR: No star_id found for object at position '+
-                        str(ref_star_catalog[j,3])+', '+
-                        str(ref_star_catalog[j,4],)+'deg')
+        star_ids.append( phot_db.feed_to_table( conn, 'Stars', ['ra','dec'], 
+                         [ref_star_catalog[j,3], ref_star_catalog[j,4]] ) )
+    
+        phot_db.update_table_entry(conn,'stars','reference_images',
+                                   'star_id',star_ids[-1],refimg_id)
     
     conn.close()
     
@@ -383,15 +356,43 @@ def ingest_star_catalog_to_db(setup, ref_star_catalog, ref_db_id, star_ids,
     ref_ids = np.zeros(len(ref_star_catalog), dtype='int')
     ref_ids.fill(ref_db_id)
     
-    data = [  table.Column(name='reference_images', data=ref_ids),
-              table.Column(name='star_id', data=np.array(star_ids)),
-              table.Column(name='reference_mag', data=ref_star_catalog[:,7]),
-              table.Column(name='reference_mag_err', data=ref_star_catalog[:,8]),
-              table.Column(name='reference_flux', data=ref_star_catalog[:,5]),
-              table.Column(name='reference_flux_err', data=ref_star_catalog[:,6]),
-              table.Column(name='reference_x', data=ref_star_catalog[:,1]),
-              table.Column(name='reference_y', data=ref_star_catalog[:,2]) ]
+#    data = [  table.Column(name='reference_images', data=ref_ids),
+#              table.Column(name='star_id', data=np.array(star_ids)),
+#              table.Column(name='reference_mag', data=ref_star_catalog[:,7]),
+#              table.Column(name='reference_mag_err', data=ref_star_catalog[:,8]),
+#              table.Column(name='reference_flux', data=ref_star_catalog[:,5]),
+#              table.Column(name='reference_flux_err', data=ref_star_catalog[:,6]),
+#              table.Column(name='reference_x', data=ref_star_catalog[:,1]),
+#              table.Column(name='reference_y', data=ref_star_catalog[:,2]) ]
     
-    ref_phot = table.Table(data=data)
+#    ref_phot = table.Table(data=data)
     
-    phot_db.ingest_astropy_table(conn, 'ref_phot', ref_phot)
+#    phot_db.ingest_astropy_table(conn, 'ref_phot', ref_phot)
+
+    keys = ['reference_mag', 'reference_mag_err', 
+            'reference_flux', 'reference_flux_err', 
+            'reference_x', 'reference_y']
+    
+    ref_phot_ids = []
+    
+    for j in range(0,len(ref_star_catalog),1):
+        
+        values = [ ref_star_catalog[j,7], ref_star_catalog[j,8],
+                   ref_star_catalog[j,5], ref_star_catalog[j,6],
+                   ref_star_catalog[j,1], ref_star_catalog[j,2] ]
+                   
+        ref_phot_ids.append( phot_db.feed_to_table( conn, 'ref_phot', 
+                                                keys, values ) )
+    
+        phot_db.update_table_entry(conn,'ref_phot','reference_images',
+                                   'ref_phot_id',ref_phot_ids[-1],ref_db_id)
+        
+        phot_db.update_table_entry(conn,'ref_phot','star_id',
+                                   'ref_phot_id',ref_phot_ids[-1],star_ids[j])
+    
+    if log!=None:
+        log.info('Ingested '+str(len(ref_phot_ids))+\
+                 ' reference image photometry entries into phot_db for reference image '+\
+                 str(ref_db_id))
+                 
+    return ref_phot_ids

@@ -183,7 +183,7 @@ def test_update_table_entry():
     
     conn.close()
 
-def test_update_with_foreign_key():
+def test_update_stars_ref_image_id():
     
     if os.path.isfile(db_file_path):
         os.remove(db_file_path)
@@ -225,9 +225,12 @@ def test_update_with_foreign_key():
     
     phot_db.feed_to_table_many(conn, 'Stars', names, tuples)
     
-    phot_db.update_with_foreign_key(conn, ['stars', 'reference_images'], 
-                                    'reference_images', 'refimg_id', 
-                                    'refimg_name', ref_image_name)
+    query = 'SELECT star_id FROM stars'
+    t = phot_db.query_to_astropy_table(conn, query, args=())
+    star_ids = t['star_id'].data[:-3]
+    print(star_ids)
+    
+    phot_db.update_stars_ref_image_id(conn, ref_image_name, star_ids)
                                     
     query = 'SELECT star_id,ra,dec,reference_images FROM stars'
     t = phot_db.query_to_astropy_table(conn, query, args=())
@@ -242,4 +245,5 @@ if __name__ == '__main__':
     #test_ingest_reference_in_db()
     #test_box_search_on_position()
     #test_update_table_entry()
-    test_update_with_foreign_key()
+    test_update_stars_ref_image_id()
+    

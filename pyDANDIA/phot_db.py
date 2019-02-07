@@ -228,7 +228,7 @@ def update_table_entry(conn,table_name,key_name,search_key,entry_id,value):
     try:
         
         command = 'UPDATE '+str(table_name)+ ' SET '+key_name+' = '+str(value)+\
-                 ' where '+search_key+' = '+str(entry_id)
+                 ' WHERE '+search_key+' = '+str(entry_id)
 
         cursor.execute(command)
         
@@ -285,8 +285,7 @@ def feed_to_table_many(conn, table_name, names, tuples):
     conn.commit()
 
 
-def update_with_foreign_key(conn, table_names, key_name, entry_id, 
-                    search_key, search_string):
+def update_stars_ref_image_id(conn, ref_image_name, star_ids):
     """Dumps a sequence of tuples into table_name, where foreign keys 
     require a table JOIN.
 
@@ -295,12 +294,10 @@ def update_with_foreign_key(conn, table_names, key_name, entry_id,
         names or tuples !!!
     """
 
-    command = 'UPDATE '+table_names[0]+' SET '+key_name+\
-                '=(SELECT '+entry_id+' FROM '+table_names[1]+\
-                ' WHERE '+search_key+'="'+search_string+'")'
+    command = 'UPDATE stars SET reference_images=(SELECT refimg_id FROM reference_images WHERE refimg_name="lsc1m005-fl15-20170418-0131-e91_cropped.fits") WHERE star_id=(?)'
     
     print(command)
-    conn.execute(command)
+    conn.executemany(command, star_ids)
     
     conn.commit()
     

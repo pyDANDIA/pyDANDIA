@@ -120,6 +120,9 @@ def test_ingest_stars_to_db():
     
     ref_image_name = meta.data_architecture[1]['REF_IMAGE'].data[0]
     
+    ref_db_id = stage3.add_reference_image_to_db(setup, meta, 
+                                                 log=log)
+                                                 
     ref_star_catalog = np.zeros([len(meta.star_catalog[1]),5])
     ref_star_catalog[:,0] = meta.star_catalog[1]['star_index'].data
     ref_star_catalog[:,1] = meta.star_catalog[1]['x_pixel'].data
@@ -129,13 +132,13 @@ def test_ingest_stars_to_db():
     
     star_ids = stage3.ingest_stars_to_db(setup, ref_star_catalog, 
                                          ref_image_name, log=log)
-    print(star_ids)
     
     query = 'SELECT star_id, ra, dec, reference_images FROM stars'
     t = phot_db.query_to_astropy_table(conn, query, args=())
     print(t)
     assert (len(star_ids) == len(ref_star_catalog))
     assert (len(t) == len(ref_star_catalog))
+    assert t['reference_images'].data.all() == ref_db_id
     
     logs.close_log(log)
     conn.close()
@@ -176,19 +179,19 @@ def test_ingest_star_catalog_to_db():
     
     ref_db_id = stage3.add_reference_image_to_db(setup, meta, log=log)
     
-    star_ids = stage3.ingest_stars_to_db(setup, ref_star_catalog, log=log)
+    ref_image_name = meta.data_architecture[1]['REF_IMAGE'].data[0]
     
-    bandpass = 'i'
+    star_ids = stage3.ingest_stars_to_db(setup, ref_star_catalog, 
+                                         ref_image_name, log=log)
     
     stage3.ingest_star_catalog_to_db(setup, ref_star_catalog, 
-                                     ref_db_id, star_ids,
-                                     bandpass, log=log)
+                                     ref_db_id, star_ids, log=log)
     
     conn = phot_db.get_connection(dsn=db_file_path)
     
-    query = 'SELECT reference_images, star_id, reference_mag_i, reference_mag_err_i FROM ref_phot'
+    query = 'SELECT reference_images, star_id, reference_mag, reference_mag_err FROM ref_phot'
     t = phot_db.query_to_astropy_table(conn, query, args=())
-    
+    print(t)
     assert (len(star_ids) == len(ref_star_catalog))
     assert (len(t) == len(ref_star_catalog))
     
@@ -200,6 +203,6 @@ if __name__ == '__main__':
     #test_find_reference_flux()
     #test_run_stage3()
     #test_add_reference_image_to_db()
-    test_ingest_stars_to_db()
-    #test_ingest_star_catalog_to_db()
+    #test_ingest_stars_to_db()
+    test_ingest_star_catalog_to_db()
     
