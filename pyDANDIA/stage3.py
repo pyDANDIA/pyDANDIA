@@ -356,19 +356,6 @@ def ingest_star_catalog_to_db(setup, ref_star_catalog, ref_db_id, star_ids,
     ref_ids = np.zeros(len(ref_star_catalog), dtype='int')
     ref_ids.fill(ref_db_id)
     
-#    data = [  table.Column(name='reference_images', data=ref_ids),
-#              table.Column(name='star_id', data=np.array(star_ids)),
-#              table.Column(name='reference_mag', data=ref_star_catalog[:,7]),
-#              table.Column(name='reference_mag_err', data=ref_star_catalog[:,8]),
-#              table.Column(name='reference_flux', data=ref_star_catalog[:,5]),
-#              table.Column(name='reference_flux_err', data=ref_star_catalog[:,6]),
-#              table.Column(name='reference_x', data=ref_star_catalog[:,1]),
-#              table.Column(name='reference_y', data=ref_star_catalog[:,2]) ]
-    
-#    ref_phot = table.Table(data=data)
-    
-#    phot_db.ingest_astropy_table(conn, 'ref_phot', ref_phot)
-
     keys = ['reference_mag', 'reference_mag_err', 
             'reference_flux', 'reference_flux_err', 
             'reference_x', 'reference_y']
