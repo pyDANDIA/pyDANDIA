@@ -150,7 +150,7 @@ def test_box_search_on_position():
 
     conn.close()
     
-def update_table_entry():
+def test_update_table_entry():
     
     if os.path.isfile(db_file_path):
         os.remove(db_file_path)
@@ -182,13 +182,64 @@ def update_table_entry():
     assert t['ra'][idx].data == value
     
     conn.close()
+
+def test_update_with_foreign_key():
+    
+    if os.path.isfile(db_file_path):
+        os.remove(db_file_path)
+    
+    setup = pipeline_setup.pipeline_setup({'red_dir': TEST_DIR})
+    setup.phot_db_path = db_file_path
+    
+    conn = phot_db.get_connection(dsn=db_file_path)
+    
+    meta = metadata.MetaData()
+    meta.load_a_layer_from_file( setup.red_dir, 
+                                'pyDANDIA_metadata.fits', 
+                                'headers_summary' )
+    meta.load_a_layer_from_file( setup.red_dir, 
+                                'pyDANDIA_metadata.fits', 
+                                'data_architecture' )
+                                
+    ref_image_dir = meta.data_architecture[1]['REF_PATH'].data[0]
+
+    ref_image_name = meta.data_architecture[1]['REF_IMAGE'].data[0]
+
+    i = np.where(ref_image_name == meta.headers_summary[1]['IMAGES'].data)[0][0]
+    
+    ref_header = meta.headers_summary[1][i]
+    
+    field_id = 'ROME-TEST-01'
+    version = 'Code_test'
+    
+    phot_db.ingest_reference_in_db(conn, setup, ref_header, 
+                                                ref_image_dir, 
+                                                ref_image_name,
+                                                field_id, version)
+
+    query = 'SELECT refimg_id FROM reference_images WHERE refimg_name="'+ref_image_name+'"'
+    t = phot_db.query_to_astropy_table(conn, query, args=())
+    refimg_id = t['refimg_id'].data
+    
+    (names, tuples) = generate_test_catalog()
+    
+    phot_db.feed_to_table_many(conn, 'Stars', names, tuples)
+    
+    phot_db.update_with_foreign_key(conn, ['stars', 'reference_images'], 
+                                    'reference_images', 'refimg_id', 
+                                    'refimg_name', ref_image_name)
+                                    
+    query = 'SELECT star_id,ra,dec,reference_images FROM stars'
+    t = phot_db.query_to_astropy_table(conn, query, args=())
+    
+    assert t['reference_images'].all() == refimg_id
     
 if __name__ == '__main__':
     
     #test_get_connection()
     #test_feed_to_table_many()
     #test_ingest_astropy_table()
-    test_ingest_reference_in_db()
+    #test_ingest_reference_in_db()
     #test_box_search_on_position()
-    #update_table_entry()
-    
+    #test_update_table_entry()
+    test_update_with_foreign_key()

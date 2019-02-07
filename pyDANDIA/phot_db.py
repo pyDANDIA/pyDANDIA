@@ -285,7 +285,7 @@ def feed_to_table_many(conn, table_name, names, tuples):
     conn.commit()
 
 
-def set_foreign_key(conn, table_names, key_name, entry_id, 
+def update_with_foreign_key(conn, table_names, key_name, entry_id, 
                     search_key, search_string):
     """Dumps a sequence of tuples into table_name, where foreign keys 
     require a table JOIN.
@@ -295,11 +295,12 @@ def set_foreign_key(conn, table_names, key_name, entry_id,
         names or tuples !!!
     """
 
-    command = 'INSERT OR REPLACE INTO '+table_names[0]+' '+key_name+\
-                ' SELECT '+entry_id+' FROM '+table_names[1]+\
-                ' WHERE '+search_key+'="'+search_string+'"'
+    command = 'UPDATE '+table_names[0]+' SET '+key_name+\
+                '=(SELECT '+entry_id+' FROM '+table_names[1]+\
+                ' WHERE '+search_key+'="'+search_string+'")'
     
-    conn.executemany(command)
+    print(command)
+    conn.execute(command)
     
     conn.commit()
     

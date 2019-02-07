@@ -303,18 +303,15 @@ def add_reference_image_to_db(setup, reduction_metadata, log=None):
 
     return ref_db_id
     
-def ingest_stars_to_db(setup, ref_star_catalog, refimg_id, refimg_name, log=None):
+def ingest_stars_to_db(setup, ref_star_catalog, refimg_name, log=None):
     """Function to ingest the detected stars to the photometry database"""
     
     conn = phot_db.get_connection(dsn=setup.phot_db_path)
     
     data = [ table.Column(name='ra', data=ref_star_catalog[:,3]),
-             table.Column(name='dec', data=ref_star_catalog[:,4]),
-             table.Column(name='reference_images', 
-                                  data=[refimg_id]*len(ref_star_catalog)) ]
+             table.Column(name='dec', data=ref_star_catalog[:,4]) ]
     
     stars = table.Table(data=data)
-    print(stars)
     
     if log!=None:
         log.info('Build stars table for ingest, length='+str(len(stars)))
@@ -322,10 +319,10 @@ def ingest_stars_to_db(setup, ref_star_catalog, refimg_id, refimg_name, log=None
         
     phot_db.ingest_astropy_table(conn, 'Stars', stars)
     
-    phot_db.set_foreign_key(conn, ['stars', 'reference_images'], 
+    phot_db.update_with_foreign_key(conn, ['stars', 'reference_images'], 
                             'reference_images', 'refimg_id', 
                             'refimg_name', refimg_name)
-                    
+    
     star_ids = []
     for j in range(0,len(ref_star_catalog),1):
         

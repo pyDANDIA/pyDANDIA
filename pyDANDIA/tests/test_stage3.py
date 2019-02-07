@@ -120,14 +120,6 @@ def test_ingest_stars_to_db():
     
     ref_image_name = meta.data_architecture[1]['REF_IMAGE'].data[0]
     
-    ref_db_id = stage3.add_reference_image_to_db(setup, meta, 
-                                                 log=log)
-
-    query = 'SELECT refimg_id, refimg_name FROM reference_images'
-    t = phot_db.query_to_astropy_table(conn, query, args=())
-    print(t)
-    print(ref_db_id)
-    
     ref_star_catalog = np.zeros([len(meta.star_catalog[1]),5])
     ref_star_catalog[:,0] = meta.star_catalog[1]['star_index'].data
     ref_star_catalog[:,1] = meta.star_catalog[1]['x_pixel'].data
@@ -135,12 +127,13 @@ def test_ingest_stars_to_db():
     ref_star_catalog[:,3] = meta.star_catalog[1]['RA_J2000'].data
     ref_star_catalog[:,4] = meta.star_catalog[1]['DEC_J2000'].data
     
-    star_ids = stage3.ingest_stars_to_db(setup, ref_star_catalog, ref_db_id,
-                                         log=log)
+    star_ids = stage3.ingest_stars_to_db(setup, ref_star_catalog, 
+                                         ref_image_name, log=log)
+    print(star_ids)
     
-    query = 'SELECT star_id, ra, dec FROM stars'
+    query = 'SELECT star_id, ra, dec, reference_images FROM stars'
     t = phot_db.query_to_astropy_table(conn, query, args=())
-
+    print(t)
     assert (len(star_ids) == len(ref_star_catalog))
     assert (len(t) == len(ref_star_catalog))
     
