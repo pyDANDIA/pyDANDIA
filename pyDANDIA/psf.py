@@ -1212,7 +1212,7 @@ def build_psf(setup, reduction_metadata, log, image, ref_star_catalog,
     header['PSFTYPE'] = psf_model.psf_type()
     
     
-    output_fits(psf_image, 
+    output_fits_model(psf_image, header,
                 os.path.join(setup.red_dir,'ref','psf_model.fits'))
                                      
     log.info('Completed build of PSF model with status '+status)
@@ -1222,10 +1222,17 @@ def build_psf(setup, reduction_metadata, log, image, ref_star_catalog,
 def output_fits(image_data, file_path):
     """Function to output a FITS image of the given data"""
     
-    hdu = fits.PrimaryHDU( image_data )
+    hdu = fits.PrimaryHDU( image_data)
     hdulist = fits.HDUList([hdu])
     hdulist.writeto(file_path,overwrite=True)
-       
+
+def output_fits_model(image_data, header, file_path):
+    """Function to output a FITS image of the given data"""
+    
+    hdu = fits.PrimaryHDU( image_data,header )
+    hdulist = fits.HDUList([hdu])
+    hdulist.writeto(file_path,overwrite=True)
+              
     
 def cut_image_stamps(setup, image, stamp_centres, stamp_dims, log=None, 
                      over_edge=False):
