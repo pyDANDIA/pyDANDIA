@@ -1212,7 +1212,7 @@ def build_psf(setup, reduction_metadata, log, image, ref_star_catalog,
     header['PSFTYPE'] = psf_model.psf_type()
     
     
-    output_fits_model(psf_image, 
+    output_fits_model(psf_image,header, 
                 os.path.join(setup.red_dir,'ref','psf_model.fits'))
                                      
     log.info('Completed build of PSF model with status '+status)
