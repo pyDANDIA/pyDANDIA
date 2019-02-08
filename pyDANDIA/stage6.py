@@ -83,11 +83,11 @@ def run_stage6(setup):
             ref_star_catalog = starlist[key].data
 
     # create the starlist table in db, if needed
-    ingest_the_stars_in_db(setup, starlist)
+    #ingest_the_stars_in_db(setup, starlist)
 
     # find star indexes in the db
-    star_indexes = find_stars_indexes_in_db(setup)
-
+    #star_indexes = find_stars_indexes_in_db(setup) 
+    
     psf_model = fits.open(reduction_metadata.data_architecture[1]['REF_PATH'].data[0] + '/psf_model.fits')
 
     psf_type = psf_model[0].header['PSFTYPE']
@@ -127,7 +127,7 @@ def run_stage6(setup):
             # create the reference table in db
             ingest_reference_in_db(setup, reference_header, reference_image_directory, reference_image_name)
             conn = db_phot.get_connection(dsn=setup.red_dir + 'phot.db')
-            ref_image_id = db_phot.query_to_astropy_table(conn, "SELECT refimg_id FROM reference_images")[0][0]
+            #ref_image_id = db_phot.query_to_astropy_table(conn, "SELECT refimg_id FROM reference_images")[0][0]
             conn.commit()
 
             logs.ifverbose(log, setup,
@@ -169,14 +169,15 @@ def run_stage6(setup):
             index_image = np.where(new_image == reduction_metadata.headers_summary[1]['IMAGES'].data)[0][0]
             image_header = reduction_metadata.headers_summary[1][index_image]
 
-            ingest_exposure_in_db(setup, image_header, ref_image_id)
-            conn = db_phot.get_connection(dsn=setup.red_dir + 'phot.db')
+            #ingest_exposure_in_db(setup, image_header, ref_image_id)
+            #conn = db_phot.get_connection(dsn=setup.red_dir + 'phot.db')
 
-            image_id = db_phot.query_to_astropy_table(conn,
-                                                    "SELECT exposure_id FROM exposures WHERE exposure_name='%s'" % new_image)[
-                0][0]
+           # image_id = db_phot.query_to_astropy_table(conn,
+          #                                          "SELECT exposure_id FROM exposures WHERE exposure_name='%s'" % new_image)[
+            #    0][0]
 
-            conn.commit()
+            #conn.commit()
+            image_id = idx
             exposures_id.append(image_id)
 
             log.info('Starting difference photometry of ' + new_image)
