@@ -402,10 +402,10 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
             intensities, cov = np.polyfit(psf_fit.ravel(), data.ravel(), 1, w=1/weight.ravel(), cov=True)
             (flux,flux_err) = (intensities[0], cov[0][0] ** 0.5)
             (back, back_err) = (intensities[1], cov[1][1] ** 0.5)
-            true = data-back
-            weighted_psf = psf_fit/poids
+            #true = data-back
+            #weighted_psf = psf_fit/poids
 
-            flux = np.sum(true * weighted_psf/poids ) / np.sum(weighted_psf**2 )
+            #flux = np.sum(true * weighted_psf/poids ) / np.sum(weighted_psf**2 )
 
             #flux = np.median(data/psf_fit)
             #back = np.median(data-flux*psf_fit)
@@ -413,8 +413,9 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
             residus = data - psf_fit * flux-back
 
             #SNR = (flux ** 2 * np.sum(psf_fit ** 2 / (np.abs(back) + np.abs(flux * psf_fit)))) ** 0.5
-            SNR = flux ** 2 * np.sum(weighted_psf**2)**0.5
-
+            #SNR = flux ** 2 * np.sum(weighted_psf**2)**0.
+            SNR = np.abs(flux)/(np.abs(flux)+np.abs(back))**0.5
+	
             flux_err = ((flux/SNR)**2+np.sum(np.abs(residus)))**0.5
             #flux_err = (flux_err ** 2 + np.sum(np.abs(residus))) ** 0.5
 

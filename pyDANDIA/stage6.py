@@ -26,7 +26,7 @@ from pyDANDIA import config_utils
 from pyDANDIA import metadata
 from pyDANDIA import logs
 from pyDANDIA import convolution
-#from pyDANDIA import astropy_interface as db_ai
+#from pyDANDIA import astropy_interface as db_phot
 from pyDANDIA import phot_db as db_phot
 from pyDANDIA import sky_background
 from pyDANDIA import psf
@@ -127,7 +127,7 @@ def run_stage6(setup):
             # create the reference table in db
             ingest_reference_in_db(setup, reference_header, reference_image_directory, reference_image_name)
             conn = db_phot.get_connection(dsn=setup.red_dir + 'phot.db')
-            ref_image_id = db_ai.query_to_astropy_table(conn, "SELECT refimg_id FROM reference_images")[0][0]
+            ref_image_id = db_phot.query_to_astropy_table(conn, "SELECT refimg_id FROM reference_images")[0][0]
             conn.commit()
 
             logs.ifverbose(log, setup,
@@ -172,7 +172,7 @@ def run_stage6(setup):
             ingest_exposure_in_db(setup, image_header, ref_image_id)
             conn = db_phot.get_connection(dsn=setup.red_dir + 'phot.db')
 
-            image_id = db_ai.query_to_astropy_table(conn,
+            image_id = db_phot.query_to_astropy_table(conn,
                                                     "SELECT exposure_id FROM exposures WHERE exposure_name='%s'" % new_image)[
                 0][0]
 
@@ -496,7 +496,7 @@ def ingest_the_stars_in_db(setup, star_catalog):
     conn = db_phot.get_connection(dsn=setup.red_dir + 'phot.db')
 
     # checkif the catalog exist
-    indexes = db_ai.query_to_astropy_table(conn, "SELECT star_id FROM stars")['star_id']
+    indexes = db_phot.query_to_astropy_table(conn, "SELECT star_id FROM stars")['star_id']
 
     if len(indexes) == 0:
 
@@ -505,7 +505,7 @@ def ingest_the_stars_in_db(setup, star_catalog):
         new_table = star_catalog[['RA_J2000', 'DEC_J2000']]
         new_table['RA_J2000'].name = 'ra'
         new_table['DEC_J2000'].name = 'dec'
-        db_ai.load_astropy_table(conn, 'stars', new_table)
+        db_phot.ingest_astropy_table(conn, 'stars', new_table)
         conn.commit()
 
     else:
@@ -515,7 +515,7 @@ def ingest_the_stars_in_db(setup, star_catalog):
 
 def find_stars_indexes_in_db(setup):
     conn = db_phot.get_connection(dsn=setup.red_dir + 'phot.db')
-    indexes = db_ai.query_to_astropy_table(conn, "SELECT star_id FROM stars")['star_id']
+    indexes = db_phot.query_to_astropy_table(conn, "SELECT star_id FROM stars")['star_id']
 
     return indexes
 
@@ -538,7 +538,7 @@ def ingest_reference_in_db(setup, reference_header, reference_image_directory, r
                       names=('refimg_name', 'filter_id', 'telescope_id',
                              'instrument_id'))
 
-    db_ai.load_astropy_table(conn, 'reference_images', new_table)
+    db_phot.ingest_astropy_table(conn, 'reference_images', new_table)
     conn.commit()
     # what need to be filled...
 
@@ -588,7 +588,7 @@ def ingest_exposure_in_db(setup, image_header, ref_image_id):
     exposure_time = float(image_header['EXPKEY'])
     new_table = Table([[image_name], [exposure_time]], names=('exposure_name', 'exposure_time'))
 
-    db_ai.load_astropy_table(conn, 'exposures', new_table)
+    db_phot.ingest_astropy_table(conn, 'exposures', new_table)
     conn.commit()
     # what need to be filled...
 
@@ -626,5 +626,5 @@ def ingest_photometric_table_in_db(setup, exposures_indexes, star_indexes, photo
 
                 new_table = Table(phot_table, names=names)
 
-                db_ai.load_astropy_table(conn, 'phot', new_table)
+                db_phot.ingest_astropy_table(conn, 'phot', new_table)
         conn.commit()
