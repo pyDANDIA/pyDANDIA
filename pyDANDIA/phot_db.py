@@ -64,14 +64,41 @@ class TableDef(object):
         for statement in self._iter_post_create_statements():
             yield statement%macros
 
+
+class TargetFields(TableDef):
+    """A table with the target field definition.
+    """
+    c_000_field_id = 'INTEGER PRIMARY KEY'
+    c_020_ra_center = 'REAL'
+    c_030_dec_center = 'REAL'
+
+class Exposures(TableDef):
+    """The table storing individual sky exposures.
+    """
+    c_000_exposure_id = 'INTEGER PRIMARY KEY'
+    c_005_field_id = 'INTEGER REFERENCES target_fields(field_id)'
+    c_010_jd = 'DOUBLE PRECISION'
+    c_050_exposure_fwhm = 'REAL'
+    c_060_exposure_fwhm_err = 'REAL'
+    c_050_exposure_ellipticity = 'REAL'
+    c_060_exposure_ellipticity_err = 'REAL'
+    c_110_airmass = 'REAL'
+    c_120_exposure_time = 'REAL'
+    c_130_moon_phase = 'REAL'
+    c_140_moon_separation = 'REAL'
+    c_150_delta_x = 'REAL'
+    c_160_delta_y = 'REAL'    
+    c_170_exposure_name = 'TEXT'
+    c_180_filter = 'TEXT'
+
 class ReferenceImages(TableDef):
     """A table with the (stacked) reference image.
     """
     c_000_refimg_id = 'INTEGER PRIMARY KEY'
+    c_005_field_id = 'INTEGER REFERENCES target_fields(field_id)'
     c_020_telescope_id = 'TEXT'
     c_030_instrument_id = 'TEXT'
-    c_040_filter_id = 'TEXT'
-    c_045_field_id = 'TEXT'
+    c_040_filter = 'TEXT'
     c_050_refimg_fwhm = 'REAL'
     c_060_refimg_fwhm_err = 'REAL'
     c_070_refimg_ellipticity = 'REAL'
@@ -107,32 +134,15 @@ class ReferenceImages(TableDef):
     c_160_stage3_version = 'TEXT'
     c_170_current_best = 'INTEGER'
 
-class Exposures(TableDef):
-    """The table storing individual sky exposures.
-    """
-    c_000_exposure_id = 'INTEGER PRIMARY KEY'
-    c_005_reference_image = 'INTEGER REFERENCES reference_images(refimg_id)'
-    c_010_jd = 'DOUBLE PRECISION'
-    c_050_exposure_fwhm = 'REAL'
-    c_060_exposure_fwhm_err = 'REAL'
-    c_050_exposure_ellipticity = 'REAL'
-    c_060_exposure_ellipticity_err = 'REAL'
-    c_110_airmass = 'REAL'
-    c_120_exposure_time = 'REAL'
-    c_130_moon_phase = 'REAL'
-    c_140_moon_separation = 'REAL'
-    c_150_delta_x = 'REAL'
-    c_160_delta_y = 'REAL'    
-    c_001_exposure_name = 'TEXT'
-
 class Stars(TableDef):
-    """The object list.
+    """The object list.f
     """
     c_000_star_id = 'INTEGER PRIMARY KEY'
+    c_005_reference_images = 'INTEGER REFERENCES reference_images(refimg_id)'
     c_010_ra = 'DOUBLE PRECISION'
     c_020_dec = 'DOUBLE PRECISION'    
-    c_030_reference_images = 'INTEGER REFERENCES reference_images(refimg_id)'
     c_100_type = 'TEXT'
+    
     pc_000_raindex = (
         'CREATE INDEX IF NOT EXISTS stars_ra ON stars (ra)')
     pc_010_decindex = (
@@ -141,9 +151,7 @@ class Stars(TableDef):
 class ReferencePhotometry(TableDef):
     """The table storing the primary information on the measurements taken.
     """
-    
     c_000_ref_phot_id = 'INTEGER PRIMARY KEY'
-    c_018_reference_images = 'INTEGER REFERENCES reference_images(refimg_id)'
     c_021_star_id = 'INTEGER REFERENCES stars(star_id)'
     c_022_reference_mag = 'REAL'
     c_023_reference_mag_err = 'REAL'
@@ -158,9 +166,7 @@ class PhotometryPoints(TableDef):
     """The table storing the primary information on the measurements taken.
     """
     c_000_phot_id = 'INTEGER PRIMARY KEY'
-    c_005_reference_images = 'INTEGER REFERENCES reference_images(refimg_id)'
     c_010_exposure_id = 'INTEGER REFERENCES exposures(exposure_id)'
-    c_020_star_id = 'INTEGER REFERENCES stars(star_id)'
     c_025_ref_phot_id = 'INTEGER REFERENCES ref_phot(ref_phot_id)'
     c_030_diff_flux = 'DOUBLE PRECISION'
     c_040_diff_flux_err = 'DOUBLE PRECISION'
@@ -172,8 +178,8 @@ class PhotometryPoints(TableDef):
     c_100_local_background_err = 'DOUBLE PRECISION'
     c_130_residual_x = 'REAL'
     c_140_residual_y = 'REAL'
-    c_150_stage6_version = 'TEXT'
-    c_160_current_best = 'INTEGER'
+    # c_150_stage6_version = 'TEXT'
+    # c_160_current_best = 'INTEGER'
     
     pc_000_datesindex = (
         'CREATE INDEX IF NOT EXISTS phot_objs ON phot (star_id)')
@@ -185,7 +191,7 @@ REFERENCE_IMAGES_TD = ReferenceImages("reference_images")
 STARS_TD = Stars("stars")
 PHOTOMETRY_TD = PhotometryPoints("phot")
 REFERENCEPHOT_TD = ReferencePhotometry("ref_phot")
-
+FIELD_TD = TargetFields("target_fields")
 
 def ensure_table(conn, table_def):
     """makes sure the TableDef instance table_def exists on the database.
@@ -208,7 +214,8 @@ def get_connection(dsn=database_file_path):
         detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES)
     conn.execute("PRAGMA foreign_keys=ON")
     ensure_tables(conn, 
-        EXPOSURES_TD, REFERENCE_IMAGES_TD, STARS_TD, PHOTOMETRY_TD, REFERENCEPHOT_TD)
+        EXPOSURES_TD, REFERENCE_IMAGES_TD, STARS_TD,
+        PHOTOMETRY_TD, REFERENCEPHOT_TD, FIELD_TD)
     return conn
 
 def update_table_entry(conn,table_name,key_name,search_key,entry_id,value):
