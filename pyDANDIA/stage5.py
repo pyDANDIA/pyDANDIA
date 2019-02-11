@@ -19,6 +19,9 @@ from pyDANDIA.subtract_subimages import subtract_images, subtract_subimage
 from multiprocessing import Pool
 import multiprocessing as mp
 
+from astropy.stats import sigma_clipped_stats
+from photutils import datasets
+
 from pyDANDIA import config_utils
 from pyDANDIA import metadata
 from pyDANDIA import logs
@@ -42,6 +45,7 @@ def run_stage5(setup):
     try:
         from umatrix_routine import umatrix_construction, umatrix_bvector_construction, bvector_construction
         from umatrix_routine import umatrix_construction_nobkg, bvector_construction_nobkg
+        from umatrix_routine import umatrix_construction_clean, bvector_construction_clean
     except ImportError:
         log.info('Uncompiled cython code, please run setup.py: e.g.\n python setup.py build_ext --inplace')
         status = 'KO'
@@ -206,7 +210,17 @@ def subtract_small_format_image(new_images, reference_image_name, reference_imag
                 logs.ifverbose(log, setup, 'b_vector calculated for:' + new_image+' and scale factor '+str(pscale)) 
             #CROP EDGE!
             difference_image = subtract_images(data_image_unmasked, reference_image_unmasked, kernel_matrix, kernel_size, bkg_kernel)
-              
+            #EXPERIMENTAL -> DISCARD outliers
+            mean_diff, median_diff, std_diff = sigma_clipped_stats(difference_image, sigma=4.0) 
+            out3sig = np.where(np.abs(difference_image) > 4.*+std_diff)
+            outliers_list = []
+            for rm_idx in range(len(out3sig[0])):
+                remove_from_umatrix.append((out3sig[0][rm_idx],out3sig[1][rm_idx]))
+            #update umatrix
+            b_vector_2 = bvector_constant_clean(reference_image, data_image, kernel_size, b_vector, outliers_list)
+            umatrix_2 = umatrix_constant_clean(reference_image, kernel_size, umatrix, outliers_list)
+            kernel_matrix_2, bkg_kernel_2, kernel_uncertainty_2 = kernel_solution(umatrix_2, b_vector_2, kernel_size, circular = False)
+            difference_image = subtract_images(data_image_unmasked, reference_image_unmasked, kernel_matrix_2, kernel_size, bkg_kernel_2)
             new_header = fits.Header()
             new_header['SCALEFAC'] = pscale
             difference_image_hdu = fits.PrimaryHDU(difference_image,header=new_header)
@@ -363,6 +377,50 @@ def umatrix_constant(reference_image, ker_size, model_image=None, sigma_max = No
         u_matrix = umatrix_construction(reference_image, weights, pandq, n_kernel, kernel_size)
     return u_matrix
 
+def umatrix_constant_clean(reference_image, ker_size, first_umatrix, outliers, model_image=None, sigma_max = None, bright_mask = None, nobkg = None):
+    '''
+    The kernel solution is supposed to implement the approach outlined in
+    the Bramich 2008 paper. It generates the u matrix which is required
+    for finding the best kernel and assumes it can be calculated
+    sufficiently if the noise model either is neglected or similar on all
+    model images. In order to run, it needs the largest possible kernel size
+    and carefully masked regions which are expected to be affected on all
+    data images.
+
+    :param object image: reference image
+    :param integer kernel size: edge length of the kernel in px
+
+    :return: u matrix
+    '''
+    try:
+        from umatrix_routine import umatrix_construction, umatrix_bvector_construction, bvector_construction
+        from umatrix_routine import umatrix_construction_nobkg, bvector_construction_nobkg
+        from umatrix_routine import umatrix_construction_clean, bvector_construction_clean
+    except ImportError:
+        print('cannot import cython module umatrix_routine')
+        return []
+
+    if ker_size:
+        if ker_size % 2 == 0:
+            kernel_size = ker_size + 1
+        else:
+            kernel_size = ker_size
+    if model_image == None or sigma_max == None:
+        weights = noise_model_constant(reference_image)
+    else:
+        weights = noise_model_blurred_ref(reference_image, bright_mask, sigma_max)
+    # Prepare/initialize indices, vectors and matrices
+    pandq = []
+    n_kernel = kernel_size * kernel_size
+    ncount = 0
+    half_kernel_size = int(int(kernel_size) / 2)
+    for lidx in range(kernel_size):
+        for midx in range(kernel_size):
+            pandq.append((lidx - half_kernel_size, midx - half_kernel_size))
+
+    u_matrix_2 = umatrix_construction_clean(reference_image, weights, first_umatrix, pandq, n_kernel, kernel_size, outliers, len(outliers))
+    return u_matrix_2
+
 def umatrix_constant_threading(reference_image, ker_size, model_image=None, sigma_max = None, bright_mask = None, nobkg = None):
     '''
     The kernel solution is supposed to implement the approach outlined in
@@ -487,6 +545,51 @@ def bvector_constant(reference_image, data_image, ker_size, model_image=None, si
         b_vector = bvector_construction(reference_image, data_image, weights, pandq, n_kernel, kernel_size)
    
     return b_vector
+
+def bvector_constant_clean(reference_image, data_image, ker_size, first_b_vector, outliers, model_image=None, sigma_max = None, bright_mask = None, nobkg = None):
+    '''
+    The kernel solution is supposed to implement the approach outlined in
+    the Bramich 2008 paper. It generates the b_vector which is required
+    for finding the best kernel and assumes it can be calculated
+    sufficiently if the noise model either is neglected or similar on all
+    model images. In order to run, it needs the largest possible kernel size
+    and carefully masked regions on both - data and reference image. 
+    After an initial run, the umatrix is corrected for potential outliers
+    and b vector are both updated.
+
+    :param object image: reference image
+    :param integer kernel size: edge length of the kernel in px
+
+    :return: b_vector
+    '''
+    try:
+        from umatrix_routine import umatrix_construction, umatrix_bvector_construction, bvector_construction
+        from umatrix_routine import umatrix_construction_nobkg, bvector_construction_nobkg
+        from umatrix_routine import umatrix_construction_clean, bvector_construction_clean
+    except ImportError:
+        print('cannot import cython module umatrix_routine')
+        return []
+
+    if ker_size:
+        if ker_size % 2 == 0:
+            kernel_size = ker_size + 1
+        else:
+            kernel_size = ker_size
+    if model_image == None or sigma_max == None:
+        weights = noise_model_constant(reference_image)
+    else:
+        weights = noise_model_blurred_ref(reference_image, bright_mask, sigma_max)
+    # Prepare/initialize indices, vectors and matrices
+    pandq = []
+    n_kernel = kernel_size * kernel_size
+    ncount = 0
+    half_kernel_size = int(int(kernel_size) / 2)
+    for lidx in range(kernel_size):
+        for midx in range(kernel_size):
+            pandq.append((lidx - half_kernel_size, midx - half_kernel_size))
+    b_vector_2 = bvector_construction_clean(reference_image, data_image, weights, first_b_vector, pandq, n_kernel, kernel_size, outliers, len(outliers))
+   
+    return b_vector_2
 
 def bvector_pool(input_arg,reference_image, data_image, ker_size, model_image=None, sigma_max = None, bright_mask = None):
     '''
