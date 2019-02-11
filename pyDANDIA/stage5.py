@@ -215,7 +215,7 @@ def subtract_small_format_image(new_images, reference_image_name, reference_imag
             out3sig = np.where(np.abs(difference_image) > 4.*+std_diff)
             outliers_list = []
             for rm_idx in range(len(out3sig[0])):
-                remove_from_umatrix.append((out3sig[0][rm_idx],out3sig[1][rm_idx]))
+                outliers_list.append((out3sig[0][rm_idx],out3sig[1][rm_idx]))
             #update umatrix
             b_vector_2 = bvector_constant_clean(reference_image, data_image, kernel_size, b_vector, outliers_list)
             umatrix_2 = umatrix_constant_clean(reference_image, kernel_size, umatrix, outliers_list)
