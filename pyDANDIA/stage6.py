@@ -165,7 +165,7 @@ def run_stage6(setup):
         compt_db = 0
 
         for idx, new_image in enumerate(new_images[:]):
-
+            print(new_image)
             index_image = np.where(new_image == reduction_metadata.headers_summary[1]['IMAGES'].data)[0][0]
             image_header = reduction_metadata.headers_summary[1][index_image]
 
@@ -181,7 +181,7 @@ def run_stage6(setup):
             exposures_id.append(image_id)
 
             log.info('Starting difference photometry of ' + new_image)
-            # target_image,date = open_an_image(setup, images_directory, new_image, image_index=0, log=None)
+            #target_image,date = open_an_image(setup, images_directory, new_image, image_index=0, log=None)
             kernel_image, kernel_error, kernel_bkg = find_the_associated_kernel(setup, kernels_directory, new_image)
 
             # difference_image = subtract_images(target_image, reference_image, kernel_image, kernel_size, kernel_bkg)
@@ -293,9 +293,10 @@ def open_an_image(setup, image_directory, image_name,
         image_data = image_data[image_index]
         try:
             date = image_data.header['MJD-OBS']
+	    #exptime = image_data.header['EXPTIME']
         except:
             date = 0
-
+	    #exptime = 1
         logs.ifverbose(log, setup, image_name + ' open : OK')
 
         return image_data.data, date

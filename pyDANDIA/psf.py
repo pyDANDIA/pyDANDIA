@@ -555,23 +555,23 @@ class GradientBackground(BackgroundModel):
             setattr(self.background_parameters, key, None)
 
     def update_background_parameters(self, parameters):
-
+        
         self.background_parameters = collections.namedtuple(
             'parameters', self.model)
         
         for index, key in enumerate(self.model):
-            setattr(self.background_parameters, key, parameters[key])
+            setattr(self.background_parameters, key, parameters[index])
 
-    def background_model(self, data_shape, parameters=None):
-        
-        if parameters != None:
+    def background_model(self,  Y_data, X_data, parameters=None):
+
+        if parameters is not None :
             self.update_background_parameters(parameters)
         
         
-        Y_data, X_data = np.indices(data_shape)
+        #Y_data, X_data = np.indices(data_shape)
     
-        model = np.ones(data_shape) * self.background_parameters.a0
-        
+        model = np.ones(Y_data.shape) * self.background_parameters.a0
+        #import pdb; pdb.set_trace()
         model = model + ( self.background_parameters.a1 * X_data ) + \
                     + ( self.background_parameters.a2 * Y_data )
         
@@ -751,10 +751,10 @@ def fit_background(data, Y_data, X_data, mask, background_model='Constant'):
 
 def error_background_fit_function(params, data, background, Y_data, X_data, mask):
     back_params = params
-
+    #import pdb; pdb.set_trace()
     back_model = background.background_model(Y_data, X_data, back_params)
 
-    residuals = (data - back_model)[mask]
+    residuals = (data - back_model).ravel()[mask]
 
     return residuals
 
