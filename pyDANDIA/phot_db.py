@@ -64,127 +64,158 @@ class TableDef(object):
         for statement in self._iter_post_create_statements():
             yield statement%macros
 
-class ReferenceImages(TableDef):
-    """A table with the (stacked) reference image.
+class Filter(TableDef):
+    """Photometry database table describing the filter passbands used for
+    observations
     """
+
+    c_000_filter_id = 'INTEGER PRIMARY KEY'
+    c_010_filter_name = 'TEXT'
+    
+class Facility(TableDef):
+    """Photometry database table describing the observing facilities used
+    """
+    
+    c_000_facility_id = 'INTEGER PRIMARY KEY'
+    c_010_facility_code = 'TEXT'
+    c_020_site = 'TEXT'
+    c_030_enclosure = 'TEXT'
+    c_040_telescope = 'TEXT'
+    c_050_instrument = 'TEXT'
+
+class Software(TableDef):
+    """Photometry database table describing the software used to produce
+    the data products.
+    """
+    
+    c_000_code_id = 'INTEGER PRIMARY KEY'
+    c_010_name = 'TEXT'
+    c_020_stage = 'TEXT'
+    c_030_version = 'TEXT'
+    
+class Image(TableDef):
+    """Photometry database table describing the properties of a single image.
+    """
+    c_000_img_id = 'INTEGER PRIMARY KEY'
+    c_010_facility = 'INTEGER REFERENCES facility(facility_id)'
+    c_020_filter = 'INTEGER REFERENCES filter(filter_id)'
+    c_030_field_id = 'TEXT'
+    c_040_filename = 'TEXT'
+    c_050_date_obs_utc = 'TEXT'
+    c_060_date_obs_jd = 'DOUBLE PRECISION'
+    c_070_exposure_time = 'REAL'
+    c_080_fwhm = 'REAL'
+    c_085_fwhm_err = 'REAL'
+    c_090_ellipticity = 'REAL'
+    c_095_ellipticity_err = 'REAL'
+    c_100_slope = 'REAL' #The slope of the photometric calibration: VPHAS mags vs instr mags
+    c_105_slope_err = 'REAL'
+    c_110_intercept = 'REAL' #The intercept of the photometric calibration: VPHAS mags vs instr mags
+    c_115_intercept_err = 'REAL'
+    c_120_wcsfrcat = 'TEXT' #WCS fit information stored in the next lines (c_130 to c_152)
+    c_121_wcsimcat = 'TEXT'
+    c_122_wcsmatch = 'INTEGER'
+    c_123_wcsnref = 'INTEGER'
+    c_124_wcstol = 'REAL'
+    c_125_wcsra = 'TEXT'
+    c_126_wcsdec = 'TEXT'
+    c_127_wequinox = 'INTEGER'
+    c_128_wepoch = 'INTEGER'
+    c_129_radecsys = 'FK5'
+    c_130_cdelt1 = 'DOUBLE PRECISION'
+    c_131_cdelt2 = 'DOUBLE PRECISION'
+    c_132_crota1 = 'DOUBLE PRECISION'
+    c_133_crota2 = 'DOUBLE PRECISION'
+    c_134_secpix1 = 'REAL'
+    c_135_secpix2 = 'REAL'
+    c_136_wcssep = 'REAL'
+    c_137_equinox = 'INTEGER'
+    c_138_cd1_1 = 'DOUBLE PRECISION'
+    c_139_cd1_2 = 'DOUBLE PRECISION'
+    c_140_cd2_1 = 'DOUBLE PRECISION'
+    c_141_cd2_2 = 'DOUBLE PRECISION'
+    c_142_epoch = 'INTEGER'
+    c_150_airmass = 'REAL'
+    c_160_moon_phase = 'REAL'
+    c_170_moon_separation = 'REAL'
+    c_180_delta_x = 'REAL'
+    c_190_delta_y = 'REAL'
+
+class ReferenceComponent(TableDef):
+    """Photometry database table describing the individual combined to form
+    the reference images used in difference image photometry, which may be 
+    single images or the product of stacking several individual images together.
+    """
+    
+    c_000_component_id = 'INTEGER PRIMARY KEY'
+    c_010_image = 'INTEGER REFERENCES image(img_id)'
+    c_020_reference_image = 'INTEGER REFERENCES reference_image(refimg_id)'
+    
+class ReferenceImage(TableDef):
+    """Photometry database table describing the images used as references 
+    in difference image photometry, which may be single images or the product
+    of stacking several individual images together.
+    """
+    
     c_000_refimg_id = 'INTEGER PRIMARY KEY'
-    c_020_telescope_id = 'TEXT'
-    c_030_instrument_id = 'TEXT'
-    c_040_filter_id = 'TEXT'
-    c_045_field_id = 'TEXT'
-    c_050_refimg_fwhm = 'REAL'
-    c_060_refimg_fwhm_err = 'REAL'
-    c_070_refimg_ellipticity = 'REAL'
-    c_080_refimg_ellipticity_err = 'REAL'
-    c_090_slope = 'REAL' #The slope of the photometric calibration: VPHAS mags vs instr mags
-    c_095_slope_err = 'REAL'
-    c_100_intercept = 'REAL' #The intercept of the photometric calibration: VPHAS mags vs instr mags
-    c_105_intercept_err = 'REAL'
-    c_120_refimg_name = 'TEXT'
-    c_130_wcsfrcat = 'TEXT' #WCS fit information stored in the next lines (c_130 to c_152)
-    c_131_wcsimcat = 'TEXT'
-    c_132_wcsmatch = 'INTEGER'
-    c_133_wcsnref = 'INTEGER'
-    c_134_wcstol = 'REAL'
-    c_135_wcsra = 'TEXT'
-    c_136_wcsdec = 'TEXT'
-    c_137_wequinox = 'INTEGER'
-    c_138_wepoch = 'INTEGER'
-    c_139_radecsys = 'FK5'
-    c_140_cdelt1 = 'DOUBLE PRECISION'
-    c_141_cdelt2 = 'DOUBLE PRECISION'
-    c_142_crota1 = 'DOUBLE PRECISION'
-    c_143_crota2 = 'DOUBLE PRECISION'
-    c_144_secpix1 = 'REAL'
-    c_145_secpix2 = 'REAL'
-    c_146_wcssep = 'REAL'
-    c_147_equinox = 'INTEGER'
-    c_148_cd1_1 = 'DOUBLE PRECISION'
-    c_149_cd1_2 = 'DOUBLE PRECISION'
-    c_150_cd2_1 = 'DOUBLE PRECISION'
-    c_151_cd2_2 = 'DOUBLE PRECISION'
-    c_152_epoch = 'INTEGER'
-    c_160_stage3_version = 'TEXT'
-    c_170_current_best = 'INTEGER'
-
-class Exposures(TableDef):
-    """The table storing individual sky exposures.
+    c_010_facility = 'INTEGER REFERENCES facility(facility_id)'
+    c_020_filter = 'INTEGER REFERENCES filter(filter_id)'
+    c_030_software = 'INTEGER REFERENCES software(code_id)'
+    c_030_filename = 'TEXT'
+    
+class Star(TableDef):
+    """Photometry database table describing the stars detected in the imaging
+    data, referring to static coordinates on sky.
     """
-    c_000_exposure_id = 'INTEGER PRIMARY KEY'
-    c_005_reference_image = 'INTEGER REFERENCES reference_images(refimg_id)'
-    c_010_jd = 'DOUBLE PRECISION'
-    c_050_exposure_fwhm = 'REAL'
-    c_060_exposure_fwhm_err = 'REAL'
-    c_050_exposure_ellipticity = 'REAL'
-    c_060_exposure_ellipticity_err = 'REAL'
-    c_110_airmass = 'REAL'
-    c_120_exposure_time = 'REAL'
-    c_130_moon_phase = 'REAL'
-    c_140_moon_separation = 'REAL'
-    c_150_delta_x = 'REAL'
-    c_160_delta_y = 'REAL'    
-    c_001_exposure_name = 'TEXT'
-
-class Stars(TableDef):
-    """The object list.
-    """
+    
     c_000_star_id = 'INTEGER PRIMARY KEY'
     c_010_ra = 'DOUBLE PRECISION'
     c_020_dec = 'DOUBLE PRECISION'    
-    c_030_reference_images = 'INTEGER REFERENCES reference_images(refimg_id)'
-    c_100_type = 'TEXT'
+    c_030_reference_image = 'INTEGER REFERENCES reference_image(refimg_id)'
+    
     pc_000_raindex = (
         'CREATE INDEX IF NOT EXISTS stars_ra ON stars (ra)')
     pc_010_decindex = (
         'CREATE INDEX IF NOT EXISTS stars_dec ON stars (dec)')
-
-class ReferencePhotometry(TableDef):
-    """The table storing the primary information on the measurements taken.
-    """
-    
-    c_000_ref_phot_id = 'INTEGER PRIMARY KEY'
-    c_018_reference_images = 'INTEGER REFERENCES reference_images(refimg_id)'
-    c_021_star_id = 'INTEGER REFERENCES stars(star_id)'
-    c_022_reference_mag = 'REAL'
-    c_023_reference_mag_err = 'REAL'
-    c_024_reference_flux = 'DOUBLE PRECISION'
-    c_025_reference_flux_err = 'DOUBLE PRECISION'
-    c_041_cal_reference_mag = 'REAL'
-    c_042_cal_reference_mag_err = 'REAL'
-    c_052_reference_x = 'REAL'
-    c_053_reference_y = 'REAL'
     
 class PhotometryPoints(TableDef):
-    """The table storing the primary information on the measurements taken.
+    """Photometry database table describing the primary photometric quantities
+    measured from image data.
     """
+    
     c_000_phot_id = 'INTEGER PRIMARY KEY'
-    c_005_reference_images = 'INTEGER REFERENCES reference_images(refimg_id)'
-    c_010_exposure_id = 'INTEGER REFERENCES exposures(exposure_id)'
-    c_020_star_id = 'INTEGER REFERENCES stars(star_id)'
-    c_025_ref_phot_id = 'INTEGER REFERENCES ref_phot(ref_phot_id)'
-    c_030_diff_flux = 'DOUBLE PRECISION'
-    c_040_diff_flux_err = 'DOUBLE PRECISION'
-    c_050_magnitude = 'REAL'
-    c_060_magnitude_err = 'REAL'
-    c_070_phot_scale_factor = 'REAL'
-    c_080_phot_scale_factor_err = 'REAL'
-    c_090_local_background = 'DOUBLE PRECISION'
-    c_100_local_background_err = 'DOUBLE PRECISION'
-    c_130_residual_x = 'REAL'
-    c_140_residual_y = 'REAL'
-    c_150_stage6_version = 'TEXT'
-    c_160_current_best = 'INTEGER'
+    c_010_star_id = 'INTEGER REFERENCES star(star_id)'
+    c_020_reference_image = 'INTEGER REFERENCES reference_image(refimg_id)'
+    c_030_image = 'INTEGER REFERENCES image(img_id)'
+    c_040_facility = 'INTEGER REFERENCES facility(facility_id)'
+    c_050_filter = 'INTEGER REFERENCES filter(filter_id)'
+    c_060_software = 'INTEGER REFERENCES software(software_id)'
+    c_070_x = 'REAL'
+    c_075_y = 'REAL'
+    c_080_hjd = 'DOUBLE PRECISION'
+    c_090_magnitude = 'REAL'
+    c_095_magnitude_err = 'REAL'
+    c_100_flux = 'DOUBLE PRECISION'
+    c_105_flux_err = 'DOUBLE PRECISION'
+    c_110_phot_scale_factor = 'REAL'
+    c_115_phot_scale_factor_err = 'REAL'
+    c_120_local_background = 'DOUBLE PRECISION'
+    c_125_local_background_err = 'DOUBLE PRECISION'
+    c_130_phot_type = 'TEXT'
     
     pc_000_datesindex = (
         'CREATE INDEX IF NOT EXISTS phot_objs ON phot (star_id)')
 
 
 # This is what the classes are actually called in the database schema
-EXPOSURES_TD = Exposures("exposures")
-REFERENCE_IMAGES_TD = ReferenceImages("reference_images")
-STARS_TD = Stars("stars")
+FILTER_TD = Filter("filter")
+FACILITY_TD = Facility("facility")
+SOFTWARE_TD = Software("software")
+REFERENCE_IMAGE_TD = ReferenceImage("reference_image")
+REFERENCE_COMPONENT_TD = ReferenceComponent("reference_component")
+IMAGE_TD = Image("image")
+STAR_TD = Stars("star")
 PHOTOMETRY_TD = PhotometryPoints("phot")
-REFERENCEPHOT_TD = ReferencePhotometry("ref_phot")
 
 
 def ensure_table(conn, table_def):
@@ -208,7 +239,14 @@ def get_connection(dsn=database_file_path):
         detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES)
     conn.execute("PRAGMA foreign_keys=ON")
     ensure_tables(conn, 
-        EXPOSURES_TD, REFERENCE_IMAGES_TD, STARS_TD, PHOTOMETRY_TD, REFERENCEPHOT_TD)
+                  FILTER_TD,,
+                  FACILITY_TD,
+                  SOFTWARE_TD,
+                  IMAGE_TD,
+                  REFERENCE_COMPONENT_TD,
+                  REFERENCE_IMAGE_TD, 
+                  STAR_TD, 
+                  PHOTOMETRY_TD)
     return conn
 
 def update_table_entry(conn,table_name,key_name,search_key,entry_id,value):
