@@ -25,6 +25,133 @@ def linear_func(p, x):
 
 
 def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
+                       image_path,psf_model,sky_model,
+                       centroiding=True, diagnostics=True, psf_size=None):
+    """Function to perform PSF fitting photometry on all stars for a single
+    image.
+    
+    :param SetUp object setup: Essential reduction parameters
+    :param MetaData reduction_metadata: pipeline metadata for this dataset
+    :param logging log: Open reduction log object
+    :param array ref_star_catalog: catalog of objects detected in the image
+    :param str image_path: Path to image to be photometered
+    :param PSFModel object psf_model: PSF to be fitted to each star
+    :param BackgroundModel object sky_model: Model for the image sky background
+    :param float ref_flux: Reference flux value for optimized PSF measurement
+    :param boolean centroiding: Switch to (dis)-allow re-fitting of each star's
+                                x, y centroid.  Default=allowed (True)
+    
+    Returns:
+    
+    :param array ref_star_catalog: catalog of objects detected in the image
+    """
+
+    log.info('Starting photometry of ' + os.path.basename(image_path))
+
+    data = fits.getdata(image_path)
+    if psf_size == None:
+        psf_size = reduction_metadata.reduction_parameters[1]['PSF_SIZE'][0]
+
+    half_psf = int(float(psf_size)/2.0)
+    
+    exp_time = reduction_metadata.extract_exptime(os.path.basename(image_path))
+    
+    gain = reduction_metadata.get_gain()
+    
+    logs.ifverbose(log,setup,'Applying '+psf_model.psf_type()+\
+                    ' PSF of diameter='+str(psf_size))
+    logs.ifverbose(log,setup,'Scaling fluxes by exposure time '+str(exp_time)+'s')
+    
+    Y_data, X_data = np.indices((int(psf_size),int(psf_size)))
+    
+    Y_image, X_image = np.indices(data.shape)
+    
+    sky_bkgd = sky_model.background_model(data.shape,sky_model.get_parameters())
+    
+    residuals = np.copy(data)
+    
+    for j in range(0,len(ref_star_catalog),1):
+        
+        xstar = ref_star_catalog[j,1]
+        ystar = ref_star_catalog[j,2]
+        
+        X_grid = X_data + (int(xstar) - half_psf)
+        Y_grid = Y_data + (int(ystar) - half_psf)
+        
+        corners = psf.calc_stamp_corners(xstar, ystar, psf_size, psf_size, 
+                                         data.shape[1], data.shape[0],
+                                         over_edge=True)
+                                    
+        logs.ifverbose(log,setup,' -> Star '+str(j)+' at position ('+\
+        str(xstar)+', '+str(ystar)+')')
+        
+        logs.ifverbose(log,setup,' -> Corners of PSF stamp '+repr(corners))
+                        
+        (fitted_model,good_fit) = psf.fit_star_existing_model(setup, data, 
+                                               xstar, ystar, corners,
+                                               psf_size, 
+                                               psf_model, sky_bkgd, 
+                                               centroiding=centroiding,
+                                               diagnostics=False)
+                                        
+        logs.ifverbose(log, setup,' -> Star '+str(j)+
+        ' fitted model parameters = '+repr(fitted_model.get_parameters())+
+        ' good fit? '+repr(good_fit))
+        
+        if good_fit == True:
+            
+            sub_psf_model = psf.get_psf_object('Moffat2D')
+            
+            pars = fitted_model.get_parameters()
+            pars[1] = (psf_size/2.0) + (ystar-int(ystar))
+            pars[2] = (psf_size/2.0) + (xstar-int(xstar))
+            
+            pars[1] = ystar
+            pars[2] = xstar
+            
+            sub_psf_model.update_psf_parameters(pars)
+            
+            psf_image = psf.model_psf_in_image(data,sub_psf_model,
+                                                    [xstar,ystar],corners)
+            
+            residuals -= psf_image
+            
+            logs.ifverbose(log, setup,' -> Star '+str(j)+
+            ' subtracted PSF from the residuals')
+                    
+            (flux, flux_err) = fitted_model.calc_flux(Y_grid, X_grid)
+            
+            (mag, mag_err, flux_scaled, flux_err_scaled) = convert_flux_to_mag(flux, flux_err, exp_time=exp_time)
+            
+            ref_star_catalog[j,5] = flux_scaled
+            ref_star_catalog[j,6] = flux_err_scaled
+            ref_star_catalog[j,7] = mag
+            ref_star_catalog[j,8] = mag_err
+            
+            logs.ifverbose(log,setup,' -> Star '+str(j)+
+            ' flux='+str(flux_scaled)+' +/- '+str(flux_err_scaled)+' ADU, '
+            'mag='+str(mag)+' +/- '+str(mag_err)+' mag')
+    
+        else:
+            
+            logs.ifverbose(log,setup,' -> Star '+str(j)+
+            ' No photometry possible from poor PSF fit')
+    
+    res_image_path = os.path.join(setup.red_dir,'ref',os.path.basename(image_path).replace('.fits','_res.fits'))
+    
+    hdu = fits.PrimaryHDU(residuals)
+    hdulist = fits.HDUList([hdu])
+    hdulist.writeto(res_image_path, overwrite=True)
+    
+    logs.ifverbose(log, setup, 'Output residuals image '+res_image_path)
+
+    plot_ref_mag_errors(setup,ref_star_catalog)
+
+    log.info('Completed photometry')
+
+    return ref_star_catalog
+
+def run_psf_photometry_naylor(setup,reduction_metadata,log,ref_star_catalog,
                        image_path,psf_model,sky_model,ref_flux,
                        centroiding=True,diagnostics=True, psf_size=None):
     """Function to perform PSF fitting photometry on all stars for a single
@@ -129,7 +256,6 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
     log.info('Completed photometry')
 
     return ref_star_catalog
-
 
 def quick_offset_fit(params, psf_model, psf_parameters,X_grid, Y_grid, min_x, max_x, min_y, max_y, kernel, data,weight):
     if np.abs(params[1])>1 or np.abs(params[2])>1:

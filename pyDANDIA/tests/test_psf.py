@@ -37,22 +37,28 @@ def test_build_psf():
     reduction_metadata.load_a_layer_from_file( setup.red_dir, 
                                               'pyDANDIA_metadata.fits', 
                                               'reduction_parameters' )
+    reduction_metadata.load_a_layer_from_file( setup.red_dir, 
+                                              'pyDANDIA_metadata.fits', 
+                                              'star_catalog' )
     
     reduction_metadata.reference_image_path = os.path.join(TEST_DATA,
                                                            'lsc1m005-fl15-20170701-0144-e91_cropped.fits')
     reduction_metadata.background_type = 'constant'
     
-    star_catalog_file = os.path.join(TEST_DATA,'star_catalog.fits')
-                            
-    ref_star_catalog = catalog_utils.read_ref_star_catalog_file(star_catalog_file)
+    ref_star_catalog = np.zeros([len(reduction_metadata.star_catalog[1]),16])
+    
+    ref_star_catalog[:,0] = reduction_metadata.star_catalog[1]['star_index'].data  # Index
+    ref_star_catalog[:,1] = reduction_metadata.star_catalog[1]['x_pixel'].data  # X
+    ref_star_catalog[:,2] = reduction_metadata.star_catalog[1]['y_pixel'].data   # Y
+    ref_star_catalog[:,3] = reduction_metadata.star_catalog[1]['RA_J2000'].data       # RA
+    ref_star_catalog[:,4] = reduction_metadata.star_catalog[1]['DEC_J2000'].data       # Dec
+    ref_star_catalog[:,7] = reduction_metadata.star_catalog[1]['ref_mag'].data  # instrumental mag
+    ref_star_catalog[:,8] = reduction_metadata.star_catalog[1]['ref_mag_err'].data # instrumental mag error (null)
+    ref_star_catalog[:,15] = reduction_metadata.star_catalog[1]['psf_star'].data  # PSF star switch
     
     log.info('Read in catalog of '+str(len(ref_star_catalog))+' stars')
     
     psf_diameter = 8.0
-    
-    psf_stars_idx = np.zeros(len(ref_star_catalog))
-    psf_stars_idx[400:500] = 1
-    ref_star_catalog[:,13] = psf_stars_idx
 
     ref_image = fits.getdata(reduction_metadata.reference_image_path)
     
@@ -169,17 +175,15 @@ def test_fit_star_existing_model():
     sky_model = psf.ConstantBackground()
     sky_model.constant = 1345.0
     sky_model.background_parameters.constant = 1345.0
-    sky_bkgd = sky_model.background_model(X_image,Y_image,
+    sky_bkgd = sky_model.background_model(image.shape,
                                           sky_model.get_parameters())
                                           
-    corners = calc_stamp_corners(xstar, ystar, psf_radius, psf_radius, 
+    corners = psf.calc_stamp_corners(x_cen, y_cen, psf_radius, psf_radius, 
                                     image.shape[1], image.shape[0],
                                     over_edge=True)
     
-    psf_sky_bkgd = sky_bkgd[corners[2]:corners[3],corners[0]:corners[1]]
-    
     (fitted_model,good_fit) = psf.fit_star_existing_model(setup, image, x_cen, y_cen, 
-                                psf_radius, psf_model, psf_sky_bkgd,
+                                corners, psf_radius, psf_model, sky_bkgd,
                                 centroiding=True,
                                 diagnostics=True)
                                 
@@ -200,10 +204,12 @@ def test_fit_star_existing_model():
     
     sub_psf_model.update_psf_parameters(pars)
     
-    (residuals,corners) = psf.subtract_psf_from_image(image,sub_psf_model,
-                            x_cen,y_cen,
-                            psf_radius, psf_radius,
+    psf_image = psf.model_psf_in_image(image,sub_psf_model,
+                            [x_cen,y_cen],
+                            corners,
                             diagnostics=True)
+    
+    residuals = image - psf_image
     
     hdu = fits.PrimaryHDU(residuals)
     hdulist = fits.HDUList([hdu])
@@ -245,7 +251,7 @@ def test_fit_existing_psf_stamp():
     sky_model = psf.ConstantBackground()
     sky_model.constant = 1600.0
     sky_model.background_parameters.constant = 1345.0
-    sky_bkgd = sky_model.background_model(X_image,Y_image,
+    sky_bkgd = sky_model.background_model(image.shape,
                                           sky_model.get_parameters())
     
     # Extract the stamp section of the image and sky background data
@@ -299,10 +305,12 @@ def test_fit_existing_psf_stamp():
     
     sub_psf_model.update_psf_parameters(pars)
 
-    (residuals,corners,psf_image) = psf.subtract_psf_from_image(psf_image_data,sub_psf_model,
-                            x_psf_cen,y_psf_cen, 
-                            psf_image_data.shape[0],psf_image_data.shape[1],
+    psf_image = psf.model_psf_in_image(image, sub_psf_model,
+                            [x_psf_cen,y_psf_cen], 
+                            corners,
                             diagnostics=True)
+                            
+    residuals = image - psf_image
     
     hdu = fits.PrimaryHDU(residuals)
     hdulist = fits.HDUList([hdu])
@@ -312,9 +320,9 @@ def test_fit_existing_psf_stamp():
     fig = plt.figure(1,(20,10))
     plt.subplot(1,2,1)
     
-    xvalues = np.arange(0,corners[3],1)
-    plt.plot(xvalues,(psf_image_data[y,:]-psf_sky_bkgd[y,:]),'k-',label='Data-sky')
-    plt.plot(xvalues,psf_model_image[y,:],'b-',label='Fitted PSF')
+    xvalues = np.arange(0,psf_image[y,:].shape[0],1)
+    plt.plot(xvalues,(psf_image[y,:]-sky_bkgd[y,:]),'k-',label='Data-sky')
+    plt.plot(xvalues,psf_image[y,:],'b-',label='Fitted PSF')
     plt.plot(xvalues,residuals[y,:],'r--',label='Residuals')
     plt.plot(xvalues,[psf_sky_bkgd.mean()]*len(xvalues),'m-.',label='Sky')
     
@@ -324,9 +332,9 @@ def test_fit_existing_psf_stamp():
     
     plt.subplot(1,2,2)
     
-    yvalues = np.arange(0,corners[1],1)
-    plt.plot(yvalues,(psf_image_data[:,x]-psf_sky_bkgd[:,x]),'k-',label='Data-sky')
-    plt.plot(yvalues,psf_model_image[:,x],'b-',label='Fitted PSF')
+    yvalues = np.arange(0,psf_image[:,x].shape[0],1)
+    plt.plot(yvalues,(psf_image[:,x]-sky_bkgd[:,x]),'k-',label='Data-sky')
+    plt.plot(yvalues,psf_image[:,x],'b-',label='Fitted PSF')
     plt.plot(yvalues,residuals[:,x],'r--',label='Residuals')
     plt.plot(yvalues,[psf_sky_bkgd.mean()]*len(yvalues),'m-.',label='Sky')
     
@@ -614,13 +622,12 @@ def test_fit_psf_model():
         
     logs.close_log(log)
 
-def test_subtract_psf_from_image():
+def test_model_psf_in_image():
     """Function to test the subtraction of a stellar image from an image"""
     
     image_file = os.path.join(TEST_DATA, 
                             'lsc1m005-fl15-20170701-0144-e91_cropped.fits')
-                
-                
+    
     image = fits.getdata(image_file)
     
     psf_model = psf.get_psf_object('Moffat2D')
@@ -628,20 +635,29 @@ def test_subtract_psf_from_image():
     xstar = 194.654006958
     ystar = 180.184967041
     psf_size = 8.0
+    psf_radius = psf_size/2.0
     x_cen = (psf_size/2.0) + (xstar-int(xstar))
     y_cen = (psf_size/2.0) + (ystar-int(ystar))
-    psf_params = [ 5807.59961215, y_cen, x_cen, 7.02930822229, 11.4997891585 ]
+    psf_params = [ 5807.59961215, ystar, xstar, 7.02930822229, 11.4997891585 ]
+    
+    star_data = [xstar, ystar]
     
     psf_model.update_psf_parameters(psf_params)
     
-    (residuals,corners) =  psf.subtract_psf_from_image(image,psf_model,xstar,ystar,
-                                             psf_size,psf_size)
+    corners = psf.calc_stamp_corners(xstar, ystar, psf_radius, psf_radius, 
+                                    image.shape[1], image.shape[0],
+                                    over_edge=True, diagnostics=False)
 
-    assert type(residuals) == type(image)
+    psf_image =  psf.model_psf_in_image(image, psf_model, 
+                                             star_data, corners, 
+                                             diagnostics=True)
     
-    hdu = fits.PrimaryHDU(residuals)
+    assert type(psf_image) == type(image)
+    assert psf_image.shape == image.shape
+    
+    hdu = fits.PrimaryHDU(psf_image)
     hdulist = fits.HDUList([hdu])
-    hdulist.writeto(image_file.replace('.fits','_res.fits'),
+    hdulist.writeto(image_file.replace('.fits','_psf.fits'),
                                  overwrite=True)
 
 def test_psf_normalization():
@@ -788,11 +804,11 @@ if __name__ == '__main__':
     #test_find_psf_companion_stars()
     #test_subtract_companions_from_psf_stamps()
     #test_fit_psf_model()
-    #test_build_psf()
-    #test_subtract_psf_from_image()
+    test_build_psf()
+    #test_model_psf_in_image()
     #test_fit_sim_star_existing_model()
     #test_psf_normalization()
     #test_fit_existing_psf_stamp()
     #test_calc_stamp_corners()
     #test_calc_optimized_flux()
-    test_calc_optimized_flux_edge()
+    #test_calc_optimized_flux_edge()
