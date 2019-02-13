@@ -27,8 +27,13 @@ def run_stage3(setup):
     """Driver function for pyDANDIA Stage 3: 
     Detailed star find and PSF modeling
     """
-        
+    
+    # Switch to apply Naylor's approach to photometry.  Default is False    
+    use_naylor_phot = False
+    
     log = logs.start_stage_log( setup.red_dir, 'stage3', version=VERSION )
+    
+    log.info('Applying Naylors photometric algorithm? '+repr(use_naylor_phot))
     
     reduction_metadata = metadata.MetaData()
     reduction_metadata.load_a_layer_from_file( setup.red_dir, 
@@ -65,7 +70,8 @@ def run_stage3(setup):
                                         log,
                                         diagnostics=False)
         
-        ref_flux = find_reference_flux(detected_sources,log)
+        if use_naylor_phot:
+            ref_flux = find_reference_flux(detected_sources,log)
         
         ref_star_catalog = wcs.reference_astrometry(setup,log,
                                         meta_pars['ref_image_path'],
@@ -90,9 +96,10 @@ def run_stage3(setup):
                                             log, scidata, 
                                             ref_star_catalog, sky_model,
                                             psf_size,
-                                            diagnostics=False)
+                                            diagnostics=True)
         
-        ref_star_catalog = photometry.run_psf_photometry(setup, 
+        if use_naylor_phot:
+            ref_star_catalog = photometry.run_psf_photometry_naylor(setup, 
                                              reduction_metadata, 
                                              log, 
                                              ref_star_catalog,
@@ -102,7 +109,18 @@ def run_stage3(setup):
                                              ref_flux,
                                              psf_size=psf_size,
                                              centroiding=False)
-                                             
+        else:
+            ref_star_catalog = photometry.run_psf_photometry(setup, 
+                                             reduction_metadata, 
+                                             log, 
+                                             ref_star_catalog,
+                                             meta_pars['ref_image_path'],
+                                             psf_model,
+                                             sky_model,
+                                             psf_size=psf_size,
+                                             centroiding=False, 
+                                             diagnostics=False)
+                           
         reduction_metadata.create_star_catalog_layer(ref_star_catalog,log=log)
         
         reduction_metadata.save_a_layer_to_file(setup.red_dir, 

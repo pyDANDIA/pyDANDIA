@@ -201,8 +201,8 @@ def test_ingest_star_catalog_to_db():
 if __name__ == '__main__':
     
     #test_find_reference_flux()
-    #test_run_stage3()
+    test_run_stage3()
     #test_add_reference_image_to_db()
     #test_ingest_stars_to_db()
-    test_ingest_star_catalog_to_db()
+    #test_ingest_star_catalog_to_db()
     
