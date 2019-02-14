@@ -25,6 +25,133 @@ def linear_func(p, x):
 
 
 def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
+                       image_path,psf_model,sky_model,
+                       centroiding=True, diagnostics=True, psf_size=None):
+    """Function to perform PSF fitting photometry on all stars for a single
+    image.
+    
+    :param SetUp object setup: Essential reduction parameters
+    :param MetaData reduction_metadata: pipeline metadata for this dataset
+    :param logging log: Open reduction log object
+    :param array ref_star_catalog: catalog of objects detected in the image
+    :param str image_path: Path to image to be photometered
+    :param PSFModel object psf_model: PSF to be fitted to each star
+    :param BackgroundModel object sky_model: Model for the image sky background
+    :param float ref_flux: Reference flux value for optimized PSF measurement
+    :param boolean centroiding: Switch to (dis)-allow re-fitting of each star's
+                                x, y centroid.  Default=allowed (True)
+    
+    Returns:
+    
+    :param array ref_star_catalog: catalog of objects detected in the image
+    """
+
+    log.info('Starting photometry of ' + os.path.basename(image_path))
+
+    data = fits.getdata(image_path)
+    if psf_size == None:
+        psf_size = reduction_metadata.reduction_parameters[1]['PSF_SIZE'][0]
+
+    half_psf = int(float(psf_size)/2.0)
+    
+    exp_time = reduction_metadata.extract_exptime(os.path.basename(image_path))
+    
+    gain = reduction_metadata.get_gain()
+    
+    logs.ifverbose(log,setup,'Applying '+psf_model.psf_type()+\
+                    ' PSF of diameter='+str(psf_size))
+    logs.ifverbose(log,setup,'Scaling fluxes by exposure time '+str(exp_time)+'s')
+    
+    Y_data, X_data = np.indices((int(psf_size),int(psf_size)))
+    
+    Y_image, X_image = np.indices(data.shape)
+    
+    sky_bkgd = sky_model.background_model(data.shape,sky_model.get_parameters())
+    
+    residuals = np.copy(data)
+    
+    for j in range(0,len(ref_star_catalog),1):
+        
+        xstar = ref_star_catalog[j,1]
+        ystar = ref_star_catalog[j,2]
+        
+        X_grid = X_data + (int(xstar) - half_psf)
+        Y_grid = Y_data + (int(ystar) - half_psf)
+        
+        corners = psf.calc_stamp_corners(xstar, ystar, psf_size, psf_size, 
+                                         data.shape[1], data.shape[0],
+                                         over_edge=True)
+                                    
+        logs.ifverbose(log,setup,' -> Star '+str(j)+' at position ('+\
+        str(xstar)+', '+str(ystar)+')')
+        
+        logs.ifverbose(log,setup,' -> Corners of PSF stamp '+repr(corners))
+                        
+        (fitted_model,good_fit) = psf.fit_star_existing_model(setup, data, 
+                                               xstar, ystar, corners,
+                                               psf_size, 
+                                               psf_model, sky_bkgd, 
+                                               centroiding=centroiding,
+                                               diagnostics=False)
+                                        
+        logs.ifverbose(log, setup,' -> Star '+str(j)+
+        ' fitted model parameters = '+repr(fitted_model.get_parameters())+
+        ' good fit? '+repr(good_fit))
+        
+        if good_fit == True:
+            
+            sub_psf_model = psf.get_psf_object('Moffat2D')
+            
+            pars = fitted_model.get_parameters()
+            pars[1] = (psf_size/2.0) + (ystar-int(ystar))
+            pars[2] = (psf_size/2.0) + (xstar-int(xstar))
+            
+            pars[1] = ystar
+            pars[2] = xstar
+            
+            sub_psf_model.update_psf_parameters(pars)
+            
+            psf_image = psf.model_psf_in_image(data,sub_psf_model,
+                                                    [xstar,ystar],corners)
+            
+            residuals -= psf_image
+            
+            logs.ifverbose(log, setup,' -> Star '+str(j)+
+            ' subtracted PSF from the residuals')
+                    
+            (flux, flux_err) = fitted_model.calc_flux(Y_grid, X_grid)
+            
+            (mag, mag_err, flux_scaled, flux_err_scaled) = convert_flux_to_mag(flux, flux_err, exp_time=exp_time)
+            
+            ref_star_catalog[j,5] = flux_scaled
+            ref_star_catalog[j,6] = flux_err_scaled
+            ref_star_catalog[j,7] = mag
+            ref_star_catalog[j,8] = mag_err
+            
+            logs.ifverbose(log,setup,' -> Star '+str(j)+
+            ' flux='+str(flux_scaled)+' +/- '+str(flux_err_scaled)+' ADU, '
+            'mag='+str(mag)+' +/- '+str(mag_err)+' mag')
+    
+        else:
+            
+            logs.ifverbose(log,setup,' -> Star '+str(j)+
+            ' No photometry possible from poor PSF fit')
+    
+    res_image_path = os.path.join(setup.red_dir,'ref',os.path.basename(image_path).replace('.fits','_res.fits'))
+    
+    hdu = fits.PrimaryHDU(residuals)
+    hdulist = fits.HDUList([hdu])
+    hdulist.writeto(res_image_path, overwrite=True)
+    
+    logs.ifverbose(log, setup, 'Output residuals image '+res_image_path)
+
+    plot_ref_mag_errors(setup,ref_star_catalog)
+
+    log.info('Completed photometry')
+
+    return ref_star_catalog
+
+def run_psf_photometry_naylor(setup,reduction_metadata,log,ref_star_catalog,
                        image_path,psf_model,sky_model,ref_flux,
                        centroiding=True,diagnostics=True, psf_size=None):
     """Function to perform PSF fitting photometry on all stars for a single
@@ -130,20 +257,22 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
 
     return ref_star_catalog
 
-
 def quick_offset_fit(params, psf_model, psf_parameters,X_grid, Y_grid, min_x, max_x, min_y, max_y, kernel, data,weight):
-    if np.abs(params[1])>1 or np.abs(params[2])>1:
+   
+    if np.abs(params[0])>1 or np.abs(params[1])>1:
         return [np.inf]*len(data.ravel())
 
     papa = np.copy(psf_parameters)
-    papa[0] = params[0]
-    papa[1] = psf_parameters[2]+params[1]
-    papa[2] = psf_parameters[1]+params[2]
+    #papa[0] = params[0]
+    papa[1] = psf_parameters[2]+params[0]
+    papa[2] = psf_parameters[1]+params[1]
 
 
-    model = quick_model(papa.tolist()+[params[-1]], psf_model, X_grid, Y_grid, min_x, max_x, min_y, max_y, kernel)
-
-    residus = data - model
+    model = quick_model(papa.tolist(), psf_model, X_grid, Y_grid, min_x, max_x, min_y, max_y, kernel)
+    intensities = np.polyfit(model.ravel(), data.ravel(), 1, w=1/weight.ravel())
+    #import pdb;
+    #pdb.set_trace()
+    residus = data - model*intensities[0]-intensities[1]
     residus /= weight
     return residus.ravel()
 
@@ -158,7 +287,7 @@ def quick_model(params, psf_model, X_grid, Y_grid, min_x, max_x, min_y, max_y, k
 
     psf_params = np.copy(params)
     psf_params[0] = 1
-    psf_params[-1] = 0
+    #psf_params[-1] = 0
 
     psf_image = psf_model.psf_model(Y_grid, X_grid, psf_params)
     #psf_convolve = convolution.convolve_image_with_a_psf(psf_image, kernel, fourrier_transform_psf=None,
@@ -166,10 +295,9 @@ def quick_model(params, psf_model, X_grid, Y_grid, min_x, max_x, min_y, max_y, k
     #                                                     correlate=None, auto_correlation=None)
 
     psf_convolve = sndi.filters.convolve(psf_image, kernel)
-    psf_convolve /= np.sum(psf_convolve)
+    #psf_convolve /= np.sum(psf_convolve)
 
-    return psf_convolve[min_y:max_y, min_x:max_x] * params[0] + params[-1]
-
+    return psf_convolve[min_y:max_y, min_x:max_x] 
 def iterate_on_background(data,psf_fit):
 
     weight1 = (0.5 + np.abs(data + 0.25) ** 0.5)
@@ -357,8 +485,8 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
 
             PSF = psf_convolve[min_y:max_y, min_x:max_x]
 
-            psf_fit = PSF/np.sum(PSF)
-
+            #psf_fit = PSF/np.sum(PSF)
+            psf_fit = PSF
             #residuals = np.copy(data)
             good_fit = True
 
@@ -396,16 +524,26 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
             #(back, back_err) = (intensities[1], cov[1][1] ** 0.5)
             #residus = data - psf_fit * flux - back
             #flux = 0
-            #import pdb;
-            #pdb.set_trace()
+           
 
             intensities, cov = np.polyfit(psf_fit.ravel(), data.ravel(), 1, w=1/weight.ravel(), cov=True)
+            #if (abs(intensities[0])>1000) & (j==525):
+            #   res = so.leastsq(quick_offset_fit,[0,0],args=(psf_model, psf_parameters,X_grid, Y_grid, min_x, max_x, min_y, max_y, kernel, data,weight))
+            #   psf_parameters[1] += res[0][0] 
+            #   psf_parameters[2] += res[0][1]
+            #   #import pdb;
+            #   #pdb.set_trace() 
+            #   psf_fit2 = quick_model(psf_parameters, psf_model, X_grid, Y_grid, min_x, max_x, min_y, max_y, kernel)
+            #   intensities, cov = np.polyfit(psf_fit2.ravel(), data.ravel(), 1, w=1/weight.ravel(), cov=True)
+            #   #import pdb;
+            #   #pdb.set_trace()
+		
             (flux,flux_err) = (intensities[0], cov[0][0] ** 0.5)
             (back, back_err) = (intensities[1], cov[1][1] ** 0.5)
             true = data-back
             weighted_psf = psf_fit/poids
 
-            flux = np.sum(true * weighted_psf/poids ) / np.sum(weighted_psf**2 )
+            #flux = np.sum(true * weighted_psf/poids ) / np.sum(weighted_psf**2 )
 
             #flux = np.median(data/psf_fit)
             #back = np.median(data-flux*psf_fit)
@@ -413,14 +551,16 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
             residus = data - psf_fit * flux-back
 
             #SNR = (flux ** 2 * np.sum(psf_fit ** 2 / (np.abs(back) + np.abs(flux * psf_fit)))) ** 0.5
-            SNR = flux ** 2 * np.sum(weighted_psf**2)**0.5
-
-            flux_err = ((flux/SNR)**2+np.sum(np.abs(residus)))**0.5
+            #SNR = flux ** 2 * np.sum(weighted_psf**2)**0.
+            #SNR = np.abs(flux)/(np.abs(flux)+np.abs(back))**0.5
+	
+            #flux_err = ((flux/SNR)**2+np.sum(np.abs(residus)))**0.5
             #flux_err = (flux_err ** 2 + np.sum(np.abs(residus))) ** 0.5
+            #flux_err = flux/SNR
+            flux_err = (flux_err**2+np.sum(residus**2))**0.5
 
-            flux_tot = ref_flux - flux/phot_scale_factor
-
-            flux_err_tot = (error_ref_flux ** 2 + flux_err**2/phot_scale_factor**2) ** 0.5
+            flux_tot = ref_flux*ref_exposure_time - flux/phot_scale_factor
+            flux_err_tot = (error_ref_flux ** 2*ref_exposure_time + flux_err**2/phot_scale_factor**2) ** 0.5
 
             SNR = flux_tot / flux_err_tot
             flux_tot /= ref_exposure_time
@@ -474,6 +614,7 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
     return np.array(difference_image_photometry).T, 1
 
 
+	
 def convert_flux_to_mag(flux, flux_err, exp_time=None):
     """Function to convert the flux of a star from its fitted PSF model 
     and its uncertainty onto the magnitude scale.
