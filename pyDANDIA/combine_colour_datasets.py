@@ -34,20 +34,20 @@ def combine_colour_datasets():
         if params[f] != None:
             
             (datasets[f],datasets[f+'_images']) = extract_star_catalog(params,f,log)
+    
+    if len(datasets) == 1:
         
-    if datasets.values().count(None) >= 2:
-        
-        log.info('ERROR: Data available for only 1 passband, cannot produce figures')
+        log.info('ERROR: Data available for only 1 passband, nothing to combine.')
         logs.close_log(log)
 
         exit()
         
-    (combined_catalog,col_names,formats,units,f1,f2,f3) = combine_star_catalogs(datasets,log)
+    (combined_catalog,col_names,formats,units,f1,f2,f3,match_index12, match_index13) = combine_star_catalogs(datasets,log)
     
     image_trios = identify_image_trios(params,datasets,log)
     
     output_combined_catalog(combined_catalog,col_names,formats,units,f1,f2,f3,
-                            image_trios,params,log)
+                            image_trios,match_index12, match_index13, params,log)
     
     logs.close_log(log)
     
@@ -92,6 +92,8 @@ def extract_star_catalog(params,filter_id,log):
     
     star_catalog = Table()
     star_catalog['star_index'] = reduction_metadata.star_catalog[1]['star_index']
+    star_catalog['x'] = reduction_metadata.star_catalog[1]['x_pixel']
+    star_catalog['y'] = reduction_metadata.star_catalog[1]['y_pixel']
     star_catalog['RA'] = reduction_metadata.star_catalog[1]['RA_J2000']
     star_catalog['DEC'] = reduction_metadata.star_catalog[1]['DEC_J2000']
     star_catalog['mag'] = reduction_metadata.star_catalog[1]['ref_mag']
@@ -129,23 +131,27 @@ def combine_star_catalogs(datasets,log):
     
     (combined_catalog, col_names, formats, units) = init_combined_catalog(datasets,f1,log)
     
-    match_index = cross_match_stars(f1,dataset1,f2,dataset2,log)
+    match_index12 = cross_match_stars(f1,dataset1,f2,dataset2,log)
 
     combined_catalog = populate_combined_catalog(combined_catalog,f1,dataset1,
-                                                 match_index,log,
-                                                 f2=f2,dataset2=dataset2)
+                                                 match_index12, log,
+                                                 f2=f2, dataset2=dataset2)
                                                  
     (f3,dataset3) = select_second_catalog_match(datasets,f1,log)
     
     if f3 != None:
         
-        match_index = cross_match_stars(f1,dataset1,f3,dataset3,log)
+        match_index13 = cross_match_stars(f1,dataset1,f3,dataset3,log)
         
         combined_catalog = populate_combined_catalog(combined_catalog,f1,dataset1,
-                                                 match_index,log,
-                                                 f3=f3,dataset3=dataset3)
-                                                 
-    return combined_catalog, col_names, formats, units,f1,f2,f3
+                                                     match_index13,log,
+                                                     f3=f3,dataset3=dataset3)
+                                                     
+    else:
+        
+        match_index13 = np.array([])
+        
+    return combined_catalog, col_names, formats, units,f1,f2,f3, match_index12, match_index13
     
 def init_combined_catalog(datasets,f1,log):
     """Function to build the combined catalog data structure"""
@@ -166,6 +172,12 @@ def init_combined_catalog(datasets,f1,log):
     col_names += [ 'imag', 'e_imag', 'rmag', 'e_rmag', 'gmag', 'e_gmag' ]
     formats += [ 'E', 'E', 'E', 'E', 'E', 'E' ]
     units += [ 'mag', 'mag', 'mag', 'mag', 'mag', 'mag' ]
+    
+    for f in ['ip', 'rp', 'gp']:
+        if datasets[f] != None:
+            col_names += [ 'x_'+f, 'y_'+f ]
+            formats += [ 'E', 'E' ]
+            units += [ 'pix', 'pix' ]
     
     combined_catalog = np.zeros([max_stars,len(col_names)])
 
@@ -237,10 +249,10 @@ def cross_match_stars(f1,dataset1,f2,dataset2,log):
                                              
     idx = np.argsort(match_data[2].value)
     
-    match_index = np.array(zip(match_data[0][idx],match_data[1][idx]))
+    match_index = np.array(list(zip(match_data[0][idx],match_data[1][idx])))
     
     log.info('Matched '+str(len(match_index))+' stars between '+f1+' and '+f2)
-        
+    
     return match_index
 
 def populate_combined_catalog(combined_catalog,f1,dataset1,match_index,log,
@@ -266,6 +278,12 @@ def populate_combined_catalog(combined_catalog,f1,dataset1,match_index,log,
         combined_catalog[:,18] = dataset1['e_rmag']
         combined_catalog[:,19] = dataset1['gmag']
         combined_catalog[:,20] = dataset1['e_gmag']
+        combined_catalog[:,21] = dataset1['x']
+        combined_catalog[:,22] = dataset1['y']
+        combined_catalog[:,23] = 0.0            # x 2
+        combined_catalog[:,24] = 0.0            # y 2
+        combined_catalog[:,25] = 0.0            # x 3
+        combined_catalog[:,26] = 0.0            # y 3
         
         log.info('Populated the combined catalog with primary dataset, '+f1)
     
@@ -283,6 +301,9 @@ def populate_combined_catalog(combined_catalog,f1,dataset1,match_index,log,
         combined_catalog[match_index[:,0],19] = dataset2['gmag'][match_index[:,1]]
         combined_catalog[match_index[:,0],20] = dataset2['e_gmag'][match_index[:,1]]
 
+        combined_catalog[match_index[:,0],23] = dataset2['x'][match_index[:,1]]
+        combined_catalog[match_index[:,0],24] = dataset2['y'][match_index[:,1]]
+        
         log.info('Populated the combined catalog with '+str(len(match_index))+\
             ' stars from dataset '+f2)
             
@@ -299,6 +320,9 @@ def populate_combined_catalog(combined_catalog,f1,dataset1,match_index,log,
         combined_catalog[match_index[:,0],18] = dataset3['e_rmag'][match_index[:,1]]
         combined_catalog[match_index[:,0],19] = dataset3['gmag'][match_index[:,1]]
         combined_catalog[match_index[:,0],20] = dataset3['e_gmag'][match_index[:,1]]
+        
+        combined_catalog[match_index[:,0],25] = dataset3['x'][match_index[:,1]]
+        combined_catalog[match_index[:,0],26] = dataset3['y'][match_index[:,1]]
         
         log.info('Populated the combined catalog with '+str(len(match_index))+\
             ' stars from dataset '+f3)
@@ -329,7 +353,7 @@ def identify_image_trios(params,datasets,log):
     return triodata.image_trios_table
     
 def output_combined_catalog(combined_catalog,col_names,formats,units,f1,f2,f3,
-                            image_trios, params,log):
+                            image_trios, match_index12, match_index13, params,log):
     """Function to write the combined catalog to a FITS table"""
 
     header = fits.Header()
@@ -343,6 +367,7 @@ def output_combined_catalog(combined_catalog,col_names,formats,units,f1,f2,f3,
         
     prihdu = fits.PrimaryHDU(header=header)
     
+    # Combined star catalog
     col_list = []
     for i in range(0,len(col_names),1):
         
@@ -362,6 +387,7 @@ def output_combined_catalog(combined_catalog,col_names,formats,units,f1,f2,f3,
                                     
     tbhdu = fits.BinTableHDU.from_columns(col_list)
     
+    # List of image trios
     col_list2 = [ fits.Column(name='g_images',format='60A', 
                               unit=None, array=image_trios['g_images'].data),
                   fits.Column(name='r_images',format='60A', 
@@ -371,8 +397,28 @@ def output_combined_catalog(combined_catalog,col_names,formats,units,f1,f2,f3,
 
     tbhdu2 = fits.BinTableHDU.from_columns(col_list2)
     
-    thdulist = fits.HDUList([prihdu, tbhdu, tbhdu2])
+    # Index of matched stars between datasets 1 and 2:
+    col_list3 = [ fits.Column(name='star_index',format='J', 
+                              unit=None, array=(match_index12[:,0]+1)),
+                  fits.Column(name='dataset_index',format='J', 
+                              unit=None, array=(match_index12[:,1]+1)) ]
     
+    tbhdu3 = fits.BinTableHDU.from_columns(col_list3)
+    
+    # Index of matched stars between datasets 1 and 3, if available:
+    if len(match_index13) > 0:
+        col_list4 = [ fits.Column(name='star_index',format='J', 
+                                  unit=None, array=(match_index13[:,0]+1)),
+                      fits.Column(name='dataset_index',format='J', 
+                                  unit=None, array=(match_index13[:,1]+1)) ]
+        
+        tbhdu4 = fits.BinTableHDU.from_columns(col_list4)
+    
+    if len(match_index13) == 0:
+        thdulist = fits.HDUList([prihdu, tbhdu, tbhdu2, tbhdu3])
+    else:
+        thdulist = fits.HDUList([prihdu, tbhdu, tbhdu2, tbhdu3, tbhdu4])
+        
     catalog_file = path.join(params['red_dir'],'combined_star_catalog.fits')
     
     thdulist.writeto(catalog_file, overwrite=True)
