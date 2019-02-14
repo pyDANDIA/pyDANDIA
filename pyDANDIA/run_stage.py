@@ -111,8 +111,8 @@ def get_args():
         
     if len(argv) < 3:
         
-        params['stage'] = raw_input('Please enter the name of the stage or code you wish to run: ')
-        params['red_dir'] = raw_input('Please enter the path to the reduction directory: ')
+        params['stage'] = input('Please enter the name of the stage or code you wish to run: ')
+        params['red_dir'] = input('Please enter the path to the reduction directory: ')
     
     else:
         

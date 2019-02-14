@@ -64,7 +64,7 @@ class TableDef(object):
         for statement in self._iter_post_create_statements():
             yield statement%macros
 
-class Filter(TableDef):
+class Filters(TableDef):
     """Photometry database table describing the filter passbands used for
     observations
     """
@@ -72,7 +72,7 @@ class Filter(TableDef):
     c_000_filter_id = 'INTEGER PRIMARY KEY'
     c_010_filter_name = 'TEXT'
     
-class Facility(TableDef):
+class Facilities(TableDef):
     """Photometry database table describing the observing facilities used
     """
     
@@ -89,16 +89,16 @@ class Software(TableDef):
     """
     
     c_000_code_id = 'INTEGER PRIMARY KEY'
-    c_010_name = 'TEXT'
+    c_010_code_name = 'TEXT'
     c_020_stage = 'TEXT'
     c_030_version = 'TEXT'
     
-class Image(TableDef):
+class Images(TableDef):
     """Photometry database table describing the properties of a single image.
     """
     c_000_img_id = 'INTEGER PRIMARY KEY'
-    c_010_facility = 'INTEGER REFERENCES facility(facility_id)'
-    c_020_filter = 'INTEGER REFERENCES filter(filter_id)'
+    c_010_facility = 'INTEGER REFERENCES facilities(facility_id)'
+    c_020_filter = 'INTEGER REFERENCES filters(filter_id)'
     c_030_field_id = 'TEXT'
     c_040_filename = 'TEXT'
     c_050_date_obs_utc = 'TEXT'
@@ -122,48 +122,56 @@ class Image(TableDef):
     c_127_wequinox = 'INTEGER'
     c_128_wepoch = 'INTEGER'
     c_129_radecsys = 'FK5'
-    c_130_cdelt1 = 'DOUBLE PRECISION'
-    c_131_cdelt2 = 'DOUBLE PRECISION'
-    c_132_crota1 = 'DOUBLE PRECISION'
-    c_133_crota2 = 'DOUBLE PRECISION'
-    c_134_secpix1 = 'REAL'
-    c_135_secpix2 = 'REAL'
-    c_136_wcssep = 'REAL'
-    c_137_equinox = 'INTEGER'
-    c_138_cd1_1 = 'DOUBLE PRECISION'
-    c_139_cd1_2 = 'DOUBLE PRECISION'
-    c_140_cd2_1 = 'DOUBLE PRECISION'
-    c_141_cd2_2 = 'DOUBLE PRECISION'
-    c_142_epoch = 'INTEGER'
-    c_150_airmass = 'REAL'
-    c_160_moon_phase = 'REAL'
-    c_170_moon_separation = 'REAL'
-    c_180_delta_x = 'REAL'
-    c_190_delta_y = 'REAL'
+    c_140_ctype1 = 'TEXT'
+    c_141_ctype2 = 'TEXT'
+    c_142_crpix1 = 'DOUBLE PRECISION'
+    c_143_crpix2 = 'DOUBLE PRECISION'
+    c_142_crval1 = 'DOUBLE PRECISION'
+    c_143_crval2 = 'DOUBLE PRECISION'
+    c_142_cdelt1 = 'DOUBLE PRECISION'
+    c_143_cdelt2 = 'DOUBLE PRECISION'
+    c_144_crota1 = 'DOUBLE PRECISION'
+    c_145_crota2 = 'DOUBLE PRECISION'
+    c_146_cunit1 = 'TEXT'
+    c_147_cunit2 = 'TEXT'
+    c_148_secpix1 = 'REAL'
+    c_149_secpix2 = 'REAL'
+    c_150_wcssep = 'REAL'
+    c_151_equinox = 'INTEGER'
+    c_152_cd1_1 = 'DOUBLE PRECISION'
+    c_153_cd1_2 = 'DOUBLE PRECISION'
+    c_154_cd2_1 = 'DOUBLE PRECISION'
+    c_155_cd2_2 = 'DOUBLE PRECISION'
+    c_156_epoch = 'INTEGER'
+    c_160_airmass = 'REAL'
+    c_170_moon_phase = 'REAL'
+    c_180_moon_separation = 'REAL'
+    c_190_delta_x = 'REAL'
+    c_195_delta_y = 'REAL'
 
-class ReferenceComponent(TableDef):
+class ReferenceComponents(TableDef):
     """Photometry database table describing the individual combined to form
     the reference images used in difference image photometry, which may be 
     single images or the product of stacking several individual images together.
     """
     
     c_000_component_id = 'INTEGER PRIMARY KEY'
-    c_010_image = 'INTEGER REFERENCES image(img_id)'
-    c_020_reference_image = 'INTEGER REFERENCES reference_image(refimg_id)'
+    c_010_image = 'INTEGER REFERENCES images(img_id)'
+    c_020_reference_image = 'INTEGER REFERENCES reference_images(refimg_id)'
     
-class ReferenceImage(TableDef):
+class ReferenceImages(TableDef):
     """Photometry database table describing the images used as references 
     in difference image photometry, which may be single images or the product
     of stacking several individual images together.
     """
     
     c_000_refimg_id = 'INTEGER PRIMARY KEY'
-    c_010_facility = 'INTEGER REFERENCES facility(facility_id)'
-    c_020_filter = 'INTEGER REFERENCES filter(filter_id)'
+    c_010_facility = 'INTEGER REFERENCES facilities(facility_id)'
+    c_020_filter = 'INTEGER REFERENCES filters(filter_id)'
     c_030_software = 'INTEGER REFERENCES software(code_id)'
     c_030_filename = 'TEXT'
     
-class Star(TableDef):
+class Stars(TableDef):
     """Photometry database table describing the stars detected in the imaging
     data, referring to static coordinates on sky.
     """
@@ -171,7 +179,7 @@ class Star(TableDef):
     c_000_star_id = 'INTEGER PRIMARY KEY'
     c_010_ra = 'DOUBLE PRECISION'
     c_020_dec = 'DOUBLE PRECISION'    
-    c_030_reference_image = 'INTEGER REFERENCES reference_image(refimg_id)'
+    c_030_reference_image = 'INTEGER REFERENCES reference_images(refimg_id)'
     
     pc_000_raindex = (
         'CREATE INDEX IF NOT EXISTS stars_ra ON stars (ra)')
@@ -184,11 +192,11 @@ class PhotometryPoints(TableDef):
     """
     
     c_000_phot_id = 'INTEGER PRIMARY KEY'
-    c_010_star_id = 'INTEGER REFERENCES star(star_id)'
-    c_020_reference_image = 'INTEGER REFERENCES reference_image(refimg_id)'
-    c_030_image = 'INTEGER REFERENCES image(img_id)'
-    c_040_facility = 'INTEGER REFERENCES facility(facility_id)'
-    c_050_filter = 'INTEGER REFERENCES filter(filter_id)'
+    c_010_star_id = 'INTEGER REFERENCES stars(star_id)'
+    c_020_reference_image = 'INTEGER REFERENCES reference_images(refimg_id)'
+    c_030_image = 'INTEGER REFERENCES images(img_id)'
+    c_040_facility = 'INTEGER REFERENCES facilities(facility_id)'
+    c_050_filter = 'INTEGER REFERENCES filters(filter_id)'
     c_060_software = 'INTEGER REFERENCES software(software_id)'
     c_070_x = 'REAL'
     c_075_y = 'REAL'
@@ -208,13 +216,13 @@ class PhotometryPoints(TableDef):
 
 
 # This is what the classes are actually called in the database schema
-FILTER_TD = Filter("filter")
-FACILITY_TD = Facility("facility")
+FILTERS_TD = Filters("filters")
+FACILITIES_TD = Facilities("facilities")
 SOFTWARE_TD = Software("software")
-REFERENCE_IMAGE_TD = ReferenceImage("reference_image")
-REFERENCE_COMPONENT_TD = ReferenceComponent("reference_component")
-IMAGE_TD = Image("image")
-STAR_TD = Stars("star")
+REFERENCE_IMAGES_TD = ReferenceImages("reference_images")
+REFERENCE_COMPONENTS_TD = ReferenceComponents("reference_components")
+IMAGES_TD = Images("images")
+STARS_TD = Stars("stars")
 PHOTOMETRY_TD = PhotometryPoints("phot")
 
 
@@ -235,20 +243,76 @@ def ensure_tables(conn, *table_defs):
 
 
 def get_connection(dsn=database_file_path):
+
     conn = sqlite3.connect(dsn,
         detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES)
+
     conn.execute("PRAGMA foreign_keys=ON")
+    
     ensure_tables(conn, 
-                  FILTER_TD,,
-                  FACILITY_TD,
+                  FILTERS_TD,
+                  FACILITIES_TD,
                   SOFTWARE_TD,
-                  IMAGE_TD,
-                  REFERENCE_COMPONENT_TD,
-                  REFERENCE_IMAGE_TD, 
-                  STAR_TD, 
+                  IMAGES_TD,
+                  REFERENCE_COMPONENTS_TD,
+                  REFERENCE_IMAGES_TD, 
+                  STARS_TD, 
                   PHOTOMETRY_TD)
+    
+    populate_db_defaults(conn)
+    
     return conn
 
+def populate_db_defaults(conn):
+    """Function to pre-populate the photometric database tables for the filters
+    and facilities used in the survey."""
+    
+    cursor = conn.cursor()
+    
+    query = 'SELECT filter_name FROM filters'
+    filters_table = query_to_astropy_table(conn, query, args=())
+    
+    for f in ['gp', 'rp', 'ip']:
+        
+        if f not in filters_table['filter_name']:
+            
+            command = 'INSERT OR REPLACE INTO filters (filter_name) VALUES (?)'
+        
+            cursor.execute(command, [f])
+        
+    conn.commit()
+
+def check_before_commit(conn, params, table_name, table_keys, search_key):
+    """Function to commit information to a database table only if a matching
+    entry is not already present.
+    """
+
+    cursor = conn.cursor()
+    
+    commit = False
+    
+    query = 'SELECT '+','.join(table_keys)+' FROM '+table_name
+
+    table_data = query_to_astropy_table(conn, query, args=())
+    
+    wildcards = ['?']*len(table_keys)
+    
+    values = []
+    for key in table_keys:
+        values.append(params[key])
+    
+    if len(table_data) == 0 or params[search_key] not in table_data[search_key]:
+            
+            commit = True
+    
+    if commit:
+        command = 'INSERT OR REPLACE INTO '+table_name+' ('+\
+                ','.join(table_keys)+') VALUES ('+','.join(wildcards)+')'
+
+        cursor.execute(command, values)
+        
+    conn.commit()
+    
 def update_table_entry(conn,table_name,key_name,search_key,entry_id,value):
     """Function to commit a single-value entry for a single keyword in a
     given table

@@ -48,9 +48,6 @@ def run_stage3(setup):
     reduction_metadata.load_a_layer_from_file( setup.red_dir, 
                                               'pyDANDIA_metadata.fits', 
                                               'data_architecture' )
-    reduction_metadata.load_a_layer_from_file( setup.red_dir, 
-                                              'pyDANDIA_metadata.fits', 
-                                              'headers_summary' )
     
     sane = check_metadata(reduction_metadata,log)
     
@@ -126,6 +123,13 @@ def run_stage3(setup):
         reduction_metadata.save_a_layer_to_file(setup.red_dir, 
                                                 'pyDANDIA_metadata.fits',
                                                 'star_catalog', log=log)
+        
+        reduction_metadata.create_software_layer(np.array([VERSION,'NONE']),
+                                                     log=log)
+        
+        reduction_metadata.save_a_layer_to_file(setup.red_dir, 
+                                                'pyDANDIA_metadata.fits',
+                                                'software', log=log)
         
         #ref_db_id = add_reference_image_to_db(setup, reduction_metadata, log=log)
         
