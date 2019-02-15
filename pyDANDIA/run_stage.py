@@ -108,7 +108,7 @@ def get_args():
             -v 2           Detailed logging output, written to screen and to log file.
             """
     
-    params = {}
+    params = {'red_dir1': None, 'red_dir2': None, 'red_dir3': None}
     
     if len(argv) == 1 or '-help' in argv:
         
@@ -141,10 +141,8 @@ def get_args():
             
             params['verbosity'] = int(argv[idx+1])
     
-    if 'none' in str(params['red_dir2']).lower() or \
-        'none' in str(params['red_dir3']).lower():
-        params['red_dir'] = params['red_dir1']
-        
+    params['red_dir'] = params['red_dir1']
+    
     return params
 
     
