@@ -83,9 +83,17 @@ def run_stage3_db_ingest():
         
         star_ids = commit_stars(conn, dataset_params, star_catalog, log)
         
+        commit_photometry(conn, dataset_params, star_catalog, star_ids, log)
+        
     conn.close()
     
+    status = 'OK'
+    report = 'Completed successfully'
+    
+    log.info('Stage 3 DB ingest: '+report)
     logs.close_log(log)
+        
+    return status, report
     
 def configure_setup(log=None):
 
@@ -332,7 +340,7 @@ def commit_stars(conn, params, star_catalog, log):
                      ' matches a star already in the phot_db with RA, Dec '+\
                      str(results['ra'][0])+','+str(results['dec'][0]))
             
-            star_ids[j] = results['star_id'][0]
+            star_ids[j] = int(results['star_id'][0])
             
         else:
             
@@ -350,7 +358,7 @@ def commit_stars(conn, params, star_catalog, log):
             log.info('Commited catalog star at RA, Dec '+str(ra)+','+str(dec)+\
                      ' to the phot_db as star_id='+str(results['star_id'][0]))
             
-            star_ids[j] = results['star_id'][0]
+            star_ids[j] = int(results['star_id'][0])
     
     return star_ids
 
@@ -363,7 +371,7 @@ def commit_photometry(conn, params, star_catalog, star_ids, log):
     query = 'SELECT filter_id, filter_name FROM filters WHERE filter_name="'+params['filter_name']+'"'
     f = phot_db.query_to_astropy_table(conn, query, args=())
     error_wrong_number_entries(f,params['filter_name'])
-    
+        
     query = 'SELECT code_id, version FROM software WHERE version="'+params['version']+'"'
     code = phot_db.query_to_astropy_table(conn, query, args=())
     error_wrong_number_entries(code,params['version'])
@@ -376,34 +384,72 @@ def commit_photometry(conn, params, star_catalog, star_ids, log):
     image = phot_db.query_to_astropy_table(conn, query, args=())    
     error_wrong_number_entries(image,params['filename'])
     
-    key_list = ['star_id', 'reference', 'image', 
+    key_list = ['star_id', 'reference_image', 'image', 
                 'facility', 'filter', 'software', 
                 'x', 'y', 'hjd', 'magnitude', 'magnitude_err', 
+                'calibrated_mag', 'calibrated_mag_err',
                 'flux', 'flux_err', 
                 'phot_scale_factor', 'phot_scale_factor_err',
                 'local_background', 'local_background_err',
                 'phot_type']
     
+    wildcards = ','.join(['?']*len(key_list))
+    
+    # Data column indices in the combined star catalog, must match
+    # combine_colour_data.py.  Ideally this should be in a shared 
+    # config file when I get around to it.
+    if params['filter_name'] == 'gp':
+        xcol = 25
+        ycol = 26
+        mag_col = 11
+        mag_err_col = 12
+        cal_mag_col = 13
+        cal_mag_err_col = 14
+        flux_col = 31
+        flux_err_col = 32
+    elif params['filter_name'] == 'rp':
+        xcol = 23
+        ycol = 24
+        mag_col = 7
+        mag_err_col = 8
+        cal_mag_col = 9
+        cal_mag_err_col = 10
+        flux_col = 29
+        flux_err_col = 30
+    elif params['filter_name'] == 'ip':
+        xcol = 21
+        ycol = 22
+        mag_col = 3
+        mag_err_col = 4
+        cal_mag_col = 5
+        cal_mag_err_col = 6
+        flux_col = 27
+        flux_err_col = 28
+    
+    values = []
     for j in range(0,len(star_catalog),1):
         
-        values = [ str(star_ids[j]), str(refimage['refimg_id'][0]), str(image['img_id'][0]),
-                   str(facility['facility_id'][0]), str(f['filter_id'][0]), str(code['code_id']),
-                    str(star_catalog[j][])
-                  ]
+        entry = (str(int(star_ids[j])), str(refimage['refimg_id'][0]), str(image['img_id'][0]),
+                   str(facility['facility_id'][0]), str(f['filter_id'][0]), str(code['code_id'][0]),
+                    str(star_catalog[j][xcol]), str(star_catalog[j][ycol]),
+                    '0.0',    # No function to calculate HJD yet?
+                    str(star_catalog[j][mag_col]), str(star_catalog[j][mag_err_col]),
+                    str(star_catalog[j][cal_mag_col]), str(star_catalog[j][cal_mag_err_col]),
+                    str(star_catalog[j][flux_col]), str(star_catalog[j][flux_err_col]),
+                    '0.0', '0.0',   # No phot scale factor for PSF fitting photometry
+                    '0.0', '0.0',   # No background measurements propageted
+                    'PSF_FITTING' )
+                    
+        values.append(entry)
+    
+    command = 'INSERT OR REPLACE INTO phot('+','.join(key_list)+\
+                ') VALUES ('+wildcards+')'
+    
+    cursor = conn.cursor()
         
-        command = 'INSERT OR REPLACE INTO phot ('+','.join(key_list)+') VALUES ('+\
-                str(ra)+','+str(dec)+','+str(refimage['refimg_id'][0])+')'
-
-        cursor = conn.cursor()
-            
-        cursor.execute(command)
-            
-        conn.commit()
+    cursor.executemany(command,values)
+    
+    conn.commit()
         
-        results = phot_db.box_search_on_position(conn, ra, dec, tol, tol)
-        
-        log.info('Commited catalog star at RA, Dec '+str(ra)+','+str(dec)+\
-                 ' to the phot_db as star_id='+str(results['star_id'][0]))
-        
-
+    log.info('Completed ingest of photometry for '+str(len(star_ids))+' stars')
  

@@ -96,6 +96,8 @@ def extract_star_catalog(params,filter_id,log):
     star_catalog['y'] = reduction_metadata.star_catalog[1]['y_pixel']
     star_catalog['RA'] = reduction_metadata.star_catalog[1]['RA_J2000']
     star_catalog['DEC'] = reduction_metadata.star_catalog[1]['DEC_J2000']
+    star_catalog['ref_flux'] = reduction_metadata.star_catalog[1]['ref_flux']
+    star_catalog['ref_flux_err'] = reduction_metadata.star_catalog[1]['ref_flux_err']
     star_catalog['mag'] = reduction_metadata.star_catalog[1]['ref_mag']
     star_catalog['mag_err'] = reduction_metadata.star_catalog[1]['ref_mag_err']
     star_catalog['cal_ref_mag'] = reduction_metadata.phot_calib[1]['cal_ref_mag']
@@ -179,6 +181,12 @@ def init_combined_catalog(datasets,f1,log):
             formats += [ 'E', 'E' ]
             units += [ 'pix', 'pix' ]
     
+    for f in ['ip', 'rp', 'gp']:
+        if datasets[f] != None:
+            col_names += [ 'ref_flux_'+f, 'ref_flux_err_'+f ]
+            formats += [ 'E', 'E' ]
+            units += [ 'ADU', 'ADU' ]
+            
     combined_catalog = np.zeros([max_stars,len(col_names)])
 
     log.info('Initialized combined catalog for '+str(max_stars)+' stars')
@@ -266,12 +274,18 @@ def populate_combined_catalog(combined_catalog,f1,dataset1,match_index,log,
         combined_catalog[:,0] = dataset1['star_index']
         combined_catalog[:,1] = dataset1['RA']
         combined_catalog[:,2] = dataset1['DEC']
-        combined_catalog[:,3] = dataset1['mag']
-        combined_catalog[:,4] = dataset1['mag_err']
-        combined_catalog[:,5] = dataset1['cal_ref_mag']
-        combined_catalog[:,6] = dataset1['cal_ref_mag_err']
-        combined_catalog[:,10] = 0.0            # cal_ref_err2
-        combined_catalog[:,14] = 0.0             # cal_ref_err3
+        combined_catalog[:,3] = dataset1['mag']             # ip
+        combined_catalog[:,4] = dataset1['mag_err']         # ip
+        combined_catalog[:,5] = dataset1['cal_ref_mag']     # ip
+        combined_catalog[:,6] = dataset1['cal_ref_mag_err'] # ip
+        combined_catalog[:,7] = 0.0     # mag rp
+        combined_catalog[:,8] = 0.0     # mag err rp
+        combined_catalog[:,9] = 0.0     # cal mag rp
+        combined_catalog[:,10] = 0.0     # cal mag err rp
+        combined_catalog[:,11] = 0.0     # mag gp
+        combined_catalog[:,12] = 0.0     # mag err gp
+        combined_catalog[:,13] = 0.0     # cal mag gp
+        combined_catalog[:,14] = 0.0     # cal mag err gp
         combined_catalog[:,15] = dataset1['imag']
         combined_catalog[:,16] = dataset1['e_imag']
         combined_catalog[:,17] = dataset1['rmag']
@@ -284,6 +298,12 @@ def populate_combined_catalog(combined_catalog,f1,dataset1,match_index,log,
         combined_catalog[:,24] = 0.0            # y 2
         combined_catalog[:,25] = 0.0            # x 3
         combined_catalog[:,26] = 0.0            # y 3
+        combined_catalog[:,27] = dataset1['ref_flux']        # flux ip
+        combined_catalog[:,28] = dataset1['ref_flux_err']     # flux err ip
+        combined_catalog[:,29] = 0.0            # flux rp 
+        combined_catalog[:,30] = 0.0            # flux err rp
+        combined_catalog[:,31] = 0.0            # flux gp
+        combined_catalog[:,32] = 0.0            # flux err gp
         
         log.info('Populated the combined catalog with primary dataset, '+f1)
     
@@ -304,6 +324,9 @@ def populate_combined_catalog(combined_catalog,f1,dataset1,match_index,log,
         combined_catalog[match_index[:,0],23] = dataset2['x'][match_index[:,1]]
         combined_catalog[match_index[:,0],24] = dataset2['y'][match_index[:,1]]
         
+        combined_catalog[match_index[:,0],29] = dataset2['ref_flux'][match_index[:,1]]
+        combined_catalog[match_index[:,0],30] = dataset2['ref_flux_err'][match_index[:,1]]
+        
         log.info('Populated the combined catalog with '+str(len(match_index))+\
             ' stars from dataset '+f2)
             
@@ -323,6 +346,9 @@ def populate_combined_catalog(combined_catalog,f1,dataset1,match_index,log,
         
         combined_catalog[match_index[:,0],25] = dataset3['x'][match_index[:,1]]
         combined_catalog[match_index[:,0],26] = dataset3['y'][match_index[:,1]]
+        
+        combined_catalog[match_index[:,0],31] = dataset3['ref_flux'][match_index[:,1]]
+        combined_catalog[match_index[:,0],32] = dataset3['ref_flux_err'][match_index[:,1]]
         
         log.info('Populated the combined catalog with '+str(len(match_index))+\
             ' stars from dataset '+f3)

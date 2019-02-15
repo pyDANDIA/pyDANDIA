@@ -172,8 +172,49 @@ def fetch_test_db_contents():
               'cd1_1':None,'cd1_2':None,'cd2_1':None,'cd2_2':None,'epoch':None,
               'airmass':None,'moon_phase':None,'moon_separation':None,
               'delta_x':None,'delta_y':None}
-
-    return facility_keys, software_keys, image_keys, params
+    
+    star_catalog = [ (1, 270.13802459251167, -28.321245655324272, 
+                      0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 
+                      0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 
+                      2607.8596, 2.6583354, 0.0, 0.0, 0.0, 0.0, 
+                      -8455.866, -99.999, 0.0, 0.0, 0.0, 0.0),
+                      (2, 269.93099597613417, -28.32181808234723, 
+                       0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 
+                       0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 
+                       921.8587, 8.439114, 0.0, 0.0, 0.0, 0.0, 
+                       -7544.8057, -99.999, 0.0, 0.0, 0.0, 0.0),
+                      (3, 270.1630761544735, -28.322291445004893, 
+                       0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 
+                       0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 
+                       2811.868, 12.470031, 0.0, 0.0, 0.0, 0.0, 
+                       -9883.625, -99.999, 0.0, 0.0, 0.0, 0.0) ]
+    
+    cols = {'gp': {'xcol': 25,
+                   'ycol': 26,
+                   'mag_col': 11,
+                   'mag_err_col': 12,
+                   'cal_mag_col': 13,
+                   'cal_mag_err_col': 14,
+                   'flux_col': 31,
+                   'flux_err_col': 32},
+            'rp': {'xcol': 23,
+                   'ycol': 24,
+                   'mag_col': 7,
+                   'mag_err_col': 8,
+                   'cal_mag_col': 9,
+                   'cal_mag_err_col': 10,
+                   'flux_col': 29,
+                   'flux_err_col': 30},
+            'ip':{'xcol': 21,
+                   'ycol': 22,
+                   'mag_col': 3,
+                   'mag_err_col': 4,
+                   'cal_mag_col': 5,
+                   'cal_mag_err_col': 6,
+                   'flux_col': 27,
+                   'flux_err_col': 28}}
+                   
+    return facility_keys, software_keys, image_keys, params, star_catalog, cols
 
 def test_read_combined_star_catalog():
     
@@ -190,7 +231,7 @@ def test_commit_stars():
     
     log = logs.start_stage_log( TEST_DIR, 'stage3_db_ingest_test' )
     
-    (facility_keys, software_keys, image_keys, params) = fetch_test_db_contents()
+    (facility_keys, software_keys, image_keys, params, star_catalog, cols) = fetch_test_db_contents()
         
     conn = phot_db.get_connection(dsn=db_file_path)
     phot_db.check_before_commit(conn, params, 'facilities', facility_keys, 'facility_code')
@@ -198,10 +239,6 @@ def test_commit_stars():
     phot_db.check_before_commit(conn, params, 'images', image_keys, 'filename')
     stage3_db_ingest.commit_reference_image(conn, params, log)
     
-    star_catalog = [ (1, 270.13802459, -28.32124566),
-                     (2, 269.93099598, -28.32181808),
-                     (3, 270.16307615, -28.32229145) ]
-                     
     star_ids = stage3_db_ingest.commit_stars(conn, params, star_catalog, log)
     
     assert len(star_ids) == len(star_catalog)
@@ -219,6 +256,51 @@ def test_commit_stars():
     conn.close()
     
     logs.close_log(log)
+
+def test_commit_photometry():
+    
+    if os.path.isfile(db_file_path):
+        os.remove(db_file_path)
+    
+    log = logs.start_stage_log( TEST_DIR, 'stage3_db_ingest_test' )
+    
+    (facility_keys, software_keys, image_keys, params, star_catalog, cols) = fetch_test_db_contents()
+    
+    conn = phot_db.get_connection(dsn=db_file_path)
+    phot_db.check_before_commit(conn, params, 'facilities', facility_keys, 'facility_code')
+    phot_db.check_before_commit(conn, params, 'software', software_keys, 'version')
+    phot_db.check_before_commit(conn, params, 'images', image_keys, 'filename')
+    stage3_db_ingest.commit_reference_image(conn, params, log)
+    star_ids = stage3_db_ingest.commit_stars(conn, params, star_catalog, log)
+    
+    for i,f in enumerate([ 'gp', 'rp', 'ip']):
+        params['filter_name'] = f
+        
+        stage3_db_ingest.commit_photometry(conn, params, [star_catalog[i]], star_ids, log)
+        
+        query = 'SELECT phot_id,x,y,magnitude, magnitude_err, calibrated_mag, calibrated_mag_err, flux, flux_err,filter,software,image,reference_image,facility FROM phot WHERE star_id='+str(star_ids[i])
+        t = phot_db.query_to_astropy_table(conn, query, args=())
+        
+        if len(t['x']) > 0:
+            assert t['x'][0] == star_catalog[i][cols[f]['xcol']]
+        if len(t['y']) > 0:
+            assert t['y'][0] == star_catalog[i][cols[f]['ycol']]
+        if len(t['magnitude']) > 0:
+            assert t['magnitude'][0] == star_catalog[i][cols[f]['mag_col']]
+        if len(t['magnitude_err']) > 0:
+            assert t['magnitude_err'][0] == star_catalog[i][cols[f]['mag_err_col']]
+        if len(t['calibrated_mag']) > 0:
+            assert t['calibrated_mag'][0] == star_catalog[i][cols[f]['cal_mag_col']]
+        if len(t['calibrated_mag_err']) > 0:
+            assert t['calibrated_mag_err'][0] == star_catalog[i][cols[f]['cal_mag_err_col']]
+        if len(t['flux']) > 0:
+            assert t['flux'][0] == star_catalog[i][cols[f]['flux_col']]
+        if len(t['flux_err']) > 0:
+            assert t['flux_err'][0] == star_catalog[i][cols[f]['flux_err_col']]
+
+    conn.close()
+    
+    logs.close_log(log)
     
 if __name__ == '__main__':
     
@@ -227,5 +309,6 @@ if __name__ == '__main__':
     #test_commit_reference_image()
     #test_commit_reference_component()
     #test_read_combined_star_catalog()
-    test_commit_stars()
-    #test_run_stage3_db_ingest()
+    #test_commit_stars()
+    #test_commit_photometry()
+    test_run_stage3_db_ingest()

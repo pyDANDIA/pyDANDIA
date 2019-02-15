@@ -15,6 +15,7 @@ from pyDANDIA import stage0
 from pyDANDIA import stage1
 from pyDANDIA import stage2
 from pyDANDIA import stage3
+from pyDANDIA import stage3_db_ingest
 from pyDANDIA import stage4
 from pyDANDIA import stage5
 #from pyDANDIA.db import astropy_interface
@@ -58,6 +59,10 @@ def run_stage_stand_alone():
         
         (status, report) = stage3.run_stage3(setup)
 
+    elif params['stage'] == 'stage3_db_ingest':
+        
+        (status, report) = stage3_db_ingest.run_stage3(setup)
+
     elif params['stage'] == 'stage4':
 
         (status, report) = stage4.run_stage4(setup)
@@ -89,7 +94,8 @@ def get_args():
             > python run_stage.py [stage] [path to reduction directory] [-v]
             
             where stage is the name of the stage or code to be run, one of:
-                stage0, stage1, stage2, stage3, stage4, stage5, starfind
+                stage0, stage1, stage2, stage3, stage4, stage5, 
+                starfind, stage3_db_ingest
             
             and the path to the reduction directory is given to the dataset
             to be processed
@@ -112,12 +118,20 @@ def get_args():
     if len(argv) < 3:
         
         params['stage'] = input('Please enter the name of the stage or code you wish to run: ')
-        params['red_dir'] = input('Please enter the path to the reduction directory: ')
+        params['red_dir1'] = input('Please enter the path to the reduction directory (should be SDSS-g for multi-filter analysis): ')
+        params['red_dir2'] = input('Please enter the path to the second filter reduction directory (should be SDSS-r or None): ')
+        params['red_dir3'] = input('Please enter the path to the third filter reduction directory (should be SDSS-i or None): ')
     
-    else:
+    elif len(argv) == 3:
         
         params['stage'] = argv[1]
-        params['red_dir'] = argv[2]    
+        params['red_dir1'] = argv[2]    
+    
+    else:
+        params['stage'] = argv[1]
+        params['red_dir1'] = argv[2]    
+        params['red_dir2'] = argv[3]    
+        params['red_dir3'] = argv[4]    
     
     if '-v' in argv:
         
@@ -127,6 +141,10 @@ def get_args():
             
             params['verbosity'] = int(argv[idx+1])
     
+    if 'none' in str(params['red_dir2']).lower() or \
+        'none' in str(params['red_dir3']).lower():
+        params['red_dir'] = params['red_dir1']
+        
     return params
 
     

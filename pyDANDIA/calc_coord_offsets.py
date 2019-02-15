@@ -16,8 +16,8 @@ def calc_coord_offset():
         
     dra, ddec = star_meas.spherical_offsets_to(star_true)
     
-    print 'Offset from the stars measured -> true position:'
-    print 'Delta RA = ',dra.to(u.arcsec),' Delta Dec = ',ddec.to(u.arcsec)
+    print('Offset from the stars measured -> true position:')
+    print('Delta RA = '+str(dra.to(u.arcsec))+' Delta Dec = '+str(ddec.to(u.arcsec)))
 
 def get_star_positions():
     """Function to gather user input for the reference star's true RA, Dec
