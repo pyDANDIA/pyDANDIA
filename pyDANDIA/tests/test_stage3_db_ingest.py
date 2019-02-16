@@ -59,6 +59,8 @@ def test_harvest_dataset_parameters():
     assert type(dataset_params) == type({})
     assert len(dataset_params) > 1
 
+    #print(dataset_params)
+    
 def test_commit_reference_image():
     
     if os.path.isfile(db_file_path):
@@ -157,6 +159,9 @@ def fetch_test_db_contents():
               'date_obs_utc': '2016-05-18T10:57:30',
               'date_obs_jd': 2458000.0,
               'exposure_time': 300.0,
+              'hjd_ref': 2458000.0,
+              'RA': '17:59:27.05',
+              'Dec': '-28:36:37.0',
               'fwhm': None, 'fwhm_err':None,
               'ellipticity':None,'ellipticity_err':None,
               'slope':None,'slope_err':None,
@@ -310,5 +315,5 @@ if __name__ == '__main__':
     #test_commit_reference_component()
     #test_read_combined_star_catalog()
     #test_commit_stars()
-    #test_commit_photometry()
-    test_run_stage3_db_ingest()
+    test_commit_photometry()
+    #test_run_stage3_db_ingest()

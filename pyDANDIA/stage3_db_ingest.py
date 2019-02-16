@@ -15,6 +15,7 @@ from pyDANDIA import  logs
 from pyDANDIA import  metadata
 from pyDANDIA import  phot_db
 from pyDANDIA import  pipeline_setup
+from pyDANDIA import  time_utils
 
 VERSION = 'stage3_ingest_v1.0'
 
@@ -185,7 +186,9 @@ def harvest_dataset_parameters(setup,reduction_metadata):
     dataset_params['date_obs_utc'] = ref_hdr_meta['DATEKEY'][0]
     t = time.Time(dataset_params['date_obs_utc'],format='isot', scale='utc')
     dataset_params['date_obs_jd'] = t.jd
-    dataset_params['exposure_time'] = ref_hdr_meta['EXPKEY'][0]
+    dataset_params['exposure_time'] = float(ref_hdr_meta['EXPKEY'][0])
+    dataset_params['RA'] = ref_hdr_image['RA']
+    dataset_params['Dec'] = ref_hdr_image['DEC']
     dataset_params['filter_name'] = ref_hdr_image['FILTER']
     dataset_params['fwhm'] = np.sqrt(ref_stats['FWHM_X'][0]*ref_stats['FWHM_X'][0] + 
                                         ref_stats['FWHM_Y'][0]*ref_stats['FWHM_Y'][0])
@@ -227,6 +230,11 @@ def harvest_dataset_parameters(setup,reduction_metadata):
     dataset_params['delta_x'] = None
     dataset_params['delta_y'] = None
     
+    dataset_params['hjd_ref'] = time_utils.calc_hjd(dataset_params['date_obs_utc'],
+                                  dataset_params['RA'],dataset_params['Dec'],
+                                  dataset_params['exposure_time'])
+    
+    print(dataset_params)
     return dataset_params
 
 def set_if_present(header, key):
@@ -432,7 +440,7 @@ def commit_photometry(conn, params, star_catalog, star_ids, log):
         entry = (str(int(star_ids[j])), str(refimage['refimg_id'][0]), str(image['img_id'][0]),
                    str(facility['facility_id'][0]), str(f['filter_id'][0]), str(code['code_id'][0]),
                     str(star_catalog[j][xcol]), str(star_catalog[j][ycol]),
-                    '0.0',    # No function to calculate HJD yet?
+                    str(params['hjd_ref']),
                     str(star_catalog[j][mag_col]), str(star_catalog[j][mag_err_col]),
                     str(star_catalog[j][cal_mag_col]), str(star_catalog[j][cal_mag_err_col]),
                     str(star_catalog[j][flux_col]), str(star_catalog[j][flux_err_col]),
