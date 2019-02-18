@@ -55,6 +55,7 @@ def run_stage5(setup):
     fwhm_max = 0.
     shift_max = 0
     shifts = []
+    fwhms = []
     for stats_entry in reduction_metadata.images_stats[1]:
         if np.isfinite(float(stats_entry['SHIFT_X'])):
             shifts.append(float(stats_entry['SHIFT_X']))
@@ -68,15 +69,20 @@ def run_stage5(setup):
             shift_max = abs(float(stats_entry['SHIFT_X']))
         if abs(float(stats_entry['SHIFT_Y']))> shift_max:
             shift_max = abs(float(stats_entry['SHIFT_Y']))
+        fwhms.append((float(stats_entry['FWHM_Y'])**2+float(stats_entry['FWHM_Y'])**2)**0.5)
+    
     #image smaller or equal 500x500
     large_format_image = False
     sigma_max = fwhm_max/(2.*(2.*np.log(2.))**0.5)
     # Factor 4 corresponds to the radius of 2*FWHM the old pipeline
-    kernel_size = int(4.*float(reduction_metadata.reduction_parameters[1]['KER_RAD'][0]) * fwhm_max)
-    if kernel_size:
-        if kernel_size % 2 == 0:
-            kernel_size = kernel_size + 1
-    kernel_size = min(13,kernel_size)
+    # Find kernel_sizes for multiple pre-calculated umatrices
+    kernel_percentile = [25. ,50. ,75.]
+    kernel_size_array = []
+    for percentile in kernel_percentile:
+        kernel_size_tmp = int(4.*float(reduction_metadata.reduction_parameters[1]['KER_RAD'][0]) * np.percentile(np.array(fwhms),percentile))
+        if kernel_size_tmp % 2 == 0:
+            kernel_size_tmp -= 1
+        kernel_size_array.append(kernel_size_tmp)
     shifts  = np.array(shifts)
     maxshift = int(np.median(shifts) + 2. * np.std(shifts))
     # find the images that need to be processed
@@ -125,10 +131,10 @@ def run_stage5(setup):
         report = 'No alignment data found!'
         return status, report, reduction_metadata
  
-    if large_format_image == False:
-        subtract_small_format_image(new_images, reference_image_name, reference_image_directory, reduction_metadata, setup, data_image_directory, kernel_size, max_adu, ref_stats, maxshift, kernel_directory_path, diffim_directory_path, log = log)
-    else:
-        subtract_large_format_image(new_images, reference_image_name, reference_image_directory, reduction_metadata, setup, data_image_directory, kernel_size, max_adu, ref_stats, maxshift, kernel_directory_path, diffim_directory_path, log = log)   
+    #if large_format_image == False:
+    subtract_small_format_image(new_images, reference_image_name, reference_image_directory, reduction_metadata, setup, data_image_directory, kernel_size_array, max_adu, ref_stats, maxshift, kernel_directory_path, diffim_directory_path, log = log)
+    #else:
+    #    subtract_large_format_image(new_images, reference_image_name, reference_image_directory, reduction_metadata, setup, data_image_directory, kernel_size, max_adu, ref_stats, maxshift, kernel_directory_path, diffim_directory_path, log = log)   
 
     #append some metric for the kernel, perhaps its scale factor...
     reduction_metadata.update_reduction_metadata_reduction_status(new_images, stage_number=5, status=1, log = log)
@@ -150,35 +156,53 @@ def smoothing_2sharp_images(reduction_metadata, ref_fwhm_x, ref_fwhm_y, ref_sigm
         smoothing = smoothing_y
     return smoothing
 
-def subtract_small_format_image(new_images, reference_image_name, reference_image_directory, reduction_metadata, setup, data_image_directory, kernel_size, max_adu, ref_stats, maxshift, kernel_directory_path, diffim_directory_path, log = None):  
+def subtract_small_format_image(new_images, reference_image_name, reference_image_directory, reduction_metadata, setup, data_image_directory, kernel_size_array, max_adu, ref_stats, maxshift, kernel_directory_path, diffim_directory_path, log = None):
+    """subtracting image with a single kernel
+    This routine calculates the umatrix of the least squares problem defining the kernel
+    and subtracts the model
+    :param object new images : list of unprocessed images
+
+    :return: None
+    :rtype: None
+    """
+    grow_kernel = 4.*float(reduction_metadata.reduction_parameters[1]['KER_RAD'][0])
     if len(new_images) > 0:
-        if os.path.exists(os.path.join(reduction_metadata.data_architecture[1]['REF_PATH'][0],'master_mask.fits')):
-            master_mask = fits.open(os.path.join(reduction_metadata.data_architecture[1]['REF_PATH'][0],'master_mask.fits'))
-            master_mask = np.where(master_mask[0].data > 0.1*np.max(master_mask[0].data))
-        reference_image, bright_reference_mask, reference_image_unmasked = open_reference(setup, reference_image_directory, reference_image_name, kernel_size, max_adu, ref_extension = 0, log = log, central_crop = maxshift, master_mask = master_mask)
+        try:
+            master_mask = fits.open(os.path.join(reduction_metadata.data_architecture[1]['REF_PATH'][0],reduction_metadata.data_architecture[1]['REF_IMAGE'][0]))[2].data.astype(bool)
+        except:
+            master_mask = None
+        kernel_size_max = max(kernel_size_array)
+        reference_images = []
+        for idx in range(len(kernel_size_array)):
+            reference_images.append(open_reference(setup, reference_image_directory, reference_image_name, kernel_size_array[idx], max_adu, ref_extension = 0, log = log, central_crop = maxshift, master_mask = master_mask))
+
         if os.path.exists(os.path.join(kernel_directory_path,'unweighted_u_matrix.npy')):
-            umatrix, kernel_size_u, max_adu_restored = np.load(os.path.join(kernel_directory_path,'unweighted_u_matrix.npy'))
-            if (kernel_size_u != kernel_size) or (max_adu_restored != max_adu):
-                #calculate and store unweighted umatrix
-                umatrix = umatrix_constant(reference_image, kernel_size)
-                np.save(os.path.join(kernel_directory_path,'unweighted_u_matrix.npy'), [umatrix, kernel_size, max_adu])
-                hdutmp = fits.PrimaryHDU(umatrix)
-                hdutmp.writeto(os.path.join(kernel_directory_path,'unweighted_u_matrix.fits'),overwrite =True)
+            umatrices, kernel_sizes, max_adu_restored = np.load(os.path.join(kernel_directory_path,'unweighted_u_matrix.npy'))
+            if (kernel_sizes != kernel_size_array) or (max_adu_restored != max_adu):
+                #calculate and store unweighted umatrices
+                umatrices = []
+                for idx in range(len(kernel_size_array)):
+                    umatrices.append(umatrix_constant(reference_images[idx][0], kernel_size_array[idx]))
+                np.save(os.path.join(kernel_directory_path,'unweighted_u_matrix.npy'), [umatrices, kernel_size_array, max_adu])
         else:
-            #calculate and store unweighted umatrix 
-            umatrix = umatrix_constant(reference_image, kernel_size)
-            np.save(os.path.join(kernel_directory_path,'unweighted_u_matrix.npy'), [umatrix, kernel_size, max_adu])
-            hdutmp = fits.PrimaryHDU(umatrix)
-            hdutmp.writeto(os.path.join(kernel_directory_path,'unweighted_u_matrix.fits'),overwrite=True)
-
-
-
+            #calculate and store unweighted umatrices
+            umatrices = []
+            for idx in range(len(kernel_size_array)):
+                umatrices.append(umatrix_constant(reference_images[idx][0], kernel_size_array[idx]))
+            np.save(os.path.join(kernel_directory_path,'unweighted_u_matrix.npy'), [umatrices, kernel_size_array, max_adu])
 
 
     for new_image in new_images:
         row_index = np.where(reduction_metadata.images_stats[1]['IM_NAME'] == new_image)[0][0]
         ref_fwhm_x, ref_fwhm_y, ref_sigma_x, ref_sigma_y = ref_stats
         x_shift, y_shift = -reduction_metadata.images_stats[1][row_index]['SHIFT_X'],-reduction_metadata.images_stats[1][row_index]['SHIFT_Y'] 
+        x_fwhm, y_fwhm = -reduction_metadata.images_stats[1][row_index]['FWHM_X'],-reduction_metadata.images_stats[1][row_index]['FWHM_Y'] 
+        fwhm_val = int(grow_kernel*(float(x_fwhm)**2+float(y_fwhm)**2)**0.5)
+        umatrix_index = int(np.digitize(fwhm_val,np.array(kernel_size_array)))
+        umatrix_index = min(umatrix_index, len(kernel_size_array)-1)
+        umatrix = umatrices[umatrix_index]
+        kernel_size = kernel_size_array[umatrix_index]
+        reference_image, bright_reference_mask, reference_image_unmasked = reference_images[umatrix_index]
         x_shift,y_shift = 0,0
         #if the reference is not as sharp as a data image -> smooth the data
         smoothing = smoothing_2sharp_images(reduction_metadata, ref_fwhm_x, ref_fwhm_y, ref_sigma_x, ref_sigma_y, row_index)
@@ -188,8 +212,6 @@ def subtract_small_format_image(new_images, reference_image_name, reference_imag
             missing_data_mask = (data_image == 0.)
             #reference_image[bright_reference_mask] = 0
             #data_image[bright_reference_mask] = 0
-
-
 
             b_vector = bvector_constant(reference_image, data_image, kernel_size)
             kernel_matrix, bkg_kernel, kernel_uncertainty = kernel_solution(umatrix, b_vector, kernel_size, circular = False)
@@ -203,7 +225,7 @@ def subtract_small_format_image(new_images, reference_image_name, reference_imag
             hdu_kernel_err = fits.PrimaryHDU(kernel_uncertainty)
             hdu_kernel_err.writeto(os.path.join(kernel_directory_path,'kernel_err_'+new_image), overwrite = True)  
             if log is not None:
-                logs.ifverbose(log, setup, 'b_vector calculated for:' + new_image+' and scale factor '+str(pscale)) 
+                logs.ifverbose(log, setup, 'b_vector calculated for:' + new_image+' and scale factor '+str(pscale)+' in kernel bin '+str(umatrix_index)) 
             #CROP EDGE!
             difference_image = subtract_images(data_image_unmasked, reference_image_unmasked, kernel_matrix, kernel_size, bkg_kernel)
               
