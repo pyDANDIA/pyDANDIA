@@ -435,7 +435,7 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
 
     for j in range(0, len(ref_star_catalog), 1)[:]:
         #print(j)
-        #j = 5324
+        #j = 3276
 
         list_image_id.append(0)
         list_star_id.append(ref_star_catalog[j, 0])
@@ -526,7 +526,7 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
             #flux = 0
            
 
-            intensities, cov = np.polyfit(psf_fit.ravel(), data.ravel(), 1, w=1/weight.ravel(), cov=True)
+            intensities, cov = np.polyfit(psf_fit.ravel(), data.ravel(), 1, w=1/poids.ravel(), cov=True)
             #if (abs(intensities[0])>1000) & (j==525):
             #   res = so.leastsq(quick_offset_fit,[0,0],args=(psf_model, psf_parameters,X_grid, Y_grid, min_x, max_x, min_y, max_y, kernel, data,weight))
             #   psf_parameters[1] += res[0][0] 
@@ -539,9 +539,11 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
             #   #pdb.set_trace()
 		
             (flux,flux_err) = (intensities[0], cov[0][0] ** 0.5)
+            flux = np.sum(flux*psf_fit)
+            #flux_err = np.sum(flux_err*psf_fit)
             (back, back_err) = (intensities[1], cov[1][1] ** 0.5)
-            true = data-back
-            weighted_psf = psf_fit/poids
+            #true = data-back
+            #weighted_psf = psf_fit/poids
 
             #flux = np.sum(true * weighted_psf/poids ) / np.sum(weighted_psf**2 )
 
@@ -557,9 +559,11 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
             #flux_err = ((flux/SNR)**2+np.sum(np.abs(residus)))**0.5
             #flux_err = (flux_err ** 2 + np.sum(np.abs(residus))) ** 0.5
             #flux_err = flux/SNR
-            flux_err = (flux_err**2+np.sum(residus**2))**0.5
+            flux_err = (flux_err**2+np.mean(residus**2))**0.5
 
             flux_tot = ref_flux*ref_exposure_time - flux/phot_scale_factor
+            #SNR_fluxtot = ref_flux/error_ref_flux
+            #error_ref_flux = ref_flux/SNR_fluxtot*ref_exposure_time
             flux_err_tot = (error_ref_flux ** 2*ref_exposure_time + flux_err**2/phot_scale_factor**2) ** 0.5
 
             SNR = flux_tot / flux_err_tot

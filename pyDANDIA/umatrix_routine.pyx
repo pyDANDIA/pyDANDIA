@@ -63,6 +63,83 @@ def umatrix_construction(np.ndarray[DTYPE_t, ndim = 2] reference_image,np.ndarra
     
     return u_matrix
 
+def umatrix_construction_clean(np.ndarray[DTYPE_t, ndim = 2] reference_image,np.ndarray[DTYPE_t, ndim = 2] weights, np.ndarray[DTYPE_t, ndim = 2] u_matrix, pandq, n_kernel_np, kernel_size_np, outlier_indices, size_outliers):
+
+    cdef int ni_image = np.shape(reference_image)[0]
+    cdef int nj_image = np.shape(reference_image)[1]
+    cdef double sum_acc = 0.
+    cdef int idx_l,idx_m,idx_l_prime,idx_m_prime,idx_i,idx_j
+    cdef int kernel_size = np.int(kernel_size_np)
+    cdef int kernel_size_half = np.int(kernel_size_np)/2
+    cdef int n_kernel = np.int(n_kernel_np)
+
+    for idx_p in range(n_kernel):
+        for idx_q in range(idx_p,n_kernel):
+            sum_acc = u_matrix[idx_p, idx_q]
+            idx_l, idx_m = pandq[idx_p]
+            idx_l_prime, idx_m_prime = pandq[idx_q]
+            for idx_out in range(0,size_outliers):                
+                idx_i, idx_j = outlier_indices[idx_out]
+                sum_acc -= reference_image[idx_i + idx_l, idx_j + idx_m] * reference_image[idx_i + idx_l_prime,idx_j + idx_m_prime]  * weights[idx_i, idx_j]
+            u_matrix[idx_p, idx_q] = sum_acc
+            u_matrix[idx_q, idx_p] = sum_acc
+
+    for idx_p in [n_kernel]:
+        for idx_q in range(n_kernel):
+            sum_acc = u_matrix[idx_p, idx_q]
+            idx_l = kernel_size
+            idx_m = kernel_size
+            idx_l_prime, idx_m_prime = pandq[idx_q]
+            for idx_out in range(0,size_outliers):                
+                idx_i, idx_j = outlier_indices[idx_out]
+                sum_acc -= reference_image[idx_i + idx_l_prime, idx_j + idx_m_prime] * weights[idx_i, idx_j]
+            u_matrix[idx_p, idx_q] = sum_acc
+    
+    for idx_p in range(n_kernel):
+        for idx_q in [n_kernel]:
+            sum_acc = u_matrix[idx_p, idx_q]
+            idx_l, idx_m = pandq[idx_p]
+            idx_l_prime = kernel_size
+            idl_m_prime = kernel_size 
+            for idx_out in range(0,size_outliers):                
+                idx_i, idx_j = outlier_indices[idx_out]
+                sum_acc -= reference_image[idx_i + idx_l, idx_j + idx_m] * weights[idx_i, idx_j] 
+            u_matrix[idx_p, idx_q] = sum_acc
+
+    sum_acc = u_matrix[n_kernel, n_kernel]
+    for idx_out in range(0,size_outliers):                
+        idx_i, idx_j = outlier_indices[idx_out]
+        sum_acc -= weights[idx_i, idx_j] 
+    u_matrix[n_kernel, n_kernel] = sum_acc
+    
+    return u_matrix
+
+def bvector_construction_clean(np.ndarray[DTYPE_t, ndim = 2] reference_image,np.ndarray[DTYPE_t, ndim = 2] data_image,np.ndarray[DTYPE_t, ndim = 2] weights,np.ndarray[DTYPE_t, ndim = 1] b_vector, pandq, n_kernel_np, kernel_size_np, outlier_indices, size_outliers):
+
+    cdef int ni_image = np.shape(data_image)[0]
+    cdef int nj_image = np.shape(data_image)[1]
+    cdef double sum_acc = 0.
+    cdef int idx_l,idx_m,idx_l_prime,idx_m_prime,idx_i,idx_j
+    cdef int kernel_size = np.int(kernel_size_np)
+    cdef int kernel_size_half = np.int(kernel_size_np)/2
+    cdef int n_kernel = np.int(n_kernel_np)
+       
+    for idx_p in range(n_kernel):
+        idx_l, idx_m = pandq[idx_p]
+        sum_acc = b_vector[idx_p]
+        for idx_out in range(0,size_outliers):                
+            idx_i, idx_j = outlier_indices[idx_out]
+            sum_acc -= data_image[idx_i, idx_j] * reference_image[idx_i + idx_l , idx_j + idx_m ] * weights[idx_i, idx_j]
+        b_vector[idx_p] = sum_acc
+
+    sum_acc = b_vector[n_kernel]
+    for idx_out in range(0,size_outliers):                
+        idx_i, idx_j = outlier_indices[idx_out]
+        sum_acc -= data_image[idx_i, idx_j] * weights[idx_i, idx_j]
+    b_vector[n_kernel] = sum_acc
+
+    return b_vector
+
 def umatrix_bvector_construction(np.ndarray[DTYPE_t, ndim = 2] reference_image,np.ndarray[DTYPE_t, ndim = 2] data_image,np.ndarray[DTYPE_t, ndim = 2] weights, pandq, n_kernel_np, kernel_size_np):
 
     cdef int ni_image = np.shape(data_image)[0]
