@@ -119,7 +119,7 @@ def run_stage0(setup):
             
             image_bpm = open_an_image(setup, reduction_metadata.data_architecture[1]['BPM_PATH'][0],
                                            new_image, image_index=2, log=log)
-            
+        
             # Occasionally, the LCO BANZAI pipeline fails to produce an image
             # catalogue for an image.  If this happens, there will only be 2 
             # extensions to the FITS image HDU, the PrimaryHDU (main image data)
@@ -133,7 +133,7 @@ def run_stage0(setup):
                                                   open_image, image_bpm, [1,3], log,
                                                   low_level=0,
                                                   instrument_bpm=instrument_bpm)
-                                                  
+                                               
             save_the_pixel_mask_in_image(reduction_metadata, new_image, bpm)
             logs.ifverbose(log, setup, ' -> ' + new_image)
 
