@@ -212,6 +212,7 @@ def subtract_small_format_image(new_images, reference_image_name, reference_imag
         smoothing = smoothing_2sharp_images(reduction_metadata, ref_fwhm_x, ref_fwhm_y, ref_sigma_x, ref_sigma_y, row_index)
 
         try:
+            #import pdb; pdb.set_trace()
             data_image, data_image_unmasked = open_data_image(setup, data_image_directory, new_image, bright_reference_mask, kernel_size, max_adu, xshift = x_shift, yshift = y_shift, sigma_smooth = smoothing, central_crop = maxshift)
             missing_data_mask = (data_image == 0.)
             #reference_image[bright_reference_mask] = 0
@@ -233,16 +234,16 @@ def subtract_small_format_image(new_images, reference_image_name, reference_imag
             #CROP EDGE!
             difference_image = subtract_images(data_image_unmasked, reference_image_unmasked, kernel_matrix, kernel_size, bkg_kernel)
             #EXPERIMENTAL -> DISCARD outliers
-            mean_diff, median_diff, std_diff = sigma_clipped_stats(difference_image, sigma=4.0) 
-            out3sig = np.where(np.abs(difference_image) > 4.*+std_diff)
-            outliers_list = []
-            for rm_idx in range(len(out3sig[0])):
-                outliers_list.append((out3sig[0][rm_idx],out3sig[1][rm_idx]))
+            #mean_diff, median_diff, std_diff = sigma_clipped_stats(difference_image, sigma=4.0) 
+            #out3sig = np.where(np.abs(difference_image) > 4.*+std_diff)
+            #outliers_list = []
+            #for rm_idx in range(len(out3sig[0])):
+            #    outliers_list.append((out3sig[0][rm_idx],out3sig[1][rm_idx]))
             #update umatrix
-            b_vector_2 = bvector_constant_clean(reference_image, data_image, kernel_size, b_vector, outliers_list)
-            umatrix_2 = umatrix_constant_clean(reference_image, kernel_size, umatrix, outliers_list)
-            kernel_matrix_2, bkg_kernel_2, kernel_uncertainty_2 = kernel_solution(umatrix_2, b_vector_2, kernel_size, circular = False)
-            difference_image = subtract_images(data_image_unmasked, reference_image_unmasked, kernel_matrix_2, kernel_size, bkg_kernel_2)
+            #b_vector_2 = bvector_constant_clean(reference_image, data_image, kernel_size, b_vector, outliers_list)
+            #umatrix_2 = umatrix_constant_clean(reference_image, kernel_size, umatrix, outliers_list)
+            #kernel_matrix_2, bkg_kernel_2, kernel_uncertainty_2 = kernel_solution(umatrix_2, b_vector_2, kernel_size, circular = False)
+            #difference_image = subtract_images(data_image_unmasked, reference_image_unmasked, kernel_matrix_2, kernel_size, bkg_kernel_2)
             new_header = fits.Header()
             new_header['SCALEFAC'] = pscale
             difference_image_hdu = fits.PrimaryHDU(difference_image,header=new_header)
