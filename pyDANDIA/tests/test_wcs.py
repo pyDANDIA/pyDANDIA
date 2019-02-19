@@ -13,11 +13,16 @@ import wcs
 import stage3
 import pipeline_setup
 from astropy.io import fits
+from astropy.table import Table
+from astropy.wcs import WCS as aWCS
 import catalog_utils
 
 cwd = getcwd()
 TEST_DATA = path.join(cwd,'data')
 
+TEST_DIR = path.join(cwd,'data','proc',
+                        'ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip')
+                        
 def test_reference_astrometry():
 
     setup = pipeline_setup.pipeline_setup({'red_dir': TEST_DATA})    
@@ -71,7 +76,43 @@ def test_search_vizier_for_2mass_sources():
 
     assert len(catalog) > 0
 
+def test_fetch_catalog_sources_for_field():
+    
+    setup = pipeline_setup.pipeline_setup({'red_dir': TEST_DIR})    
+    
+    log = logs.start_stage_log( cwd, 'test_wcs' )
+    
+    field = 'ROME-FIELD-01'
+    header = {'CRPIX1': 199.8948336988849,
+                'CRPIX2': 199.7880003717081,
+                'CRVAL1': 269.5375,             
+                'CRVAL2': -28.01805555555556,          
+                'CUNIT1': 'deg     ',                             
+                'CUNIT2': 'deg     ',                                 
+                'CD1_1': 0.0001081,                 
+                'CD1_2': 0.0000000,              
+                'CD2_1': 0.0000000,           
+                'CD2_2': -0.0001081,
+                'NAXIS1': 4096,
+                'PIXSCALE': 0.26}
+                
+    image_wcs = aWCS(header)
+    
+    catalog_sources = wcs.fetch_catalog_sources_for_field(setup,field,header,image_wcs,log)
+    
+    assert type(catalog_sources) == type(Table())
+    assert len(catalog_sources) > 0
+    
+    field = 'ROME-FIELD-21'
+    catalog_sources = wcs.fetch_catalog_sources_for_field(setup,field,header,image_wcs,log)
+    
+    assert type(catalog_sources) == type(Table())
+    assert len(catalog_sources) > 0
+    
+    logs.close_log(log)
     
 if __name__ == '__main__':
+
     #test_reference_astrometry()
-    test_search_vizier_for_2mass_sources()
+    #test_search_vizier_for_2mass_sources()
+    test_fetch_catalog_sources_for_field()

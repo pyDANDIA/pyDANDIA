@@ -25,18 +25,16 @@ def reference_astrometry(setup,log,image_path,detected_sources,diagnostics=True)
     hdu = fits.open(image_path)
     
     image_wcs = wcs.WCS(hdu[0].header)
+    field = hdu[0].header['OBJECT']
+    
     log.info('Reference image initial WCS information:')
     log.info(image_wcs)
     
     wcs_image_path = path.join(setup.red_dir,'ref','ref_image_wcs.fits')
     catalog_file = path.join(setup.red_dir,'ref', 'star_catalog.fits')
     
-    log.info('Querying ViZier for 2MASS sources within the field of view...')
-    radius = hdu[0].header['NAXIS1']*hdu[0].header['PIXSCALE']/60.0/2.0
-    catalog_sources = search_vizier_for_2mass_sources(str(image_wcs.wcs.crval[0]), \
-                                                      str(image_wcs.wcs.crval[1]), \
-                                                     radius)
-    log.info('ViZier returned '+str(len(catalog_sources))+' within the field of view')
+    catalog_sources = fetch_catalog_sources_for_field(setup,field,hdu[0].header,
+                                                      image_wcs,log)
     
     catalog_sources_xy = calc_image_coordinates(catalog_sources,image_wcs)
     log.info('Calculated image coordinates of 2MASS catalog sources')
@@ -72,7 +70,37 @@ def reference_astrometry(setup,log,image_path,detected_sources,diagnostics=True)
     log.info('Completed astrometry of reference image')
     
     return ref_source_catalog
+
+def fetch_catalog_sources_for_field(setup,field,header,image_wcs,log):
     
+    
+    twomass_catalog_file = path.join(setup.pipeline_config_dir,
+                                             field+'_2mass_catalog.fits')
+    
+    catalog_sources = catalog_utils.read_vizier_catalog(twomass_catalog_file)
+    
+    if catalog_sources != None:
+        
+        log.info('Read data for '+str(len(catalog_sources))+\
+                 ' 2MASS stars from stored catalog for field '+field)
+        
+    else:
+        
+        log.info('Querying ViZier for 2MASS sources within the field of view...')
+    
+        radius = header['NAXIS1']*header['PIXSCALE']/60.0/2.0
+    
+        catalog_sources = search_vizier_for_2mass_sources(str(image_wcs.wcs.crval[0]), \
+                                                      str(image_wcs.wcs.crval[1]), \
+                                                      radius)
+        
+        log.info('ViZier returned '+str(len(catalog_sources))+\
+                 ' within the field of view')
+        
+        catalog_utils.output_vizier_catalog(twomass_catalog_file, catalog_sources)
+        
+    return catalog_sources
+                 
 def run_imwcs(detected_sources,catalog_sources,input_image_path,output_image_path):
     """Function to run wcstools.imwcs to match detected to catalog objects and
     re-compute the WCS for an image

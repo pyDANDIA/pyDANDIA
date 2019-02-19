@@ -134,8 +134,45 @@ def test_id_crowded_stars():
         assert j not in star_index
     
     logs.close_log(log)
+
+def test_apply_psf_star_limit():
+    
+    setup = pipeline_setup.pipeline_setup({'red_dir': TEST_DIR})
+    
+    log = logs.start_stage_log( cwd, 'test_psf_selection' )
+    
+    reduction_metadata = metadata.MetaData()
+    reduction_metadata.load_a_layer_from_file(setup.red_dir, 
+                                              'pyDANDIA_metadata.fits', 
+                                              'reduction_parameters')
+    max_psf_stars = reduction_metadata.reduction_parameters[1]['MAX_PSF_STARS'][0]
+    
+    nstars = 4000
+    bright = 16.0
+    faint = 23.0
+    
+    ref_star_catalog = np.zeros([nstars,13])
+    ref_star_catalog[:,0] = range(0,nstars,1)
+    
+    istar = -1
+    for j in range(0,nstars,1):
+        istar += 1
+        ref_star_catalog[istar,1] = abs(random.normalvariate(100.0,100.0))
+        ref_star_catalog[istar,2] = abs(random.normalvariate(100.0,100.0))
+        ref_star_catalog[istar,7] = abs(random.normalvariate(16.0,0.5))
+    
+    psf_stars_idx = np.array([1]*nstars)
+    
+    psf_stars_idx = psf_selection.apply_psf_star_limit(reduction_metadata,ref_star_catalog,
+                                         psf_stars_idx,log)
+    
+    idx = np.where(psf_stars_idx)[0]
+    
+    assert len(idx) == max_psf_stars
+    
+    logs.close_log(log)
     
 if __name__ == '__main__':
     
-    test_id_crowded_stars()
-    
+    #test_id_crowded_stars()
+    test_apply_psf_star_limit()

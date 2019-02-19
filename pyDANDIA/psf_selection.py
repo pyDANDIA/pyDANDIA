@@ -39,6 +39,11 @@ def psf_star_selection(setup,reduction_metadata,log,ref_star_catalog,
     psf_stars_idx = id_crowded_stars(setup,reduction_metadata,log,
                                       ref_star_catalog,psf_stars_idx)
     
+    # Ensure the pipeline configuration's limit on the maximum number of
+    # PSF stars is respected:
+    psf_stars_idx = apply_psf_star_limit(reduction_metadata,ref_star_catalog,
+                                         psf_stars_idx,log)
+    
     ref_star_catalog[:,15] = psf_stars_idx
     idx = np.where(ref_star_catalog[:,15] == 1.0)
     
@@ -82,10 +87,12 @@ def id_mid_range_stars(setup,reduction_metadata,log,ref_star_catalog,psf_stars_i
     log.info('Excluding top and bottom '+str(psf_range_thresh)+\
     '%  of a star catalog of '+str(len(ref_star_catalog))+' stars')
     
-    stars_bright_ordered = ref_star_catalog[:,5].argsort()
+    stars_bright_ordered = ref_star_catalog[:,7].argsort()
     
-    brightest = ref_star_catalog[:,5].min()
-    faintest = ref_star_catalog[:,5].max()
+    brightest = ref_star_catalog[:,7].min()
+    faintest = ref_star_catalog[:,7].max()
+    
+    print(ref_star_catalog[:,7])
     
     log.info('Brightness range of stars: '+str(brightest)+' - '+str(faintest))
     
@@ -107,6 +114,8 @@ def id_mid_range_stars(setup,reduction_metadata,log,ref_star_catalog,psf_stars_i
     star_index = np.where(psf_stars_idx == 1)[0]
     
     log.info(str(len(star_index))+' stars selected as candidates following brightness tests')
+    
+    exit()
     
     return psf_stars_idx
     
@@ -217,7 +226,26 @@ def id_crowded_stars(setup,reduction_metadata,log,
     
     return psf_stars_idx
 
-
+def apply_psf_star_limit(reduction_metadata,ref_star_catalog,psf_stars_idx,log):
+    """Function to ensure that the configured limit to the number of PSF
+    stars selected is respected"""
+    
+    max_psf_stars = reduction_metadata.reduction_parameters[1]['MAX_PSF_STARS'][0]
+    
+    stars_bright_ordered = ref_star_catalog[:,7].argsort()
+    
+    if len(stars_bright_ordered) > max_psf_stars:
+        
+        deselect = stars_bright_ordered[max_psf_stars:]
+        select = stars_bright_ordered[:max_psf_stars]
+        
+        psf_stars_idx[deselect] = 0
+        
+        log.info('Limited the number of PSF stars selected to configured maximum of '+\
+                    str(max_psf_stars))
+    
+    return psf_stars_idx
+    
 def plot_ref_star_catalog_positions(setup,reduction_metadata,log,
                                     ref_star_catalog, psf_stars_idx):
     """Function to generate a diagnostic plot of the pixel positions of stars

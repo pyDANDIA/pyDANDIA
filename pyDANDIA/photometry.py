@@ -86,16 +86,30 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
         str(xstar)+', '+str(ystar)+')')
         
         logs.ifverbose(log,setup,' -> Corners of PSF stamp '+repr(corners))
-                        
-        (fitted_model,good_fit) = psf.fit_star_existing_model(setup, data, 
-                                               xstar, ystar, corners,
-                                               psf_size, 
-                                               psf_model, sky_bkgd, 
+        
+        (data_section, sec_xstar, sec_ystar) = psf.extract_image_section(data,
+                                                            xstar,ystar,corners)
+        
+        (sky_section, sky_x, sky_y) = psf.extract_image_section(sky_bkgd,
+                                                            xstar,ystar,corners)
+        
+        (fitted_model,good_fit) = psf.fit_star_existing_model(setup, data_section, 
+                                               sec_xstar, sec_ystar, 
+                                               psf_size, psf_model, 
+                                               sky_section, 
                                                centroiding=centroiding,
                                                diagnostics=False)
-                                        
+        
         logs.ifverbose(log, setup,' -> Star '+str(j)+
-        ' fitted model parameters = '+repr(fitted_model.get_parameters())+
+        ' fitted model parameters = '+repr(fitted_model.get_parameters()))
+        
+        fitted_pars = fitted_model.get_parameters()
+        fitted_pars[1] = ystar
+        fitted_pars[2] = xstar
+        fitted_model.update_psf_parameters(fitted_pars)
+    
+        logs.ifverbose(log, setup,' -> Star '+str(j)+
+        ' updated centroid parameters = '+repr(fitted_model.get_parameters())+
         ' good fit? '+repr(good_fit))
         
         if good_fit == True:
