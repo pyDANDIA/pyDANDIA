@@ -70,6 +70,8 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
     
     residuals = np.copy(data)
     
+    jincr = len(ref_star_catalog)*0.1
+    
     for j in range(0,len(ref_star_catalog),1):
         
         xstar = ref_star_catalog[j,1]
@@ -81,22 +83,41 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
         corners = psf.calc_stamp_corners(xstar, ystar, psf_size, psf_size, 
                                          data.shape[1], data.shape[0],
                                          over_edge=True)
-                                    
-        logs.ifverbose(log,setup,' -> Star '+str(j)+' at position ('+\
-        str(xstar)+', '+str(ystar)+')')
         
-        logs.ifverbose(log,setup,' -> Corners of PSF stamp '+repr(corners))
-                        
-        (fitted_model,good_fit) = psf.fit_star_existing_model(setup, data, 
-                                               xstar, ystar, corners,
-                                               psf_size, 
-                                               psf_model, sky_bkgd, 
+        if diagnostics:
+            logs.ifverbose(log,setup,' -> Star '+str(j)+' at position ('+\
+                            str(xstar)+', '+str(ystar)+')')
+        
+            logs.ifverbose(log,setup,' -> Corners of PSF stamp '+repr(corners))
+        
+        (data_section, sec_xstar, sec_ystar) = psf.extract_image_section(data,
+                                                            xstar,ystar,corners)
+        
+        (sky_section, sky_x, sky_y) = psf.extract_image_section(sky_bkgd,
+                                                            xstar,ystar,corners)
+        
+        (fitted_model,good_fit) = psf.fit_star_existing_model(setup, data_section, 
+                                               sec_xstar, sec_ystar, 
+                                               psf_size, psf_model, 
+                                               sky_section, 
                                                centroiding=centroiding,
                                                diagnostics=False)
-                                        
-        logs.ifverbose(log, setup,' -> Star '+str(j)+
-        ' fitted model parameters = '+repr(fitted_model.get_parameters())+
-        ' good fit? '+repr(good_fit))
+        
+        if diagnostics:
+            logs.ifverbose(log, setup,' -> Star '+str(j)+
+                            ' fitted model parameters = '+
+                            repr(fitted_model.get_parameters()))
+        
+        fitted_pars = fitted_model.get_parameters()
+        fitted_pars[1] = ystar
+        fitted_pars[2] = xstar
+        fitted_model.update_psf_parameters(fitted_pars)
+    
+        if diagnostics:
+            logs.ifverbose(log, setup,' -> Star '+str(j)+
+                            ' updated centroid parameters = '+\
+                            repr(fitted_model.get_parameters())+
+                            ' good fit? '+repr(good_fit))
         
         if good_fit == True:
             
@@ -116,8 +137,9 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
             
             residuals -= psf_image
             
-            logs.ifverbose(log, setup,' -> Star '+str(j)+
-            ' subtracted PSF from the residuals')
+            if diagnostics:
+                logs.ifverbose(log, setup,' -> Star '+str(j)+
+                                ' subtracted PSF from the residuals')
                     
             (flux, flux_err) = fitted_model.calc_flux(Y_grid, X_grid)
             
@@ -128,15 +150,22 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
             ref_star_catalog[j,7] = mag
             ref_star_catalog[j,8] = mag_err
             
-            logs.ifverbose(log,setup,' -> Star '+str(j)+
-            ' flux='+str(flux_scaled)+' +/- '+str(flux_err_scaled)+' ADU, '
-            'mag='+str(mag)+' +/- '+str(mag_err)+' mag')
+            if diagnostics:
+                logs.ifverbose(log,setup,' -> Star '+str(j)+
+                                ' flux='+str(flux_scaled)+' +/- '+\
+                                str(flux_err_scaled)+' ADU, '
+                                'mag='+str(mag)+' +/- '+str(mag_err)+' mag')
     
         else:
             
-            logs.ifverbose(log,setup,' -> Star '+str(j)+
-            ' No photometry possible from poor PSF fit')
-    
+            if diagnostics:
+                logs.ifverbose(log,setup,' -> Star '+str(j)+
+                                ' No photometry possible from poor PSF fit')
+        
+        if float(j)%jincr == 0:
+            logs.ifverbose(log,setup,' -> Completed photometry of '+str(j)+\
+                            ' stars from catalog')
+                            
     res_image_path = os.path.join(setup.red_dir,'ref',os.path.basename(image_path).replace('.fits','_res.fits'))
     
     hdu = fits.PrimaryHDU(residuals)

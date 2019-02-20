@@ -8,6 +8,7 @@ Created on Sat Sep 23 15:14:35 2017
 from os import path
 from astropy.io import fits
 import numpy as np
+from astropy import table
 
 def read_source_catalog(catalog_file):
     """Function to read the file of detected sources
@@ -231,4 +232,49 @@ def get_tables_to_search(cat_header,ra_min,dec_min,ra_max,dec_max):
     table_idx.sort()
     
     return table_idx
+
+def output_vizier_catalog(path_to_output_file, catalog):
+    
+    col_names = ['_RAJ2000', '_DEJ2000', 'Jmag', 'e_Jmag', \
+                 'Hmag', 'e_Hmag', 'Kmag', 'e_Kmag']
+    
+    formats = [ 'D', 'D', 'E', 'E', 'E', 'E', 'E', 'E' ]
+    
+    units = [ 'deg', 'deg', 'mag', 'mag', 'mag', 'mag', 'mag', 'mag' ]
+    
+    col_list = []
+    for i in range(0,len(col_names),1):
+        
+        col_list.append(fits.Column(name=col_names[i], 
+                                    format=formats[i], 
+                                    unit=units[i],
+                                    array=catalog[col_names[i]].data))
+    
+    phdu = fits.PrimaryHDU()
+    tbhdu = fits.BinTableHDU.from_columns(col_list)
+    thdulist = fits.HDUList([phdu, tbhdu])
+    thdulist.writeto(path_to_output_file, overwrite=True)
+
+def read_vizier_catalog(path_to_cat_file):
+    
+    if path.isfile(path_to_cat_file):
+        
+        data = fits.getdata(path_to_cat_file)
+        
+        table_data = [ table.Column(name='_RAJ2000', data=data.field(0)),
+                  table.Column(name='_DEJ2000', data=data.field(1)),
+                  table.Column(name='Jmag', data=data.field(2)),
+                  table.Column(name='e_Jmag', data=data.field(3)),
+                  table.Column(name='Hmag', data=data.field(4)),
+                  table.Column(name='e_Hmag', data=data.field(5)),
+                  table.Column(name='Kmag', data=data.field(4)),
+                  table.Column(name='e_Kmag', data=data.field(5)) ]
+            
+        new_table = table.Table(data=table_data)
+    
+    else:
+        
+        new_table = None
+        
+    return new_table
     

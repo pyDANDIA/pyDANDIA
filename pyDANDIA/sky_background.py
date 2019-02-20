@@ -126,7 +126,7 @@ def build_psf_mask(setup,psf_size,diagnostics=False):
         
         plt.ylabel('Y pixel')
 
-        plt.savefig(path.join(setup.red_dir,'psf_mask.png'))
+        plt.savefig(path.join(setup.red_dir,'ref','psf_mask.png'))
 
         plt.close(1)
     
@@ -235,7 +235,7 @@ def mask_stars(setup,ref_image,ref_star_catalog, psf_mask, diagnostics=False):
 
         plt.colorbar()
 
-        plt.savefig(path.join(setup.red_dir,'masked_ref_image.png'))
+        plt.savefig(path.join(setup.red_dir,'ref','masked_ref_image.png'))
 
         plt.close(3)
     

@@ -45,4 +45,3 @@ def set_config_value(path_to_config_file, key_name, new_value):
     config_file.close()
 
     return True
-

@@ -11,3 +11,4 @@ astroquery
 scikit-image
 ccdproc
 setuptools
+pyslalib

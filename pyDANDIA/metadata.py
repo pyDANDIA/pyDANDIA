@@ -288,6 +288,28 @@ class MetaData:
             
             log.info('Output reference source catalogue to reduction metadata')
 
+    def create_software_layer(self,data,log=None):
+        """Function to create a layer in the reduction metadata file
+        detailing the software versions used in the reduction"""
+        
+        layer_name = 'software'
+        
+        names = [ 'stage3_version', 'stage6_version' ]
+        
+        formats = ['S50', 'S50']
+        
+        units = [None, None]
+        
+        data_structure = [ names, 
+                         formats, 
+                         units]
+        
+        self.create_a_new_layer(layer_name, data_structure, data)
+
+        if log != None:
+            
+            log.info('Output software version table to reduction metadata')
+
     def create_phot_calibration_layer(self,data,log=None):
         """Function to create the layer in the reduction metadata file
         containing the star catalogue of objects detected within the reference

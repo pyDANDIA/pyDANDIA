@@ -43,8 +43,62 @@ def test_get_connection():
     test_conn = sqlite3.connect(db_file_path)
         
     assert type(conn) == type(test_conn)
+    
     conn.close()
 
+def test_populate_db_defaults():
+    """Function to test the population of default values in the filters table
+    of the phot_db"""
+    
+    conn = phot_db.get_connection(dsn=db_file_path)
+    
+    query = 'SELECT filter_name FROM filters'
+    t = phot_db.query_to_astropy_table(conn, query, args=())
+    
+    assert len(t) == 3
+    for f in ['gp', 'rp', 'ip']:
+        assert f in t['filter_name']
+    
+    conn.close()
+
+def test_check_before_commit():
+    """Function to test the submission of facilities to the database
+    
+    NOTE: Separators MUST be overscores NOT dashes, since dash-separated
+    quantities do not parse properly on DB commit.    
+    """
+    
+    params = {'facility_code': 'lsc-doma-1m0a-fl15',
+              'site': 'lsc',
+              'enclosure': 'doma',
+              'telescope': '1m0a',
+              'instrument': 'fl15'}
+              
+    conn = phot_db.get_connection(dsn=db_file_path)
+    
+    table_keys = ['facility_code', 'site', 'enclosure', 'telescope', 'instrument']
+
+    phot_db.check_before_commit(conn, params, 'facilities', table_keys, 'facility_code')
+    
+    query = 'SELECT facility_code,site,enclosure,telescope,instrument FROM facilities WHERE facility_code = "'+params['facility_code']+'"'
+    t = phot_db.query_to_astropy_table(conn, query, args=())
+    
+    assert params['facility_code'] == t['facility_code']
+    assert params['site'] == t['site']
+    assert params['enclosure'] == t['enclosure']
+    assert params['telescope'] == t['telescope']
+    assert params['instrument'] == t['instrument']
+    
+    phot_db.check_before_commit(conn, params, 'facilities', table_keys, 'facility_code')
+    
+    t = phot_db.query_to_astropy_table(conn, query, args=())
+    
+    idx = np.where(t['facility_code'] == params['facility_code'])[0]
+    
+    assert len(idx) == 1
+    
+    conn.close()
+    
 def test_feed_to_table_many():
 
     if os.path.isfile(db_file_path):
@@ -240,10 +294,11 @@ def test_update_stars_ref_image_id():
 if __name__ == '__main__':
     
     #test_get_connection()
+    #test_populate_db_defaults()
     #test_feed_to_table_many()
     #test_ingest_astropy_table()
     #test_ingest_reference_in_db()
     #test_box_search_on_position()
     #test_update_table_entry()
-    test_update_stars_ref_image_id()
-    
+    #test_update_stars_ref_image_id()
+    test_check_before_commit()
