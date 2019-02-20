@@ -1261,7 +1261,7 @@ def output_fits(image_data, file_path):
        
     
 def cut_image_stamps(setup, image, stamp_centres, stamp_dims, log=None, 
-                     over_edge=False):
+                     over_edge=False, diagnostics=False):
     """Function to extract a set of stamps (2D image sections) at the locations
     given and with the dimensions specified in pixels.
     
@@ -1298,8 +1298,10 @@ def cut_image_stamps(setup, image, stamp_centres, stamp_dims, log=None,
                                      image.shape[1], image.shape[0],
                                      over_edge=over_edge)
 
-        logs.ifverbose(log, setup, str(j) + 'th PSF Star at (' + str(xcen) + ', ' + str(ycen) +
-                       ') has stamp x,y ranges: ' + repr(corners))
+        if diagnostics:
+            logs.ifverbose(log, setup, str(j) + 'th PSF Star at (' + \
+                            str(xcen) + ', ' + str(ycen) +
+                            ') has stamp x,y ranges: ' + repr(corners))
 
         if None not in corners:
 
@@ -1654,7 +1656,10 @@ def subtract_companions_from_psf_stamps(setup, reduction_metadata, log,
                     pars[1] = star_data[2]  # Y
                     pars[2] = star_data[1]  # X
                     sub_psf_model.update_psf_parameters(pars)
-                    log.info('Made sub PSF model centered at '+str(pars[2])+', '+str(pars[1]))
+                    
+                    if diagnostics:
+                        log.info('Made sub PSF model centered at '+str(pars[2])+\
+                                                              ', '+str(pars[1]))
                     
                     # THIS ONLY WORKS FOR CONSTANT BACKGROUND
                     # Otherwise it will need to be extracted for the specific 
@@ -1704,7 +1709,8 @@ def subtract_companions_from_psf_stamps(setup, reduction_metadata, log,
                 
         else:
 
-            log.info(' -> No stamp available for PSF star ' + str(int(j)))
+            if diagnostics:
+                log.info(' -> No stamp available for PSF star ' + str(int(j)))
 
             clean_stamps.append(None)
     
@@ -1938,7 +1944,8 @@ def extract_sub_stamp(setup, log, sidx, stamp, xcen, ycen, dx, dy, diagnostics=F
     :param Cutout2D object substamp: Image sub-stamp
     """
 
-    logs.ifverbose(log, setup, 'Extracting a ' + str(dx) + 'x' + str(dy) +
+    if diagnostics:
+        logs.ifverbose(log, setup, 'Extracting a ' + str(dx) + 'x' + str(dy) +
                    ' sub stamp image for position (' + str(xcen) + ', ' + str(ycen) + ')')
 
 #    (ymax_stamp, xmax_stamp) = stamp.shape
@@ -1965,11 +1972,15 @@ def extract_sub_stamp(setup, log, sidx, stamp, xcen, ycen, dx, dy, diagnostics=F
     y1 = corners[2]
     y2 = corners[3]
     
-    logs.ifverbose(log,setup,'X, Y pixel limits of substamp: '+repr(corners))
+    
+    if diagnostics:
+        logs.ifverbose(log,setup,'X, Y pixel limits of substamp: '+repr(corners))
     
     if (x2-x1) <= dx-2 or (y2-y1) <= dy-2:
         
-        logs.ifverbose(log,setup,' -> companion star too close to the stamp edge to model')
+        
+        if diagnostics:
+            logs.ifverbose(log,setup,' -> companion star too close to the stamp edge to model')
         
         substamp = None
 

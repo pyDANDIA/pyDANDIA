@@ -51,15 +51,19 @@ def psf_star_selection(setup,reduction_metadata,log,ref_star_catalog,
     
     if setup.verbosity >= 1:
         
-        logs.ifverbose(log,setup,'Selected PSF stars: ')
+        if diagnostics:
+            logs.ifverbose(log,setup,'Selected PSF stars: ')
+            
+            for i in range(0,len(psf_idx),1):
+                
+                j = int(psf_idx[i])
+                
+                logs.ifverbose(log,setup,str(j)+' at ('+
+                str(ref_star_catalog[i,1])+', '+str(ref_star_catalog[i,2])+')')
+            
+        else:
+            logs.ifverbose(log,setup,'Selected '+str(len(psf_idx))+' PSF stars')
         
-        for i in range(0,len(psf_idx),1):
-            
-            j = int(psf_idx[i])
-            
-            logs.ifverbose(log,setup,str(j)+' at ('+
-            str(ref_star_catalog[i,1])+', '+str(ref_star_catalog[i,2])+')')
-    
     # [Optionally] plot selection
     if diagnostics == True:
         
@@ -92,8 +96,6 @@ def id_mid_range_stars(setup,reduction_metadata,log,ref_star_catalog,psf_stars_i
     brightest = ref_star_catalog[:,7].min()
     faintest = ref_star_catalog[:,7].max()
     
-    print(ref_star_catalog[:,7])
-    
     log.info('Brightness range of stars: '+str(brightest)+' - '+str(faintest))
     
     nstar_cut = int(float(len(ref_star_catalog)) * (psf_range_thresh/100.0))
@@ -115,21 +117,17 @@ def id_mid_range_stars(setup,reduction_metadata,log,ref_star_catalog,psf_stars_i
     
     log.info(str(len(star_index))+' stars selected as candidates following brightness tests')
     
-    exit()
-    
     return psf_stars_idx
     
 def id_crowded_stars(setup,reduction_metadata,log,
-                                      ref_star_catalog,psf_stars_idx):
+                                      ref_star_catalog,psf_stars_idx,
+                                      diagnostics=False):
     """Function to identify those stars with bright neightbours in close 
     proximity and deselect them as potential PSF stars. 
     
     For this purpose, any star within a distance 0.5*psf_comp_dist*psf_size, 
     in units of FWHM, of another star is considered to be a companion of that 
     star, if its flux exceeds the threshold flux ratio psf_comp_flux.
-    
-    XXX Note at time of writing the FWHM measurements from stage 1 for all 
-    images are not yet available, so PSF size is not yet implemented
     """
     
     log.info('Excluding crowded stars from PSF star candidates based on crowding')
@@ -142,9 +140,7 @@ def id_crowded_stars(setup,reduction_metadata,log,
     
     psf_comp_dist = reduction_metadata.reduction_parameters[1]['PSF_COMP_DIST'][0]
     psf_comp_flux = reduction_metadata.reduction_parameters[1]['PSF_COMP_FLUX'][0]
-    
-    # XXX Fetch psf_size for the reference image from the metadata.
-    psf_size = 5.0
+    psf_size = reduction_metadata.reduction_parameters[1]['PSF_SIZE'][0]
     
     sep_thresh = 0.5 * psf_comp_dist * psf_size
     
@@ -158,21 +154,24 @@ def id_crowded_stars(setup,reduction_metadata,log,
         ystar = ref_star_catalog[j,2]
         fstar = mag_to_flux(zp,ref_star_catalog[j,5])
         
-        log.info('Star '+str(j)+', ('+str(xstar)+','+str(ystar)+\
-                    '), mag='+str(ref_star_catalog[j,5])+', flux='+str(fstar))
-        
         x_near = np.where( abs((ref_star_catalog[:,1])-xstar) < sep_thresh )
         
-        log.info('Star '+str(j)+': found '+str(len(x_near[0])-1)+\
+        if diagnostics:
+            log.info('Star '+str(j)+', ('+str(xstar)+','+str(ystar)+\
+                    '), mag='+str(ref_star_catalog[j,5])+', flux='+str(fstar))
+        
+            log.info('Star '+str(j)+': found '+str(len(x_near[0])-1)+\
                     ' potential close neighbours')
         
         x_near = x_near[0].tolist()
         jj = x_near.pop(x_near.index(j))
         
-        for i in x_near:
-            log.info(' -> Potential neighbour '+str(i)+\
-                    ' at ('+str(ref_star_catalog[i,1])+\
-                    ', '+str(ref_star_catalog[i,2])+')')
+        
+        if diagnostics:
+            for i in x_near:
+                log.info(' -> Potential neighbour '+str(i)+\
+                        ' at ('+str(ref_star_catalog[i,1])+\
+                        ', '+str(ref_star_catalog[i,2])+')')
         
         # If there are neighbouring stars close in x, check separation
         if len(x_near) > 0:
@@ -184,13 +183,14 @@ def id_crowded_stars(setup,reduction_metadata,log,
 
             near = np.where(sep < sep_thresh)[0]
             
-            log.info(' -> Confirmed '+str(len(near))+' close neighbours:')
+            if diagnostics:
+                log.info(' -> Confirmed '+str(len(near))+' close neighbours:')
             
-            for k,i in enumerate(near):
-                log.info(' -> '+str(x_near[i])+\
-                    ' at ('+str(ref_star_catalog[x_near[i],1])+\
-                    ', '+str(ref_star_catalog[x_near[i],2])+\
-                    '), separation='+str(sep[k]))
+                for k,i in enumerate(near):
+                    log.info(' -> '+str(x_near[i])+\
+                        ' at ('+str(ref_star_catalog[x_near[i],1])+\
+                        ', '+str(ref_star_catalog[x_near[i],2])+\
+                        '), separation='+str(sep[k]))
                     
             # If there are neighbouring stars, check flux ratios:
             if len(near) > 0:
@@ -202,15 +202,16 @@ def id_crowded_stars(setup,reduction_metadata,log,
                 neighbour_fratios = fstar/neighbour_fluxes
                 
                 bright = np.where( neighbour_fratios >= psf_comp_flux )
-                                
-                log.info(' -> Found '+str(len(bright[0]))+' close, bright neighbours')
                 
-                for i in range(0,len(bright[0]),1):
-                    k = bright[0][i]
-                    log.info(' -> '+str(k)+' has mag '+\
-                        str(ref_star_catalog[k,5])+', flux '+\
-                        str(neighbour_fluxes[i])+', fratio '+\
-                        str(neighbour_fratios[i]))
+                if diagnostics:
+                    log.info(' -> Found '+str(len(bright[0]))+' close, bright neighbours')
+                
+                    for i in range(0,len(bright[0]),1):
+                        k = bright[0][i]
+                        log.info(' -> '+str(k)+' has mag '+\
+                            str(ref_star_catalog[k,5])+', flux '+\
+                            str(neighbour_fluxes[i])+', fratio '+\
+                            str(neighbour_fratios[i]))
                         
                 # If the neighbouring stars are too bright, deselect as 
                 # a PSF star:
@@ -218,7 +219,8 @@ def id_crowded_stars(setup,reduction_metadata,log,
                     
                     psf_stars_idx[j] = 0
                     
-                    log.info(' -> Excluded star '+str(j)+' for excessive crowding')
+                    if diagnostics:
+                        log.info(' -> Excluded star '+str(j)+' for excessive crowding')
     
     star_index = np.where(psf_stars_idx == 1)[0]
     
@@ -240,10 +242,13 @@ def apply_psf_star_limit(reduction_metadata,ref_star_catalog,psf_stars_idx,log):
         select = stars_bright_ordered[:max_psf_stars]
         
         psf_stars_idx[deselect] = 0
+        psf_stars_idx[select] = 1
+        
+        idx = np.where(psf_stars_idx == 1)
         
         log.info('Limited the number of PSF stars selected to configured maximum of '+\
-                    str(max_psf_stars))
-    
+                    str(max_psf_stars)+', length psf star index '+str(len(psf_stars_idx)))
+        
     return psf_stars_idx
     
 def plot_ref_star_catalog_positions(setup,reduction_metadata,log,
