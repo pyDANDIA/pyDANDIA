@@ -371,11 +371,12 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
                                 ratio=min(ref_fwhm_x, ref_fwhm_y) / max(ref_fwhm_x, ref_fwhm_y), threshold=3. * std_ref,
                                 exclude_border=True)
         ref_sources = daofind.find_stars(reference_image - median_ref)
-        ref_sources = reduction_metadata.star_catalog[1]
+        #ref_sources = reduction_metadata.star_catalog[1]
 
 
         # ref_sources_x, ref_sources_y = np.copy(ref_sources['xcentroid']), np.copy(ref_sources['ycentroid'])
-
+    
+    master_mask = 0
     for new_image in new_images:
         print (new_image)
         row_index = np.where(reduction_metadata.images_stats[1]['IM_NAME'] == new_image)[0][0]
@@ -392,6 +393,7 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
         else:
             mask_extension = mask_extension_in
             mask_image = np.array(data_image_hdu[mask_extension].data, dtype=float)
+         
         central_region_x, central_region_y = np.shape(data_image)
         center_x, center_y = int(central_region_x / 2), int(central_region_y / 2)
 
@@ -451,12 +453,13 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
 
 
         shifted = tf.warp(data_image, inverse_map=model_final.inverse, preserve_range=True)
-
+        shifted_mask = tf.warp(mask_image, inverse_map=model_final.inverse, preserve_range=True)
+        master_mask += shifted_mask
+       
         if mask_extension > -1:
             shifted_mask = tf.warp(mask_image, inverse_map=model_final.inverse, preserve_range=True)
-        # import pdb;
-        # pdb.set_trace()
-        manual_transformation(model_final.params, (0, 0), data_image)
+        
+        #manual_transformation(model_final.params, (0, 0), data_image)
         #import matplotlib.pyplot as plt
         #fff,aaa = plt.subplots(3,1,sharex=True,sharey=True)
         #aaa[0].imshow(reference_image,vmin=0,vmax=10000)
@@ -465,41 +468,51 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
         #plt.show()
         #import pdb;
         #pdb.set_trace()
-        try:
+        #try:
 
             # shifted = cosmicray_lacosmic(shifted, sigclip=4., objlim = 4)[0]
-            pxs = float(np.shape(shifted)[0] * np.shape(shifted)[1])
-            zerovals = float(len(np.where(shifted == 0.)[0]))
-            if zerovals / pxs < 1.0:
-                resampled_image_hdu = fits.PrimaryHDU(shifted)
-                resampled_image_hdu.writeto(os.path.join(resampled_directory_path, new_image), overwrite=True)
-                if mask_extension > -1:
-                    if os.path.exists(
-                            os.path.join(reduction_metadata.data_architecture[1]['REF_PATH'][0], 'master_mask.fits')):
-                        mask = fits.open(
-                            os.path.join(reduction_metadata.data_architecture[1]['REF_PATH'][0], 'master_mask.fits'))
-                        bpm_mask = shifted_mask > 0.
-                        mask[0].data[bpm_mask] = mask[0].data[bpm_mask] + 1
-                        mask[0].data = np.array(mask[0].data, dtype=np.int)
-                        mask.writeto(
-                            os.path.join(reduction_metadata.data_architecture[1]['REF_PATH'][0], 'master_mask.fits'),
-                            overwrite=True)
-                    else:
-                        bpm_mask = shifted_mask > 0.
-                        mask_out = np.zeros(np.shape(shifted_mask))
-                        mask_out[bpm_mask] = 1.
-                        resampled_mask_hdu = fits.PrimaryHDU(np.array(mask_out, dtype=np.int))
-                        resampled_mask_hdu.writeto(
-                            os.path.join(reduction_metadata.data_architecture[1]['REF_PATH'][0], 'master_mask.fits'),
-                            overwrite=True)
+        #    pxs = float(np.shape(shifted)[0] * np.shape(shifted)[1])
+        #    zerovals = float(len(np.where(shifted == 0.)[0]))
+        #    if zerovals / pxs < 1.0:
+        #        resampled_image_hdu = fits.PrimaryHDU(shifted)
+        #        resampled_image_hdu.writeto(os.path.join(resampled_directory_path, new_image), overwrite=True)
+        #        if mask_extension > -1:
+        #            if os.path.exists(
+        #                    os.path.join(reduction_metadata.data_architecture[1]['REF_PATH'][0], 'master_mask.fits')):
+        #                mask = fits.open(
+        #                    os.path.join(reduction_metadata.data_architecture[1]['REF_PATH'][0], 'master_mask.fits'))
+        #                bpm_mask = shifted_mask > 0.
+        #                mask[0].data[bpm_mask] = mask[0].data[bpm_mask] + 1
+        #                mask[0].data = np.array(mask[0].data, dtype=np.int)
+        #                mask.writeto(
+        #                    os.path.join(reduction_metadata.data_architecture[1]['REF_PATH'][0], 'master_mask.fits'),
+        #                    overwrite=True)
+        #            else:
+        #                bpm_mask = shifted_mask > 0.
+        #                mask_out = np.zeros(np.shape(shifted_mask))
+        #                mask_out[bpm_mask] = 1.
+        #                resampled_mask_hdu = fits.PrimaryHDU(np.array(mask_out, dtype=np.int))
+        #                resampled_mask_hdu.writeto(
+        #                    os.path.join(reduction_metadata.data_architecture[1]['REF_PATH'][0], 'master_mask.fits'),
+        #                    overwrite=True)
 
-        except Exception as e:
-            resampled_image_hdu = fits.PrimaryHDU(data_image)
-            resampled_image_hdu.writeto(os.path.join(resampled_directory_path, new_image), overwrite=True)
-            if log is not None:
-                logs.ifverbose(log, setup, 'resampling failed:' + new_image + '. skipping! ' + str(e))
-            else:
-                print(str(e))
+        #except Exception as e:
+        #    resampled_image_hdu = fits.PrimaryHDU(data_image)
+        #    resampled_image_hdu.writeto(os.path.join(resampled_directory_path, new_image), overwrite=True)
+        #    if log is not None:
+        #        logs.ifverbose(log, setup, 'resampling failed:' + new_image + '. skipping! ' + str(e))
+        #    else:
+        #        print(str(e))
+
+
+        shifted = cosmicray_lacosmic(shifted, sigclip=4., objlim = 4)[0]
+        
+        resampled_image_hdu = fits.PrimaryHDU(shifted)
+        resampled_image_hdu.writeto(os.path.join(resampled_directory_path, new_image), overwrite=True)
+   
+    master_mask_hdu = fits.PrimaryHDU(master_mask)
+    master_mask_hdu.writeto(os.path.join(reference_image_directory, 'master_mask.fits'), overwrite=True)
+
 
 
 def reformat_catalog(idx_match, dist2d, ref_sources, data_sources, central_region_x, distance_threshold=1.5,
