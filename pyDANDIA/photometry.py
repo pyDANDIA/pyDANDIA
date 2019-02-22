@@ -70,7 +70,7 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
     
     residuals = np.copy(data)
     
-    jincr = len(ref_star_catalog)*0.1
+    jincr = int(float(len(ref_star_catalog))*0.01)
     
     for j in range(0,len(ref_star_catalog),1):
         
@@ -132,10 +132,11 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
             
             sub_psf_model.update_psf_parameters(pars)
             
-            psf_image = psf.model_psf_in_image(data,sub_psf_model,
-                                                    [xstar,ystar],corners)
+            psf_image = psf.model_psf_in_image(data_section,sub_psf_model,
+                                                    [sec_xstar,sec_ystar],
+                                                    corners)
             
-            residuals -= psf_image
+            residuals[corners[2]:corners[3],corners[0]:corners[1]] -= psf_image
             
             if diagnostics:
                 logs.ifverbose(log, setup,' -> Star '+str(j)+
@@ -162,9 +163,11 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
                 logs.ifverbose(log,setup,' -> Star '+str(j)+
                                 ' No photometry possible from poor PSF fit')
         
-        if float(j)%jincr == 0:
-            logs.ifverbose(log,setup,' -> Completed photometry of '+str(j)+\
-                            ' stars from catalog')
+        if j%jincr == 0:
+            percentage = round((float(j)/float(len(ref_star_catalog)))*100.0,0)
+            logs.ifverbose(log,setup,' -> Photometry '+str(percentage)+\
+                            '% complete ('+str(j)+' stars out of '+\
+                            str(len(ref_star_catalog))+')')
                             
     res_image_path = os.path.join(setup.red_dir,'ref',os.path.basename(image_path).replace('.fits','_res.fits'))
     

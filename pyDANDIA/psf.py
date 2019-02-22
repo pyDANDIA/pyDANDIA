@@ -79,13 +79,11 @@ class Moffat2D(PSFModel):
             setattr(self.psf_parameters, key, parameters[index])
 
     def psf_model(self, Y_star, X_star, parameters):
-
+        
         self.update_psf_parameters(parameters)
-
+        
         model = self.psf_parameters.intensity * (1 + ((X_star - self.psf_parameters.x_center) ** 2 + \
-                                                      (
-                                                              Y_star - self.psf_parameters.y_center) ** 2) / self.psf_parameters.gamma ** 2) ** (
-                    -self.psf_parameters.alpha)
+                                                      (Y_star - self.psf_parameters.y_center) ** 2) / self.psf_parameters.gamma ** 2) ** (-self.psf_parameters.alpha)
 
         return model
 
