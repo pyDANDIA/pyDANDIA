@@ -168,10 +168,15 @@ def smoothing_2sharp_images(reduction_metadata, ref_fwhm_x, ref_fwhm_y, ref_sigm
 def resampled_median_stack(setup, reduction_metadata, new_images):
     image_stack = []
     data_image_directory =  os.path.join(setup.red_dir, 'resampled')
+    image_sum = []
     for new_image in new_images:
         row_index = np.where(reduction_metadata.images_stats[1]['IM_NAME'] == new_image)[0][0]
-        image_stack.append(open_an_image(setup, data_image_directory, new_image).data)
-    stack_median_image = np.median(np.array(image_stack), axis = 0)
+        if image_sum == []:
+            image_sum = open_an_image(setup, data_image_directory, new_image).data
+        else:
+            image_sum = image_sum + open_an_image(setup, data_image_directory, new_image).data
+    
+    stack_median_image = image_sum/float(len(new_images))
     return stack_median_image
  
 def subtract_small_format_image(new_images, reference_image_name, reference_image_directory, reduction_metadata, setup, data_image_directory, kernel_size_array, max_adu, ref_stats, maxshift, kernel_directory_path, diffim_directory_path, log = None):
