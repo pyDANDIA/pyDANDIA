@@ -20,6 +20,7 @@ from pyDANDIA.stage0 import open_an_image
 from pyDANDIA.subtract_subimages import subtract_images, subtract_subimage
 from multiprocessing import Pool
 import multiprocessing as mp
+import uncertainties as u
 
 from astropy.stats import sigma_clipped_stats
 from photutils import datasets
@@ -75,8 +76,11 @@ def run_stage5(setup):
             shift_max = abs(float(stats_entry['SHIFT_X']))
         if abs(float(stats_entry['SHIFT_Y']))> shift_max:
             shift_max = abs(float(stats_entry['SHIFT_Y']))
+
         fwhms.append((float(stats_entry['FWHM_Y'])**2+float(stats_entry['FWHM_Y'])**2)**0.5)
-    
+    fwhms = np.array(fwhms)
+    mask = np.isnan(fwhms)
+    fwhms[mask] = 99
     #image smaller or equal 500x500
     large_format_image = False
     sigma_max = fwhm_max/(2.*(2.*np.log(2.))**0.5)
@@ -85,7 +89,7 @@ def run_stage5(setup):
     kernel_percentile = [25., 50.]
     kernel_size_array = []
     for percentile in kernel_percentile:
-        kernel_size_tmp = int(4.*float(reduction_metadata.reduction_parameters[1]['KER_RAD'][0]) * np.percentile(np.array(fwhms),percentile))
+        kernel_size_tmp = int(4.*float(reduction_metadata.reduction_parameters[1]['KER_RAD'][0]) * np.percentile(fwhms,percentile))
         if kernel_size_tmp % 2 == 0:
             kernel_size_tmp -= 1
         kernel_size_array.append(kernel_size_tmp)
@@ -164,10 +168,15 @@ def smoothing_2sharp_images(reduction_metadata, ref_fwhm_x, ref_fwhm_y, ref_sigm
 def resampled_median_stack(setup, reduction_metadata, new_images):
     image_stack = []
     data_image_directory =  os.path.join(setup.red_dir, 'resampled')
+    image_sum = []
     for new_image in new_images:
         row_index = np.where(reduction_metadata.images_stats[1]['IM_NAME'] == new_image)[0][0]
-        image_stack.append(open_an_image(setup, data_image_directory, new_image).data)
-    stack_median_image = np.median(np.array(image_stack), axis = 0)
+        if image_sum == []:
+            image_sum = open_an_image(setup, data_image_directory, new_image).data
+        else:
+            image_sum = image_sum + open_an_image(setup, data_image_directory, new_image).data
+    
+    stack_median_image = image_sum/float(len(new_images))
     return stack_median_image
  
 def subtract_small_format_image(new_images, reference_image_name, reference_image_directory, reduction_metadata, setup, data_image_directory, kernel_size_array, max_adu, ref_stats, maxshift, kernel_directory_path, diffim_directory_path, log = None):
@@ -186,7 +195,7 @@ def subtract_small_format_image(new_images, reference_image_name, reference_imag
         try:
             master_mask = fits.open(os.path.join(reduction_metadata.data_architecture[1]['REF_PATH'][0],reduction_metadata.data_architecture[1]['REF_IMAGE'][0]))[2].data.astype(bool)
         except:
-            master_mask = None
+            master_mask = []
         kernel_size_max = max(kernel_size_array)
         reference_images = []
         for idx in range(len(kernel_size_array)):
@@ -213,7 +222,10 @@ def subtract_small_format_image(new_images, reference_image_name, reference_imag
         ref_fwhm_x, ref_fwhm_y, ref_sigma_x, ref_sigma_y = ref_stats
         x_shift, y_shift = -reduction_metadata.images_stats[1][row_index]['SHIFT_X'],-reduction_metadata.images_stats[1][row_index]['SHIFT_Y'] 
         x_fwhm, y_fwhm = -reduction_metadata.images_stats[1][row_index]['FWHM_X'],-reduction_metadata.images_stats[1][row_index]['FWHM_Y'] 
-        fwhm_val = int(grow_kernel*(float(x_fwhm)**2+float(y_fwhm)**2)**0.5)
+        try:
+            fwhm_val = int(grow_kernel*(float(x_fwhm)**2+float(y_fwhm)**2)**0.5)
+        except:
+            fwhm_val = 999
         umatrix_index = int(np.digitize(fwhm_val,np.array(kernel_size_array)))
         umatrix_index = min(umatrix_index, len(kernel_size_array)-1)
         umatrix = umatrices[umatrix_index]
@@ -233,6 +245,8 @@ def subtract_small_format_image(new_images, reference_image_name, reference_imag
             b_vector = bvector_constant(reference_image, data_image, kernel_size, noise_image)
             kernel_matrix, bkg_kernel, kernel_uncertainty = kernel_solution(umatrix, b_vector, kernel_size, circular = False)
             pscale = np.sum(kernel_matrix)                
+            pscale_err = np.sum(kernel_uncertainty**2)**0.5
+
             np.save(os.path.join(kernel_directory_path,'kernel_'+new_image+'.npy'),[kernel_matrix,bkg_kernel])
             kernel_header = fits.Header()
             kernel_header['SCALEFAC'] = str(pscale)
@@ -242,7 +256,7 @@ def subtract_small_format_image(new_images, reference_image_name, reference_imag
             hdu_kernel_err = fits.PrimaryHDU(kernel_uncertainty)
             hdu_kernel_err.writeto(os.path.join(kernel_directory_path,'kernel_err_'+new_image), overwrite = True)  
             if log is not None:
-                logs.ifverbose(log, setup, 'b_vector calculated for:' + new_image+' and scale factor '+str(round(pscale,3))+' in kernel bin '+str(umatrix_index)) 
+                logs.ifverbose(log, setup, 'b_vector calculated for:' + new_image+' and scale factor '+str(round(pscale,3))+'+/-'+str(pscale_err)+' in kernel bin '+str(umatrix_index)) 
             #CROP EDGE!
             difference_image = subtract_images(data_image_unmasked, reference_image_unmasked, kernel_matrix, kernel_size, bkg_kernel)
             #EXPERIMENTAL -> DISCARD outliers
@@ -697,30 +711,33 @@ def kernel_solution(u_matrix, b_vector, kernel_size, circular = True):
     #For better stability: solve the least square problem via np.linalg.lstsq
     #inv_umatrix = np.linalg.inv(u_matrix)
     #a_vector = np.dot(inv_umatrix, b_vector)
+    #recalculate residuals to apply standard lstsq uncertainties
+    lstsq_result = np.linalg.lstsq(np.array(u_matrix), np.array(b_vector)) 
+    a_vector = lstsq_result[0] 
+    lstsq_fit = np.dot(np.array(u_matrix), a_vector)
+    resid = np.array(b_vector) - lstsq_fit
+    reduced_chisqr = np.sum(resid**2)/(float(kernel_size*kernel_size))
+    lstsq_cov = np.dot(np.array(u_matrix).T, np.array(u_matrix))*reduced_chisqr
+    resivar = np.var(resid, ddof = 0)*float(len(a_vector))
+    #use pinv in order to stabilize calculation
+    a_var = np.diag(np.linalg.pinv(lstsq_cov) * resivar)
 
-    lstsq_result = np.linalg.lstsq(np.array(u_matrix), np.array(b_vector))    
-    a_vector = lstsq_result[0]
-    mse = 1.#lstsq_result
-    #a_vector_err = np.copy(np.diagonal(np.matrix(np.dot(u_matrix.T, u_matrix)).I))
-    residuals = b_vector/10
-    ### approximate error before sig_b_vector....
-    a_vector_err = np.copy((np.linalg.lstsq(u_matrix, np.identity(u_matrix.shape[0])*residuals)))[0]
-    #import pdb;
-    #pdb.set_trace()
-    #MSE: mean square error of the residuals
+    
+    a_vector_err = np.sqrt(a_var)
     output_kernel = np.zeros(kernel_size * kernel_size, dtype=float)
     if len(a_vector)>kernel_size*kernel_size:
         output_kernel = a_vector[:-1]
     else:
         output_kernel = a_vector
     output_kernel = output_kernel.reshape((kernel_size, kernel_size))
+
     err_kernel = np.zeros(kernel_size * kernel_size, dtype=float)
-    #if len(a_vector)>kernel_size*kernel_size:
-    #    err_kernel = (a_vector_err*lstsq_result[3])[:-1]
-    #    err_kernel = err_kernel.reshape((kernel_size, kernel_size))
-    #else:
-    #    err_kernel = (a_vector_err*lstsq_result[3])
-    #    err_kernel = err_kernel.reshape((kernel_size, kernel_size))
+    if len(a_vector)>kernel_size*kernel_size:
+        err_kernel = a_vector_err[:-1]
+        err_kernel = err_kernel.reshape((kernel_size, kernel_size))
+    else:
+        err_kernel = a_vector_err
+        err_kernel = err_kernel.reshape((kernel_size, kernel_size))
     #
     if circular:
         xyc = int(kernel_size / 2)
@@ -732,9 +749,7 @@ def kernel_solution(u_matrix, b_vector, kernel_size, circular = True):
                     #err_kernel[idx, jdx] = 0.
 
     output_kernel_2 = np.flip(np.flip(output_kernel, 0), 1)
-    #err_kernel_2 = np.flip(np.flip(err_kernel, 0), 1)
-    #err_kernel_2 = err_kernel
-    err_kernel_2 = a_vector_err
+    err_kernel_2 = np.flip(np.flip(err_kernel, 0), 1)
 
     return output_kernel_2, a_vector[-1], err_kernel_2
 
