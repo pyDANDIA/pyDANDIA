@@ -452,7 +452,8 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
 
 
 
-        shifted = tf.warp(data_image, inverse_map=model_final.inverse, preserve_range=True)
+        shifted = tf.warp(data_image, inverse_map=model_final.inverse,  output_shape=data_image.shape, order=3, mode='constant',
+                         cval=np.median(data_image), clip=False,preserve_range=True)
         shifted_mask = tf.warp(mask_image, inverse_map=model_final.inverse, preserve_range=True)
         master_mask += shifted_mask
        
