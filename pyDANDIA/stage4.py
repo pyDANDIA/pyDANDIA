@@ -20,7 +20,7 @@ from astropy import units as u
 from astropy.coordinates import SkyCoord
 from astropy.coordinates import match_coordinates_sky
 from astropy.stats import sigma_clipped_stats
-from ccdproc import cosmicray_lacosmic
+#from ccdproc import cosmicray_lacosmic
 from astropy.table import Table
 from photutils import datasets
 from photutils import DAOStarFinder
@@ -353,8 +353,8 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
         reference_image_hdu = fits.open(os.path.join(reference_image_directory, reference_image_name), memmap=True)
         reference_image = reference_image_hdu[0].data
 
-        reference_image = cosmicray_lacosmic(reference_image, sigclip=7., objlim=7,
-                                             satlevel=float(reduction_metadata.reduction_parameters[1]['MAXVAL'][0]))[0]
+        #reference_image = cosmicray_lacosmic(reference_image, sigclip=7., objlim=7,
+        #                                     satlevel=float(reduction_metadata.reduction_parameters[1]['MAXVAL'][0]))[0]
         # reference_image, bright_reference_mask, reference_image_unmasked = open_reference(setup, reference_image_directory, reference_image_name, ref_extension = 0, log = log, central_crop = maxshift)
         # generate reference catalog
 
@@ -386,8 +386,8 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
         data_image_hdu = fits.open(os.path.join(data_image_directory, new_image), memmap=True)
         data_image = data_image_hdu[0].data
 
-        data_image = cosmicray_lacosmic(data_image, sigclip=7., objlim=7,
-                                        satlevel=float(reduction_metadata.reduction_parameters[1]['MAXVAL'][0]))[0]
+#        data_image = cosmicray_lacosmic(data_image, sigclip=7., objlim=7,
+#                                        satlevel=float(reduction_metadata.reduction_parameters[1]['MAXVAL'][0]))[0]
         if mask_extension_in > len(data_image_hdu) - 1 or mask_extension_in == -1:
             mask_extension = -1
         else:
@@ -451,15 +451,17 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
             model_final = tf.SimilarityTransform(translation=(-x_shift, -y_shift))
 
 
-
-        shifted = tf.warp(data_image, inverse_map=model_final.inverse,  output_shape=data_image.shape, order=3, mode='constant',
-                         cval=np.median(data_image), clip=False,preserve_range=True)
-        shifted_mask = tf.warp(mask_image, inverse_map=model_final.inverse, preserve_range=True)
-        master_mask += shifted_mask
-       
-        if mask_extension > -1:
-            shifted_mask = tf.warp(mask_image, inverse_map=model_final.inverse, preserve_range=True)
         
+        shifted = tf.warp(data_image, inverse_map=model_final.inverse,  output_shape=data_image.shape, order=3, mode='constant',
+                         cval=np.median(data_image), clip=False, preserve_range=True)
+        try:
+            shifted_mask = tf.warp(mask_image, inverse_map=model_final.inverse, preserve_range=True)
+            master_mask += shifted_mask
+       
+            if mask_extension > -1:
+                shifted_mask = tf.warp(mask_image, inverse_map=model_final.inverse, preserve_range=True)
+        except:
+            pass
         #manual_transformation(model_final.params, (0, 0), data_image)
         #import matplotlib.pyplot as plt
         #fff,aaa = plt.subplots(3,1,sharex=True,sharey=True)
@@ -506,7 +508,7 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
         #        print(str(e))
 
 
-        shifted = cosmicray_lacosmic(shifted, sigclip=4., objlim = 4)[0]
+        #shifted = cosmicray_lacosmic(shifted, sigclip=4., objlim = 6)[0]
         
         resampled_image_hdu = fits.PrimaryHDU(shifted)
         resampled_image_hdu.writeto(os.path.join(resampled_directory_path, new_image), overwrite=True)

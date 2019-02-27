@@ -86,7 +86,7 @@ def run_stage5(setup):
     sigma_max = fwhm_max/(2.*(2.*np.log(2.))**0.5)
     # Factor 4 corresponds to the radius of 2*FWHM the old pipeline
     # Find kernel_sizes for multiple pre-calculated umatrices
-    kernel_percentile = [25., 50.]
+    kernel_percentile = [20., 40., 60., 80.] #assumes ker_rad = 2 * FWHM, check config!
     kernel_size_array = []
     for percentile in kernel_percentile:
         kernel_size_tmp = int(4.*float(reduction_metadata.reduction_parameters[1]['KER_RAD'][0]) * np.percentile(fwhms,percentile))
@@ -94,7 +94,8 @@ def run_stage5(setup):
             kernel_size_tmp -= 1
         kernel_size_array.append(kernel_size_tmp)
     shifts  = np.array(shifts)
-    maxshift = int(np.median(shifts) + 2. * np.std(shifts))
+    # requires images to be sufficiently aligned and adds a safety margin of 100 -> mv to config.json
+    maxshift = int(np.max(shifts)) + 100
     # find the images that need to be processed
     all_images = reduction_metadata.find_all_images(setup, reduction_metadata,
                                                     os.path.join(setup.red_dir, 'data'), log=log)
@@ -193,7 +194,9 @@ def subtract_small_format_image(new_images, reference_image_name, reference_imag
     grow_kernel = 4.*float(reduction_metadata.reduction_parameters[1]['KER_RAD'][0])
     if len(new_images) > 0:
         try:
-            master_mask = fits.open(os.path.join(reduction_metadata.data_architecture[1]['REF_PATH'][0],reduction_metadata.data_architecture[1]['REF_IMAGE'][0]))[2].data.astype(bool)
+            master_mask = fits.open(os.path.join(reduction_metadata.data_architecture[1]['REF_PATH'][0],'master_mask.fits'))
+            master_mask = np.where(master_mask[0].data > 0.5 * np.max(master_mask[0].data))
+           #master_mask = fits.open(os.path.join(reduction_metadata.data_architecture[1]['REF_PATH'][0],reduction_metadata.data_architecture[1]['REF_IMAGE'][0]))[2].data.astype(bool)
         except:
             master_mask = []
         kernel_size_max = max(kernel_size_array)
