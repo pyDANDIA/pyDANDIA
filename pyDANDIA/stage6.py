@@ -91,8 +91,9 @@ def run_stage6(setup):
     psf_model = fits.open(reduction_metadata.data_architecture[1]['REF_PATH'].data[0] + '/psf_model.fits')
 
     psf_type = psf_model[0].header['PSFTYPE']
-
-    psf_parameters = [0, psf_model[0].header['Y_CENTER'],
+    #import pdb;
+    #pdb.set_trace()
+    psf_parameters = [ psf_model[0].header['INTENSIT'], psf_model[0].header['Y_CENTER'],
                       psf_model[0].header['X_CENTER'],
                       psf_model[0].header['GAMMA'],
                       psf_model[0].header['ALPHA']]
@@ -168,7 +169,9 @@ def run_stage6(setup):
             print(new_image)
             index_image = np.where(new_image == reduction_metadata.headers_summary[1]['IMAGES'].data)[0][0]
             image_header = reduction_metadata.headers_summary[1][index_image]
-
+            #import pdb;
+            #pdb.set_trace()
+            exptime = float(image_header['EXPKEY'])
             #ingest_exposure_in_db(setup, image_header, ref_image_id)
             #conn = db_phot.get_connection(dsn=setup.red_dir + 'phot.db')
 
@@ -232,6 +235,10 @@ def run_stage6(setup):
             lightcurve = np.c_[jd,mag]
 
             np.savetxt('./lightcurves/light_'+str(star),lightcurve)
+        import matplotlib.pyplot as plt
+        plt.errorbar(jd,photometric_table[:,0,8],photometric_table[:,0,9],fmt='.k')
+
+        plt.show()
         import pdb;
         pdb.set_trace()
         ingest_photometric_table_in_db(setup, exposures_id, star_indexes, photometric_table)

@@ -312,10 +312,19 @@ def quick_offset_fit2(params, data,weight):
     residus /= weight
     return residus.ravel()
 
+
+def quick_intensities_fit(params, psf_model, psf_parameters,X_grid, Y_grid, min_x, max_x, min_y, max_y, kernel, data,weight):
+    
+    model = quick_model(params, psf_model, X_grid, Y_grid, min_x, max_x, min_y, max_y, kernel)
+    #print(params)
+    residus = data.ravel()-model.ravel()
+  
+    return residus/weight.ravel()
+
 def quick_model(params, psf_model, X_grid, Y_grid, min_x, max_x, min_y, max_y, kernel):
 
     psf_params = np.copy(params)
-    psf_params[0] = 1
+  
     #psf_params[-1] = 0
 
     psf_image = psf_model.psf_model(Y_grid, X_grid, psf_params)
@@ -451,20 +460,19 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
     list_align_x = []
     list_align_y = []
 
-    phot_scale_factor = np.abs(np.sum(kernel))
+    phot_scale_factor = (np.sum(kernel))
     error_phot_scale_factor = (phot_scale_factor*0.1)
 
-    # kernel /=phot_scale_factor
+
 
     control_size = 50
     control_count = 0
     psf_parameters = psf_model.get_parameters()
-    psf_parameters[0] = 1
+
     radius = half_psf + 1
 
     for j in range(0, len(ref_star_catalog), 1)[:]:
-        #print(j)
-        #j = 3276
+     
 
         list_image_id.append(0)
         list_star_id.append(ref_star_catalog[j, 0])
@@ -491,10 +499,6 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
 
         psf_image = psf_model.psf_model(X_grid, Y_grid, psf_parameters)
 
-        # psf_convolve = convolution.convolve_image_with_a_psf(psf_image, kernel, fourrier_transform_psf=None,
-        #                                                     fourrier_transform_image=None,
-        #                                                     correlate=None, auto_correlation=None)
-
 
         psf_convolve = sndi.filters.convolve(psf_image, kernel,mode='constant')
 
@@ -514,9 +518,9 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
 
             PSF = psf_convolve[min_y:max_y, min_x:max_x]
 
-            #psf_fit = PSF/np.sum(PSF)
+
             psf_fit = PSF
-            #residuals = np.copy(data)
+
             good_fit = True
 
 
@@ -528,82 +532,45 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
             # logs.ifverbose(log, setup, ' -> Star ' + str(j) +
             #              ' subtracted from the residuals')
 
-            #center = np.where(psf_fit == np.max(psf_fit))
-            #xx, yy = np.indices(psf_fit.shape)
-            #mask = ((xx - center[0]) ** 2 + (yy - center[1]) ** 2) < 2*radius ** 2
-            #mask2 = ((xx - center[0]) ** 2 + (yy - center[1]) ** 2) < 2 * radius ** 2
-            #mask3 = ((xx - center[0]) ** 2 + (yy - center[1]) ** 2) < 4
+         
 
             weight1 = (0.5 + np.abs(data + 0.25) ** 0.5)
             weight2 = (-0.5 + np.abs(data + 0.25) ** 0.5)
             weight = (weight1 ** 2 + weight2 ** 2)
             poids = weight**0.5
-            #try:
-            #    if phot_scale_factor < 100:
-            #
-            #    else:
-            #        intensities, cov = np.polyfit(psf_fit[mask3], data[mask3], 1, w=1 / weight[mask3], cov=True)
-            #except:
+            
+            
+          
+          
 
-            #    intensities = [0, 0]
-            #    cov = np.zeros((2, 2))
-            #    print('Star in the edge...., no fit!')
-            #(flux, flux_err) = (intensities[0], cov[0][0] ** 0.5)
-
-            #(back, back_err) = (intensities[1], cov[1][1] ** 0.5)
-            #residus = data - psf_fit * flux - back
-            #flux = 0
+            intensities, cov = np.polyfit(psf_fit.ravel(), data.ravel(), 1,  cov=True)
            
-
-            intensities, cov = np.polyfit(psf_fit.ravel(), data.ravel(), 1, w=1/poids.ravel(), cov=True)
-            #if (abs(intensities[0])>1000) & (j==525):
-            #   res = so.leastsq(quick_offset_fit,[0,0],args=(psf_model, psf_parameters,X_grid, Y_grid, min_x, max_x, min_y, max_y, kernel, data,weight))
-            #   psf_parameters[1] += res[0][0] 
-            #   psf_parameters[2] += res[0][1]
-            #   #import pdb;
-            #   #pdb.set_trace() 
-            #   psf_fit2 = quick_model(psf_parameters, psf_model, X_grid, Y_grid, min_x, max_x, min_y, max_y, kernel)
-            #   intensities, cov = np.polyfit(psf_fit2.ravel(), data.ravel(), 1, w=1/weight.ravel(), cov=True)
-            #   #import pdb;
-            #   #pdb.set_trace()
 		
             (flux,flux_err) = (intensities[0], cov[0][0] ** 0.5)
-            flux = np.sum(flux*psf_fit)
-            #flux_err = np.sum(flux_err*psf_fit)
+           
+            flux = np.sum(flux*psf_image)
+
+ 
+
+
             (back, back_err) = (intensities[1], cov[1][1] ** 0.5)
-            #true = data-back
-            #weighted_psf = psf_fit/poids
+           
+            residus = data - psf_fit * intensities[0]-back
 
-            #flux = np.sum(true * weighted_psf/poids ) / np.sum(weighted_psf**2 )
-
-            #flux = np.median(data/psf_fit)
-            #back = np.median(data-flux*psf_fit)
-            #back_err = back**0.5
-            residus = data - psf_fit * flux-back
-
-            #SNR = (flux ** 2 * np.sum(psf_fit ** 2 / (np.abs(back) + np.abs(flux * psf_fit)))) ** 0.5
-            #SNR = flux ** 2 * np.sum(weighted_psf**2)**0.
-            #SNR = np.abs(flux)/(np.abs(flux)+np.abs(back))**0.5
-	
-            #flux_err = ((flux/SNR)**2+np.sum(np.abs(residus)))**0.5
-            #flux_err = (flux_err ** 2 + np.sum(np.abs(residus))) ** 0.5
-            #flux_err = flux/SNR
+          
             flux_err = (flux_err**2+np.mean(residus**2))**0.5
-
-            flux_tot = ref_flux*ref_exposure_time - flux/phot_scale_factor
-            #SNR_fluxtot = ref_flux/error_ref_flux
-            #error_ref_flux = ref_flux/SNR_fluxtot*ref_exposure_time
+           
+            
+            
+            flux_tot = ref_flux*ref_exposure_time - flux
+        
             flux_err_tot = (error_ref_flux ** 2*ref_exposure_time + flux_err**2/phot_scale_factor**2) ** 0.5
-
-            SNR = flux_tot / flux_err_tot
-            flux_tot /= ref_exposure_time
-            flux_err_tot = flux_tot / SNR
 
             list_delta_flux.append(flux)
             list_delta_flux_error.append(flux_err)
 
-            (mag, mag_err,ftmp,fetemp) = convert_flux_to_mag(flux_tot, flux_err_tot)
-
+            (mag, mag_err,ftmp,fetemp) = convert_flux_to_mag(flux_tot, flux_err_tot,ref_exposure_time)
+       
 
             list_mag.append(mag)
             list_mag_error.append(mag_err)
