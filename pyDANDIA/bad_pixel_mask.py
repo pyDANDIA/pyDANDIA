@@ -467,7 +467,7 @@ class PixelCluster():
             self.xyratio = 1.0
         
         self.range = [xmin, xmax, ymin, ymax]
-        
+
 def construct_the_pixel_mask(setup, reduction_metadata,
                              open_image, banzai_bpm, integers_to_flag, log,
                              saturation_level=65535, low_level=0,
@@ -486,23 +486,25 @@ def construct_the_pixel_mask(setup, reduction_metadata,
     '''
     
     log.info('Constructing the image bad pixel mask')
-
+   
     try:
         bpm = BadPixelMask()
         
-        image_dims = [reduction_metadata.reduction_parameters[1]['IMAGEY2'][0],
-                      reduction_metadata.reduction_parameters[1]['IMAGEX2'][0]]
-            
+        image_dims = open_image.shape
         bpm.create_empty_masks(image_dims)
-        
+       
         if instrument_bpm == None:
             
             bpm.load_latest_instrument_mask(reduction_metadata.reduction_parameters[1]['INSTRID'][0],setup,log=log)
             
         else:
             
-            bpm.instrument_mask = instrument_bpm.instrument_mask
-            
+            if instrument_bpm.instrument_mask.shape == open_image.shape:
+
+            	bpm.instrument_mask = instrument_bpm.instrument_mask
+            else:
+                bpm.instrument_mask = np.zeros(image_dims).astype(int)
+
             log.info('Included instrumental bad pixel mask data')
             
         if type(banzai_bpm) == type(fits.hdu.image.ImageHDU()):
@@ -510,7 +512,7 @@ def construct_the_pixel_mask(setup, reduction_metadata,
             bpm.load_banzai_mask(banzai_bpm, log=log)
         
         # variables_pixel_mask = construct_the_variables_star_mask(open_image, variable_star_pixels=10)
-    
+      
         saturation_level = reduction_metadata.reduction_parameters[1]['MAXVAL']
         
         bpm.mask_image_saturated_pixels(open_image, saturation_level, log=log)
@@ -518,7 +520,7 @@ def construct_the_pixel_mask(setup, reduction_metadata,
         bpm.mask_ccd_blooming(setup, reduction_metadata, open_image, log=log)
         
         bpm.mask_image_low_level_pixels(open_image, low_level, log=log)
-    
+        
         list_of_masks = [bpm.instrument_mask, 
                          bpm.banzai_mask, 
                          bpm.saturated_pixels,

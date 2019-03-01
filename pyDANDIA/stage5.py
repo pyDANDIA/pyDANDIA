@@ -10,14 +10,23 @@
 #      scipy 1.0+
 ######################################################################
 import os, sys
+import copy
 import numpy as np
 from astropy.io import fits
 from scipy.signal import convolve2d
+from scipy.stats import skew, kurtosis
 from scipy.ndimage.filters import gaussian_filter
 from pyDANDIA.read_images_stage5 import open_reference, open_images, open_data_image
+from pyDANDIA.stage0 import open_an_image
 from pyDANDIA.subtract_subimages import subtract_images, subtract_subimage
 from multiprocessing import Pool
 import multiprocessing as mp
+import uncertainties as u
+from uncertainties import ufloat
+
+
+from astropy.stats import sigma_clipped_stats
+from photutils import datasets
 
 from pyDANDIA import config_utils
 from pyDANDIA import metadata
@@ -42,6 +51,7 @@ def run_stage5(setup):
     try:
         from umatrix_routine import umatrix_construction, umatrix_bvector_construction, bvector_construction
         from umatrix_routine import umatrix_construction_nobkg, bvector_construction_nobkg
+        from umatrix_routine import umatrix_construction_clean, bvector_construction_clean
     except ImportError:
         log.info('Uncompiled cython code, please run setup.py: e.g.\n python setup.py build_ext --inplace')
         status = 'KO'
@@ -55,6 +65,7 @@ def run_stage5(setup):
     fwhm_max = 0.
     shift_max = 0
     shifts = []
+    fwhms = []
     for stats_entry in reduction_metadata.images_stats[1]:
         if np.isfinite(float(stats_entry['SHIFT_X'])):
             shifts.append(float(stats_entry['SHIFT_X']))
@@ -68,17 +79,26 @@ def run_stage5(setup):
             shift_max = abs(float(stats_entry['SHIFT_X']))
         if abs(float(stats_entry['SHIFT_Y']))> shift_max:
             shift_max = abs(float(stats_entry['SHIFT_Y']))
+
+        fwhms.append((float(stats_entry['FWHM_Y'])**2+float(stats_entry['FWHM_Y'])**2)**0.5)
+    fwhms = np.array(fwhms)
+    mask = np.isnan(fwhms)
+    fwhms[mask] = 99
     #image smaller or equal 500x500
     large_format_image = False
     sigma_max = fwhm_max/(2.*(2.*np.log(2.))**0.5)
     # Factor 4 corresponds to the radius of 2*FWHM the old pipeline
-    kernel_size = int(4.*float(reduction_metadata.reduction_parameters[1]['KER_RAD'][0]) * fwhm_max)
-    if kernel_size:
-        if kernel_size % 2 == 0:
-            kernel_size = kernel_size + 1
-    kernel_size = min(13,kernel_size)
+    # Find kernel_sizes for multiple pre-calculated umatrices
+    kernel_percentile = [20., 45., 70.] #assumes ker_rad = 2 * FWHM, check config!
+    kernel_size_array = []
+    for percentile in kernel_percentile:
+        kernel_size_tmp = int(4.*float(reduction_metadata.reduction_parameters[1]['KER_RAD'][0]) * np.percentile(fwhms,percentile))
+        if kernel_size_tmp % 2 == 0:
+            kernel_size_tmp -= 1
+        kernel_size_array.append(kernel_size_tmp)
     shifts  = np.array(shifts)
-    maxshift = int(np.median(shifts) + 2. * np.std(shifts))
+    # requires images to be sufficiently aligned and adds a safety margin of 100 -> mv to config.json
+    maxshift = int(np.max(shifts)) + 100
     # find the images that need to be processed
     all_images = reduction_metadata.find_all_images(setup, reduction_metadata,
                                                     os.path.join(setup.red_dir, 'data'), log=log)
@@ -95,7 +115,6 @@ def run_stage5(setup):
     reduction_metadata.update_column_to_layer('data_architecture', 'KERNEL_PATH', kernel_directory_path)
     # difference images are written for verbosity level > 0 
     reduction_metadata.update_column_to_layer('data_architecture', 'DIFFIM_PATH', diffim_directory_path)
-    data_image_directory = reduction_metadata.data_architecture[1]['IMAGES_PATH'][0]
     data_image_directory =  os.path.join(setup.red_dir, 'resampled')
     ref_directory_path = '.'
     #For a quick image subtraction, pre-calculate a sufficiently large u_matrix
@@ -125,13 +144,68 @@ def run_stage5(setup):
         report = 'No alignment data found!'
         return status, report, reduction_metadata
  
-    if large_format_image == False:
-        subtract_small_format_image(new_images, reference_image_name, reference_image_directory, reduction_metadata, setup, data_image_directory, kernel_size, max_adu, ref_stats, maxshift, kernel_directory_path, diffim_directory_path, log = log)
-    else:
-        subtract_large_format_image(new_images, reference_image_name, reference_image_directory, reduction_metadata, setup, data_image_directory, kernel_size, max_adu, ref_stats, maxshift, kernel_directory_path, diffim_directory_path, log = log)   
+    quality_metrics = subtract_with_constant_kernel(new_images, reference_image_name, reference_image_directory, reduction_metadata, setup, data_image_directory, kernel_size_array, max_adu, ref_stats, maxshift, kernel_directory_path, diffim_directory_path, log = log)
 
-    #append some metric for the kernel, perhaps its scale factor...
+    data = np.copy(quality_metrics)
+    if ('PSCALE' in reduction_metadata.images_stats[1].keys()) and ('PSCALE_ERR' in reduction_metadata.images_stats[1].keys()) and ('KURTOSIS_DIFF' in reduction_metadata.images_stats[1].keys()) and ('SKEW_DIFF' in reduction_metadata.images_stats[1].keys())  and ('SKY_MEDIAN' in reduction_metadata.images_stats[1].keys()) and ('VAR_PER_PIX_DIFF' in reduction_metadata.images_stats[1].keys()) and ('N_UNMASKED' in reduction_metadata.images_stats[1].keys()):
+        for idx in range(len(quality_data)):
+            target_image = data[idx][0]
+            pscale = data[idx][1]
+            pscale_err = data[idx][2]
+            median_sky = data[idx][3]
+            variance_per_pixel = data[idx][4]
+            ngood = float(data[idx][5])
+            kurtosis_quality = data[idx][6]
+            skew_quality = data[idx][7]
+            row_index = np.where(reduction_metadata.images_stats[1]['IM_NAME'].data == target_image)[0][0]
+            reduction_metadata.update_a_cell_to_layer('images_stats', row_index, 'PSCALE', pscale)
+            reduction_metadata.update_a_cell_to_layer('images_stats', row_index, 'PSCALE_ERR', pscale_err)
+            reduction_metadata.update_a_cell_to_layer('images_stats', row_index, 'MEDIAN_SKY', median_sky)
+            reduction_metadata.update_a_cell_to_layer('images_stats', row_index, 'VAR_PER_PIX_DIFF', variance_per_pixel)
+            reduction_metadata.update_a_cell_to_layer('images_stats', row_index, 'N_UNMASKED', ngood)
+            reduction_metadata.update_a_cell_to_layer('images_stats', row_index, 'SKEW_DIFF', skew_quality)
+            reduction_metadata.update_a_cell_to_layer('images_stats', row_index, 'KURTOSIS_DIFF', pscale_err)
+
+        logs.ifverbose(log, setup, 'Updated metadata for image: ' + target_image)
+    else:
+        logs.ifverbose(log, setup, 'Constructing quality metrics columns in metadata')
+        sorted_data = np.copy(quality_metrics)
+        for index in range(len(quality_metrics)):
+            target_image = data[index][0]
+            row_index = np.where(reduction_metadata.images_stats[1]['IM_NAME'].data == target_image)[0][0]
+            sorted_data[row_index] = quality_metrics[index]
+
+        column_format = 'float'
+        column_unit = ''
+        reduction_metadata.add_column_to_layer('images_stats', 'PSCALE', sorted_data[:, 1],
+                                           new_column_format=column_format,
+                                           new_column_unit=column_unit)
+        reduction_metadata.add_column_to_layer('images_stats', 'PSCALE_ERR', sorted_data[:, 2],
+                                           new_column_format=column_format,
+                                           new_column_unit=column_unit)
+        reduction_metadata.add_column_to_layer('images_stats', 'MEDIAN_SKY', sorted_data[:, 3],
+                                           new_column_format=column_format,
+                                           new_column_unit=column_unit)
+        reduction_metadata.add_column_to_layer('images_stats', 'VAR_PER_PIX_DIFF', sorted_data[:, 4],
+                                           new_column_format=column_format,
+                                           new_column_unit=column_unit)
+        reduction_metadata.add_column_to_layer('images_stats', 'N_UNMASKED', sorted_data[:, 5],
+                                           new_column_format=column_format,
+                                           new_column_unit=column_unit)
+        reduction_metadata.add_column_to_layer('images_stats', 'SKEW_DIFF', sorted_data[:, 6],
+                                           new_column_format=column_format,
+                                           new_column_unit=column_unit)
+        reduction_metadata.add_column_to_layer('images_stats', 'KURTOSIS_DIFF', sorted_data[:, 7],
+                                           new_column_format=column_format,
+                                           new_column_unit=column_unit)
+
+
     reduction_metadata.update_reduction_metadata_reduction_status(new_images, stage_number=5, status=1, log = log)
+    reduction_metadata.save_updated_metadata(
+        reduction_metadata.data_architecture[1]['OUTPUT_DIRECTORY'][0],
+        reduction_metadata.data_architecture[1]['METADATA_NAME'][0],
+        log=log)
+
     logs.close_log(log)
     status = 'OK'
     report = 'Completed successfully'
@@ -150,65 +224,125 @@ def smoothing_2sharp_images(reduction_metadata, ref_fwhm_x, ref_fwhm_y, ref_sigm
         smoothing = smoothing_y
     return smoothing
 
-def subtract_small_format_image(new_images, reference_image_name, reference_image_directory, reduction_metadata, setup, data_image_directory, kernel_size, max_adu, ref_stats, maxshift, kernel_directory_path, diffim_directory_path, log = None):  
-    if len(new_images) > 0:
-        if os.path.exists(os.path.join(reduction_metadata.data_architecture[1]['REF_PATH'][0],'master_mask.fits')):
-            master_mask = fits.open(os.path.join(reduction_metadata.data_architecture[1]['REF_PATH'][0],'master_mask.fits'))
-            master_mask = np.where(master_mask[0].data > 0.1*np.max(master_mask[0].data))
-        reference_image, bright_reference_mask, reference_image_unmasked = open_reference(setup, reference_image_directory, reference_image_name, kernel_size, max_adu, ref_extension = 0, log = log, central_crop = maxshift, master_mask = master_mask)
-        if os.path.exists(os.path.join(kernel_directory_path,'unweighted_u_matrix.npy')):
-            umatrix, kernel_size_u, max_adu_restored = np.load(os.path.join(kernel_directory_path,'unweighted_u_matrix.npy'))
-            if (kernel_size_u != kernel_size) or (max_adu_restored != max_adu):
-                #calculate and store unweighted umatrix
-                umatrix = umatrix_constant(reference_image, kernel_size)
-                np.save(os.path.join(kernel_directory_path,'unweighted_u_matrix.npy'), [umatrix, kernel_size, max_adu])
-                hdutmp = fits.PrimaryHDU(umatrix)
-                hdutmp.writeto(os.path.join(kernel_directory_path,'unweighted_u_matrix.fits'),overwrite =True)
+def resampled_median_stack(setup, reduction_metadata, new_images):
+    image_stack = []
+    data_image_directory =  os.path.join(setup.red_dir, 'resampled')
+    image_sum = []
+    for new_image in new_images:
+        row_index = np.where(reduction_metadata.images_stats[1]['IM_NAME'] == new_image)[0][0]
+        if image_sum == []:
+            image_sum = open_an_image(setup, data_image_directory, new_image).data
         else:
-            #calculate and store unweighted umatrix 
-            umatrix = umatrix_constant(reference_image, kernel_size)
-            np.save(os.path.join(kernel_directory_path,'unweighted_u_matrix.npy'), [umatrix, kernel_size, max_adu])
-            hdutmp = fits.PrimaryHDU(umatrix)
-            hdutmp.writeto(os.path.join(kernel_directory_path,'unweighted_u_matrix.fits'),overwrite=True)
+            image_sum = image_sum + open_an_image(setup, data_image_directory, new_image).data
+    
+    stack_median_image = image_sum/float(len(new_images))
+    return stack_median_image
+ 
+def subtract_with_constant_kernel(new_images, reference_image_name, reference_image_directory, reduction_metadata, setup, data_image_directory, kernel_size_array, max_adu, ref_stats, maxshift, kernel_directory_path, diffim_directory_path, log = None):
+    """subtracting image with a single kernel
+    This routine calculates the umatrix of the least squares problem defining the kernel
+    and subtracts the model
+    :param object new images : list of unprocessed images
 
+    :return: None
+    :rtype: None
+    """
 
+    resampled_median_image = resampled_median_stack(setup, reduction_metadata, new_images)
+    grow_kernel = 4.*float(reduction_metadata.reduction_parameters[1]['KER_RAD'][0])
+    if len(new_images) > 0:
+        try:
+            master_mask = fits.open(os.path.join(reduction_metadata.data_architecture[1]['REF_PATH'][0],'master_mask.fits'))
+            master_mask = np.where(master_mask[0].data > 0.5 * np.max(master_mask[0].data))
+        except:
+            master_mask = []
+        kernel_size_max = max(kernel_size_array)
+        reference_images = []
+        for idx in range(len(kernel_size_array)):
+            reference_images.append(open_reference(setup, reference_image_directory, reference_image_name, kernel_size_array[idx], max_adu, ref_extension = 0, log = log, central_crop = maxshift, master_mask = master_mask, external_weight = resampled_median_image))
+        if os.path.exists(os.path.join(kernel_directory_path,'unweighted_u_matrix.npy')):
+            umatrices, kernel_sizes, max_adu_restored = np.load(os.path.join(kernel_directory_path,'unweighted_u_matrix.npy'))
+            if (kernel_sizes != kernel_size_array) or (max_adu_restored != max_adu):
+                #calculate and store unweighted umatrices
+                umatrices = []
+                for idx in range(len(kernel_size_array)):
+                    umatrices.append(umatrix_constant(reference_images[idx][0], kernel_size_array[idx], reference_images[idx][3]))
+                np.save(os.path.join(kernel_directory_path,'unweighted_u_matrix.npy'), [umatrices, kernel_size_array, max_adu])
+        else:
+            #calculate and store unweighted umatrices
+            umatrices = []
+            for idx in range(len(kernel_size_array)):
+                umatrices.append(umatrix_constant(reference_images[idx][0], kernel_size_array[idx], reference_images[idx][3]))
+            np.save(os.path.join(kernel_directory_path,'unweighted_u_matrix.npy'), [umatrices, kernel_size_array, max_adu])
 
-
-
+    quality_metrics = []
     for new_image in new_images:
         row_index = np.where(reduction_metadata.images_stats[1]['IM_NAME'] == new_image)[0][0]
         ref_fwhm_x, ref_fwhm_y, ref_sigma_x, ref_sigma_y = ref_stats
         x_shift, y_shift = -reduction_metadata.images_stats[1][row_index]['SHIFT_X'],-reduction_metadata.images_stats[1][row_index]['SHIFT_Y'] 
+        x_fwhm, y_fwhm = -reduction_metadata.images_stats[1][row_index]['FWHM_X'],-reduction_metadata.images_stats[1][row_index]['FWHM_Y'] 
+        try:
+            fwhm_val = int(grow_kernel*(float(x_fwhm)**2+float(y_fwhm)**2)**0.5)
+        except:
+            fwhm_val = 999
+        umatrix_index = int(np.digitize(fwhm_val,np.array(kernel_size_array)))
+        umatrix_index = min(umatrix_index, len(kernel_size_array)-1)
+        umatrix = umatrices[umatrix_index]
+        kernel_size = kernel_size_array[umatrix_index]
+        reference_image, bright_reference_mask, reference_image_unmasked, noise_image = reference_images[umatrix_index]
         x_shift,y_shift = 0,0
         #if the reference is not as sharp as a data image -> smooth the data
         smoothing = smoothing_2sharp_images(reduction_metadata, ref_fwhm_x, ref_fwhm_y, ref_sigma_x, ref_sigma_y, row_index)
 
         try:
             data_image, data_image_unmasked = open_data_image(setup, data_image_directory, new_image, bright_reference_mask, kernel_size, max_adu, xshift = x_shift, yshift = y_shift, sigma_smooth = smoothing, central_crop = maxshift)
-            missing_data_mask = (data_image == 0.)
-            #reference_image[bright_reference_mask] = 0
-            #data_image[bright_reference_mask] = 0
-
-
-
-            b_vector = bvector_constant(reference_image, data_image, kernel_size)
+            missing_data_mask = (data_image == 0.)        
+            b_vector = bvector_constant(reference_image, data_image, kernel_size, noise_image)
             kernel_matrix, bkg_kernel, kernel_uncertainty = kernel_solution(umatrix, b_vector, kernel_size, circular = False)
             pscale = np.sum(kernel_matrix)                
-            np.save(os.path.join(kernel_directory_path,'kernel_'+new_image+'.npy'),[kernel_matrix,bkg_kernel])
+            pscale_err = np.sum(kernel_uncertainty**2)**0.5
+            np.save(os.path.join(kernel_directory_path,'kernel_'+new_image+'.npy'), [kernel_matrix, bkg_kernel])
             kernel_header = fits.Header()
             kernel_header['SCALEFAC'] = str(pscale)
             kernel_header['KERBKG'] = bkg_kernel
-            hdu_kernel = fits.PrimaryHDU(kernel_matrix,header=kernel_header)
-            hdu_kernel.writeto(os.path.join(kernel_directory_path,'kernel_'+new_image), overwrite = True)  
+            hdu_kernel = fits.PrimaryHDU(kernel_matrix, header=kernel_header)
+            hdu_kernel.writeto(os.path.join(kernel_directory_path, 'kernel_'+new_image), overwrite = True)  
             hdu_kernel_err = fits.PrimaryHDU(kernel_uncertainty)
-            hdu_kernel_err.writeto(os.path.join(kernel_directory_path,'kernel_err_'+new_image), overwrite = True)  
-            if log is not None:
-                logs.ifverbose(log, setup, 'b_vector calculated for:' + new_image+' and scale factor '+str(pscale)) 
-            #CROP EDGE!
+            hdu_kernel_err.writeto(os.path.join(kernel_directory_path, 'kernel_err_'+new_image), overwrite = True)
+            #Particle data group formatting
+            pscale_formatted = '{}'.format(ufloat(pscale,pscale_err))
             difference_image = subtract_images(data_image_unmasked, reference_image_unmasked, kernel_matrix, kernel_size, bkg_kernel)
-              
+            #unmasked subtraction (for quality stats)
+            mean_sky, median_sky, std_sky = sigma_clipped_stats(reference_image_unmasked, sigma=5.0) 
+            difference_image_um = subtract_images(data_image, reference_image, kernel_matrix, kernel_size, bkg_kernel)
+            mask = reference_image != 0
+            ngood = len(difference_image_um[mask])
+            kurtosis_quality = kurtosis(difference_image_um[mask])
+            skew_quality = skew(difference_image_um[mask])
+            variance_per_pixel = np.var(difference_image_um[mask])/float(ngood)
+            if log is not None:
+                logs.ifverbose(log, setup, 'b_vector calculated for:' + new_image+' and scale factor '+pscale_formatted+' variace per pixel '+str(round(variance_per_pixel,4))+' in kernel bin '+str(umatrix_index)) 
+
+            #EXPERIMENTAL -> DISCARD outliers
+            #mean_diff, median_diff, std_diff = sigma_clipped_stats(difference_image, sigma=4.0) 
+            #out3sig = np.where(np.abs(difference_image) > 4.*+std_diff)
+            #outliers_list = []
+            #for rm_idx in range(len(out3sig[0])):
+            #    outliers_list.append((out3sig[0][rm_idx],out3sig[1][rm_idx]))
+            #update umatrix
+            #b_vector_2 = bvector_constant_clean(reference_image, data_image, kernel_size, b_vector, outliers_list)
+            #umatrix_2 = umatrix_constant_clean(reference_image, kernel_size, umatrix, outliers_list)
+            #kernel_matrix_2, bkg_kernel_2, kernel_uncertainty_2 = kernel_solution(umatrix_2, b_vector_2, kernel_size, circular = False)
+            #difference_image = subtract_images(data_image_unmasked, reference_image_unmasked, kernel_matrix_2, kernel_size, bkg_kernel_2)
             new_header = fits.Header()
             new_header['SCALEFAC'] = pscale
+            new_header['SCALEERR'] = pscale_err
+            new_header['VARPP'] = variance_per_pixel
+            new_header['NGOOD'] = ngood
+            new_header['SKY'] = median_sky
+            new_header['KURTOSIS'] = kurtosis_quality
+            new_header['SKEW'] = skew_quality
+            quality_metrics.append([new_image, pscale, pscale_err, median_sky, variance_per_pixel, ngood, kurtosis_quality, skew_quality])
             difference_image_hdu = fits.PrimaryHDU(difference_image,header=new_header)
             difference_image_hdu.writeto(os.path.join(diffim_directory_path,'diff_'+new_image),overwrite = True)
         except Exception as e:
@@ -216,6 +350,8 @@ def subtract_small_format_image(new_images, reference_image_name, reference_imag
                 logs.ifverbose(log, setup,'kernel matrix computation or shift failed:' + new_image + '. skipping! '+str(e))
             else:
                 print(str(e))
+    return quality_metrics
+
 
 def open_reference_stamps(setup, reduction_metadata, reference_image_directory, reference_image_name, kernel_size, max_adu, log, maxshift, min_adu = None):
     reference_pool_stamps = []
@@ -274,14 +410,12 @@ def subtract_large_format_image(new_images, reference_image_name, reference_imag
 
 
 
-def noise_model(model_image, gain, readout_noise, flat=None, initialize=None):
+def noise_model(model_image, gain = 1., readout_noise = 0., flat=None, initialize=None):
     noise_image = np.copy(model_image)
     noise_image[noise_image == 0] = 1.
-    noise_image = noise_image**2
-    noise_image[noise_image != 1] = noise_image[noise_image != 1] + readout_noise * readout_noise
     weights = 1. / noise_image
     weights[noise_image == 1] = 0.
-
+    weights = weights
     return weights
 
 def noise_model_constant(model_image,smooth = None):
@@ -317,7 +451,7 @@ def mask_kernel(kernel_size_plus):
 
     return mask_kernel
 
-def umatrix_constant(reference_image, ker_size, model_image=None, sigma_max = None, bright_mask = None, nobkg = None):
+def umatrix_constant(reference_image, ker_size, noise_image, model_image=None, sigma_max = None, bright_mask = None, nobkg = None):
     '''
     The kernel solution is supposed to implement the approach outlined in
     the Bramich 2008 paper. It generates the u matrix which is required
@@ -345,10 +479,7 @@ def umatrix_constant(reference_image, ker_size, model_image=None, sigma_max = No
             kernel_size = ker_size + 1
         else:
             kernel_size = ker_size
-    if model_image == None or sigma_max == None:
-        weights = noise_model_constant(reference_image)
-    else:
-        weights = noise_model_blurred_ref(reference_image, bright_mask, sigma_max)
+    weights = noise_model(copy.deepcopy(noise_image))
     # Prepare/initialize indices, vectors and matrices
     pandq = []
     n_kernel = kernel_size * kernel_size
@@ -362,6 +493,50 @@ def umatrix_constant(reference_image, ker_size, model_image=None, sigma_max = No
     else:
         u_matrix = umatrix_construction(reference_image, weights, pandq, n_kernel, kernel_size)
     return u_matrix
+
+def umatrix_constant_clean(reference_image, ker_size, first_umatrix, outliers, model_image=None, sigma_max = None, bright_mask = None, nobkg = None):
+    '''
+    The kernel solution is supposed to implement the approach outlined in
+    the Bramich 2008 paper. It generates the u matrix which is required
+    for finding the best kernel and assumes it can be calculated
+    sufficiently if the noise model either is neglected or similar on all
+    model images. In order to run, it needs the largest possible kernel size
+    and carefully masked regions which are expected to be affected on all
+    data images.
+
+    :param object image: reference image
+    :param integer kernel size: edge length of the kernel in px
+
+    :return: u matrix
+    '''
+    try:
+        from umatrix_routine import umatrix_construction, umatrix_bvector_construction, bvector_construction
+        from umatrix_routine import umatrix_construction_nobkg, bvector_construction_nobkg
+        from umatrix_routine import umatrix_construction_clean, bvector_construction_clean
+    except ImportError:
+        print('cannot import cython module umatrix_routine')
+        return []
+
+    if ker_size:
+        if ker_size % 2 == 0:
+            kernel_size = ker_size + 1
+        else:
+            kernel_size = ker_size
+    if model_image == None or sigma_max == None:
+        weights = noise_model(reference_image)
+    else:
+        weights = noise_model_blurred_ref(reference_image, bright_mask, sigma_max)
+    # Prepare/initialize indices, vectors and matrices
+    pandq = []
+    n_kernel = kernel_size * kernel_size
+    ncount = 0
+    half_kernel_size = int(int(kernel_size) / 2)
+    for lidx in range(kernel_size):
+        for midx in range(kernel_size):
+            pandq.append((lidx - half_kernel_size, midx - half_kernel_size))
+
+    u_matrix_2 = umatrix_construction_clean(reference_image, weights, first_umatrix, pandq, n_kernel, kernel_size, outliers, len(outliers))
+    return u_matrix_2
 
 def umatrix_constant_threading(reference_image, ker_size, model_image=None, sigma_max = None, bright_mask = None, nobkg = None):
     '''
@@ -442,7 +617,7 @@ def umatrix_pool(input_arg):
     print("umatrix start")
     return umatrix_constant(reference_image, ker_size, model_image=None, sigma_max = None, bright_mask = None)
 
-def bvector_constant(reference_image, data_image, ker_size, model_image=None, sigma_max = None, bright_mask = None, nobkg = None):
+def bvector_constant(reference_image, data_image, ker_size, noise_image, model_image=None, sigma_max = None, bright_mask = None, nobkg = None):
     '''
     The kernel solution is supposed to implement the approach outlined in
     the Bramich 2008 paper. It generates the b_vector which is required
@@ -469,10 +644,7 @@ def bvector_constant(reference_image, data_image, ker_size, model_image=None, si
             kernel_size = ker_size + 1
         else:
             kernel_size = ker_size
-    if model_image == None or sigma_max == None:
-        weights = noise_model_constant(reference_image)
-    else:
-        weights = noise_model_blurred_ref(reference_image, bright_mask, sigma_max)
+    weights = noise_model(copy.deepcopy(noise_image))
     # Prepare/initialize indices, vectors and matrices
     pandq = []
     n_kernel = kernel_size * kernel_size
@@ -487,6 +659,51 @@ def bvector_constant(reference_image, data_image, ker_size, model_image=None, si
         b_vector = bvector_construction(reference_image, data_image, weights, pandq, n_kernel, kernel_size)
    
     return b_vector
+
+def bvector_constant_clean(reference_image, data_image, ker_size, first_b_vector, outliers, model_image=None, sigma_max = None, bright_mask = None, nobkg = None):
+    '''
+    The kernel solution is supposed to implement the approach outlined in
+    the Bramich 2008 paper. It generates the b_vector which is required
+    for finding the best kernel and assumes it can be calculated
+    sufficiently if the noise model either is neglected or similar on all
+    model images. In order to run, it needs the largest possible kernel size
+    and carefully masked regions on both - data and reference image. 
+    After an initial run, the umatrix is corrected for potential outliers
+    and b vector are both updated.
+
+    :param object image: reference image
+    :param integer kernel size: edge length of the kernel in px
+
+    :return: b_vector
+    '''
+    try:
+        from umatrix_routine import umatrix_construction, umatrix_bvector_construction, bvector_construction
+        from umatrix_routine import umatrix_construction_nobkg, bvector_construction_nobkg
+        from umatrix_routine import umatrix_construction_clean, bvector_construction_clean
+    except ImportError:
+        print('cannot import cython module umatrix_routine')
+        return []
+
+    if ker_size:
+        if ker_size % 2 == 0:
+            kernel_size = ker_size + 1
+        else:
+            kernel_size = ker_size
+    if model_image == None or sigma_max == None:
+        weights = noise_model_constant(reference_image)
+    else:
+        weights = noise_model_blurred_ref(reference_image, bright_mask, sigma_max)
+    # Prepare/initialize indices, vectors and matrices
+    pandq = []
+    n_kernel = kernel_size * kernel_size
+    ncount = 0
+    half_kernel_size = int(int(kernel_size) / 2)
+    for lidx in range(kernel_size):
+        for midx in range(kernel_size):
+            pandq.append((lidx - half_kernel_size, midx - half_kernel_size))
+    b_vector_2 = bvector_construction_clean(reference_image, data_image, weights, first_b_vector, pandq, n_kernel, kernel_size, outliers, len(outliers))
+   
+    return b_vector_2
 
 def bvector_pool(input_arg,reference_image, data_image, ker_size, model_image=None, sigma_max = None, bright_mask = None):
     '''
@@ -567,30 +784,33 @@ def kernel_solution(u_matrix, b_vector, kernel_size, circular = True):
     #For better stability: solve the least square problem via np.linalg.lstsq
     #inv_umatrix = np.linalg.inv(u_matrix)
     #a_vector = np.dot(inv_umatrix, b_vector)
+    #recalculate residuals to apply standard lstsq uncertainties
+    lstsq_result = np.linalg.lstsq(np.array(u_matrix), np.array(b_vector)) 
+    a_vector = lstsq_result[0] 
+    lstsq_fit = np.dot(np.array(u_matrix), a_vector)
+    resid = np.array(b_vector) - lstsq_fit
+    reduced_chisqr = np.sum(resid**2)/(float(kernel_size*kernel_size))
+    lstsq_cov = np.dot(np.array(u_matrix).T, np.array(u_matrix))*reduced_chisqr
+    resivar = np.var(resid, ddof = 0)*float(len(a_vector))
+    #use pinv in order to stabilize calculation
+    a_var = np.diag(np.linalg.pinv(lstsq_cov) * resivar)
 
-    lstsq_result = np.linalg.lstsq(np.array(u_matrix), np.array(b_vector))    
-    a_vector = lstsq_result[0]
-    mse = 1.#lstsq_result
-    #a_vector_err = np.copy(np.diagonal(np.matrix(np.dot(u_matrix.T, u_matrix)).I))
-    residuals = b_vector/10
-    ### approximate error before sig_b_vector....
-    a_vector_err = np.copy((np.linalg.lstsq(u_matrix, np.identity(u_matrix.shape[0])*residuals)))[0]
-    #import pdb;
-    #pdb.set_trace()
-    #MSE: mean square error of the residuals
+    
+    a_vector_err = np.sqrt(a_var)
     output_kernel = np.zeros(kernel_size * kernel_size, dtype=float)
     if len(a_vector)>kernel_size*kernel_size:
         output_kernel = a_vector[:-1]
     else:
         output_kernel = a_vector
     output_kernel = output_kernel.reshape((kernel_size, kernel_size))
+
     err_kernel = np.zeros(kernel_size * kernel_size, dtype=float)
-    #if len(a_vector)>kernel_size*kernel_size:
-    #    err_kernel = (a_vector_err*lstsq_result[3])[:-1]
-    #    err_kernel = err_kernel.reshape((kernel_size, kernel_size))
-    #else:
-    #    err_kernel = (a_vector_err*lstsq_result[3])
-    #    err_kernel = err_kernel.reshape((kernel_size, kernel_size))
+    if len(a_vector)>kernel_size*kernel_size:
+        err_kernel = a_vector_err[:-1]
+        err_kernel = err_kernel.reshape((kernel_size, kernel_size))
+    else:
+        err_kernel = a_vector_err
+        err_kernel = err_kernel.reshape((kernel_size, kernel_size))
     #
     if circular:
         xyc = int(kernel_size / 2)
@@ -602,9 +822,7 @@ def kernel_solution(u_matrix, b_vector, kernel_size, circular = True):
                     #err_kernel[idx, jdx] = 0.
 
     output_kernel_2 = np.flip(np.flip(output_kernel, 0), 1)
-    #err_kernel_2 = np.flip(np.flip(err_kernel, 0), 1)
-    #err_kernel_2 = err_kernel
-    err_kernel_2 = a_vector_err
+    err_kernel_2 = np.flip(np.flip(err_kernel, 0), 1)
 
     return output_kernel_2, a_vector[-1], err_kernel_2
 

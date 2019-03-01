@@ -4,7 +4,8 @@ Created on Wed Oct 11 17:04:53 2017
 
 @author: rstreet
 """
-
+import matplotlib
+matplotlib.use('Agg')
 from os import getcwd, path, remove
 from sys import argv, exit
 from sys import path as systempath
