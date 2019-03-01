@@ -46,9 +46,9 @@ def get_args():
         params['x'] = float(argv[2])
         params['y'] = float(argv[3])
     else:
-        params['metadata_file'] = raw_input('Please enter the name of the metadata file: ')
-        params['x'] = float(raw_input('Please enter the target x position [pixels]: '))
-        params['y'] = float(raw_input('Please enter the target y position [pixels]: '))
+        params['metadata_file'] = input('Please enter the name of the metadata file: ')
+        params['x'] = float(input('Please enter the target x position [pixels]: '))
+        params['y'] = float(input('Please enter the target y position [pixels]: '))
     
     (params['red_dir'],params['metadata']) = path.split(params['metadata_file'])
     

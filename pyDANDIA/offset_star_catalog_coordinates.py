@@ -67,9 +67,9 @@ def get_args():
     
     if len(sys.argv) == 1:
         
-        params['metadata'] = raw_input('Please enter the path to the metadata file: ')
-        params['delta_ra'] = float(raw_input('Please the RA offset in decimal arcsec: '))
-        params['delta_dec'] = float(raw_input('Please enter the Dec offset in decimal arcsec: '))
+        params['metadata'] = input('Please enter the path to the metadata file: ')
+        params['delta_ra'] = float(input('Please the RA offset in decimal arcsec: '))
+        params['delta_dec'] = float(input('Please enter the Dec offset in decimal arcsec: '))
         
     else:
 

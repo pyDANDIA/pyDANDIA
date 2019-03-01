@@ -72,11 +72,11 @@ def get_args():
         params['ra'] = sys.argv[4]
         params['dec'] = sys.argv[5]
     else:
-        params['red_dir'] = raw_input('Please enter the path to the reduction directory: ')
-        params['metadata'] = raw_input('Please enter the name of the metadata file: ')
-        params['log_dir'] = raw_input('Please enter the path to the log directory: ')
-        params['ra'] = raw_input('Please enter the target RA [sexigesimal format or none]: ')
-        params['dec'] = raw_input('Please enter the target Dec [sexigesimal format or none]: ')
+        params['red_dir'] = input('Please enter the path to the reduction directory: ')
+        params['metadata'] = input('Please enter the name of the metadata file: ')
+        params['log_dir'] = input('Please enter the path to the log directory: ')
+        params['ra'] = input('Please enter the target RA [sexigesimal format or none]: ')
+        params['dec'] = input('Please enter the target Dec [sexigesimal format or none]: ')
     
     params['target'] = SkyCoord([params['ra']], [params['dec']], 
                         unit=(u.hourangle, u.deg))
@@ -265,7 +265,7 @@ def match_stars_by_position(star_catalog,vphas_cat,log):
     det_index = match_data[0][idx]
     cat_index = match_data[1][idx]
     
-    match_index = np.array(zip(ddx[det_index],vdx[cat_index]))
+    match_index = np.array(list(zip(ddx[det_index],vdx[cat_index])))
     
     log.info('Matched '+str(len(match_index)))
     

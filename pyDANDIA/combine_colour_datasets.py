@@ -58,10 +58,10 @@ def get_args():
     
     if len(sys.argv) == 1:
         
-        params['ip'] = raw_input('Please enter the path to the metadata file for SDSS-i [or none]: ')
-        params['rp'] = raw_input('Please enter the path to the metadata file for SDSS-r [or none]: ')
-        params['gp'] = raw_input('Please enter the path to the metadata file for SDSS-g [or none]: ')
-        params['red_dir'] = raw_input('Please enter the path to the output directory: ')
+        params['ip'] = input('Please enter the path to the metadata file for SDSS-i [or none]: ')
+        params['rp'] = input('Please enter the path to the metadata file for SDSS-r [or none]: ')
+        params['gp'] = input('Please enter the path to the metadata file for SDSS-g [or none]: ')
+        params['red_dir'] = input('Please enter the path to the output directory: ')
         
     else:
 

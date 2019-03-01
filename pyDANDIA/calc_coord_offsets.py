@@ -24,10 +24,10 @@ def get_star_positions():
     coordinates plus its apparent RA, Dec based on the existing image WCS"""
     
     if len(argv) == 1:
-        true_ra = raw_input('Please enter the reference stars TRUE RA [sexigesimal format]: ')
-        true_dec = raw_input('Please enter the reference stars TRUE Dec [sexigesimal format]: ')
-        meas_ra = raw_input('Please enter the reference stars MEASURED RA [sexigesimal format or degrees]: ')
-        meas_dec = raw_input('Please enter the reference stars MEASURED Dec [sexigesimal format or degrees]: ')
+        true_ra = input('Please enter the reference stars TRUE RA [sexigesimal format]: ')
+        true_dec = input('Please enter the reference stars TRUE Dec [sexigesimal format]: ')
+        meas_ra = input('Please enter the reference stars MEASURED RA [sexigesimal format or degrees]: ')
+        meas_dec = input('Please enter the reference stars MEASURED Dec [sexigesimal format or degrees]: ')
     else:
         true_ra = argv[1]
         true_dec = argv[2]

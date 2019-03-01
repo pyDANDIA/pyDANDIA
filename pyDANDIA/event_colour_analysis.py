@@ -137,7 +137,7 @@ def get_args():
     
     if len(argv) == 1:
         
-        input_file = raw_input('Please enter the path to the parameter file: ')
+        input_file = input('Please enter the path to the parameter file: ')
 
     else:
 
