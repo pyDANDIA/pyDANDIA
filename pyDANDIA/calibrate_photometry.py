@@ -71,16 +71,33 @@ def get_args():
         params['log_dir'] = sys.argv[3]
         params['ra'] = sys.argv[4]
         params['dec'] = sys.argv[5]
+        
+        if len(sys.argv) > 6:
+            
+            for a in sys.argv[6:]:
+                (key,value) = a.split('=')
+                
+                params[key] = value
+                
     else:
         params['red_dir'] = input('Please enter the path to the reduction directory: ')
         params['metadata'] = input('Please enter the name of the metadata file: ')
         params['log_dir'] = input('Please enter the path to the log directory: ')
-        params['ra'] = input('Please enter the target RA [sexigesimal format or none]: ')
-        params['dec'] = input('Please enter the target Dec [sexigesimal format or none]: ')
+        params['ra'] = input('Please enter the target RA [sexigesimal format]: ')
+        params['dec'] = input('Please enter the target Dec [sexigesimal format]: ')
+        params['det_mags_max'] = input('Please enter the faintest instrumental magnitude bin to use in calibration (or none to accept the defaults): ')
+        params['det_mags_min'] = input('Please enter the brightest instrumental magnitude bin to use in calibration (or none to accept the defaults): ')
+        params['cat_merr_max'] = input('Please enter the maximum allowed photometric uncertainty for a catalog measurement (or none to accept the defaults): ')
     
     params['target'] = SkyCoord([params['ra']], [params['dec']], 
                         unit=(u.hourangle, u.deg))
-                        
+    
+    for key in ['det_mags_max', 'det_mags_min', 'cat_merr_max']:
+        if key in params.keys():
+            params[key] = float(params[key])
+        else:
+            params[key] = None
+            
     return params
 
 def fetch_metadata(setup,params,log):
@@ -309,24 +326,11 @@ def model_phot_transform(params,star_catalog,vphas_cat,match_index,fit,
     cat_mags = vphas_cat[cmag][match_index[:,1]]
     cat_merrs = vphas_cat[cerr][match_index[:,1]]
     det_mags = star_catalog['mag'][match_index[:,0]]
-    det_mag_errs = star_catalog['mag_err'][match_index[:,0]]
-
-    if params['filter'] == 'gp':
-        xbin1 = 16.0
-        det_mags_max = 16.0
-        det_mags_min = 10.0
-        cat_merr_max = 0.04
-    elif params['filter'] == 'rp':
-        xbin1 = 13.5
-        det_mags_max = 13.5
-        det_mags_min = 10.0
-        cat_merr_max = 0.04
-    else:
-        xbin1 = 13.5
-        det_mags_max = 13.5
-        det_mags_min = 10.0
-        cat_merr_max = 0.04
+ 
+    config = set_calibration_limits(params,log)
+    
     xibin = 0.5
+    xbin1 = config['det_mags_max']
     xbin2 = xbin1 - xibin
     
     binned_data = []
@@ -334,7 +338,7 @@ def model_phot_transform(params,star_catalog,vphas_cat,match_index,fit,
     xbins = []
     ybins = []
     
-    while xbin2 > det_mags_min:
+    while xbin2 > config['det_mags_min']:
         
         idx1 = np.where(det_mags <= xbin1)
         idx2 = np.where(det_mags > xbin2)
@@ -356,7 +360,7 @@ def model_phot_transform(params,star_catalog,vphas_cat,match_index,fit,
                 
                 jdx1 = np.where(cat_mags[idx] <= ybin1)
                 jdx2 = np.where(cat_mags[idx] > ybin2)
-                jdx3 = np.where(cat_merrs[idx] <= cat_merr_max)
+                jdx3 = np.where(cat_merrs[idx] <= config['cat_merr_max'])
                 jdx = set(jdx1[0].tolist()).intersection(set(jdx2[0].tolist()))
                 jdx = list(set(jdx).intersection(set(jdx3[0].tolist())))
                 
@@ -434,6 +438,38 @@ def model_phot_transform(params,star_catalog,vphas_cat,match_index,fit,
     
     return fit
 
+def set_calibration_limits(params,log):
+    """Function to use the parameters given or set defaults"""
+    
+    defaults = {'gp': {'det_mags_max': 15.0,
+                       'det_mags_min': 10.0,
+                       'cat_merr_max': 0.04},
+                'rp': {'det_mags_max': 13.5,
+                       'det_mags_min': 10.0,
+                       'cat_merr_max': 0.04},
+                'ip': {'det_mags_max': 13.5,
+                       'det_mags_min': 10.0,
+                       'cat_merr_max': 0.04}}
+    
+    def_params = defaults[params['filter']]
+    
+    set_params = {}
+    
+    log.info('Set calibration limits: ')
+    for key in ['det_mags_max', 'det_mags_min', 'cat_merr_max']:
+        
+        if params[key] != None:
+            
+            set_params[key] = params[key]
+            
+        else:
+            
+            set_params[key] = def_params[key]
+            
+        log.info(key+' = '+str(set_params[key]))
+    
+    return set_params
+    
 def model_phot_transform2(params,star_catalog,vphas_cat,match_index,fit,
                          log, diagnostics=True):
     """Function to make an initial guess at the fit parameters"""
@@ -449,26 +485,10 @@ def model_phot_transform2(params,star_catalog,vphas_cat,match_index,fit,
     det_mags = star_catalog['mag'][match_index[:,0]]
     det_mag_errs = star_catalog['mag_err'][match_index[:,0]]
 
-    if params['filter'] == 'gp':
-        xbin1 = 16.0
-        det_mags_max = 15.0
-        det_mags_min = 10.0
-        cat_merr_max = 0.04
-    elif params['filter'] == 'rp':
-        xbin1 = 13.5
-        det_mags_max = 13.5
-        det_mags_min = 10.0
-        cat_merr_max = 0.04
-    else:
-        #xbin1 = 13.5
-        #det_mags_max = 13.5
-        #det_mags_min = 10.0
-        #cat_merr_max = 0.04
-        xbin1 = 16.0
-        det_mags_max = 21.0
-        det_mags_min = 16.0
-        cat_merr_max = 0.04
+    config = set_calibration_limits(params,log)
+    
     xibin = 0.5
+    xbin1 = config['det_mags_max']
     xbin2 = xbin1 - xibin
     
     binned_data = []
@@ -486,7 +506,7 @@ def model_phot_transform2(params,star_catalog,vphas_cat,match_index,fit,
     xcenters = (xedges[:-1] + xedges[1:]) / 2
     ycenters = (yedges[:-1] + yedges[1:]) / 2
     
-    k = np.where(xcenters[idx[0]] < det_mags_max)
+    k = np.where(xcenters[idx[0]] < config['det_mags_max'])
     xbins = xcenters[idx[0][k]]
     ybins = []
     for x in idx[0][k]:
@@ -494,6 +514,10 @@ def model_phot_transform2(params,star_catalog,vphas_cat,match_index,fit,
         k = np.where(hist_data[x,:] == (hist_data[x,:].max()))
         ybins.append(ycenters[k][0])
     
+    if len(xbins) <= 1 or len(ybins) <= 1:
+        raise ValueError('Insufficient datapoint selected by calibration magnitude limits')
+        exit()
+        
     fit = calc_transform(fit, xbins, ybins)
     
     if diagnostics:
