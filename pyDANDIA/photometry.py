@@ -124,17 +124,23 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
             sub_psf_model = psf.get_psf_object('Moffat2D')
             
             pars = fitted_model.get_parameters()
-            pars[1] = (psf_size/2.0) + (ystar-int(ystar))
-            pars[2] = (psf_size/2.0) + (xstar-int(xstar))
+            pars[1] = (psf_size/2.0) + (sec_ystar-int(sec_ystar))
+            pars[2] = (psf_size/2.0) + (sec_xstar-int(sec_xstar))
             
-            pars[1] = ystar
-            pars[2] = xstar
+            pars[1] = sec_ystar
+            pars[2] = sec_xstar
             
             sub_psf_model.update_psf_parameters(pars)
             
+            sub_corners = psf.calc_stamp_corners(sec_xstar, sec_ystar, 
+                                                 psf_size, psf_size, 
+                                                 data_section.shape[1], 
+                                                 data_section.shape[0],
+                                                 over_edge=True)
+                                         
             psf_image = psf.model_psf_in_image(data_section,sub_psf_model,
                                                     [sec_xstar,sec_ystar],
-                                                    corners)
+                                                    sub_corners)
             
             residuals[corners[2]:corners[3],corners[0]:corners[1]] -= psf_image
             
