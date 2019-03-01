@@ -588,7 +588,7 @@ def exclude_outliers(vphas_cat,star_catalog,params,match_index,fit,log):
     log.info('Excluded '+str(len(match_index)-len(dx))+', '+\
             str(len(match_index))+' stars remaining')
     
-    match_index = np.array(zip(match_index[dx,0],match_index[dx,1]))
+    match_index = np.array(list(zip(match_index[dx,0],match_index[dx,1])))
     
     return match_index
 
