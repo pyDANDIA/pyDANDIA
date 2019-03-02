@@ -337,9 +337,15 @@ def initialize_plot_lightcurve(fit,n_datasets,title=None):
     """
     font_size = 18
     
-    n_subplots = int(1 + (n_datasets/2))
-    height_ratios = [3] + [1]*(n_subplots-1)
+    n_datasets_per_plot = 3
     
+    if (float(n_datasets)%float(n_datasets_per_plot)) == 0:
+        n_subplots = int(1 + (n_datasets/n_datasets_per_plot))
+    else:
+        n_subplots = int(1 + (n_datasets/n_datasets_per_plot)) + 1
+        
+    height_ratios = [3] + [1]*(n_subplots-1)
+
     fig_size = [10,(5+2*n_subplots)]
     figure, figure_axes = plt.subplots(n_subplots, 1, sharex=True, gridspec_kw={'height_ratios': height_ratios},
                                        figsize=(fig_size[0], fig_size[1]), dpi=75)
@@ -380,7 +386,7 @@ def add_inset_box(current_event,ax):
     """
     
     inset_axfig1 = inset_axes(ax, width="25%", height="40%",
-                              bbox_to_anchor=(-0.4, -0.25, 1.0, 1.2),
+                              bbox_to_anchor=(0.07, -0.07, 0.97, 1.07),
                               borderpad=5,
                               bbox_transform=ax.transAxes)
                               
@@ -394,12 +400,16 @@ def add_inset_box(current_event,ax):
     inset_axfig1.set_xlim(x1, x2) # apply the x-limits
     inset_axfig1.set_ylim(y1, y2) # apply the y-limits
     
+    # loc=1 upper right
+    # loc=2 upper left
+    # loc=3 lower left
+    # loc=4 lower right
     patch,pp1,pp2 = mark_inset(ax, inset_axfig1, 
-                               loc1=2, loc2=4, fc="none", ec="0.5")
-    pp1.loc1 = 1
-    pp1.loc2 = 3
-    pp2.loc1 = 4
-    pp2.loc2 = 2
+                               loc1=1, loc2=4, fc="none", ec="0.5")
+    pp1.loc1 = 3    # Patch on main box
+    pp1.loc2 = 1
+    pp2.loc1 = 2    # Patch on inset
+    pp2.loc2 = 4
     inset_axfig1.get_xaxis().get_major_formatter().set_useOffset(False)
     #inset_axfig1.set_xticks([2457084,2457085.2])
     inset_axfig1.tick_params(axis='both',labelsize=10)
@@ -413,7 +423,7 @@ def add_inset_box2(current_event,ax):
     """
     
     inset_axfig2 = inset_axes(ax, width="25%", height="40%",
-                              bbox_to_anchor=(0.07, -0.07, 0.97, 1.07),
+                              bbox_to_anchor=(-0.4, -0.25, 1.0, 1.2),
                               borderpad=5,
                               bbox_transform=ax.transAxes)
                               
@@ -427,12 +437,16 @@ def add_inset_box2(current_event,ax):
     inset_axfig2.set_xlim(x1, x2) # apply the x-limits
     inset_axfig2.set_ylim(y1, y2) # apply the y-limits
     
+    # loc=1 upper right
+    # loc=2 upper left
+    # loc=3 lower left
+    # loc=4 lower right
     patch,pp1,pp2 = mark_inset(ax, inset_axfig2, 
-                               loc1=1, loc2=2, fc="none", ec="0.5")
-    pp1.loc1 = 2
-    pp1.loc2 = 4
-    pp2.loc1 = 4
-    pp2.loc2 = 1
+                               loc1=2, loc2=4, fc="none", ec="0.5")
+    pp1.loc1 = 1    # Patch on main plot
+    pp1.loc2 = 3
+    pp2.loc1 = 4    # Patch on inset
+    pp2.loc2 = 2
     
     inset_axfig2.get_xaxis().get_major_formatter().set_useOffset(False)
     #inset_axfig1.set_xticks([2457084,2457085.2])
@@ -447,6 +461,26 @@ def plot_residuals(fit, figure_axes):
     :param object fit: a fit object. See the microlfits for more details.
     :param matplotlib_axes figure_axe: a matplotlib axes correpsonding to the figure.
     """
+    
+    def plot_dataset_residuals(fit,pyLIMA_parameters,ax,index):
+
+        telescope = fit.event.telescopes[index]
+        time = telescope.lightcurve_flux[:, 0]
+        flux = telescope.lightcurve_flux[:, 1]
+        error_flux = telescope.lightcurve_flux[:, 2]
+        err_mag = microltoolbox.error_flux_to_error_magnitude(error_flux, flux)
+
+        flux_model = fit.model.compute_the_microlensing_model(telescope, 
+                                                              pyLIMA_parameters)[0]
+
+        residuals = 2.5 * np.log10(flux_model / flux)
+
+        ax.errorbar(time, residuals, yerr=err_mag, ls='None', markersize=7.5,
+                            marker=str(MARKER_SYMBOLS[0][index]), capsize=0.0,
+                            markerfacecolor=MARKER_COLOURS[0][index],
+                            markeredgecolor=MARKER_COLOURS[0][index],
+                            ecolor=MARKER_COLOURS[0][index])
+                            
     plot_residuals_windows = 0.2
     MAX_PLOT_TICKS = 2
 
@@ -454,44 +488,18 @@ def plot_residuals(fit, figure_axes):
     
     pyLIMA_parameters = fit.model.compute_pyLIMA_parameters(fit.fit_results)
         
-    for index in range(0,len(fit.event.telescopes),2):
-        
-        i = (n_plot-1)*index
+    for index in range(0,len(fit.event.telescopes),3):
         
         ax = figure_axes[n_plot]
         
-        telescope1 = fit.event.telescopes[index]
-        time1 = telescope1.lightcurve_flux[:, 0]
-        flux1 = telescope1.lightcurve_flux[:, 1]
-        error_flux1 = telescope1.lightcurve_flux[:, 2]
-        err_mag1 = microltoolbox.error_flux_to_error_magnitude(error_flux1, flux1)
-
-        flux_model1 = fit.model.compute_the_microlensing_model(telescope1, 
-                                                              pyLIMA_parameters)[0]
-
-        residuals1 = 2.5 * np.log10(flux_model1 / flux1)
-
-        ax.errorbar(time1, residuals1, yerr=err_mag1, ls='None', markersize=7.5,
-                            marker=str(MARKER_SYMBOLS[0][index]), capsize=0.0,
-                            markerfacecolor=MARKER_COLOURS[0][index],
-                            markeredgecolor=MARKER_COLOURS[0][index])
-                            
-        telescope2 = fit.event.telescopes[index+1]
-        time2 = telescope2.lightcurve_flux[:, 0]
-        flux2 = telescope2.lightcurve_flux[:, 1]
-        error_flux2 = telescope2.lightcurve_flux[:, 2]
-        err_mag2 = microltoolbox.error_flux_to_error_magnitude(error_flux2, flux2)
+        plot_dataset_residuals(fit,pyLIMA_parameters,ax,index)
         
-        #pyLIMA_parameters = fit.model.compute_pyLIMA_parameters(fit.fit_results)
-        flux_model2 = fit.model.compute_the_microlensing_model(telescope2, pyLIMA_parameters)[0]
-
-        residuals2 = 2.5 * np.log10(flux_model2 / flux2)
-
-        ax.errorbar(time2, residuals2, yerr=err_mag2, ls='None', markersize=7.5,
-                            marker=str(MARKER_SYMBOLS[0][index+1]), capsize=0.0,
-                            markerfacecolor=MARKER_COLOURS[0][index+1],
-                            markeredgecolor=MARKER_COLOURS[0][index+1])
-                            
+        if index+1 < len(fit.event.telescopes):
+            plot_dataset_residuals(fit,pyLIMA_parameters,ax,index+1)
+            
+        if index+2 < len(fit.event.telescopes):
+            plot_dataset_residuals(fit,pyLIMA_parameters,ax,index+2)
+            
         ax.set_ylim([-plot_residuals_windows, plot_residuals_windows])
         ax.invert_yaxis()
         ax.yaxis.get_major_ticks()[-1].draw = lambda *args: None
