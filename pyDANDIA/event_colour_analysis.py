@@ -474,7 +474,7 @@ def measure_photometric_source_colours(params,target,log):
         setattr(target,'fb_'+f2, blend_flux)
         setattr(target,'sig_fb_'+f2, sig_blend_flux)
         
-        plot_file = path.join(params['red_dir'], 'flux_curve_'+f1+'_'+f2+'.png')
+        plot_file = path.join(params['red_dir'], 'flux_curve_'+f1+'_'+f2+'.eps')
     
         phot_source_colour.plot_bicolour_flux_curves(target.lightcurves[f1],
                                                      target.lightcurves[f2],
@@ -777,7 +777,7 @@ def plot_colour_mag_diagram(params,mags, colours, local_mags, local_colours,
         
     plot_file = path.join(params['red_dir'],'colour_magnitude_diagram_'+\
                                             yaxis_filter+'_vs_'+blue_filter+red_filter\
-                                            +'.png')
+                                            +'.eps')
 
     plt.grid()
         
@@ -921,31 +921,33 @@ def plot_colour_colour_diagram(params,star_catalog,catalog_header,
             spt = spectral_type[i]+luminosity_class[i]
             
             if luminosity_class[i] == 'V':
-                c = 'k'
+                c = '#8d929b'
             else:
-                c = 'k'
+                c = '#8d929b'
                         
             if luminosity_class[i] == 'III' and plot_giants:
                 
-                plt.plot(gr_colour[i], ri_colour[i], marker='s', color=c, alpha=0.5)
+                plt.plot(gr_colour[i], ri_colour[i], marker='s', color=c, 
+                         markeredgecolor='k', alpha=0.5)
 
                 plt.annotate(spt, (gr_colour[i], ri_colour[i]-0.1), 
-                                color=c, size=10, rotation=-30.0, alpha=1.0)
+                                color='k', size=10, rotation=-30.0, alpha=1.0)
 
             if luminosity_class[i] == 'V' and plot_dwarfs:
                 
-                plt.plot(gr_colour[i], ri_colour[i], marker='s', color=c, alpha=0.5)
+                plt.plot(gr_colour[i], ri_colour[i], marker='s', color=c, 
+                         markeredgecolor='k', alpha=0.5)
 
                 plt.annotate(spt, (gr_colour[i], 
                                ri_colour[i]+0.1), 
-                                 color=c, size=10, 
+                                 color='k', size=10, 
                                  rotation=-30.0, alpha=1.0)
 
         plt.xlabel('SDSS (g-r) [mag]')
     
         plt.ylabel('SDSS (r-i) [mag]')
         
-        plot_file = path.join(params['red_dir'],'colour_colour_diagram.png')
+        plot_file = path.join(params['red_dir'],'colour_colour_diagram.eps')
         
         plt.axis([-1.0,2.0,-1.0,1.0])
         
@@ -1058,7 +1060,7 @@ def calibrate_instrumental_colour_colour_diagram(params,star_catalog,
         
             plt.ylabel('SDSS (r-i) [mag]')
             
-            plot_file = path.join(params['red_dir'],'calib_colour_colour_diagram.png')
+            plot_file = path.join(params['red_dir'],'calib_colour_colour_diagram.eps')
             
             plt.grid()
             
@@ -1103,7 +1105,7 @@ def plot_phot_transform(params, inst_mag, cal_mag, bandpass):
     plt.axis([xmax,xmin,ymax,ymin])
     
     plt.savefig(path.join(params['red_dir'],
-                'phot_transform_'+bandpass+'.png'))
+                'phot_transform_'+bandpass+'.eps'))
 
     plt.close(2)
 
