@@ -777,15 +777,15 @@ def plot_colour_mag_diagram(params,mags, colours, local_mags, local_colours,
         
     plot_file = path.join(params['red_dir'],'colour_magnitude_diagram_'+\
                                             yaxis_filter+'_vs_'+blue_filter+red_filter\
-                                            +'.eps')
+                                            +'.pdf')
 
     plt.grid()
         
     if red_filter == 'i' and blue_filter == 'r' and yaxis_filter == 'i':
-        plt.axis([-0.5,2.0,20.2,13.5])
+        plt.axis([0.5,2.0,20.2,13.5])
         
     if red_filter == 'i' and blue_filter == 'r' and yaxis_filter == 'r':
-        plt.axis([-0.5,2.0,21.0,13.5])
+        plt.axis([0.0,1.5,21.0,13.5])
         
     if red_filter == 'r' and blue_filter == 'g':
         plt.axis([0.5,3.0,22.0,14.0])
@@ -807,7 +807,7 @@ def plot_colour_mag_diagram(params,mags, colours, local_mags, local_colours,
     plt.rc('xtick', labelsize=18) 
     plt.rc('ytick', labelsize=18)
     
-    plt.savefig(plot_file)
+    plt.savefig(plot_file,bbox_inches='tight')
 
     plt.close(1)
     
@@ -947,7 +947,7 @@ def plot_colour_colour_diagram(params,star_catalog,catalog_header,
     
         plt.ylabel('SDSS (r-i) [mag]')
         
-        plot_file = path.join(params['red_dir'],'colour_colour_diagram.eps')
+        plot_file = path.join(params['red_dir'],'colour_colour_diagram.pdf')
         
         plt.axis([-1.0,2.0,-1.0,1.0])
         
@@ -977,7 +977,7 @@ def plot_colour_colour_diagram(params,star_catalog,catalog_header,
         plt.rc('xtick', labelsize=18) 
         plt.rc('ytick', labelsize=18)
     
-        plt.savefig(plot_file)
+        plt.savefig(plot_file,bbox_inches='tight')
     
         plt.close(1)
         
@@ -1523,7 +1523,7 @@ def output_red_clump_data_latex(params,RC,log):
     
     t.write('\\begin{table}[h!]\n')
     t.write('\\centering\n')
-    t.write('\\caption{Photometric properties of the Red Clump, with absolute magnitudes (M) taken from \cite{Ruiz-Dern2018}, and the measured properties from ROME data.} \label{tab:RCproperties}\n')
+    t.write('\\caption{Photometric properties of the Red Clump, with absolute magnitudes ($M_{\\lambda}$) taken from \cite{Ruiz-Dern2018}, and the measured properties from ROME data.} \label{tab:RCproperties}\n')
     t.write('\\begin{tabular}{ll}\n')
     t.write('\\hline\n')
     t.write('\\hline\n')
@@ -1564,27 +1564,27 @@ def output_source_blend_data_latex(params,source,blend,log):
 
     t.write('\\begin{table}[h!]\n')
     t.write('\\centering\n')
-    t.write('\\caption{Photometric properties of the source star (s) and blend (b).} \label{tab:targetphot}\n')
+    t.write('\\caption{Photometric properties of the source star (S) and blend (b).} \label{tab:targetphot}\n')
     t.write('\\begin{tabular}{llll}\n')
     t.write('\\hline\n')
     t.write('\\hline\n')
-    t.write('$m_{g,s}$ & '+convert_ndp(source.g,3)+' $\pm$ '+convert_ndp(source.sig_g,3)+'\,mag & $m_{g,b}$ & '+convert_ndp(blend.g,3)+' $\pm$ '+convert_ndp(blend.sig_g,3)+'\,mag\\\\\n')
-    t.write('$m_{r,s}$ & '+convert_ndp(source.r,3)+' $\pm$ '+convert_ndp(source.sig_r,3)+'\,mag & $m_{r,b}$ & '+convert_ndp(blend.r,3)+' $\pm$ '+convert_ndp(blend.sig_r,3)+'\,mag\\\\\n')
-    t.write('$m_{i,s}$ & '+convert_ndp(source.i,3)+' $\pm$ '+convert_ndp(source.sig_i,3)+'\,mag & $m_{i,b}$ & '+convert_ndp(blend.i,3)+' $\pm$ '+convert_ndp(blend.sig_i,3)+'\,mag\\\\\n')
-    t.write('$(g-r)_{s}$ & '+convert_ndp(source.gr,3)+' $\pm$ '+convert_ndp(source.sig_gr,3)+'\,mag & $(g-r)_{b}$ & '+convert_ndp(blend.gr,3)+' $\pm$ '+convert_ndp(blend.sig_gr,3)+'\,mag\\\\\n')
-    t.write('$(g-i)_{s}$ & '+convert_ndp(source.gi,3)+' $\pm$ '+convert_ndp(source.sig_gi,3)+'\,mag & $(g-i)_{b}$ & '+convert_ndp(blend.gi,3)+' $\pm$ '+convert_ndp(blend.sig_gi,3)+'\,mag\\\\\n')
-    t.write('$(r-i)_{s}$ & '+convert_ndp(source.ri,3)+' $\pm$ '+convert_ndp(source.sig_ri,3)+'\,mag & $(r-i)_{b}$ & '+convert_ndp(blend.ri,3)+' $\pm$ '+convert_ndp(blend.sig_ri,3)+'\,mag\\\\\n')
+    t.write('$m_{g,\\rm S}$ & '+convert_ndp(source.g,3)+' $\pm$ '+convert_ndp(source.sig_g,3)+'\,mag & $m_{g,b}$ & '+convert_ndp(blend.g,3)+' $\pm$ '+convert_ndp(blend.sig_g,3)+'\,mag\\\\\n')
+    t.write('$m_{r,\\rm S}$ & '+convert_ndp(source.r,3)+' $\pm$ '+convert_ndp(source.sig_r,3)+'\,mag & $m_{r,b}$ & '+convert_ndp(blend.r,3)+' $\pm$ '+convert_ndp(blend.sig_r,3)+'\,mag\\\\\n')
+    t.write('$m_{i,\\rm S}$ & '+convert_ndp(source.i,3)+' $\pm$ '+convert_ndp(source.sig_i,3)+'\,mag & $m_{i,b}$ & '+convert_ndp(blend.i,3)+' $\pm$ '+convert_ndp(blend.sig_i,3)+'\,mag\\\\\n')
+    t.write('$(g-r)_{\\rm S}$ & '+convert_ndp(source.gr,3)+' $\pm$ '+convert_ndp(source.sig_gr,3)+'\,mag & $(g-r)_{b}$ & '+convert_ndp(blend.gr,3)+' $\pm$ '+convert_ndp(blend.sig_gr,3)+'\,mag\\\\\n')
+    t.write('$(g-i)_{\\rm S}$ & '+convert_ndp(source.gi,3)+' $\pm$ '+convert_ndp(source.sig_gi,3)+'\,mag & $(g-i)_{b}$ & '+convert_ndp(blend.gi,3)+' $\pm$ '+convert_ndp(blend.sig_gi,3)+'\,mag\\\\\n')
+    t.write('$(r-i)_{\\rm S}$ & '+convert_ndp(source.ri,3)+' $\pm$ '+convert_ndp(source.sig_ri,3)+'\,mag & $(r-i)_{b}$ & '+convert_ndp(blend.ri,3)+' $\pm$ '+convert_ndp(blend.sig_ri,3)+'\,mag\\\\\n')
 #    t.write('$m_{g,s,0}$ & '+convert_ndp(source.g_0,3)+' $\pm$ '+convert_ndp(source.sig_g_0,3)+'\,mag & $m_{g,b,0}$ & '+convert_ndp(blend.g_0,3)+' $\pm$ '+convert_ndp(blend.sig_g_0,3)+'\,mag\\\\\n')
 #    t.write('$m_{r,s,0}$ & '+convert_ndp(source.r_0,3)+' $\pm$ '+convert_ndp(source.sig_r_0,3)+'\,mag & $m_{r,b,0}$ & '+convert_ndp(blend.r_0,3)+' $\pm$ '+convert_ndp(blend.sig_r_0,3)+'\,mag\\\\\n')
 #    t.write('$m_{i,s,0}$ & '+convert_ndp(source.i_0,3)+' $\pm$ '+convert_ndp(source.sig_i_0,3)+'\,mag & $m_{i,b,0}$ & '+convert_ndp(blend.i_0,3)+' $\pm$ '+convert_ndp(blend.sig_i_0,3)+'\,mag\\\\\n')
 #    t.write('$(g-r)_{s,0}$ & '+convert_ndp(source.gr_0,3)+' $\pm$ '+convert_ndp(source.sig_gr_0,3)+'\,mag & $(g-r)_{b,0}$ & '+convert_ndp(blend.gr_0,3)+' $\pm$ '+convert_ndp(blend.sig_gr_0,3)+'\,mag\\\\\n')
 #    t.write('$(r-i)_{s,0}$ & '+convert_ndp(source.ri_0,3)+' $\pm$ '+convert_ndp(source.sig_ri_0,3)+'\,mag & $(r-i)_{b,0}$ & '+convert_ndp(blend.ri_0,3)+' $\pm$ '+convert_ndp(blend.sig_ri_0,3)+'\,mag\\\\\n')
-    t.write('$m_{g,s,0}$ & '+convert_ndp(source.g_0,3)+' $\pm$ '+convert_ndp(source.sig_g_0,3)+'\,mag &  & \\\\\n')
-    t.write('$m_{r,s,0}$ & '+convert_ndp(source.r_0,3)+' $\pm$ '+convert_ndp(source.sig_r_0,3)+'\,mag &  & \\\\\n')
-    t.write('$m_{i,s,0}$ & '+convert_ndp(source.i_0,3)+' $\pm$ '+convert_ndp(source.sig_i_0,3)+'\,mag &  & \\\\\n')
-    t.write('$(g-r)_{s,0}$ & '+convert_ndp(source.gr_0,3)+' $\pm$ '+convert_ndp(source.sig_gr_0,3)+'\,mag &  & \\\\\n')
-    t.write('$(g-i)_{s,0}$ & '+convert_ndp(source.gi_0,3)+' $\pm$ '+convert_ndp(source.sig_gi_0,3)+'\,mag &  & \\\\\n')
-    t.write('$(r-i)_{s,0}$ & '+convert_ndp(source.ri_0,3)+' $\pm$ '+convert_ndp(source.sig_ri_0,3)+'\,mag &  & \\\\\n')
+    t.write('$m_{g,\\rm S,0}$ & '+convert_ndp(source.g_0,3)+' $\pm$ '+convert_ndp(source.sig_g_0,3)+'\,mag &  & \\\\\n')
+    t.write('$m_{r,\\rm S,0}$ & '+convert_ndp(source.r_0,3)+' $\pm$ '+convert_ndp(source.sig_r_0,3)+'\,mag &  & \\\\\n')
+    t.write('$m_{i,\\rm S,0}$ & '+convert_ndp(source.i_0,3)+' $\pm$ '+convert_ndp(source.sig_i_0,3)+'\,mag &  & \\\\\n')
+    t.write('$(g-r)_{\\rm S,0}$ & '+convert_ndp(source.gr_0,3)+' $\pm$ '+convert_ndp(source.sig_gr_0,3)+'\,mag &  & \\\\\n')
+    t.write('$(g-i)_{\\rm S,0}$ & '+convert_ndp(source.gi_0,3)+' $\pm$ '+convert_ndp(source.sig_gi_0,3)+'\,mag &  & \\\\\n')
+    t.write('$(r-i)_{\\rm S,0}$ & '+convert_ndp(source.ri_0,3)+' $\pm$ '+convert_ndp(source.sig_ri_0,3)+'\,mag &  & \\\\\n')
     t.write('\\hline\n')
     t.write('\\end{tabular}\n')
     t.write('\\end{table}\n')
@@ -1607,16 +1607,16 @@ def output_lens_parameters_latex(params,source,lens,log):
     t.write('\\hline\n')
     t.write('\\hline\n')
     t.write('Parameter   &   Units    &   Value \\\\\n')
-    t.write('$\\theta_{\\rm{S}}$  & $\\mu$as     & '+str(round(source.ang_radius,3))+'$\pm$'+str(round(source.sig_ang_radius,3))+'\\\\\n')
-    t.write('$\\theta_{\\rm{E}}$  & $\\mu$as     & '+str(round(lens.thetaE,3))+'$\pm$'+str(round(lens.sig_thetaE,3))+'\\\\\n')
-    t.write('$R_{\\rm{S}}$       & $R_{\\odot}$ & '+str(round(source.radius,3))+'$\pm$'+str(round(source.sig_radius,3))+'\\\\\n')
-    t.write('$M_{L,tot}$        & $M_{\\odot}$ & '+str(round(lens.ML,3))+'$\pm$'+str(round(lens.sig_ML,3))+'\\\\\n')
-    t.write('$M_{L,1}$          & $M_{\\odot}$ & '+str(round(lens.M1,3))+'$\pm$'+str(round(lens.sig_M1,3))+'\\\\\n')
-    t.write('$M_{L,2}$          & $M_{\\odot}$ & '+str(round(lens.M2,3))+'$\pm$'+str(round(lens.sig_M2,3))+'\\\\\n')
-    t.write('$D_{L}$            & Kpc         & '+str(round(lens.D,3))+'$\pm$'+str(round(lens.sig_D,3))+'\\\\\n')
-    t.write('$a_{\\perp}$       & AU          & '+str(round(lens.a_proj,3))+'$\pm$'+str(round(lens.sig_a_proj,3))+'\\\\\n')
-#    t.write('KE/PE              &             & '+str(round(lens.kepe,3))+'$\pm$'+str(round(lens.sig_kepe,3))+'\\\\\n')
-    t.write('$\mu$              & mas yr$^{-1}$ & '+str(round(lens.mu_rel,2))+'$\pm$'+str(round(lens.sig_mu_rel,2))+'\\\\\n')
+    t.write('$\\theta_{\\rm{S}}$  & $\\mu$as     & '+convert_ndp(source.ang_radius,3)+'$\pm$'+convert_ndp(source.sig_ang_radius,3)+'\\\\\n')
+    t.write('$\\theta_{\\rm{E}}$  & $\\mu$as     & '+convert_ndp(lens.thetaE,3)+'$\pm$'+convert_ndp(lens.sig_thetaE,3)+'\\\\\n')
+    t.write('$R_{\\rm{S}}$       & $R_{\\odot}$ & '+convert_ndp(source.radius,3)+'$\pm$'+convert_ndp(source.sig_radius,3)+'\\\\\n')
+    t.write('$M_{L,tot}$        & $M_{\\odot}$ & '+convert_ndp(lens.ML,3)+'$\pm$'+convert_ndp(lens.sig_ML,3)+'\\\\\n')
+    t.write('$M_{L,1}$          & $M_{\\odot}$ & '+convert_ndp(lens.M1,3)+'$\pm$'+convert_ndp(lens.sig_M1,3)+'\\\\\n')
+    t.write('$M_{L,2}$          & $M_{\\odot}$ & '+convert_ndp(lens.M2,3)+'$\pm$'+convert_ndp(lens.sig_M2,3)+'\\\\\n')
+    t.write('$D_{L}$            & Kpc         & '+convert_ndp(lens.D,3)+'$\pm$'+convert_ndp(lens.sig_D,3)+'\\\\\n')
+    t.write('$a_{\\perp}$       & AU          & '+convert_ndp(lens.a_proj,3)+'$\pm$'+convert_ndp(lens.sig_a_proj,3)+'\\\\\n')
+#    t.write('KE/PE              &             & '+convert_ndp(lens.kepe,3)+'$\pm$'+convert_ndp(lens.sig_kepe,3)+'\\\\\n')
+    t.write('$\mu$              & mas yr$^{-1}$ & '+convert_ndp(lens.mu_rel,2)+'$\pm$'+convert_ndp(lens.sig_mu_rel,2)+'\\\\\n')
     t.write('\\hline\n')
     t.write('\\end{tabular}\n')
     t.write('\\end{table}\n')

@@ -27,7 +27,8 @@ MARKER_SYMBOLS = np.array([['o', '.', '*', 'v', '^', '<', '>', 's', 'p', 'd', 'x
 MARKER_COLOURS = np.array([['#1b8dd3', '#d2921a', '#0a9331', 
                             '#b20a0a', '#9c43d3', '#5b3c01', '#cf59d1', 
                             '#867987', '#9ea342', '#41a3a8'] * 10])
-                                
+MARKER_SIZE = 4
+
 def plot_event_lightcurve():
     """Function to plot an event lightcurve with a model overplotted from
     pyLIMA"""
@@ -263,7 +264,22 @@ def generate_residual_lcs(current_event,params):
         residual_lcs.append(res_lc)
     
     return residual_lcs
+
+def plot_aligned_data(ax,f,current_event):
     
+    norm_lcs = microltoolbox.align_the_data_to_the_reference_telescope(f)
+    
+    for i,lc in enumerate(norm_lcs):
+        ax.errorbar(lc[:,0],lc[:,1],yerr=lc[:,2],ls='None', 
+                            markersize=MARKER_SIZE,
+                            marker=str(MARKER_SYMBOLS[0][i]), capsize=0.0,
+                            markerfacecolor=MARKER_COLOURS[0][i],
+                            markeredgecolor=MARKER_COLOURS[0][i],
+                            label=current_event.telescopes[i].name,
+                            alpha=0.5)
+
+        ax.plot(lc[:,0], lc[:,1], 'k.', markersize=1)
+        
 def plot_lcs(current_event,params):
     
     f = current_event.fits[-1]
@@ -277,17 +293,14 @@ def plot_lcs(current_event,params):
     ymin = 1e6
     ymax = -1.6
     for i,lc in enumerate(norm_lcs):
-        fig_axes[0].errorbar(lc[:,0],lc[:,1],yerr=lc[:,2],ls='None', markersize=7.5,
-                            marker=str(MARKER_SYMBOLS[0][i]), capsize=0.0,
-                            markerfacecolor=MARKER_COLOURS[0][i],
-                            markeredgecolor=MARKER_COLOURS[0][i],
-                            label=current_event.telescopes[i].name)
         xmin = min(xmin, lc[:,0].min())
         xmax = max(xmax, lc[:,0].max())
         ymin = min(ymin, lc[:,1].min())
         ymax = max(ymax, lc[:,1].max())
     xmax = xmax * (1.0 + 5e-5)
     ymin = ymin * 0.90
+    
+    plot_aligned_data(fig_axes[0],f,current_event)
     
     microloutputs.LM_plot_model(f, fig_axes[0])
     
@@ -321,7 +334,7 @@ def plot_lcs(current_event,params):
 
     plt.tight_layout()
     
-    plt.savefig(path.join(params['output'],'lightcurve.eps'),
+    plt.savefig(path.join(params['output'],'lightcurve.pdf'),
                 bbox_inches='tight')
     
 
@@ -391,7 +404,8 @@ def add_inset_box(current_event,ax):
                               bbox_transform=ax.transAxes)
                               
     microloutputs.LM_plot_model(current_event.fits[0],inset_axfig1)
-    microloutputs.LM_plot_align_data(current_event.fits[0],inset_axfig1)
+    #microloutputs.LM_plot_align_data(current_event.fits[0],inset_axfig1)
+    plot_aligned_data(inset_axfig1,current_event.fits[0],current_event)
     
     inset_axfig1.legend_.remove()
     inset_axfig1.texts[0].set_visible(False)
@@ -428,7 +442,8 @@ def add_inset_box2(current_event,ax):
                               bbox_transform=ax.transAxes)
                               
     microloutputs.LM_plot_model(current_event.fits[0],inset_axfig2)
-    microloutputs.LM_plot_align_data(current_event.fits[0],inset_axfig2)
+    #microloutputs.LM_plot_align_data(current_event.fits[0],inset_axfig2)
+    plot_aligned_data(inset_axfig2,current_event.fits[0],current_event)
     
     inset_axfig2.legend_.remove()
     inset_axfig2.texts[0].set_visible(False)
@@ -475,11 +490,15 @@ def plot_residuals(fit, figure_axes):
 
         residuals = 2.5 * np.log10(flux_model / flux)
 
-        ax.errorbar(time, residuals, yerr=err_mag, ls='None', markersize=7.5,
+        ax.errorbar(time, residuals, yerr=err_mag, ls='None', 
+                    markersize=MARKER_SIZE,
                             marker=str(MARKER_SYMBOLS[0][index]), capsize=0.0,
                             markerfacecolor=MARKER_COLOURS[0][index],
                             markeredgecolor=MARKER_COLOURS[0][index],
-                            ecolor=MARKER_COLOURS[0][index])
+                            ecolor=MARKER_COLOURS[0][index],
+                            alpha=0.5)
+                            
+        ax.plot(time, residuals, 'k.', markersize=1)
                             
     plot_residuals_windows = 0.2
     MAX_PLOT_TICKS = 2
