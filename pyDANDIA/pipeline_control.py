@@ -58,7 +58,7 @@ def get_args(debug=False):
     params['log_dir'] = path.join(params['red_dir'],'logs')
     params['pipeline_config_dir'] = path.join(params['red_dir'],'..','config')
     
-    setup = pipeline_setup.PipelineSetup(params)
+    setup = pipeline_setup.pipeline_setup(params)
     
     return setup
     
