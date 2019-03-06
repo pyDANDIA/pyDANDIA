@@ -116,7 +116,7 @@ def sort_image_to_dataset(image,ds,data_dir):
     
     move(image,path.join(dest_dir,path.basename(image)))
     
-    print(path.basename(image)+' --> '+path.basename(dest_dir))
+    print(path.basename(image)+' --> '+dest_dir)
 
 if __name__ == '__main__':
     
