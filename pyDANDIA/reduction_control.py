@@ -48,9 +48,10 @@ def reduction_control():
     
     status = execute_stage(stage2.run_stage2, 'stage 2', setup, status, log)
     
-    status = parallelize_stages345(setup, status, log)
+    status = execute_stage(stage3.run_stage3, 'stage 3', setup, status, log)
     
 # Code deactivated until stage 6 is fully integrated with pipeline   
+#    status = parallelize_stages345(setup, status, log)
 #    (status, report) = stage6.run_stage6(setup)
 #    log.info('Completed stage 6 with status '+repr(status)+': '+report)
     
