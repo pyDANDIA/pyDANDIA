@@ -652,14 +652,28 @@ def plot_crosshairs(fig,xvalue,yvalue,linecolour):
     ydata = np.zeros(len(xdata))
     ydata.fill(yvalue)
     
-    plt.plot(xdata, ydata, linecolour+'-')
+    plt.plot(xdata, ydata, linecolour+'-', alpha=0.5)
     
     ydata = np.linspace(ymin,ymax,10.0)
     xdata = np.zeros(len(ydata))
     xdata.fill(xvalue)
     
-    plt.plot(xdata, ydata, linecolour+'-')
+    plt.plot(xdata, ydata, linecolour+'-', alpha=0.5)
     
+def plot_extinction_vector(fig,params,yaxis_filter):
+    """Function to add a extinction vector to a colour-magnitude diagram."""
+    
+    [xmin,xmax,ymin,ymax] = plt.axis()
+    
+    deltay = (ymin-ymax) * 0.1
+    deltax = (xmax-xmin) * 0.1
+    
+    ystart = ymin-deltay-params['A_'+yaxis_filter]
+    
+    plt.arrow(xmin+deltax, ystart, 0.0, params['A_'+yaxis_filter], 
+              color='k', head_width=deltax*0.1, head_length=deltay/4.0)
+    
+    plt.text((xmin+deltax*0.9),ystart,'$A_'+yaxis_filter+'$')
     
 def plot_colour_mag_diagram(params,mags, colours, local_mags, local_colours, 
                             target, source, blend, RC, blue_filter, red_filter, 
@@ -691,6 +705,7 @@ def plot_colour_mag_diagram(params,mags, colours, local_mags, local_colours,
     add_source = True
     add_blend = True
     add_rc_centroid = True
+    add_extinction_vector = True
     
     fig = plt.figure(1,(10,10))
     
@@ -714,7 +729,7 @@ def plot_colour_mag_diagram(params,mags, colours, local_mags, local_colours,
         plt.errorbar(getattr(source,col_key), getattr(source,yaxis_filter), 
                  yerr = getattr(source,'sig_'+yaxis_filter),
                  xerr = getattr(source,'sig_'+col_key), color='m',
-                 marker='d',markersize=10, label='Source')
+                 marker='d',markersize=10, label='Source crosshairs')
         
         if add_crosshairs:
             plot_crosshairs(fig,getattr(source,col_key),getattr(source,yaxis_filter),'m')
@@ -760,7 +775,7 @@ def plot_colour_mag_diagram(params,mags, colours, local_mags, local_colours,
                  yerr=getattr(RC,'sig_'+yaxis_filter), 
                  xerr=getattr(RC,'sig_'+col_key),
                  color='g', marker='s',markersize=10, label='Red Clump centroid')
-                 
+    
     plt.xlabel('SDSS ('+blue_filter+'-'+red_filter+') [mag]')
 
     plt.ylabel('SDSS-'+yaxis_filter+' [mag]')
@@ -792,6 +807,9 @@ def plot_colour_mag_diagram(params,mags, colours, local_mags, local_colours,
     
     if red_filter == 'i' and blue_filter == 'g':
         plt.axis([0.5,4.4,22.0,14.0])
+    
+    if add_extinction_vector:
+        plot_extinction_vector(fig,params,yaxis_filter)
         
     box = ax.get_position()
     ax.set_position([box.x0, box.y0 + box.height * -0.025,
