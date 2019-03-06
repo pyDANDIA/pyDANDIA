@@ -36,8 +36,19 @@ def plot_event_caustic():
     
     current_event = pylima_lightcurve_tools.create_event(params)
     
-    for d in params['data']:
+    for k,d in enumerate(params['data']):
         
+        if k == 0:
+            mint = d.tel.lightcurve_flux[:,0].min()
+            maxt = d.tel.lightcurve_flux[:,0].max()
+            
+            ts = np.arange(mint,maxt,(1.0/24.0))
+            
+            flux_lc = np.zeros([len(ts),3])
+            flux_lc[:,0] = ts
+        
+            d.tel.lightcurve_flux = flux_lc
+    
         current_event.telescopes.append(d.tel)
     
     current_event.find_survey(params['survey'])

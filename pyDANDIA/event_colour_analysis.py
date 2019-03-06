@@ -893,7 +893,10 @@ def plot_colour_colour_diagram(params,star_catalog,catalog_header,
                              color='m',marker='d',markersize=10, label='Source')
         
         if blend.gr_0 != None and blend.ri_0 != None and add_blend:
-            plt.plot(blend.gr_0, blend.ri_0,'bv',markersize=10, label='Blend')
+            #plt.plot(blend.gr_0, blend.ri_0,'bv',markersize=10, label='Blend')
+            plt.errorbar(blend.gr_0, blend.ri_0, 
+                         yerr = blend.sig_gr_0, xerr = blend.sig_ri_0, 
+                             color='b',marker='v',markersize=10, label='Blend')
 
         if target.lightcurves['g'] != None and target.lightcurves['r'] != None\
             and target.lightcurves['i'] != None and add_target_trail:
