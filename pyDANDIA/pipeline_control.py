@@ -21,7 +21,7 @@ def pipeline_control():
     
     pipeline_version = 'pipeline_control v0.1'
     
-    setup = get_pipeline_setup()
+    setup = get_args()
 
     log = logs.start_pipeline_log(setup.log_dir, 'pipeline_control', 
                                version=pipeline_version)

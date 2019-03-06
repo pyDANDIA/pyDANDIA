@@ -212,7 +212,7 @@ def get_args():
     params['pipeline_config_dir'] = path.join(params['red_dir'],'..','config')
     params['software_dir'] = getcwd()
     
-    setup= pipeline_setup.pipeline_setup(params)
+    setup = pipeline_setup.pipeline_setup(params)
     
     return setup
     
