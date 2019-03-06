@@ -6,7 +6,7 @@ Created on Thu May 10 09:41:02 2018
 """
 
 from sys import argv, exit
-from os import path, mkdir
+from os import path, mkdir, makedirs
 from os import stat as filestatus
 from astropy.io import fits
 from sys import argv
@@ -109,10 +109,10 @@ def sort_image_to_dataset(image,ds,data_dir):
     """Function to move the given image to a sub-directory determined by
     its dataset ID code"""
     
-    dest_dir = path.join(data_dir,ds.id_code)
+    dest_dir = path.join(data_dir,ds.id_code,'data')
     
     if not path.isdir(dest_dir):
-        mkdir(dest_dir)
+        makedirs(dest_dir)
     
     move(image,path.join(dest_dir,path.basename(image)))
     
