@@ -41,22 +41,22 @@ def get_args(debug=False):
     
     if debug == True:
         
-        params['red_dir'] = cwd
+        params['base_dir'] = cwd
         
     elif debug == False and len(argv) == 1:
         
-        params['red_dir'] = raw_input('Please enter the path to the base directory: ')
+        params['base_dir'] = raw_input('Please enter the path to the base directory: ')
         
     elif debug == False and len(argv) > 1:
 
-        params['red_dir'] = argv[1]
+        params['base_dir'] = argv[1]
     
-    if path.isdir(params['red_dir']) == False:
+    if path.isdir(params['base_dir']) == False:
         
-        print('ERROR: Cannot find reduction base directory '+params['red_dir'])
+        print('ERROR: Cannot find reduction base directory '+params['base_dir'])
     
-    params['log_dir'] = path.join(params['red_dir'],'logs')
-    params['pipeline_config_dir'] = path.join(params['red_dir'],'..','config')
+    params['log_dir'] = path.join(params['base_dir'],'logs')
+    params['pipeline_config_dir'] = path.join(params['base_dir'],'config')
     
     setup = pipeline_setup.pipeline_setup(params)
     

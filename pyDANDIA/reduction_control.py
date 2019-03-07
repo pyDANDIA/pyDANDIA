@@ -15,7 +15,7 @@ import stage1
 import stage2
 import stage3
 import stage4
-import stage5
+#import stage5  # missing uncertainties module
 #import stage6
 import logs
 import subprocess
@@ -89,7 +89,7 @@ def execute_stage(run_stage_func, stage_name, setup, status, log):
         log.info('Completed '+stage_name+' with status '+\
                     repr(status)+': '+report)
         
-    if 'OK' in status:
+    if 'OK' not in status:
         
         log.info('ERROR halting reduction due to previous errors')
         
@@ -210,6 +210,7 @@ def get_args():
         
     params['log_dir'] = path.join(params['red_dir'],'..','logs')
     params['pipeline_config_dir'] = path.join(params['red_dir'],'..','config')
+    params['base_dir'] = path.join(params['red_dir'],'..')
     params['software_dir'] = getcwd()
     
     setup = pipeline_setup.pipeline_setup(params)
