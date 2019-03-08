@@ -37,7 +37,7 @@ def find_closest_star():
     
     print('Closest star to ('+str(params['x'])+','+str(params['y'])+') is '+\
             str(j)+' at ('+str(xstar)+','+str(ystar)+') with coordinates ('+\
-            str(rastar)+', '+str(decstar)+') -> '+c.to_string('hmsdms'))
+            str(rastar)+', '+str(decstar)+') -> '+c.to_string('hmsdms',sep=':'))
     
 def get_args():
     """Function to gather the necessary commandline arguments"""
