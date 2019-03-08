@@ -83,8 +83,8 @@ def get_args():
         params['red_dir'] = input('Please enter the path to the reduction directory: ')
         params['metadata'] = input('Please enter the name of the metadata file: ')
         params['log_dir'] = input('Please enter the path to the log directory: ')
-        params['ra'] = input('Please enter the target RA [sexigesimal format]: ')
-        params['dec'] = input('Please enter the target Dec [sexigesimal format]: ')
+        params['ra'] = input('Please enter the target or field centre RA [sexigesimal format]: ')
+        params['dec'] = input('Please enter the target or field centre Dec [sexigesimal format]: ')
         params['det_mags_max'] = input('Please enter the faintest instrumental magnitude bin to use in calibration (or none to accept the defaults): ')
         params['det_mags_min'] = input('Please enter the brightest instrumental magnitude bin to use in calibration (or none to accept the defaults): ')
         params['cat_merr_max'] = input('Please enter the maximum allowed photometric uncertainty for a catalog measurement (or none to accept the defaults): ')
@@ -93,7 +93,7 @@ def get_args():
                         unit=(u.hourangle, u.deg))
     
     for key in ['det_mags_max', 'det_mags_min', 'cat_merr_max']:
-        if key in params.keys():
+        if key in params.keys() and 'none' not in str(params[key]).lower():
             params[key] = float(params[key])
         else:
             params[key] = None
