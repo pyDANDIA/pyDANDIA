@@ -9,6 +9,7 @@ from os import path
 from sys import argv
 from pyDANDIA import metadata
 import astropy.units as u
+from astropy.coordinates import SkyCoord
 from astropy.table import Table
 import numpy as np
 
@@ -29,9 +30,14 @@ def find_closest_star():
     j = star_catalog['star_index'][idx][0]
     xstar = star_catalog['x'][idx][0]
     ystar = star_catalog['y'][idx][0]
+    rastar = star_catalog['RA_J2000'][idx][0]
+    decstar = star_catalog['DEC_J2000'][idx][0]
+    
+    c = SkyCoord(rastar*u.degree, decstar*u.degree, frame='icrs')
     
     print('Closest star to ('+str(params['x'])+','+str(params['y'])+') is '+\
-            str(j)+' at ('+str(xstar)+','+str(ystar)+')')
+            str(j)+' at ('+str(xstar)+','+str(ystar)+') with coordinates ('+\
+            str(rastar)+', '+str(decstar)+') -> '+c.to_string('hmsdms'))
     
 def get_args():
     """Function to gather the necessary commandline arguments"""
@@ -70,7 +76,8 @@ def fetch_metadata(params):
     star_catalog['star_index'] = reduction_metadata.star_catalog[1]['star_index']
     star_catalog['x'] = reduction_metadata.star_catalog[1]['x_pixel']
     star_catalog['y'] = reduction_metadata.star_catalog[1]['y_pixel']
-    
+    star_catalog['RA_J2000'] = reduction_metadata.star_catalog[1]['RA_J2000']
+    star_catalog['DEC_J2000'] = reduction_metadata.star_catalog[1]['DEC_J2000']
     
     return reduction_metadata, star_catalog
 
