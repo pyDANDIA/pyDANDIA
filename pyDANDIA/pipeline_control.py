@@ -45,7 +45,7 @@ def get_args(debug=False):
         
     elif debug == False and len(argv) == 1:
         
-        params['base_dir'] = raw_input('Please enter the path to the base directory: ')
+        params['base_dir'] = input('Please enter the path to the base directory: ')
         
     elif debug == False and len(argv) > 1:
 
@@ -89,7 +89,8 @@ def get_datasets_for_reduction(setup,log):
         
         for line in file_lines:
             
-            datasets.append(line.replace('\n',''))
+            if len(line.replace('\n','')) > 0:
+                datasets.append(line.replace('\n',''))
             
             log.info(datasets[-1])
             
@@ -103,12 +104,13 @@ def get_datasets_for_reduction(setup,log):
         
         for item in dir_list:
             
-            if 'logs' not in item and 'config' not in item:
+            if 'logs' not in item and 'config' not in item \
+                and len(path.basename(item)) > 0:
                 
                 datasets.append(path.basename(item))
                 
                 log.info(datasets[-1])
-            
+
     return datasets
 
 
