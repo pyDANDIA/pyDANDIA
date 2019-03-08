@@ -42,13 +42,11 @@ def get_args():
             }
 
     if len(argv) > 1:
-        params['red_dir'] = argv[1]
-        params['metadata_file'] = argv[2]
-        params['x'] = float(argv[3])
-        params['y'] = float(argv[4])
+        params['metadata_file'] = argv[1]
+        params['x'] = float(argv[2])
+        params['y'] = float(argv[3])
     else:
-        params['red_dir'] = input('Please enter the path to the reduction directory: ')
-        params['metadata_file'] = input('Please enter the name of the metadata file: ')
+        params['metadata_file'] = input('Please enter the path to the metadata file: ')
         params['x'] = float(input('Please enter the target x position [pixels]: '))
         params['y'] = float(input('Please enter the target y position [pixels]: '))
     
