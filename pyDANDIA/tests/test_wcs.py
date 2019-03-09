@@ -25,7 +25,7 @@ TEST_DIR = path.join(cwd,'data','proc',
                         
 def test_reference_astrometry():
 
-    setup = pipeline_setup.pipeline_setup({'red_dir': TEST_DATA})    
+    setup = pipeline_setup.pipeline_setup({'red_dir': TEST_DIR})    
     
     log = logs.start_stage_log( cwd, 'test_wcs' )
     
@@ -76,6 +76,17 @@ def test_search_vizier_for_2mass_sources():
 
     assert len(catalog) > 0
 
+def test_search_vizier_for_gaia_sources():
+    """Function to test the online extraction of a catalogue of known
+    sources within a given field of view"""
+    
+    ra = '270.8210141'
+    dec = '-26.909889'
+    radius = 2027*0.467*60.0/2.0
+    catalog = wcs.search_vizier_for_gaia_sources(ra, dec, radius)
+
+    assert len(catalog) > 0
+    
 def test_fetch_catalog_sources_for_field():
     
     setup = pipeline_setup.pipeline_setup({'red_dir': TEST_DIR})    
@@ -113,6 +124,8 @@ def test_fetch_catalog_sources_for_field():
     
 if __name__ == '__main__':
 
-    #test_reference_astrometry()
+    test_reference_astrometry()
     #test_search_vizier_for_2mass_sources()
-    test_fetch_catalog_sources_for_field()
+    #test_fetch_catalog_sources_for_field()
+    #test_search_vizier_for_gaia_sources()
+    

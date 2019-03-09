@@ -236,7 +236,7 @@ class MetaData:
                           units]
         self.create_a_new_layer(layer_name, data_structure, data)
 
-    def create_star_catalog_layer(self,data=None,log=None):
+    def create_star_catalog_layer(self,data=None,log=None,catalog_source='Gaia'):
         """Function to create the layer in the reduction metadata file
         containing the star catalogue of objects detected within the reference
         image.
@@ -246,38 +246,81 @@ class MetaData:
         
         layer_name = 'star_catalog'
         
-        names = [ 'star_index', 
-                'x_pixel', 'y_pixel', 
-                'RA_J2000', 'DEC_J2000',
-                'ref_flux', 'ref_flux_err',
-                'ref_mag', 'ref_mag_err',
-                'J_mag', 'J_mag_err',
-                'H_mag', 'H_mag_err', 
-                'Ks_mag', 'Ks_mag_err',
-                'psf_star']
-        
-        formats = [ 'int',
-                   'float', 'float',
-                   'float', 'float',
-                   'float', 'float',
-                   'float', 'float',
-                   'float', 'float',
-                   'float', 'float',
-                   'float', 'float',
-                   'int'
-                   ]
-                   
-        units = [ None, 
-                 'pixel', 'pixel',
-                 'deg', 'deg',
-                 'DN', 'DN',
-                 'mag', 'mag',
-                 'mag', 'mag',
-                 'mag', 'mag',
-                 'mag', 'mag',
-                 None
-                 ]
-                 
+        if catalog_source == '2MASS':
+            names = [ 'star_index', 
+                    'x_pixel', 'y_pixel', 
+                    'RA_J2000', 'DEC_J2000',
+                    'ref_flux', 'ref_flux_err',
+                    'ref_mag', 'ref_mag_err',
+                    'J_mag', 'J_mag_err',
+                    'H_mag', 'H_mag_err', 
+                    'Ks_mag', 'Ks_mag_err','null',
+                    'psf_star']
+            
+            formats = [ 'int',
+                       'float', 'float',
+                       'float', 'float',
+                       'float', 'float',
+                       'float', 'float',
+                       'float', 'float',
+                       'float', 'float',
+                       'float', 'float','float',
+                       'int'
+                       ]
+                       
+            units = [ None, 
+                     'pixel', 'pixel',
+                     'deg', 'deg',
+                     'DN', 'DN',
+                     'mag', 'mag',
+                     'mag', 'mag',
+                     'mag', 'mag',
+                     'mag', 'mag',None,
+                     None
+                     ]
+            
+        else:
+            names = [ 'star_index', 
+                    'x_pixel', 'y_pixel', 
+                    'RA_J2000', 'DEC_J2000',
+                    'ref_flux', 'ref_flux_err',
+                    'ref_mag', 'ref_mag_err',
+                    'gaia_source_id',
+                    'ra', 'ra_error',
+                    'dec', 'dec_error',
+                    'phot_g_mean_flux', 'phot_g_mean_flux_error',
+                    'phot_bp_mean_flux','phot_bp_mean_flux_error',
+                    'phot_rp_mean_flux', 'phot_rp_mean_flux_error',
+                    'psf_star']
+            
+            formats = [ 'int',
+                       'float', 'float',
+                       'float', 'float',
+                       'float', 'float',
+                       'float', 'float',
+                       'int',
+                       'float', 'float',
+                       'float', 'float',
+                       'float', 'float',
+                       'float', 'float',
+                       'float', 'float',
+                       'int'
+                       ]
+                       
+            units = [ None, 
+                     'pixel', 'pixel',
+                     'deg', 'deg',
+                     'DN', 'DN',
+                     'mag', 'mag',
+                     '',
+                     'deg', 'deg',
+                     'deg', 'deg',
+                     "'electron'.s**-1", "'electron'.s**-1",
+                     "'electron'.s**-1", "'electron'.s**-1",
+                     "'electron'.s**-1", "'electron'.s**-1",
+                     None
+                     ]
+                     
         data_structure = [ names, 
                          formats, 
                          units]

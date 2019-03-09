@@ -515,7 +515,7 @@ def model_phot_transform2(params,star_catalog,vphas_cat,match_index,fit,
         ybins.append(ycenters[k][0])
     
     if len(xbins) <= 1 or len(ybins) <= 1:
-        raise ValueError('Insufficient datapoint selected by calibration magnitude limits')
+        raise ValueError('Insufficient datapoints selected by calibration magnitude limits')
         exit()
         
     fit = calc_transform(fit, xbins, ybins)

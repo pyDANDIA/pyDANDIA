@@ -233,15 +233,34 @@ def get_tables_to_search(cat_header,ra_min,dec_min,ra_max,dec_max):
     
     return table_idx
 
-def output_vizier_catalog(path_to_output_file, catalog):
+def output_vizier_catalog(path_to_output_file, catalog, catalog_source):
     
-    col_names = ['_RAJ2000', '_DEJ2000', 'Jmag', 'e_Jmag', \
-                 'Hmag', 'e_Hmag', 'Kmag', 'e_Kmag']
+    if catalog_source == '2MASS':
     
-    formats = [ 'D', 'D', 'E', 'E', 'E', 'E', 'E', 'E' ]
+        col_names = ['_RAJ2000', '_DEJ2000', 'Jmag', 'e_Jmag', \
+                     'Hmag', 'e_Hmag', 'Kmag', 'e_Kmag']
     
-    units = [ 'deg', 'deg', 'mag', 'mag', 'mag', 'mag', 'mag', 'mag' ]
+        formats = [ 'D', 'D', 'E', 'E', 'E', 'E', 'E', 'E' ]
+        
+        units = [ 'deg', 'deg', 'mag', 'mag', 'mag', 'mag', 'mag', 'mag' ]
+        
+    elif catalog_source == 'Gaia':
+        col_names = ['ra','dec','source_id','ra_error','dec_error',
+                     'phot_g_mean_flux','phot_g_mean_flux_error',
+                     'phot_rp_mean_flux','phot_rp_mean_flux_error',
+                     'phot_bp_mean_flux','phot_bp_mean_flux_error']
+                     
+        formats = [ 'D', 'D', 'J', 'E', 'E', 'E', 'E', 'E', 'E','E', 'E' ]
     
+        units = [ 'deg', 'deg', '', 'mas', 'mas', 
+                 "'electron'.s**-1", "'electron'.s**-1",
+                 "'electron'.s**-1", "'electron'.s**-1",
+                 "'electron'.s**-1", "'electron'.s**-1"]
+    
+    else:
+        raise IOError('Unrecognized catalog source '+catalog_source)
+        exit()
+        
     col_list = []
     for i in range(0,len(col_names),1):
         
@@ -255,7 +274,44 @@ def output_vizier_catalog(path_to_output_file, catalog):
     thdulist = fits.HDUList([phdu, tbhdu])
     thdulist.writeto(path_to_output_file, overwrite=True)
 
-def read_vizier_catalog(path_to_cat_file):
+def read_vizier_catalog(path_to_cat_file, catalog_source):
+    
+    if path.isfile(path_to_cat_file):
+        
+        data = fits.getdata(path_to_cat_file)
+        
+        if catalog_source == '2MASS':
+            
+            col_names = ['_RAJ2000', '_DEJ2000', 'Jmag', 'e_Jmag', \
+                     'Hmag', 'e_Hmag', 'Kmag', 'e_Kmag']
+                     
+        elif catalog_source == 'Gaia':
+            
+            col_names = ['ra','dec','source_id','ra_error','dec_error',
+                     'phot_g_mean_flux','phot_g_mean_flux_error',
+                     'phot_rp_mean_flux','phot_rp_mean_flux_error',
+                     'phot_bp_mean_flux','phot_bp_mean_flux_error']
+                     
+        else:
+            raise IOError('Unrecognized catalog source '+catalog_source)
+            exit()
+            
+        table_data = [ ]
+        
+        for i in range(0,len(col_names),1):
+            
+            table_data.append( table.Column(name=col_names[i], data=data.field(i)) )
+            
+                     
+        new_table = table.Table(data=table_data)
+    
+    else:
+        
+        new_table = None
+        
+    return new_table
+    
+def read_Gaia_vizier_catalog(path_to_cat_file):
     
     if path.isfile(path_to_cat_file):
         
@@ -277,4 +333,3 @@ def read_vizier_catalog(path_to_cat_file):
         new_table = None
         
     return new_table
-    

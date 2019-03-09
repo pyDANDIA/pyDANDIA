@@ -35,7 +35,7 @@ def test_output_vizier_catalog():
         
     vizier_result = wcs.search_vizier_for_2mass_sources(ra, dec, radius)
     
-    catalog_utils.output_vizier_catalog(output_file, vizier_result)
+    catalog_utils.output_vizier_catalog(output_file, vizier_result, '2MASS')
     
     assert os.path.isfile(output_file)
 
@@ -45,7 +45,7 @@ def test_read_vizier_catalog():
     
     cat_file = os.path.join(setup.pipeline_config_dir,'ROME-FIELD-01_2mass_catalog.fits')
     
-    cat_table = catalog_utils.read_vizier_catalog(cat_file)
+    cat_table = catalog_utils.read_vizier_catalog(cat_file,'2MASS')
     
     assert type(cat_table) == type(Table())
     

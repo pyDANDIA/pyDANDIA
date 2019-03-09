@@ -1159,7 +1159,7 @@ def build_psf(setup, reduction_metadata, log, image, ref_star_catalog,
 
     logs.ifverbose(log, setup, ' -> Applying PSF size=' + str(psf_diameter))
 
-    idx = np.where(ref_star_catalog[:, 15] == 1.0)
+    idx = np.where(ref_star_catalog[:, 20] == 1.0)
     psf_idx = ref_star_catalog[idx[0], 0]
     psf_star_centres = ref_star_catalog[idx[0], 1:3]
 
