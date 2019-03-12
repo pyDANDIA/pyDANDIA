@@ -222,7 +222,7 @@ def refine_wcs(detected_sources,catalog_sources_xy,image_wcs,
         
         matched_stars = match_stars(image_positions,catalog_sources_xy)
         log.info('Iteration '+str(i)+' matched '+str(len(matched_stars))+\
-                ' detected objects to stars in the 2MASS catalogue')
+                ' detected objects to stars in the catalogue')
         
         (pfit,sigma) = fit_coordinate_transform(pinit, image_positions, catalog_sources_xy, 
                              matched_stars)

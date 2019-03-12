@@ -43,7 +43,7 @@ def calibrate_photometry():
         
     match_index = match_stars_by_position(star_catalog,vphas_cat,log)
     
-#    catalog_utils.output_vphas_catalog_file(catalog_file,vphas_cat,match_index=match_index)
+    catalog_utils.output_vphas_catalog_file(catalog_file,vphas_cat,match_index=match_index)
     
     fit = calc_phot_calib(params,star_catalog,vphas_cat,match_index,log)
     
