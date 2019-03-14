@@ -131,13 +131,6 @@ def run_stage3(setup):
                                                 'pyDANDIA_metadata.fits',
                                                 'software', log=log)
         
-        #ref_db_id = add_reference_image_to_db(setup, reduction_metadata, log=log)
-        
-        #star_ids = ingest_stars_to_db(setup, ref_star_catalog, 
-        #                              meta_pars['ref_image_name'], log=log)
-
-        #ingest_star_catalog_to_db(setup, ref_star_catalog, ref_db_id, star_ids,
-        #                          log=log)
         status = 'OK'
         report = 'Completed successfully'
         

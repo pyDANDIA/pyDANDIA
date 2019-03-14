@@ -14,6 +14,7 @@ import copy
 import numpy as np
 from astropy.io import fits
 from scipy.signal import convolve2d
+from scipy.stats import skew, kurtosis
 from scipy.ndimage.filters import gaussian_filter
 from pyDANDIA.read_images_stage5 import open_reference, open_images, open_data_image
 from pyDANDIA.stage0 import open_an_image
@@ -21,6 +22,8 @@ from pyDANDIA.subtract_subimages import subtract_images, subtract_subimage
 from multiprocessing import Pool
 import multiprocessing as mp
 import uncertainties as u
+from uncertainties import ufloat
+
 
 from astropy.stats import sigma_clipped_stats
 from photutils import datasets
@@ -86,7 +89,7 @@ def run_stage5(setup):
     sigma_max = fwhm_max/(2.*(2.*np.log(2.))**0.5)
     # Factor 4 corresponds to the radius of 2*FWHM the old pipeline
     # Find kernel_sizes for multiple pre-calculated umatrices
-    kernel_percentile = [25., 50.]
+    kernel_percentile = [20., 45., 70.] #assumes ker_rad = 2 * FWHM, check config!
     kernel_size_array = []
     for percentile in kernel_percentile:
         kernel_size_tmp = int(4.*float(reduction_metadata.reduction_parameters[1]['KER_RAD'][0]) * np.percentile(fwhms,percentile))
@@ -94,7 +97,8 @@ def run_stage5(setup):
             kernel_size_tmp -= 1
         kernel_size_array.append(kernel_size_tmp)
     shifts  = np.array(shifts)
-    maxshift = int(np.median(shifts) + 2. * np.std(shifts))
+    # requires images to be sufficiently aligned and adds a safety margin of 100 -> mv to config.json
+    maxshift = int(np.max(shifts)) + 100
     # find the images that need to be processed
     all_images = reduction_metadata.find_all_images(setup, reduction_metadata,
                                                     os.path.join(setup.red_dir, 'data'), log=log)
@@ -140,13 +144,68 @@ def run_stage5(setup):
         report = 'No alignment data found!'
         return status, report, reduction_metadata
  
-    #if large_format_image == False:
-    subtract_small_format_image(new_images, reference_image_name, reference_image_directory, reduction_metadata, setup, data_image_directory, kernel_size_array, max_adu, ref_stats, maxshift, kernel_directory_path, diffim_directory_path, log = log)
-    #else:
-    #    subtract_large_format_image(new_images, reference_image_name, reference_image_directory, reduction_metadata, setup, data_image_directory, kernel_size, max_adu, ref_stats, maxshift, kernel_directory_path, diffim_directory_path, log = log)   
+    quality_metrics = subtract_with_constant_kernel(new_images, reference_image_name, reference_image_directory, reduction_metadata, setup, data_image_directory, kernel_size_array, max_adu, ref_stats, maxshift, kernel_directory_path, diffim_directory_path, log = log)
 
-    #append some metric for the kernel, perhaps its scale factor...
+    data = np.copy(quality_metrics)
+    if ('PSCALE' in reduction_metadata.images_stats[1].keys()) and ('PSCALE_ERR' in reduction_metadata.images_stats[1].keys()) and ('KURTOSIS_DIFF' in reduction_metadata.images_stats[1].keys()) and ('SKEW_DIFF' in reduction_metadata.images_stats[1].keys())  and ('SKY_MEDIAN' in reduction_metadata.images_stats[1].keys()) and ('VAR_PER_PIX_DIFF' in reduction_metadata.images_stats[1].keys()) and ('N_UNMASKED' in reduction_metadata.images_stats[1].keys()):
+        for idx in range(len(quality_data)):
+            target_image = data[idx][0]
+            pscale = data[idx][1]
+            pscale_err = data[idx][2]
+            median_sky = data[idx][3]
+            variance_per_pixel = data[idx][4]
+            ngood = float(data[idx][5])
+            kurtosis_quality = data[idx][6]
+            skew_quality = data[idx][7]
+            row_index = np.where(reduction_metadata.images_stats[1]['IM_NAME'].data == target_image)[0][0]
+            reduction_metadata.update_a_cell_to_layer('images_stats', row_index, 'PSCALE', pscale)
+            reduction_metadata.update_a_cell_to_layer('images_stats', row_index, 'PSCALE_ERR', pscale_err)
+            reduction_metadata.update_a_cell_to_layer('images_stats', row_index, 'MEDIAN_SKY', median_sky)
+            reduction_metadata.update_a_cell_to_layer('images_stats', row_index, 'VAR_PER_PIX_DIFF', variance_per_pixel)
+            reduction_metadata.update_a_cell_to_layer('images_stats', row_index, 'N_UNMASKED', ngood)
+            reduction_metadata.update_a_cell_to_layer('images_stats', row_index, 'SKEW_DIFF', skew_quality)
+            reduction_metadata.update_a_cell_to_layer('images_stats', row_index, 'KURTOSIS_DIFF', pscale_err)
+
+        logs.ifverbose(log, setup, 'Updated metadata for image: ' + target_image)
+    else:
+        logs.ifverbose(log, setup, 'Constructing quality metrics columns in metadata')
+        sorted_data = np.copy(quality_metrics)
+        for index in range(len(quality_metrics)):
+            target_image = data[index][0]
+            row_index = np.where(reduction_metadata.images_stats[1]['IM_NAME'].data == target_image)[0][0]
+            sorted_data[row_index] = quality_metrics[index]
+
+        column_format = 'float'
+        column_unit = ''
+        reduction_metadata.add_column_to_layer('images_stats', 'PSCALE', sorted_data[:, 1],
+                                           new_column_format=column_format,
+                                           new_column_unit=column_unit)
+        reduction_metadata.add_column_to_layer('images_stats', 'PSCALE_ERR', sorted_data[:, 2],
+                                           new_column_format=column_format,
+                                           new_column_unit=column_unit)
+        reduction_metadata.add_column_to_layer('images_stats', 'MEDIAN_SKY', sorted_data[:, 3],
+                                           new_column_format=column_format,
+                                           new_column_unit=column_unit)
+        reduction_metadata.add_column_to_layer('images_stats', 'VAR_PER_PIX_DIFF', sorted_data[:, 4],
+                                           new_column_format=column_format,
+                                           new_column_unit=column_unit)
+        reduction_metadata.add_column_to_layer('images_stats', 'N_UNMASKED', sorted_data[:, 5],
+                                           new_column_format=column_format,
+                                           new_column_unit=column_unit)
+        reduction_metadata.add_column_to_layer('images_stats', 'SKEW_DIFF', sorted_data[:, 6],
+                                           new_column_format=column_format,
+                                           new_column_unit=column_unit)
+        reduction_metadata.add_column_to_layer('images_stats', 'KURTOSIS_DIFF', sorted_data[:, 7],
+                                           new_column_format=column_format,
+                                           new_column_unit=column_unit)
+
+
     reduction_metadata.update_reduction_metadata_reduction_status(new_images, stage_number=5, status=1, log = log)
+    reduction_metadata.save_updated_metadata(
+        reduction_metadata.data_architecture[1]['OUTPUT_DIRECTORY'][0],
+        reduction_metadata.data_architecture[1]['METADATA_NAME'][0],
+        log=log)
+
     logs.close_log(log)
     status = 'OK'
     report = 'Completed successfully'
@@ -179,7 +238,7 @@ def resampled_median_stack(setup, reduction_metadata, new_images):
     stack_median_image = image_sum/float(len(new_images))
     return stack_median_image
  
-def subtract_small_format_image(new_images, reference_image_name, reference_image_directory, reduction_metadata, setup, data_image_directory, kernel_size_array, max_adu, ref_stats, maxshift, kernel_directory_path, diffim_directory_path, log = None):
+def subtract_with_constant_kernel(new_images, reference_image_name, reference_image_directory, reduction_metadata, setup, data_image_directory, kernel_size_array, max_adu, ref_stats, maxshift, kernel_directory_path, diffim_directory_path, log = None):
     """subtracting image with a single kernel
     This routine calculates the umatrix of the least squares problem defining the kernel
     and subtracts the model
@@ -193,14 +252,14 @@ def subtract_small_format_image(new_images, reference_image_name, reference_imag
     grow_kernel = 4.*float(reduction_metadata.reduction_parameters[1]['KER_RAD'][0])
     if len(new_images) > 0:
         try:
-            master_mask = fits.open(os.path.join(reduction_metadata.data_architecture[1]['REF_PATH'][0],reduction_metadata.data_architecture[1]['REF_IMAGE'][0]))[2].data.astype(bool)
+            master_mask = fits.open(os.path.join(reduction_metadata.data_architecture[1]['REF_PATH'][0],'master_mask.fits'))
+            master_mask = np.where(master_mask[0].data > 0.5 * np.max(master_mask[0].data))
         except:
             master_mask = []
         kernel_size_max = max(kernel_size_array)
         reference_images = []
         for idx in range(len(kernel_size_array)):
             reference_images.append(open_reference(setup, reference_image_directory, reference_image_name, kernel_size_array[idx], max_adu, ref_extension = 0, log = log, central_crop = maxshift, master_mask = master_mask, external_weight = resampled_median_image))
-
         if os.path.exists(os.path.join(kernel_directory_path,'unweighted_u_matrix.npy')):
             umatrices, kernel_sizes, max_adu_restored = np.load(os.path.join(kernel_directory_path,'unweighted_u_matrix.npy'))
             if (kernel_sizes != kernel_size_array) or (max_adu_restored != max_adu):
@@ -216,7 +275,7 @@ def subtract_small_format_image(new_images, reference_image_name, reference_imag
                 umatrices.append(umatrix_constant(reference_images[idx][0], kernel_size_array[idx], reference_images[idx][3]))
             np.save(os.path.join(kernel_directory_path,'unweighted_u_matrix.npy'), [umatrices, kernel_size_array, max_adu])
 
-
+    quality_metrics = []
     for new_image in new_images:
         row_index = np.where(reduction_metadata.images_stats[1]['IM_NAME'] == new_image)[0][0]
         ref_fwhm_x, ref_fwhm_y, ref_sigma_x, ref_sigma_y = ref_stats
@@ -236,29 +295,34 @@ def subtract_small_format_image(new_images, reference_image_name, reference_imag
         smoothing = smoothing_2sharp_images(reduction_metadata, ref_fwhm_x, ref_fwhm_y, ref_sigma_x, ref_sigma_y, row_index)
 
         try:
-            #import pdb; pdb.set_trace()
             data_image, data_image_unmasked = open_data_image(setup, data_image_directory, new_image, bright_reference_mask, kernel_size, max_adu, xshift = x_shift, yshift = y_shift, sigma_smooth = smoothing, central_crop = maxshift)
-            missing_data_mask = (data_image == 0.)
-            #reference_image[bright_reference_mask] = 0
-            #data_image[bright_reference_mask] = 0
-
+            missing_data_mask = (data_image == 0.)        
             b_vector = bvector_constant(reference_image, data_image, kernel_size, noise_image)
             kernel_matrix, bkg_kernel, kernel_uncertainty = kernel_solution(umatrix, b_vector, kernel_size, circular = False)
             pscale = np.sum(kernel_matrix)                
             pscale_err = np.sum(kernel_uncertainty**2)**0.5
-
-            np.save(os.path.join(kernel_directory_path,'kernel_'+new_image+'.npy'),[kernel_matrix,bkg_kernel])
+            np.save(os.path.join(kernel_directory_path,'kernel_'+new_image+'.npy'), [kernel_matrix, bkg_kernel])
             kernel_header = fits.Header()
             kernel_header['SCALEFAC'] = str(pscale)
             kernel_header['KERBKG'] = bkg_kernel
-            hdu_kernel = fits.PrimaryHDU(kernel_matrix,header=kernel_header)
-            hdu_kernel.writeto(os.path.join(kernel_directory_path,'kernel_'+new_image), overwrite = True)  
+            hdu_kernel = fits.PrimaryHDU(kernel_matrix, header=kernel_header)
+            hdu_kernel.writeto(os.path.join(kernel_directory_path, 'kernel_'+new_image), overwrite = True)  
             hdu_kernel_err = fits.PrimaryHDU(kernel_uncertainty)
-            hdu_kernel_err.writeto(os.path.join(kernel_directory_path,'kernel_err_'+new_image), overwrite = True)  
-            if log is not None:
-                logs.ifverbose(log, setup, 'b_vector calculated for:' + new_image+' and scale factor '+str(round(pscale,3))+'+/-'+str(pscale_err)+' in kernel bin '+str(umatrix_index)) 
-            #CROP EDGE!
+            hdu_kernel_err.writeto(os.path.join(kernel_directory_path, 'kernel_err_'+new_image), overwrite = True)
+            #Particle data group formatting
+            pscale_formatted = '{}'.format(ufloat(pscale,pscale_err))
             difference_image = subtract_images(data_image_unmasked, reference_image_unmasked, kernel_matrix, kernel_size, bkg_kernel)
+            #unmasked subtraction (for quality stats)
+            mean_sky, median_sky, std_sky = sigma_clipped_stats(reference_image_unmasked, sigma=5.0) 
+            difference_image_um = subtract_images(data_image, reference_image, kernel_matrix, kernel_size, bkg_kernel)
+            mask = reference_image != 0
+            ngood = len(difference_image_um[mask])
+            kurtosis_quality = kurtosis(difference_image_um[mask])
+            skew_quality = skew(difference_image_um[mask])
+            variance_per_pixel = np.var(difference_image_um[mask])/float(ngood)
+            if log is not None:
+                logs.ifverbose(log, setup, 'b_vector calculated for:' + new_image+' and scale factor '+pscale_formatted+' variace per pixel '+str(round(variance_per_pixel,4))+' in kernel bin '+str(umatrix_index)) 
+
             #EXPERIMENTAL -> DISCARD outliers
             #mean_diff, median_diff, std_diff = sigma_clipped_stats(difference_image, sigma=4.0) 
             #out3sig = np.where(np.abs(difference_image) > 4.*+std_diff)
@@ -272,6 +336,13 @@ def subtract_small_format_image(new_images, reference_image_name, reference_imag
             #difference_image = subtract_images(data_image_unmasked, reference_image_unmasked, kernel_matrix_2, kernel_size, bkg_kernel_2)
             new_header = fits.Header()
             new_header['SCALEFAC'] = pscale
+            new_header['SCALEERR'] = pscale_err
+            new_header['VARPP'] = variance_per_pixel
+            new_header['NGOOD'] = ngood
+            new_header['SKY'] = median_sky
+            new_header['KURTOSIS'] = kurtosis_quality
+            new_header['SKEW'] = skew_quality
+            quality_metrics.append([new_image, pscale, pscale_err, median_sky, variance_per_pixel, ngood, kurtosis_quality, skew_quality])
             difference_image_hdu = fits.PrimaryHDU(difference_image,header=new_header)
             difference_image_hdu.writeto(os.path.join(diffim_directory_path,'diff_'+new_image),overwrite = True)
         except Exception as e:
@@ -279,6 +350,8 @@ def subtract_small_format_image(new_images, reference_image_name, reference_imag
                 logs.ifverbose(log, setup,'kernel matrix computation or shift failed:' + new_image + '. skipping! '+str(e))
             else:
                 print(str(e))
+    return quality_metrics
+
 
 def open_reference_stamps(setup, reduction_metadata, reference_image_directory, reference_image_name, kernel_size, max_adu, log, maxshift, min_adu = None):
     reference_pool_stamps = []

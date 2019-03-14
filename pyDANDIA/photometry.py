@@ -70,7 +70,7 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
     
     residuals = np.copy(data)
     
-    jincr = len(ref_star_catalog)*0.1
+    jincr = int(float(len(ref_star_catalog))*0.01)
     
     for j in range(0,len(ref_star_catalog),1):
         
@@ -124,18 +124,25 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
             sub_psf_model = psf.get_psf_object('Moffat2D')
             
             pars = fitted_model.get_parameters()
-            pars[1] = (psf_size/2.0) + (ystar-int(ystar))
-            pars[2] = (psf_size/2.0) + (xstar-int(xstar))
+            pars[1] = (psf_size/2.0) + (sec_ystar-int(sec_ystar))
+            pars[2] = (psf_size/2.0) + (sec_xstar-int(sec_xstar))
             
-            pars[1] = ystar
-            pars[2] = xstar
+            pars[1] = sec_ystar
+            pars[2] = sec_xstar
             
             sub_psf_model.update_psf_parameters(pars)
             
-            psf_image = psf.model_psf_in_image(data,sub_psf_model,
-                                                    [xstar,ystar],corners)
+            sub_corners = psf.calc_stamp_corners(sec_xstar, sec_ystar, 
+                                                 psf_size, psf_size, 
+                                                 data_section.shape[1], 
+                                                 data_section.shape[0],
+                                                 over_edge=True)
+                                         
+            psf_image = psf.model_psf_in_image(data_section,sub_psf_model,
+                                                    [sec_xstar,sec_ystar],
+                                                    sub_corners)
             
-            residuals -= psf_image
+            residuals[corners[2]:corners[3],corners[0]:corners[1]] -= psf_image
             
             if diagnostics:
                 logs.ifverbose(log, setup,' -> Star '+str(j)+
@@ -162,9 +169,11 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
                 logs.ifverbose(log,setup,' -> Star '+str(j)+
                                 ' No photometry possible from poor PSF fit')
         
-        if float(j)%jincr == 0:
-            logs.ifverbose(log,setup,' -> Completed photometry of '+str(j)+\
-                            ' stars from catalog')
+        if j%jincr == 0:
+            percentage = round((float(j)/float(len(ref_star_catalog)))*100.0,0)
+            logs.ifverbose(log,setup,' -> Photometry '+str(percentage)+\
+                            '% complete ('+str(j)+' stars out of '+\
+                            str(len(ref_star_catalog))+')')
                             
     res_image_path = os.path.join(setup.red_dir,'ref',os.path.basename(image_path).replace('.fits','_res.fits'))
     

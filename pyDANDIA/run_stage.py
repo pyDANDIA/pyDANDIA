@@ -18,7 +18,7 @@ from pyDANDIA import stage2
 from pyDANDIA import stage3
 from pyDANDIA import stage3_db_ingest
 from pyDANDIA import stage4
-from pyDANDIA import stage5
+#from pyDANDIA import stage5  # Missing uncertainties module
 #from pyDANDIA.db import astropy_interface
 from pyDANDIA import stage6
 from pyDANDIA import starfind
