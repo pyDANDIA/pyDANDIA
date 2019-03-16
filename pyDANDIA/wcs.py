@@ -14,6 +14,7 @@ import subprocess
 from astroquery.vizier import Vizier
 from astroquery.gaia import Gaia
 from pyDANDIA import  catalog_utils
+from pyDANDIA import shortest_string
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy import optimize
@@ -34,19 +35,34 @@ def reference_astrometry(setup,log,image_path,detected_sources,diagnostics=True)
     wcs_image_path = path.join(setup.red_dir,'ref','ref_image_wcs.fits')
     catalog_file = path.join(setup.red_dir,'ref', 'star_catalog.fits')
     
-    catalog_sources = fetch_catalog_sources_for_field(setup,field,hdu[0].header,
-                                                      image_wcs,log)
+    gaia_sources = fetch_catalog_sources_for_field(setup,field,hdu[0].header,
+                                                      image_wcs,log,'Gaia')
     
-    catalog_sources_xy = calc_image_coordinates(catalog_sources,image_wcs)
+    gaia_sources_xy = calc_image_coordinates(gaia_sources,image_wcs)
     log.info('Calculated image coordinates of Gaia catalog sources')
 
-    (matched_stars,image_wcs) = refine_wcs(detected_sources, catalog_sources_xy, 
-                                   image_wcs, log, path.join(setup.red_dir,'ref'))
+    (detected_subregion, gaia_subregion) = extract_central_region_from_catalogs(detected_sources, 
+                                                                                gaia_sources_xy)
+
+    transform = shortest_string.find_xy_offset(catalog1, catalog2, 
+                                                         log=log)
+    image_wcs = update_wcs(image_wcs,transform)
+    
+    world_coords = image_wcs.wcs_pix2world(detected_sources[:,1:3], 1)
+    
+    matched_stars = match_stars(world_coords,gaia_sources[:,[1,2]])
+    
+    analyze_coord_residuals(matched_stars,world_coords,gaia_sources)
+    
+    exit()
+    
+    #(matched_stars,image_wcs) = refine_wcs(detected_sources, gaia_sources_xy, 
+    #                               image_wcs, log, path.join(setup.red_dir,'ref'))
 
     if diagnostics == True:
         diagnostic_plots(path.join(setup.red_dir,'ref'),hdu,image_wcs,
                          detected_sources,
-                         catalog_sources_xy)
+                         gaia_sources_xy)
         log.info('-> Output astrometry diagnostic plots')
 
     (image_wcs,hdu) = update_image_wcs(hdu,image_wcs)
@@ -55,9 +71,10 @@ def reference_astrometry(setup,log,image_path,detected_sources,diagnostics=True)
     log.info(image_wcs)
     
     ref_source_catalog = build_ref_source_catalog(detected_sources,\
-                                                    catalog_sources,\
+                                                    gaia_sources,\
                                                     matched_stars,image_wcs)
-    log.info('Build reference image source catalogue of '+str(len(ref_source_catalog))+' objects')
+    log.info('Build reference image source catalogue of '+\
+             str(len(ref_source_catalog))+' objects')
     
     catalog_utils.output_ref_catalog_file(catalog_file,ref_source_catalog)
     log.info('-> Output reference source catalogue')
@@ -66,35 +83,88 @@ def reference_astrometry(setup,log,image_path,detected_sources,diagnostics=True)
     
     return ref_source_catalog
 
-def fetch_catalog_sources_for_field(setup,field,header,image_wcs,log):
+def fetch_catalog_sources_for_field(setup,field,header,image_wcs,log,
+                                    catalog_name):
+    """Function to read or fetch a catalogue of sources for the field.
+    catalog_name indicates the data origin, one of 'Gaia' or 'VPHAS'
+    """
     
+    catalog_file = path.join(setup.pipeline_config_dir,
+                             field+'_'+catalog_name+'_catalog.fits')
     
-    gaia_catalog_file = path.join(setup.pipeline_config_dir,
-                                             field+'_Gaia_catalog.fits')
-    
-    catalog_sources = catalog_utils.read_vizier_catalog(gaia_catalog_file,'Gaia')
+    catalog_sources = catalog_utils.read_vizier_catalog(catalog_file,catalog_name)
     
     if catalog_sources != None:
         
         log.info('Read data for '+str(len(catalog_sources))+\
-                 ' Gaia stars from stored catalog for field '+field)
+                 ' '+catalog_name+' stars from stored catalog for field '+field)
         
     else:
         
-        log.info('Querying ViZier for Gaia sources within the field of view...')
+        log.info('Querying ViZier for '+catalog_name+' sources within the field of view...')
     
         radius = header['NAXIS1']*header['PIXSCALE']/60.0/2.0
-    
-        catalog_sources = search_vizier_for_gaia_sources(str(image_wcs.wcs.crval[0]), \
-                                                      str(image_wcs.wcs.crval[1]), \
-                                                      radius)
+        
+        ra = image_wcs.wcs.crval[0]
+        dec = image_wcs.wcs.crval[1]
+        
+        if catalog_name in ['VPHAS', '2MASS']:
+            
+            catalog_sources = vizier_tools.search_vizier_for_sources(ra, dec, 
+                                                                     radius, 
+                                                                     catalog_name, 
+                                                                     row_limit=2000)
+            
+        else:
+            
+            catalog_sources = vizier_tools.search_vizier_for_gaia_sources(str(ra), \
+                                                                          str(dec), 
+                                                                          radius)
         
         log.info('ViZier returned '+str(len(catalog_sources))+\
                  ' within the field of view')
         
-        catalog_utils.output_vizier_catalog(gaia_catalog_file, catalog_sources, 'Gaia')
+        catalog_utils.output_vizier_catalog(catalog_file, catalog_sources, 
+                                            catalog_name)
         
     return catalog_sources
+
+def extract_central_region_from_catalogs(detected_sources, gaia_sources_xy):
+    """Function to extract the positions of stars in the central region of an
+    image"""
+    
+    mid_x = int((detected_sources[:,0].max() - detected_sources[:,0].min())/2.0)
+    mid_y = int((detected_sources[:,1].max() - detected_sources[:,1].min())/2.0)
+    
+    xmin = max(mid_x-100,detected_sources[:,0].min())
+    xmax = min(mid_x+100,detected_sources[:,0].max())
+    ymin = max(mid_y-100,detected_sources[:,1].min())
+    ymax = min(mid_y+100,detected_sources[:,1].max())
+    
+    idx1 = np.where(detected_sources[:,0] >= xmin)
+    idx2 = np.where(detected_sources[:,1] <= xmax)
+    idx = list(set(idx1).intersection(set(idx2)))
+    
+    detected_subregion = detected_sources[idx,[0,1]]
+    
+    idx1 = np.where(gaia_sources[:,0] >= xmin)
+    idx2 = np.where(gaia_sources[:,1] <= xmax)
+    idx = list(set(idx1).intersection(set(idx2)))
+    
+    gaia_subregion = gaia_sources[idx,[0,1]]
+    
+    return detected_subregion, gaia_subregion
+
+def analyze_coord_residuals(matched_stars,world_coords,gaia_sources,output_dir):
+    """Function to analyse the residuals between the RA, Dec positions
+    calculated for stars detected in the image, and Gaia RA, Dec positions
+    for matched stars."""
+    
+    dra = matched_stars[:,1] - matched_stars[:,4] # RA
+    ddec = matched_stars[:,5] - matched_stars[:,2] # Dec
+
+    plot_astrometry(output_dir,matched_stars,pfit=None)
+    
     
 def run_imwcs(detected_sources,catalog_sources,input_image_path,output_image_path):
     """Function to run wcstools.imwcs to match detected to catalog objects and
@@ -126,42 +196,27 @@ def run_imwcs(detected_sources,catalog_sources,input_image_path,output_image_pat
                 ' -n '+str(n_param)+\
                 ' -q irs '+input_image_path+\
                 ' -o '+output_image_path]
-    print( command, args)
+    print( command, args )
     
     p = subprocess.Popen([command,args], stdout=subprocess.PIPE)
     p.wait()
     
-def search_vizier_for_2mass_sources(ra, dec, radius):
-    """Function to perform online query of the 2MASS catalogue and return
-    a catalogue of known objects within the field of view"""
+def search_vizier_for_vphas_sources(params,log):
+    """Function to extract the objects from the VPHAS+ catalogue within the
+    field of view of the reference image, based on the metadata information."""
     
-    v = Vizier(columns=['_RAJ2000', '_DEJ2000', 'Jmag', 'e_Jmag', \
-                                    'Hmag', 'e_Hmag','Kmag', 'e_Kmag'],\
-                column_filters={'Jmag':'<20'})
-    v.ROW_LIMIT = 5000
-    c = coordinates.SkyCoord(ra+' '+dec, frame='icrs', unit=(units.deg, units.deg))
-    r = radius * units.arcminute
-    result=v.query_region(c,radius=r,catalog=['2MASS'])
+    params['radius'] = (np.sqrt(params['fov'])/2.0)*60.0
     
-    return result[0]
+    log.info('Search radius: '+str(params['radius'])+' arcmin')
     
-def search_vizier_for_gaia_sources(ra, dec, radius):
-    """Function to perform online query of the 2MASS catalogue and return
-    a catalogue of known objects within the field of view
-    """
+    vphas_cat = vizier_tools.search_vizier_for_sources(params['ra'], 
+                                                       params['dec'], 
+                                                        params['radius'], 
+                                                        'VPHAS+')
+        
+    log.info('VPHAS+ search returned '+str(len(vphas_cat))+' entries')
     
-    c = coordinates.SkyCoord(ra+' '+dec, frame='icrs', unit=(units.deg, units.deg))
-    r = units.Quantity(radius/60.0, units.deg)
-    
-    qs = Gaia.cone_search_async(c, r)
-    result = qs.get_results()
-    
-    catalog = result['ra','dec','source_id','ra_error','dec_error',
-                     'phot_g_mean_flux','phot_g_mean_flux_error',
-                     'phot_rp_mean_flux','phot_rp_mean_flux_error',
-                     'phot_bp_mean_flux','phot_bp_mean_flux_error']
-    
-    return catalog
+    return vphas_cat
     
 def calc_image_coordinates(catalog_sources,image_wcs,verbose=False):
     """Function to calculate the x,y pixel coordinates of a set of stars
@@ -172,7 +227,8 @@ def calc_image_coordinates(catalog_sources,image_wcs,verbose=False):
     for star in catalog_sources['ra','dec'].as_array():
         positions.append( [star[0],star[1]] )
         if verbose == True:
-            s = coordinates.SkyCoord(str(star[0])+' '+str(star[1]), frame='icrs', unit=(units.deg, units.deg))
+            s = coordinates.SkyCoord(str(star[0])+' '+str(star[1]), 
+                                     frame='icrs', unit=(units.deg, units.deg))
             print( star, s.to_string('hmsdms'))
     positions = np.array(positions)
     
@@ -230,8 +286,7 @@ def refine_wcs(detected_sources,catalog_sources_xy,image_wcs,
         log.info('Parameters of coordinate transform fit: '+repr(pfit)+\
                     ' sigma = '+str(sigma))
 
-        plot_astrometry(output_dir,catalog_sources_xy,matched_stars,
-                    pfit)
+        plot_astrometry(output_dir,matched_stars,pfit)
         
         (xprime,yprime) = transform_coords(pfit,image_positions[:,1],detected_sources[:,2])
         
@@ -354,7 +409,7 @@ def diagnostic_plots(output_dir,hdu,image_wcs,detected_sources,
     plt.savefig(path.join(output_dir,'reference_detected_sources_world.png'))
     plt.close(1)
                     
-def plot_astrometry(output_dir,catalog_sources_xy,matched_stars,pfit):
+def plot_astrometry(output_dir,matched_stars,pfit=None):
 
     fig = plt.figure(1)
     
@@ -391,8 +446,9 @@ def plot_astrometry(output_dir,catalog_sources_xy,matched_stars,pfit):
 
     (xmin,xmax,ymin,ymax) = plt.axis()
 
-    (xprime, yprime) = transform_coords(pfit,[xmin,xmax],[ymin,ymax])
-    plt.plot([xmin,xmax],xprime,'r-')
+    if pfit!=None:
+        (xprime, yprime) = transform_coords(pfit,[xmin,xmax],[ymin,ymax])
+        plt.plot([xmin,xmax],xprime,'r-')
     
     plt.xlabel('Detected X pixel')
     plt.ylabel('Catalog X pixel')
@@ -403,8 +459,9 @@ def plot_astrometry(output_dir,catalog_sources_xy,matched_stars,pfit):
 
     (xmin,xmax,ymin,ymax) = plt.axis()
     
-    (xprime, yprime) = transform_coords(pfit,[xmin,xmax],[ymin,ymax])
-    plt.plot([ymin,ymax],yprime,'r-')
+    if pfit!= None:
+        (xprime, yprime) = transform_coords(pfit,[xmin,xmax],[ymin,ymax])
+        plt.plot([ymin,ymax],yprime,'r-')
     
     plt.xlabel('Detected Y pixel')
     plt.ylabel('Catalog Y pixel')

@@ -7,6 +7,7 @@ Created on Wed May  9 11:35:31 2018
 
 from sys import argv
 from astroquery.vizier import Vizier
+from astroquery.gaia import Gaia
 from astropy import wcs, coordinates, units, visualization
 
 def search_vizier_for_sources(ra, dec, radius, catalog, row_limit=-1):
@@ -47,6 +48,24 @@ def search_vizier_for_sources(ra, dec, radius, catalog, row_limit=-1):
         result = result[0]
         
     return result
+
+def search_vizier_for_gaia_sources(ra, dec, radius):
+    """Function to perform online query of the 2MASS catalogue and return
+    a catalogue of known objects within the field of view
+    """
+    
+    c = coordinates.SkyCoord(ra+' '+dec, frame='icrs', unit=(units.deg, units.deg))
+    r = units.Quantity(radius/60.0, units.deg)
+    
+    qs = Gaia.cone_search_async(c, r)
+    result = qs.get_results()
+    
+    catalog = result['ra','dec','source_id','ra_error','dec_error',
+                     'phot_g_mean_flux','phot_g_mean_flux_error',
+                     'phot_rp_mean_flux','phot_rp_mean_flux_error',
+                     'phot_bp_mean_flux','phot_bp_mean_flux_error']
+    
+    return catalog
 
 if __name__ == '__main__':
     

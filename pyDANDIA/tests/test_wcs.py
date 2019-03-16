@@ -109,19 +109,21 @@ def test_fetch_catalog_sources_for_field():
                 
     image_wcs = aWCS(header)
     
-    catalog_sources = wcs.fetch_catalog_sources_for_field(setup,field,header,image_wcs,log)
+    catalog_sources = wcs.fetch_catalog_sources_for_field(setup,field,header,
+                                                          image_wcs,log,'2MASS')
     
     assert type(catalog_sources) == type(Table())
     assert len(catalog_sources) > 0
     
-    field = 'ROME-FIELD-21'
-    catalog_sources = wcs.fetch_catalog_sources_for_field(setup,field,header,image_wcs,log)
+    catalog_sources = wcs.fetch_catalog_sources_for_field(setup,field,header,
+                                                          image_wcs,log,'Gaia')
     
     assert type(catalog_sources) == type(Table())
     assert len(catalog_sources) > 0
     
     logs.close_log(log)
-    
+
+  
 if __name__ == '__main__':
 
     test_reference_astrometry()
