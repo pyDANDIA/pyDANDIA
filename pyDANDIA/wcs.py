@@ -42,13 +42,17 @@ def reference_astrometry(setup,log,image_path,detected_sources,diagnostics=True)
     log.info('Calculated image coordinates of Gaia catalog sources')
 
     (detected_subregion, gaia_subregion) = extract_central_region_from_catalogs(detected_sources, 
-                                                                                gaia_sources_xy)
+                                                                                gaia_sources_xy,
+                                                                                log)
 
-    transform = shortest_string.find_xy_offset(catalog1, catalog2, 
-                                                         log=log)
+    transform = shortest_string.find_xy_offset(detected_subregion, 
+                                               gaia_subregion, log=log)
+                                               
     image_wcs = update_wcs(image_wcs,transform)
     
     world_coords = image_wcs.wcs_pix2world(detected_sources[:,1:3], 1)
+    
+    # Need to convert this to a table
     
     matched_stars = match_stars(world_coords,gaia_sources[:,[1,2]])
     
@@ -129,30 +133,51 @@ def fetch_catalog_sources_for_field(setup,field,header,image_wcs,log,
         
     return catalog_sources
 
-def extract_central_region_from_catalogs(detected_sources, gaia_sources_xy):
+def extract_central_region_from_catalogs(detected_sources, gaia_sources_xy,log):
     """Function to extract the positions of stars in the central region of an
     image"""
+    
+    log.info('Extracting sub-catalogs of detected and catalog sources within the central region of the field of view')
     
     mid_x = int((detected_sources[:,0].max() - detected_sources[:,0].min())/2.0)
     mid_y = int((detected_sources[:,1].max() - detected_sources[:,1].min())/2.0)
     
-    xmin = max(mid_x-100,detected_sources[:,0].min())
-    xmax = min(mid_x+100,detected_sources[:,0].max())
-    ymin = max(mid_y-100,detected_sources[:,1].min())
-    ymax = min(mid_y+100,detected_sources[:,1].max())
+    dx = 200
+    dy = 200
     
-    idx1 = np.where(detected_sources[:,0] >= xmin)
-    idx2 = np.where(detected_sources[:,1] <= xmax)
-    idx = list(set(idx1).intersection(set(idx2)))
+    xmin = max(mid_x-dx,detected_sources[:,0].min())
+    xmax = min(mid_x+dx,detected_sources[:,0].max())
+    ymin = max(mid_y-dy,detected_sources[:,1].min())
+    ymax = min(mid_y+dy,detected_sources[:,1].max())
     
-    detected_subregion = detected_sources[idx,[0,1]]
+    idx1 = np.where(detected_sources[:,0] >= xmin)[0]
+    idx2 = np.where(detected_sources[:,0] <= xmax)[0]
+    idx3 = np.where(detected_sources[:,1] >= ymin)[0]
+    idx4 = np.where(detected_sources[:,1] <= ymax)[0]
+    idx = set(idx1).intersection(set(idx2))
+    idx = set(idx).intersection(set(idx3))
+    idx = list(set(idx).intersection(set(idx4)))
     
-    idx1 = np.where(gaia_sources[:,0] >= xmin)
-    idx2 = np.where(gaia_sources[:,1] <= xmax)
-    idx = list(set(idx1).intersection(set(idx2)))
+    detected_subregion = detected_sources[idx,:]
+    detected_subregion = detected_subregion[:,[0,1]]
     
-    gaia_subregion = gaia_sources[idx,[0,1]]
+    log.info(' -> '+str(len(detected_subregion))+\
+             ' detected stars')
     
+    idx1 = np.where(gaia_sources_xy[:,0] >= xmin)[0]
+    idx2 = np.where(gaia_sources_xy[:,0] <= xmax)[0]
+    idx3 = np.where(gaia_sources_xy[:,1] >= ymin)[0]
+    idx4 = np.where(gaia_sources_xy[:,1] <= ymax)[0]
+    idx = set(idx1).intersection(set(idx2))
+    idx = set(idx).intersection(set(idx3))
+    idx = list(set(idx).intersection(set(idx4)))
+    
+    gaia_subregion = gaia_sources_xy[idx,:]
+    gaia_subregion = gaia_subregion[:,[0,1]]
+    
+    log.info(' -> '+str(len(gaia_subregion))+\
+             ' stars from the Gaia catalog')
+             
     return detected_subregion, gaia_subregion
 
 def analyze_coord_residuals(matched_stars,world_coords,gaia_sources,output_dir):

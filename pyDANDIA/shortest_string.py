@@ -111,15 +111,15 @@ def calc_xy_ranges(catalog1,sub_pixel,x_offset,y_offset,log=None):
         dxincr = 0.1
         dyincr = 0.1
     else:
-        dxincr = 1.0
-        dyincr = 1.0
+        dxincr = 2.0
+        dyincr = 2.0
     
     dxrange = np.arange(dxmin,dxmax,dxincr)
     dyrange = np.arange(dymin,dymax,dyincr)
     
     if log!=None:
-        log.info('Examining deltax range: ',dxrange.min(),' to ',dxrange.max())
-        log.info('Examining deltay range: ',dyrange.min(),' to ',dyrange.max())
+        log.info('Examining deltax range: '+str(dxrange.min())+' to '+str(dxrange.max()))
+        log.info('Examining deltay range: '+str(dyrange.min())+' to '+str(dyrange.max()))
     
     return dxrange, dyrange
     
