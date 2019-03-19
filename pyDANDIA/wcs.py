@@ -9,7 +9,7 @@ from sys import exit
 from pyDANDIA import  logs
 from pyDANDIA import  metadata
 from astropy.io import fits
-from astropy import wcs, coordinates, units, visualization
+from astropy import wcs, coordinates, units, visualization, table
 import subprocess
 from astroquery.vizier import Vizier
 from astroquery.gaia import Gaia
@@ -40,21 +40,20 @@ def reference_astrometry(setup,log,image_path,detected_sources,diagnostics=True)
     
     gaia_sources_xy = calc_image_coordinates(gaia_sources,image_wcs)
     log.info('Calculated image coordinates of Gaia catalog sources')
-
+    
     (detected_subregion, gaia_subregion) = extract_central_region_from_catalogs(detected_sources, 
                                                                                 gaia_sources_xy,
                                                                                 log)
-
+                                                    
     transform = shortest_string.find_xy_offset(detected_subregion, 
                                                gaia_subregion, log=log)
                                                
     image_wcs = update_wcs(image_wcs,transform)
     
-    world_coords = image_wcs.wcs_pix2world(detected_sources[:,1:3], 1)
+    world_coords = calc_world_coordinates(detected_sources[:,1:3],image_wcs)
     
-    # Need to convert this to a table
-    
-    matched_stars = match_stars(world_coords,gaia_sources[:,[1,2]])
+    matched_stars = match_stars_world_coords(world_coords,gaia_sources)
+    exit()
     
     analyze_coord_residuals(matched_stars,world_coords,gaia_sources)
     
@@ -249,37 +248,63 @@ def calc_image_coordinates(catalog_sources,image_wcs,verbose=False):
     image header"""
     
     positions = []
+    
     for star in catalog_sources['ra','dec'].as_array():
+
         positions.append( [star[0],star[1]] )
+
         if verbose == True:
             s = coordinates.SkyCoord(str(star[0])+' '+str(star[1]), 
                                      frame='icrs', unit=(units.deg, units.deg))
             print( star, s.to_string('hmsdms'))
+
     positions = np.array(positions)
     
     return image_wcs.wcs_world2pix(positions,1)
 
-def match_stars(detected_sources,catalog_sources_xy,verbose=False):
+
+def calc_world_coordinates(pixel_positions,image_wcs):
+    """Function to calculate the RA, Dec positions of an array of image
+    pixel positions"""
+    
+    world_coords = image_wcs.wcs_pix2world(pixel_positions, 1)
+    
+    table_data = [ table.Column(name='ra', data=world_coords[:,0]),
+                   table.Column(name='dec', data=world_coords[:,1]) ]
+            
+    return table.Table(data=table_data)
+    
+    
+def match_stars_world_coords(detected_sources,catalog_sources,verbose=False):
     """Function to match stars between the objects detected in an image
     and those extracted from a catalog, using image pixel postions."""
     
-    matched_stars = []
-    for i in range(0,len(catalog_sources_xy),1):
-        cat_x = catalog_sources_xy[i,0]
-        cat_y = catalog_sources_xy[i,1]
-        
-        dx = detected_sources[:,1]-cat_x
-        dy = detected_sources[:,2]-cat_y
-        sep = np.sqrt(dx*dx + dy*dy)
-        
-        idx = sep.argsort()
+    tol = 1.0/3600.0
+    
+    det_sources = coordinates.SkyCoord(detected_sources['ra'], 
+                                       detected_sources['dec'], 
+                                       frame='icrs', 
+                                       unit=(units.deg, units.deg))
 
-        matched_stars.append([idx[0],detected_sources[idx[0],1],detected_sources[idx[0],2],\
-                            i, cat_x, cat_y, sep[idx[0]]])
-        if verbose == True:
-            print( matched_stars[-1])
-            
+    matched_stars = []
+    for j in range(0,len(catalog_sources),1):
+        
+        c = coordinates.SkyCoord(catalog_sources['ra'][j], 
+                                 catalog_sources['dec'][j], 
+                                 frame='icrs', unit=(units.deg, units.deg))
+                                 
+        (idx, d2d, d3d) = c.match_to_catalog_sky(det_sources)
+        i = int(idx)
+        
+        if d2d.value < tol:        
+            matched_stars.append([i,detected_sources['ra'][i],detected_sources['dec'][i],\
+                                  j, catalog_sources['ra'][j], catalog_sources['dec'][j], \
+                                  d2d.value[0]])
+        
+            print(matched_stars[-1])
+
     return np.array(matched_stars)
+
 
 def refine_wcs(detected_sources,catalog_sources_xy,image_wcs,
                log,output_dir,verbose=False):

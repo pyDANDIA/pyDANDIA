@@ -13,9 +13,10 @@ import wcs
 import stage3
 import pipeline_setup
 from astropy.io import fits
-from astropy.table import Table
+from astropy.table import Table, Column
 from astropy.wcs import WCS as aWCS
 import catalog_utils
+import numpy as np 
 
 cwd = getcwd()
 TEST_DATA = path.join(cwd,'data')
@@ -123,11 +124,44 @@ def test_fetch_catalog_sources_for_field():
     
     logs.close_log(log)
 
-  
+def test_match_stars_world_coords():
+
+    detected_coords = np.array(  [  [269.55310076, -28.04655246], 
+                                    [269.52451024, -28.04663018],
+                                    [269.53827323, -28.04670613], 
+                                    [269.53893954, -28.04667918],
+                                    [269.5575608 , -28.04728878]  ] )
+    
+    detected_data = [ Column(name='ra', data=detected_coords[:,0]),
+                      Column(name='dec', data=detected_coords[:,1]) ]
+    
+    detected_sources = Table(data=detected_data)
+    
+    catalog_coords = np.array( [ [269.52935399, -28.04729399], 
+                                 [269.54868567, -28.04728673],
+                                 [269.5575608 , -28.04728878], 
+                                 [269.51156351, -28.04750404] ] )
+    
+    catalog_data = [ Column(name='ra', data=catalog_coords[:,0]),
+                     Column(name='dec', data=catalog_coords[:,1]) ]
+    
+    catalog_sources = Table(data=catalog_data)
+    
+    matched_stars = wcs.match_stars_world_coords(detected_sources,
+                                                 catalog_sources)
+    
+    print(matched_stars.shape)
+    print(matched_stars[0,0])
+    assert detected_coords[matched_stars[0,0],1] == catalog_coords[matched_stars[0,3],1]
+    assert detected_coords[matched_stars[0,0],2] == catalog_coords[matched_stars[0,3],2]
+    assert matched_stars[0,1] == matched_stars[0,3]
+    assert matched_stars[0,2] == matched_stars[0,4]
+    
 if __name__ == '__main__':
 
-    test_reference_astrometry()
+    #test_reference_astrometry()
     #test_search_vizier_for_2mass_sources()
     #test_fetch_catalog_sources_for_field()
     #test_search_vizier_for_gaia_sources()
+    test_match_stars_world_coords()
     
