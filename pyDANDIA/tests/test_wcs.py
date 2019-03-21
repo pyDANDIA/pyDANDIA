@@ -125,7 +125,9 @@ def test_fetch_catalog_sources_for_field():
     logs.close_log(log)
 
 def test_match_stars_world_coords():
-
+    
+    log = logs.start_stage_log( cwd, 'test_wcs' )
+    
     detected_coords = np.array(  [  [269.55310076, -28.04655246], 
                                     [269.52451024, -28.04663018],
                                     [269.53827323, -28.04670613], 
@@ -147,15 +149,20 @@ def test_match_stars_world_coords():
     
     catalog_sources = Table(data=catalog_data)
     
-    matched_stars = wcs.match_stars_world_coords(detected_sources,
-                                                 catalog_sources)
+    test_match = wcs.StarMatch()
     
-    print(matched_stars.shape)
-    print(matched_stars[0,0])
-    assert detected_coords[matched_stars[0,0],1] == catalog_coords[matched_stars[0,3],1]
-    assert detected_coords[matched_stars[0,0],2] == catalog_coords[matched_stars[0,3],2]
-    assert matched_stars[0,1] == matched_stars[0,3]
-    assert matched_stars[0,2] == matched_stars[0,4]
+    matched_stars = wcs.match_stars_world_coords(detected_sources,
+                                                 catalog_sources,log,
+                                                 verbose=True)
+    
+    assert len(matched_stars) == 1
+    assert type(matched_stars[0]) == type(test_match)
+    assert detected_coords[matched_stars[0].cat1_index,0] == catalog_coords[matched_stars[0].cat2_index,0]
+    assert detected_coords[matched_stars[0].cat1_index,1] == catalog_coords[matched_stars[0].cat2_index,1]
+    assert matched_stars[0].cat1_ra == matched_stars[0].cat2_ra
+    assert matched_stars[0].cat1_dec == matched_stars[0].cat2_dec
+    
+    logs.close_log(log)
     
 if __name__ == '__main__':
 

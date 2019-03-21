@@ -19,6 +19,32 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy import optimize
 
+class StarMatch:
+    
+    def __init__(self, params=None):
+        
+        self.cat1_index = None
+        self.cat1_ra = None
+        self.cat1_dec = None
+        self.cat2_index = None
+        self.cat2_ra = None
+        self.cat2_dec = None
+        self.separation = None
+        
+        if params != None:
+            for key, value in params.items():
+                setattr(self,key,value)
+                
+    def summary(self):
+        
+        output = 'Catalog 1 star '+str(self.cat1_index)+' at ('+\
+                    str(self.cat1_ra)+', '+str(self.cat1_dec)+\
+                    ') matches Catalog 2 star '+str(self.cat2_index)+' at ('+\
+                    str(self.cat2_ra)+', '+str(self.cat2_dec)+\
+                    '), separation '+str(self.separation)+' deg'
+                    
+        return output
+        
 def reference_astrometry(setup,log,image_path,detected_sources,diagnostics=True):
     """Function to calculate the World Coordinate System (WCS) for an image"""
     
@@ -52,8 +78,7 @@ def reference_astrometry(setup,log,image_path,detected_sources,diagnostics=True)
     
     world_coords = calc_world_coordinates(detected_sources[:,1:3],image_wcs)
     
-    matched_stars = match_stars_world_coords(world_coords,gaia_sources)
-    exit()
+    matched_stars = match_stars_world_coords(world_coords,gaia_sources,log)
     
     analyze_coord_residuals(matched_stars,world_coords,gaia_sources)
     
@@ -275,7 +300,8 @@ def calc_world_coordinates(pixel_positions,image_wcs):
     return table.Table(data=table_data)
     
     
-def match_stars_world_coords(detected_sources,catalog_sources,verbose=False):
+def match_stars_world_coords(detected_sources,catalog_sources,log,
+                             verbose=False):
     """Function to match stars between the objects detected in an image
     and those extracted from a catalog, using image pixel postions."""
     
@@ -296,12 +322,22 @@ def match_stars_world_coords(detected_sources,catalog_sources,verbose=False):
         (idx, d2d, d3d) = c.match_to_catalog_sky(det_sources)
         i = int(idx)
         
-        if d2d.value < tol:        
-            matched_stars.append([i,detected_sources['ra'][i],detected_sources['dec'][i],\
-                                  j, catalog_sources['ra'][j], catalog_sources['dec'][j], \
-                                  d2d.value[0]])
-        
-            print(matched_stars[-1])
+        if d2d.value < tol:
+            
+            p = {'cat1_index': i,
+                 'cat1_ra': detected_sources['ra'][i],
+                 'cat1_dec': detected_sources['dec'][i],
+                 'cat2_index': j, 
+                 'cat2_ra': catalog_sources['ra'][j], 
+                 'cat2_dec': catalog_sources['dec'][j], \
+                 'separation': d2d.value[0]}
+                 
+            m = StarMatch(p)
+            
+            matched_stars.append(m)
+            
+            if verbose:
+                log.info(matched_stars[-1].summary())
 
     return np.array(matched_stars)
 
