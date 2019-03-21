@@ -149,26 +149,26 @@ def test_match_stars_world_coords():
     
     catalog_sources = Table(data=catalog_data)
     
-    test_match = wcs.StarMatch()
+    test_match = wcs.StarMatchIndex()
     
     matched_stars = wcs.match_stars_world_coords(detected_sources,
                                                  catalog_sources,log,
                                                  verbose=True)
     
-    assert len(matched_stars) == 1
-    assert type(matched_stars[0]) == type(test_match)
-    assert detected_coords[matched_stars[0].cat1_index,0] == catalog_coords[matched_stars[0].cat2_index,0]
-    assert detected_coords[matched_stars[0].cat1_index,1] == catalog_coords[matched_stars[0].cat2_index,1]
-    assert matched_stars[0].cat1_ra == matched_stars[0].cat2_ra
-    assert matched_stars[0].cat1_dec == matched_stars[0].cat2_dec
+    assert matched_stars.n_match == 1
+    assert type(matched_stars) == type(test_match)
+    assert detected_coords[matched_stars.cat1_index[0],0] == catalog_coords[matched_stars.cat2_index[0],0]
+    assert detected_coords[matched_stars.cat1_index[0],1] == catalog_coords[matched_stars.cat2_index[0],1]
+    assert matched_stars.cat1_ra[0] == matched_stars.cat2_ra[0]
+    assert matched_stars.cat1_dec[0] == matched_stars.cat2_dec[0]
     
     logs.close_log(log)
     
 if __name__ == '__main__':
 
-    #test_reference_astrometry()
+    test_reference_astrometry()
     #test_search_vizier_for_2mass_sources()
     #test_fetch_catalog_sources_for_field()
     #test_search_vizier_for_gaia_sources()
-    test_match_stars_world_coords()
+    #test_match_stars_world_coords()
     

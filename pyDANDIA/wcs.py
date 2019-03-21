@@ -19,29 +19,41 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy import optimize
 
-class StarMatch:
+class StarMatchIndex:
     
-    def __init__(self, params=None):
+    def __init__(self):
         
-        self.cat1_index = None
-        self.cat1_ra = None
-        self.cat1_dec = None
-        self.cat2_index = None
-        self.cat2_ra = None
-        self.cat2_dec = None
-        self.separation = None
+        self.cat1_index = []
+        self.cat1_ra = []
+        self.cat1_dec = []
+        self.cat1_x = []
+        self.cat1_y = []
+        self.cat2_index = []
+        self.cat2_ra = []
+        self.cat2_dec = []
+        self.separation = []
+        self.n_match = 0
         
-        if params != None:
-            for key, value in params.items():
-                setattr(self,key,value)
+    def add_match(self,params):
+        
+        for key, value in params.items():
+            
+            l = getattr(self,key)
+            
+            l.append(value)
+            
+            setattr(self,key,l)
                 
+        self.n_match += 1
+        
     def summary(self):
         
-        output = 'Catalog 1 star '+str(self.cat1_index)+' at ('+\
-                    str(self.cat1_ra)+', '+str(self.cat1_dec)+\
-                    ') matches Catalog 2 star '+str(self.cat2_index)+' at ('+\
-                    str(self.cat2_ra)+', '+str(self.cat2_dec)+\
-                    '), separation '+str(self.separation)+' deg'
+        for j in range(0,len(self.cat1_index),1):
+            output = 'Catalog 1 star '+str(self.cat1_index[j])+' at ('+\
+                    str(self.cat1_ra[j])+', '+str(self.cat1_dec[j])+\
+                    ') matches Catalog 2 star '+str(self.cat2_index[j])+' at ('+\
+                    str(self.cat2_ra[j])+', '+str(self.cat2_dec[j])+\
+                    '), separation '+str(self.separation[j])+' deg\n'
                     
         return output
         
@@ -80,7 +92,8 @@ def reference_astrometry(setup,log,image_path,detected_sources,diagnostics=True)
     
     matched_stars = match_stars_world_coords(world_coords,gaia_sources,log)
     
-    analyze_coord_residuals(matched_stars,world_coords,gaia_sources)
+    analyze_coord_residuals(matched_stars,world_coords,gaia_sources,
+                            path.join(setup.red_dir,'ref'))
     
     exit()
     
@@ -209,8 +222,8 @@ def analyze_coord_residuals(matched_stars,world_coords,gaia_sources,output_dir):
     calculated for stars detected in the image, and Gaia RA, Dec positions
     for matched stars."""
     
-    dra = matched_stars[:,1] - matched_stars[:,4] # RA
-    ddec = matched_stars[:,5] - matched_stars[:,2] # Dec
+    dra = np.array(matched_stars.cat1_ra) - np.array(matched_stars.cat2_ra)
+    ddec = np.array(matched_stars.cat1_dec) - np.array(matched_stars.cat2_dec)
 
     plot_astrometry(output_dir,matched_stars,pfit=None)
     
@@ -295,7 +308,9 @@ def calc_world_coordinates(pixel_positions,image_wcs):
     world_coords = image_wcs.wcs_pix2world(pixel_positions, 1)
     
     table_data = [ table.Column(name='ra', data=world_coords[:,0]),
-                   table.Column(name='dec', data=world_coords[:,1]) ]
+                   table.Column(name='dec', data=world_coords[:,1]),
+                   table.Column(name='x', data=pixel_positions[:,0]),
+                   table.Column(name='y', data=pixel_positions[:,1]) ]
             
     return table.Table(data=table_data)
     
@@ -312,7 +327,8 @@ def match_stars_world_coords(detected_sources,catalog_sources,log,
                                        frame='icrs', 
                                        unit=(units.deg, units.deg))
 
-    matched_stars = []
+    matched_stars = StarMatchIndex()
+    
     for j in range(0,len(catalog_sources),1):
         
         c = coordinates.SkyCoord(catalog_sources['ra'][j], 
@@ -327,19 +343,19 @@ def match_stars_world_coords(detected_sources,catalog_sources,log,
             p = {'cat1_index': i,
                  'cat1_ra': detected_sources['ra'][i],
                  'cat1_dec': detected_sources['dec'][i],
+                 'cat1_x': detected_sources['x'][i],
+                 'cat1_y': detected_sources['y'][i],
                  'cat2_index': j, 
                  'cat2_ra': catalog_sources['ra'][j], 
                  'cat2_dec': catalog_sources['dec'][j], \
                  'separation': d2d.value[0]}
                  
-            m = StarMatch(p)
-            
-            matched_stars.append(m)
-            
-            if verbose:
-                log.info(matched_stars[-1].summary())
+            m = matched_stars.add_match(p)
+                        
+    if verbose:
+        log.info(matched_stars.summary())
 
-    return np.array(matched_stars)
+    return matched_stars
 
 
 def refine_wcs(detected_sources,catalog_sources_xy,image_wcs,
@@ -497,26 +513,29 @@ def diagnostic_plots(output_dir,hdu,image_wcs,detected_sources,
                     
 def plot_astrometry(output_dir,matched_stars,pfit=None):
 
+    dra = np.array(matched_stars.cat2_ra)-np.array(matched_stars.cat1_ra)
+    ddec = np.array(matched_stars.cat2_dec)-np.array(matched_stars.cat1_dec)
+    
     fig = plt.figure(1)
     
     plt.subplot(211)
     plt.subplots_adjust(left=0.125, bottom=0.1, right=0.9, top=0.95,
                 wspace=0.1, hspace=0.3)
 
-    plt.hist((matched_stars[:,4]-matched_stars[:,1]),50)
+    plt.hist(dra,50)
 
     (xmin,xmax,ymin,ymax) = plt.axis()
         
-    plt.xlabel('(Catalog-detected) X pixel')
+    plt.xlabel('(Catalog-detected) RA')
     plt.ylabel('Frequency')
 
     plt.subplot(212)
 
-    plt.hist((matched_stars[:,5]-matched_stars[:,2]),50)
+    plt.hist(ddec,50)
 
     (xmin,xmax,ymin,ymax) = plt.axis()
     
-    plt.xlabel('(Catalog-detected) Y pixel')
+    plt.xlabel('(Catalog-detected) Dec')
     plt.ylabel('Frequency')
 
     plt.savefig(path.join(output_dir,'astrometry_separations.png'))
@@ -524,33 +543,40 @@ def plot_astrometry(output_dir,matched_stars,pfit=None):
 
     fig = plt.figure(2)
 
-    plt.subplot(211)
-    plt.subplots_adjust(left=0.125, bottom=0.1, right=0.9, top=0.95,
-                wspace=0.1, hspace=0.3)
+    plt.subplot(221)
+    plt.subplots_adjust(left=0.2, bottom=0.1, right=0.9, top=0.95,
+                wspace=0.5, hspace=0.3)
 
-    plt.plot(matched_stars[:,1],matched_stars[:,4],'b.',markersize=1)
+    plt.plot(np.array(matched_stars.cat1_x),dra,
+             'b.',markersize=1)
 
-    (xmin,xmax,ymin,ymax) = plt.axis()
+    plt.xlabel('X pixel')
+    plt.ylabel('$\\Delta$ RA')
 
-    if pfit!=None:
-        (xprime, yprime) = transform_coords(pfit,[xmin,xmax],[ymin,ymax])
-        plt.plot([xmin,xmax],xprime,'r-')
+    plt.subplot(222)
     
-    plt.xlabel('Detected X pixel')
-    plt.ylabel('Catalog X pixel')
+    plt.plot(np.array(matched_stars.cat1_y),dra,
+             'b.',markersize=1)
+             
+    plt.xlabel('Y pixel')
+    plt.ylabel('$\\Delta$ RA')
 
-    plt.subplot(212)
+    plt.subplot(223)
 
-    plt.plot(matched_stars[:,2],matched_stars[:,5],'m.',markersize=1)
+    plt.plot(np.array(matched_stars.cat1_x),ddec,
+             'm.',markersize=1)
 
-    (xmin,xmax,ymin,ymax) = plt.axis()
+    plt.xlabel('X pixel')
+    plt.ylabel('$\\Delta$ Dec')
     
-    if pfit!= None:
-        (xprime, yprime) = transform_coords(pfit,[xmin,xmax],[ymin,ymax])
-        plt.plot([ymin,ymax],yprime,'r-')
+    plt.subplot(224)
+
+    plt.plot(np.array(matched_stars.cat1_y),ddec,
+             'm.',markersize=1)
+
+    plt.xlabel('Y pixel')
+    plt.ylabel('$\\Delta$ Dec')
     
-    plt.xlabel('Detected Y pixel')
-    plt.ylabel('Catalog Y pixel')
     plt.savefig(path.join(output_dir,'detected_catalog_positions.png'))
     plt.close(2)
 
