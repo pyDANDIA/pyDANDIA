@@ -21,9 +21,6 @@ from pyDANDIA.stage0 import open_an_image
 from pyDANDIA.subtract_subimages import subtract_images, subtract_subimage
 from multiprocessing import Pool
 import multiprocessing as mp
-import uncertainties as u
-from uncertainties import ufloat
-
 
 from astropy.stats import sigma_clipped_stats
 from photutils import datasets
@@ -105,7 +102,7 @@ def run_stage5(setup):
 
     new_images = reduction_metadata.find_images_need_to_be_process(setup, all_images,
                                                                    stage_number=5, rerun_all=None, log=log)
- 
+    
     kernel_directory_path = os.path.join(setup.red_dir, 'kernel')
     diffim_directory_path = os.path.join(setup.red_dir, 'diffim')
     if not os.path.exists(kernel_directory_path):
@@ -147,8 +144,8 @@ def run_stage5(setup):
     quality_metrics = subtract_with_constant_kernel(new_images, reference_image_name, reference_image_directory, reduction_metadata, setup, data_image_directory, kernel_size_array, max_adu, ref_stats, maxshift, kernel_directory_path, diffim_directory_path, log = log)
 
     data = np.copy(quality_metrics)
-    if ('PSCALE' in reduction_metadata.images_stats[1].keys()) and ('PSCALE_ERR' in reduction_metadata.images_stats[1].keys()) and ('KURTOSIS_DIFF' in reduction_metadata.images_stats[1].keys()) and ('SKEW_DIFF' in reduction_metadata.images_stats[1].keys())  and ('SKY_MEDIAN' in reduction_metadata.images_stats[1].keys()) and ('VAR_PER_PIX_DIFF' in reduction_metadata.images_stats[1].keys()) and ('N_UNMASKED' in reduction_metadata.images_stats[1].keys()):
-        for idx in range(len(quality_data)):
+    if ('PSCALE' in reduction_metadata.images_stats[1].keys()):
+        for idx in range(len(quality_metrics)):
             target_image = data[idx][0]
             pscale = data[idx][1]
             pscale_err = data[idx][2]
@@ -158,15 +155,16 @@ def run_stage5(setup):
             kurtosis_quality = data[idx][6]
             skew_quality = data[idx][7]
             row_index = np.where(reduction_metadata.images_stats[1]['IM_NAME'].data == target_image)[0][0]
-            reduction_metadata.update_a_cell_to_layer('images_stats', row_index, 'PSCALE', pscale)
-            reduction_metadata.update_a_cell_to_layer('images_stats', row_index, 'PSCALE_ERR', pscale_err)
-            reduction_metadata.update_a_cell_to_layer('images_stats', row_index, 'MEDIAN_SKY', median_sky)
-            reduction_metadata.update_a_cell_to_layer('images_stats', row_index, 'VAR_PER_PIX_DIFF', variance_per_pixel)
-            reduction_metadata.update_a_cell_to_layer('images_stats', row_index, 'N_UNMASKED', ngood)
-            reduction_metadata.update_a_cell_to_layer('images_stats', row_index, 'SKEW_DIFF', skew_quality)
-            reduction_metadata.update_a_cell_to_layer('images_stats', row_index, 'KURTOSIS_DIFF', pscale_err)
-
-        logs.ifverbose(log, setup, 'Updated metadata for image: ' + target_image)
+            try:
+                reduction_metadata.update_a_cell_to_layer('images_stats', row_index, 'PSCALE', pscale)
+                reduction_metadata.update_a_cell_to_layer('images_stats', row_index, 'PSCALE_ERR', pscale_err)
+                reduction_metadata.update_a_cell_to_layer('images_stats', row_index, 'MEDIAN_SKY', median_sky)
+                reduction_metadata.update_a_cell_to_layer('images_stats', row_index, 'VAR_PER_PIX_DIFF', variance_per_pixel)
+                reduction_metadata.update_a_cell_to_layer('images_stats', row_index, 'N_UNMASKED', ngood)
+                reduction_metadata.update_a_cell_to_layer('images_stats', row_index, 'SKEW_DIFF', skew_quality)
+                reduction_metadata.update_a_cell_to_layer('images_stats', row_index, 'KURTOSIS_DIFF', pscale_err)
+            except:
+                logs.ifverbose(log, setup, 'Updating image stats -> some expected metrics missing')
     else:
         logs.ifverbose(log, setup, 'Constructing quality metrics columns in metadata')
         sorted_data = np.copy(quality_metrics)
@@ -211,6 +209,20 @@ def run_stage5(setup):
     report = 'Completed successfully'
     return status, report
 
+def round_unc(val, err):
+    '''
+    Round to uncertainty digits
+
+    :param float val: measured value
+    :param float err: uncertainty of value
+
+    :return: formatted uncertainty
+    '''
+    digs = abs(int(np.log10(err/val)))
+    val_round = round(val, digs)
+    unc_round = round(err, digs)
+    return "{0} +/- {1}".format(val_round, unc_round)
+
 def smoothing_2sharp_images(reduction_metadata, ref_fwhm_x, ref_fwhm_y, ref_sigma_x, ref_sigma_y, row_index):
     smoothing = 0.
     smoothing_y = 0.
@@ -248,7 +260,6 @@ def subtract_with_constant_kernel(new_images, reference_image_name, reference_im
     :rtype: None
     """
 
-    resampled_median_image = resampled_median_stack(setup, reduction_metadata, new_images)
     grow_kernel = 4.*float(reduction_metadata.reduction_parameters[1]['KER_RAD'][0])
     if len(new_images) > 0:
         try:
@@ -256,6 +267,10 @@ def subtract_with_constant_kernel(new_images, reference_image_name, reference_im
             master_mask = np.where(master_mask[0].data > 0.5 * np.max(master_mask[0].data))
         except:
             master_mask = []
+        try:
+            resampled_median_image = resampled_median_stack(setup, reduction_metadata, new_images)
+        except:
+            resampled_median_image = np.zeros(np.shape(master_mask[0].data))
         kernel_size_max = max(kernel_size_array)
         reference_images = []
         for idx in range(len(kernel_size_array)):
@@ -310,7 +325,7 @@ def subtract_with_constant_kernel(new_images, reference_image_name, reference_im
             hdu_kernel_err = fits.PrimaryHDU(kernel_uncertainty)
             hdu_kernel_err.writeto(os.path.join(kernel_directory_path, 'kernel_err_'+new_image), overwrite = True)
             #Particle data group formatting
-            pscale_formatted = '{}'.format(ufloat(pscale,pscale_err))
+            pscale_formatted = round_unc(pscale,pscale_err)
             difference_image = subtract_images(data_image_unmasked, reference_image_unmasked, kernel_matrix, kernel_size, bkg_kernel)
             #unmasked subtraction (for quality stats)
             mean_sky, median_sky, std_sky = sigma_clipped_stats(reference_image_unmasked, sigma=5.0) 
