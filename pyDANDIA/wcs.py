@@ -8,6 +8,8 @@ from os import path, getcwd
 from sys import exit
 from pyDANDIA import  logs
 from pyDANDIA import  metadata
+from pyDANDIA import  vizier_tools
+from pyDANDIA import  match_utils
 from astropy.io import fits
 from astropy import wcs, coordinates, units, visualization, table
 import subprocess
@@ -19,44 +21,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy import optimize
 
-class StarMatchIndex:
-    
-    def __init__(self):
-        
-        self.cat1_index = []
-        self.cat1_ra = []
-        self.cat1_dec = []
-        self.cat1_x = []
-        self.cat1_y = []
-        self.cat2_index = []
-        self.cat2_ra = []
-        self.cat2_dec = []
-        self.separation = []
-        self.n_match = 0
-        
-    def add_match(self,params):
-        
-        for key, value in params.items():
-            
-            l = getattr(self,key)
-            
-            l.append(value)
-            
-            setattr(self,key,l)
-                
-        self.n_match += 1
-        
-    def summary(self):
-        
-        for j in range(0,len(self.cat1_index),1):
-            output = 'Catalog 1 star '+str(self.cat1_index[j])+' at ('+\
-                    str(self.cat1_ra[j])+', '+str(self.cat1_dec[j])+\
-                    ') matches Catalog 2 star '+str(self.cat2_index[j])+' at ('+\
-                    str(self.cat2_ra[j])+', '+str(self.cat2_dec[j])+\
-                    '), separation '+str(self.separation[j])+' deg\n'
-                    
-        return output
-        
 def reference_astrometry(setup,log,image_path,detected_sources,diagnostics=True):
     """Function to calculate the World Coordinate System (WCS) for an image"""
     
@@ -76,8 +40,7 @@ def reference_astrometry(setup,log,image_path,detected_sources,diagnostics=True)
     gaia_sources = fetch_catalog_sources_for_field(setup,field,hdu[0].header,
                                                       image_wcs,log,'Gaia')
     
-    gaia_sources_xy = calc_image_coordinates(gaia_sources,image_wcs)
-    log.info('Calculated image coordinates of Gaia catalog sources')
+    gaia_sources_xy = calc_image_coordinates(gaia_sources,image_wcs,log)
     
     (detected_subregion, gaia_subregion) = extract_central_region_from_catalogs(detected_sources, 
                                                                                 gaia_sources_xy,
@@ -86,25 +49,24 @@ def reference_astrometry(setup,log,image_path,detected_sources,diagnostics=True)
     transform = shortest_string.find_xy_offset(detected_subregion, 
                                                gaia_subregion, log=log)
                                                
-    image_wcs = update_wcs(image_wcs,transform)
+    image_wcs = update_wcs(image_wcs,transform,log)
     
-    world_coords = calc_world_coordinates(detected_sources[:,1:3],image_wcs)
+    world_coords = calc_world_coordinates(detected_sources,image_wcs,log)
     
-    matched_stars = match_stars_world_coords(world_coords,gaia_sources,log)
+    matched_stars = match_stars_world_coords(world_coords,gaia_sources,log,
+                                             verbose=True)
     
     analyze_coord_residuals(matched_stars,world_coords,gaia_sources,
                             path.join(setup.red_dir,'ref'))
     
-    exit()
-    
     #(matched_stars,image_wcs) = refine_wcs(detected_sources, gaia_sources_xy, 
     #                               image_wcs, log, path.join(setup.red_dir,'ref'))
 
-    if diagnostics == True:
-        diagnostic_plots(path.join(setup.red_dir,'ref'),hdu,image_wcs,
-                         detected_sources,
-                         gaia_sources_xy)
-        log.info('-> Output astrometry diagnostic plots')
+#    if diagnostics == True:
+#        diagnostic_plots(path.join(setup.red_dir,'ref'),hdu,image_wcs,
+#                         detected_sources,
+#                         gaia_sources_xy)
+#        log.info('-> Output astrometry diagnostic plots')
 
     (image_wcs,hdu) = update_image_wcs(hdu,image_wcs)
     hdu.writeto(wcs_image_path,overwrite=True)
@@ -114,6 +76,7 @@ def reference_astrometry(setup,log,image_path,detected_sources,diagnostics=True)
     ref_source_catalog = build_ref_source_catalog(detected_sources,\
                                                     gaia_sources,\
                                                     matched_stars,image_wcs)
+
     log.info('Build reference image source catalogue of '+\
              str(len(ref_source_catalog))+' objects')
     
@@ -167,7 +130,7 @@ def fetch_catalog_sources_for_field(setup,field,header,image_wcs,log,
         
         catalog_utils.output_vizier_catalog(catalog_file, catalog_sources, 
                                             catalog_name)
-        
+    
     return catalog_sources
 
 def extract_central_region_from_catalogs(detected_sources, gaia_sources_xy,log):
@@ -176,44 +139,76 @@ def extract_central_region_from_catalogs(detected_sources, gaia_sources_xy,log):
     
     log.info('Extracting sub-catalogs of detected and catalog sources within the central region of the field of view')
     
-    mid_x = int((detected_sources[:,0].max() - detected_sources[:,0].min())/2.0)
-    mid_y = int((detected_sources[:,1].max() - detected_sources[:,1].min())/2.0)
+    mid_x = int((detected_sources[:,1].max() - detected_sources[:,1].min())/2.0)
+    mid_y = int((detected_sources[:,2].max() - detected_sources[:,2].min())/2.0)
     
-    dx = 200
-    dy = 200
+    dx = 100
+    dy = 100
     
-    xmin = max(mid_x-dx,detected_sources[:,0].min())
-    xmax = min(mid_x+dx,detected_sources[:,0].max())
-    ymin = max(mid_y-dy,detected_sources[:,1].min())
-    ymax = min(mid_y+dy,detected_sources[:,1].max())
+    detected_subregion = np.zeros(1)
+    gaia_subregion = np.zeros(1)
+    it = 0
+    max_it = 3
+    cont = True
     
-    idx1 = np.where(detected_sources[:,0] >= xmin)[0]
-    idx2 = np.where(detected_sources[:,0] <= xmax)[0]
-    idx3 = np.where(detected_sources[:,1] >= ymin)[0]
-    idx4 = np.where(detected_sources[:,1] <= ymax)[0]
-    idx = set(idx1).intersection(set(idx2))
-    idx = set(idx).intersection(set(idx3))
-    idx = list(set(idx).intersection(set(idx4)))
+    while cont:
+        
+        log.info(' -> Trying subsection dx='+str(dx)+', dy='+str(dy))
+        
+        xmin = max(mid_x-dx,detected_sources[:,1].min())
+        xmax = min(mid_x+dx,detected_sources[:,1].max())
+        ymin = max(mid_y-dy,detected_sources[:,2].min())
+        ymax = min(mid_y+dy,detected_sources[:,2].max())
+        
+        idx1 = np.where(detected_sources[:,1] >= xmin)[0]
+        idx2 = np.where(detected_sources[:,1] <= xmax)[0]
+        idx3 = np.where(detected_sources[:,2] >= ymin)[0]
+        idx4 = np.where(detected_sources[:,2] <= ymax)[0]
+        idx = set(idx1).intersection(set(idx2))
+        idx = set(idx).intersection(set(idx3))
+        idx = list(set(idx).intersection(set(idx4)))
+        
+        detected_subregion = detected_sources[idx,:]
+        detected_subregion = detected_subregion[:,[1,2]]
+        
+        log.info(' -> '+str(len(detected_subregion))+\
+                 ' detected stars')
+        
+        idx1 = np.where(gaia_sources_xy[:,0] >= xmin)[0]
+        idx2 = np.where(gaia_sources_xy[:,0] <= xmax)[0]
+        idx3 = np.where(gaia_sources_xy[:,1] >= ymin)[0]
+        idx4 = np.where(gaia_sources_xy[:,1] <= ymax)[0]
+        idx = set(idx1).intersection(set(idx2))
+        idx = set(idx).intersection(set(idx3))
+        idx = list(set(idx).intersection(set(idx4)))
+        
+        gaia_subregion = gaia_sources_xy[idx,:]
+        gaia_subregion = gaia_subregion[:,[0,1]]
     
-    detected_subregion = detected_sources[idx,:]
-    detected_subregion = detected_subregion[:,[0,1]]
-    
-    log.info(' -> '+str(len(detected_subregion))+\
-             ' detected stars')
-    
-    idx1 = np.where(gaia_sources_xy[:,0] >= xmin)[0]
-    idx2 = np.where(gaia_sources_xy[:,0] <= xmax)[0]
-    idx3 = np.where(gaia_sources_xy[:,1] >= ymin)[0]
-    idx4 = np.where(gaia_sources_xy[:,1] <= ymax)[0]
-    idx = set(idx1).intersection(set(idx2))
-    idx = set(idx).intersection(set(idx3))
-    idx = list(set(idx).intersection(set(idx4)))
-    
-    gaia_subregion = gaia_sources_xy[idx,:]
-    gaia_subregion = gaia_subregion[:,[0,1]]
-    
-    log.info(' -> '+str(len(gaia_subregion))+\
-             ' stars from the Gaia catalog')
+        log.info(' -> '+str(len(gaia_subregion))+\
+                 ' stars from the Gaia catalog')
+                 
+        if (len(detected_subregion) < 100 or len(gaia_subregion) < 100) and \
+            (it <= max_it):
+            
+            dx *= 2.0
+            dy *= 2.0
+            
+            log.info(' => Increasing the sub-region size')
+            
+        elif (len(detected_subregion) > 1000 or len(gaia_subregion) > 1000) and \
+            (it <= max_it):
+            
+            dx /= 2.0
+            dy /= 2.0
+            
+            log.info(' => Reducing the sub-region size')
+            
+        else:
+            
+            cont = False
+        
+        it += 1
              
     return detected_subregion, gaia_subregion
 
@@ -280,10 +275,12 @@ def search_vizier_for_vphas_sources(params,log):
     
     return vphas_cat
     
-def calc_image_coordinates(catalog_sources,image_wcs,verbose=False):
+def calc_image_coordinates(catalog_sources,image_wcs,log,verbose=False):
     """Function to calculate the x,y pixel coordinates of a set of stars
     specified by their RA, Dec positions, by applying the WCS from a FITS
     image header"""
+    
+    log.info('Calculating the predicted image pixel positions for all catalog stars')
     
     positions = []
     
@@ -298,21 +295,30 @@ def calc_image_coordinates(catalog_sources,image_wcs,verbose=False):
 
     positions = np.array(positions)
     
+    log.info('Completed calculation of image coordinates')
+    
     return image_wcs.wcs_world2pix(positions,1)
 
 
-def calc_world_coordinates(pixel_positions,image_wcs):
+def calc_world_coordinates(detected_sources,image_wcs,log):
     """Function to calculate the RA, Dec positions of an array of image
     pixel positions"""
     
-    world_coords = image_wcs.wcs_pix2world(pixel_positions, 1)
+    log.info('Calculating the world coordinates of all detected stars')
+    
+    world_coords = image_wcs.wcs_pix2world(detected_sources[:,1:3], 1)
     
     table_data = [ table.Column(name='ra', data=world_coords[:,0]),
                    table.Column(name='dec', data=world_coords[:,1]),
-                   table.Column(name='x', data=pixel_positions[:,0]),
-                   table.Column(name='y', data=pixel_positions[:,1]) ]
-            
-    return table.Table(data=table_data)
+                   table.Column(name='x', data=detected_sources[:,1]),
+                   table.Column(name='y', data=detected_sources[:,2]),
+                    table.Column(name='index', data=detected_sources[:,0]) ]
+    
+    coords_table = table.Table(data=table_data)
+    
+    log.info('Completed calculation of world coordinates')
+    
+    return coords_table
     
     
 def match_stars_world_coords(detected_sources,catalog_sources,log,
@@ -320,41 +326,65 @@ def match_stars_world_coords(detected_sources,catalog_sources,log,
     """Function to match stars between the objects detected in an image
     and those extracted from a catalog, using image pixel postions."""
     
+    log.info('Matching detected and catalog sources via their world coordinates')
+    
     tol = 1.0/3600.0
+    dra = 30.0/3600.0
+    ddec = 30.0/3600.0
     
     det_sources = coordinates.SkyCoord(detected_sources['ra'], 
                                        detected_sources['dec'], 
                                        frame='icrs', 
                                        unit=(units.deg, units.deg))
 
-    matched_stars = StarMatchIndex()
+    matched_stars = match_utils.StarMatchIndex()
+    
+    jincr = int(float(len(catalog_sources))*0.01)
     
     for j in range(0,len(catalog_sources),1):
         
         c = coordinates.SkyCoord(catalog_sources['ra'][j], 
                                  catalog_sources['dec'][j], 
                                  frame='icrs', unit=(units.deg, units.deg))
-                                 
-        (idx, d2d, d3d) = c.match_to_catalog_sky(det_sources)
+        
+        kdx1 = np.where(detected_sources['ra'] >= (c.ra.value-dra))[0]
+        kdx2 = np.where(detected_sources['ra'] <= (c.ra.value+dra))[0]
+        kdx3 = np.where(detected_sources['dec'] >= (c.dec.value-ddec))[0]
+        kdx4 = np.where(detected_sources['dec'] <= (c.dec.value+ddec))[0]
+        kdx = set(kdx1).intersection(set(kdx2))
+        kdx = kdx.intersection(set(kdx3))
+        kdx = list(kdx.intersection(set(kdx4)))
+        
+        (idx, d2d, d3d) = c.match_to_catalog_sky(det_sources[kdx])
         i = int(idx)
         
         if d2d.value < tol:
             
-            p = {'cat1_index': i,
-                 'cat1_ra': detected_sources['ra'][i],
-                 'cat1_dec': detected_sources['dec'][i],
-                 'cat1_x': detected_sources['x'][i],
-                 'cat1_y': detected_sources['y'][i],
+            p = {'cat1_index': detected_sources['index'][kdx[i]],
+                 'cat1_ra': detected_sources['ra'][kdx[i]],
+                 'cat1_dec': detected_sources['dec'][kdx[i]],
+                 'cat1_x': detected_sources['x'][kdx[i]],
+                 'cat1_y': detected_sources['y'][kdx[i]],
                  'cat2_index': j, 
                  'cat2_ra': catalog_sources['ra'][j], 
                  'cat2_dec': catalog_sources['dec'][j], \
                  'separation': d2d.value[0]}
                  
-            m = matched_stars.add_match(p)
-                        
-    if verbose:
-        log.info(matched_stars.summary())
+            matched_stars.add_match(p)
+            
+            if verbose:
+                log.info(matched_stars.summarize_last())
+            
+            if j%jincr == 0:
+                percentage = round((float(j)/float(len(catalog_sources)))*100.0,0)
+                log.info(' -> Completed cross-match of '+str(percentage)+\
+                            '% ('+str(j)+' of catalog stars out of '+\
+                            str(len(catalog_sources))+')')
 
+    log.info(' -> Matched '+str(matched_stars.n_match)+' stars')
+
+    log.info('Completed star match in world coordinates')
+    
     return matched_stars
 
 
@@ -395,7 +425,7 @@ def refine_wcs(detected_sources,catalog_sources_xy,image_wcs,
         image_positions[:,1] = xprime
         image_positions[:,2] = yprime
         
-        image_wcs = update_wcs(image_wcs,pfit)
+        image_wcs = update_wcs(image_wcs,pfit,log)
         
         if abs(sigma-sigma_old) < 1e-3 or pfit.all() == 0.0:
             cont = False
@@ -462,7 +492,7 @@ def calc_transform_uncertainty(pfit,matched_stars):
     
     return sep.std()
 
-def update_wcs(image_wcs,transform):
+def update_wcs(image_wcs,transform,log):
     """Function to update the WCS object for an image"""
     
     (xprime,yprime) = transform_coords(transform,image_wcs.wcs.crpix[1],
@@ -470,6 +500,8 @@ def update_wcs(image_wcs,transform):
         
     image_wcs.wcs.crpix[0] = yprime
     image_wcs.wcs.crpix[1] = xprime
+    
+    log.info('Updated image WCS information')
     
     return image_wcs
     
@@ -541,7 +573,7 @@ def plot_astrometry(output_dir,matched_stars,pfit=None):
     plt.savefig(path.join(output_dir,'astrometry_separations.png'))
     plt.close(1)
 
-    fig = plt.figure(2)
+    fig = plt.figure(2,(10,10))
 
     plt.subplot(221)
     plt.subplots_adjust(left=0.2, bottom=0.1, right=0.9, top=0.95,
@@ -636,25 +668,25 @@ def build_ref_source_catalog(detected_sources,catalog_sources,\
         idx = int(matched_stars[j,0])
         
         if cat_source == '2MASS':
-            data[int(matched_stars[j,0]),9] = validate_entry(catalog_sources[int(matched_stars[j,3])][2])
-            data[int(matched_stars[j,0]),10] = validate_entry(catalog_sources[int(matched_stars[j,3])][3])
-            data[int(matched_stars[j,0]),11] = validate_entry(catalog_sources[int(matched_stars[j,3])][4])
-            data[int(matched_stars[j,0]),12] = validate_entry(catalog_sources[int(matched_stars[j,3])][5])
-            data[int(matched_stars[j,0]),13] = validate_entry(catalog_sources[int(matched_stars[j,3])][6])
-            data[int(matched_stars[j,0]),14] = validate_entry(catalog_sources[int(matched_stars[j,3])][7])
+            data[matched_stars.cat1_index[j],9] = validate_entry(catalog_sources[matched_stars.cat2_index[j],2])
+            data[matched_stars.cat1_index[j],10] = validate_entry(catalog_sources[matched_stars.cat2_index[j],3])
+            data[matched_stars.cat1_index[j],11] = validate_entry(catalog_sources[matched_stars.cat2_index[j],4])
+            data[matched_stars.cat1_index[j],12] = validate_entry(catalog_sources[matched_stars.cat2_index[j],5])
+            data[matched_stars.cat1_index[j],13] = validate_entry(catalog_sources[matched_stars.cat2_index[j],6])
+            data[matched_stars.cat1_index[j],14] = validate_entry(catalog_sources[matched_stars.cat2_index[j],7])
         
         elif cat_source == 'Gaia':
-            data[int(matched_stars[j,0]),9] = validate_entry(catalog_sources['source_id'][int(matched_stars[j,3])])
-            data[int(matched_stars[j,0]),10] = validate_entry(catalog_sources['ra'][int(matched_stars[j,3])])
-            data[int(matched_stars[j,0]),11] = validate_entry(catalog_sources['ra_error'][int(matched_stars[j,3])])
-            data[int(matched_stars[j,0]),12] = validate_entry(catalog_sources['dec'][int(matched_stars[j,3])])
-            data[int(matched_stars[j,0]),13] = validate_entry(catalog_sources['dec_error'][int(matched_stars[j,3])])
-            data[int(matched_stars[j,0]),14] = validate_entry(catalog_sources['phot_g_mean_flux'][int(matched_stars[j,3])])
-            data[int(matched_stars[j,0]),15] = validate_entry(catalog_sources['phot_g_mean_flux_error'][int(matched_stars[j,3])])
-            data[int(matched_stars[j,0]),16] = validate_entry(catalog_sources['phot_bp_mean_flux'][int(matched_stars[j,3])])
-            data[int(matched_stars[j,0]),17] = validate_entry(catalog_sources['phot_bp_mean_flux_error'][int(matched_stars[j,3])])
-            data[int(matched_stars[j,0]),18] = validate_entry(catalog_sources['phot_rp_mean_flux'][int(matched_stars[j,3])])
-            data[int(matched_stars[j,0]),19] = validate_entry(catalog_sources['phot_rp_mean_flux_error'][int(matched_stars[j,3])])
+            data[matched_stars.cat1_index[j],9] = validate_entry(catalog_sources['source_id'][matched_stars.cat2_index[j]])
+            data[matched_stars.cat1_index[j],10] = validate_entry(catalog_sources['ra'][matched_stars.cat2_index[j]])
+            data[matched_stars.cat1_index[j],11] = validate_entry(catalog_sources['ra_error'][matched_stars.cat2_index[j]])
+            data[imatched_stars.cat1_index[j],12] = validate_entry(catalog_sources['dec'][matched_stars.cat2_index[j]])
+            data[matched_stars.cat1_index[j],13] = validate_entry(catalog_sources['dec_error'][matched_stars.cat2_index[j]])
+            data[matched_stars.cat1_index[j],14] = validate_entry(catalog_sources['phot_g_mean_flux'][matched_stars.cat2_index[j]])
+            data[matched_stars.cat1_index[j],15] = validate_entry(catalog_sources['phot_g_mean_flux_error'][matched_stars.cat2_index[j]])
+            data[matched_stars.cat1_index[j],16] = validate_entry(catalog_sources['phot_bp_mean_flux'][matched_stars.cat2_index[j]])
+            data[matched_stars.cat1_index[j],17] = validate_entry(catalog_sources['phot_bp_mean_flux_error'][matched_stars.cat2_index[j]])
+            data[matched_stars.cat1_index[j],18] = validate_entry(catalog_sources['phot_rp_mean_flux'][matched_stars.cat2_index[j]])
+            data[matched_stars.cat1_index[j],19] = validate_entry(catalog_sources['phot_rp_mean_flux_error'][matched_stars.cat2_index[j]])
         
         else:
             raise IOError('Unrecognized catalog source '+catalog_source)

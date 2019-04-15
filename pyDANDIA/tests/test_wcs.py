@@ -12,18 +12,26 @@ import logs
 import wcs
 import stage3
 import pipeline_setup
+import match_utils
 from astropy.io import fits
 from astropy.table import Table, Column
 from astropy.wcs import WCS as aWCS
 import catalog_utils
 import numpy as np 
 
+test_full_frame = True
 cwd = getcwd()
 TEST_DATA = path.join(cwd,'data')
 
-TEST_DIR = path.join(cwd,'data','proc',
+if test_full_frame:
+
+    TEST_DIR = path.join(cwd,'data','proc',
                         'ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip')
-                        
+else:
+    
+    TEST_DIR = path.join(cwd,'data','proc',
+                        'ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip')
+        
 def test_reference_astrometry():
 
     setup = pipeline_setup.pipeline_setup({'red_dir': TEST_DIR})    
@@ -149,7 +157,7 @@ def test_match_stars_world_coords():
     
     catalog_sources = Table(data=catalog_data)
     
-    test_match = wcs.StarMatchIndex()
+    test_match = match_utils.StarMatchIndex()
     
     matched_stars = wcs.match_stars_world_coords(detected_sources,
                                                  catalog_sources,log,

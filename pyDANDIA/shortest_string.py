@@ -9,6 +9,8 @@ import numpy as np
 from scipy import optimize
 import matplotlib.pyplot as plt
 from pyDANDIA import  logs
+from pyDANDIA import  match_utils
+
 
 def find_xy_offset(catalog1, catalog2, log=None, diagnostics=False):
     """Function to measure the x,y pixel offset between two catalogs using
@@ -54,11 +56,14 @@ def find_xy_offset(catalog1, catalog2, log=None, diagnostics=False):
                 
                 matched_stars = cross_match_catalogs(catalog1,catalog_prime)
                 
-                lengths.append(np.median(matched_stars[:,6]))
-                n.append(len(matched_stars))
+                lengths.append(np.median(matched_stars.separation[:]))
+                
+                n.append(matched_stars.n_match)
                 
             string_lengths.append( lengths )
             n_match.append(n)
+            
+            log.info(' -> Completed trial dx='+str(dx)+', dy='+str(dy))
             
         string_lengths = np.array(string_lengths)
         n_match = np.array(n_match)
@@ -94,12 +99,11 @@ def calc_xy_ranges(catalog1,sub_pixel,x_offset,y_offset,log=None):
         ymin = catalog1[:,1].min()
         ymax = catalog1[:,1].max()
         
-        dxmin = -(xmax-xmin)/4.0
-        dymin = -(ymax-ymin)/4.0
-        dxmax = (xmax-xmin)/4.0
-        dymax = (ymax-ymin)/4.0
+        dxmin = max( (-(xmax-xmin)/2.0), -100 )
+        dymin = max( (-(ymax-ymin)/2.0), -100 )
+        dxmax = min( (xmax-xmin)/2.0, 100 )
+        dymax = min( (ymax-ymin)/2.0, 100 )
     
-        
     else:
         # Need to correct for output sign convention
         dxmin = -x_offset - 5.0
@@ -118,8 +122,12 @@ def calc_xy_ranges(catalog1,sub_pixel,x_offset,y_offset,log=None):
     dyrange = np.arange(dymin,dymax,dyincr)
     
     if log!=None:
-        log.info('Examining deltax range: '+str(dxrange.min())+' to '+str(dxrange.max()))
-        log.info('Examining deltay range: '+str(dyrange.min())+' to '+str(dyrange.max()))
+        log.info('Examining deltax range: '+str(dxrange.min())+\
+                ' to '+str(dxrange.max())+', '+str(len(dxrange))+\
+                ' intervals of '+str(dxincr))
+        log.info('Examining deltay range: '+str(dyrange.min())+\
+                ' to '+str(dyrange.max())+', '+str(len(dyrange))+\
+                ' intervals of '+str(dyincr))
     
     return dxrange, dyrange
     
@@ -137,7 +145,9 @@ def cross_match_catalogs(catalog1,catalog2):
     """Function to match stars between the objects detected in an image
     and those extracted from a catalog, using image pixel postions."""
     
-    matched_stars = []
+    tol = 4.0   # pixels, ~1 arcsec
+    
+    matched_stars = match_utils.StarMatchIndex()
     
     for i in range(0,len(catalog1),1):
         
@@ -147,11 +157,26 @@ def cross_match_catalogs(catalog1,catalog2):
         sep = np.sqrt(dx*dx + dy*dy)
         
         idx = sep.argsort()
-
-        matched_stars.append([idx[0],catalog2[idx[0],0],catalog2[idx[0],1],\
-                            i, catalog1[i,0], catalog1[i,1], sep[idx[0]]])
         
-    return np.array(matched_stars)
+        if len(idx) > 0 and sep[idx[0]] <= tol:
+            
+            p = {'cat1_index': i,
+                 'cat1_ra': None,
+                 'cat1_dec': None,
+                 'cat1_x': catalog1[i,0],
+                 'cat1_y': catalog1[i,1],
+                 'cat2_index': idx[0], 
+                 'cat2_ra': None, 
+                 'cat2_dec': None, 
+                 'cat2_x': catalog2[idx[0],0],
+                 'cat2_y': catalog2[idx[0],1],
+                 'separation': sep[idx[0]]}
+                 
+            matched_stars.add_match(p)
+            
+            #print(matched_stars.summarize_last(type='pixels'))
+            
+    return matched_stars
 
 def find_shortest_string(string_lengths,n_match,dxrange,dyrange,log=None):
     """Function to find the x,y offsets which produce the median shortest string"""
