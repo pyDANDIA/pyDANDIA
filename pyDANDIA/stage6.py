@@ -16,6 +16,9 @@ from astropy.io import fits
 from astropy.table import Table
 from astropy.table import Column
 from scipy.ndimage.interpolation import shift
+import astropy.time
+import dateutil.parser
+
 from pyDANDIA.sky_background import mask_saturated_pixels, generate_sky_model
 from pyDANDIA.sky_background import fit_sky_background, generate_sky_model_image
 
@@ -126,10 +129,10 @@ def run_stage6(setup):
             reference_header = reduction_metadata.headers_summary[1][index_reference]
 
             # create the reference table in db
-            ingest_reference_in_db(setup, reference_header, reference_image_directory, reference_image_name)
-            conn = db_phot.get_connection(dsn=setup.red_dir + 'phot.db')
+            #ingest_reference_in_db(setup, reference_header, reference_image_directory, reference_image_name)
+            #conn = db_phot.get_connection(dsn=setup.red_dir + 'phot.db')
             #ref_image_id = db_phot.query_to_astropy_table(conn, "SELECT refimg_id FROM reference_images")[0][0]
-            conn.commit()
+            #conn.commit()
 
             logs.ifverbose(log, setup,
                            'I found the reference frame:' + reference_image_name)
@@ -159,7 +162,7 @@ def run_stage6(setup):
 
             return status, report
 
-        data = []
+        date = []
         diffim_directory = os.path.join(reduction_metadata.data_architecture[1]['OUTPUT_DIRECTORY'].data[0], 'diffim')
 
         photometric_table = np.zeros((len(new_images), len(ref_star_catalog), 16))
@@ -169,9 +172,12 @@ def run_stage6(setup):
             print(new_image)
             index_image = np.where(new_image == reduction_metadata.headers_summary[1]['IMAGES'].data)[0][0]
             image_header = reduction_metadata.headers_summary[1][index_image]
-            #import pdb;
-            #pdb.set_trace()
-            exptime = float(image_header['EXPKEY'])
+
+            ddate = reduction_metadata.headers_summary[1]['DATEKEY'][index_image]
+            jd =  dateutil.parser.parse(ddate)
+            time = astropy.time.Time(jd)
+            date.append(time.jd)
+
             #ingest_exposure_in_db(setup, image_header, ref_image_id)
             #conn = db_phot.get_connection(dsn=setup.red_dir + 'phot.db')
 
@@ -190,7 +196,6 @@ def run_stage6(setup):
             # difference_image = subtract_images(target_image, reference_image, kernel_image, kernel_size, kernel_bkg)
             difference_image = open_an_image(setup, diffim_directory, 'diff_' + new_image, 0, log=None)[0]
 
-            time.append(date)
 
             # save_control_stars_of_the_difference_image(setup, new_image, difference_image, star_coordinates)
 
@@ -218,30 +223,21 @@ def run_stage6(setup):
                 #   exposures_id = []
                 #   compt_db = 0
 
-        import astropy.time
-        import dateutil.parser
-        jd = []
 
-        for ddate in reduction_metadata.headers_summary[1]['DATEKEY'].data.tolist():
-            dt = dateutil.parser.parse(ddate)
-            time = astropy.time.Time(dt)
-            jd.append(time.jd)
-
-
-
+        jd = np.array(date)
 
         for star in range(len(photometric_table[0, :, 0])):
             mag = photometric_table[:, star, [8,9]]
             lightcurve = np.c_[jd,mag]
 
-            np.savetxt('./lightcurves/light_'+str(star),lightcurve)
-        import matplotlib.pyplot as plt
-        plt.errorbar(jd,photometric_table[:,0,8],photometric_table[:,0,9],fmt='.k')
+            file_to_write = open('./lightcurves/light_'+str(star),'ab')
 
-        plt.show()
-        import pdb;
-        pdb.set_trace()
-        ingest_photometric_table_in_db(setup, exposures_id, star_indexes, photometric_table)
+
+            np.savetxt(file_to_write,lightcurve)
+
+
+
+        #ingest_photometric_table_in_db(setup, exposures_id, star_indexes, photometric_table)
 
         reduction_metadata.update_reduction_metadata_reduction_status(new_images, stage_number=6, status=1, log=log)
         reduction_metadata.save_updated_metadata(
