@@ -222,7 +222,7 @@ def open_reference(setup, ref_image_directory, ref_image_name, kernel_size, max_
     ref50pc = np.median(ref_image[ref_extension].data)
     if master_mask != []:
         ref_image[ref_extension].data[master_mask] = max_adu + ref50pc + 1.
-
+    
     ref_bright_mask_1 = (ref_image[ref_extension].data > max_adu + ref50pc)
 
     bkg_image = background_mesh_perc(ref_image[ref_extension].data)
