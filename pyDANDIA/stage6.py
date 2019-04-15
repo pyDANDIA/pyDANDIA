@@ -235,7 +235,7 @@ def run_stage6(setup):
 
             np.savetxt(file_to_write,lightcurve)
 
-
+            file_to_write.close()
 
         #ingest_photometric_table_in_db(setup, exposures_id, star_indexes, photometric_table)
 

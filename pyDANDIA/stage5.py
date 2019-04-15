@@ -800,7 +800,7 @@ def kernel_solution(u_matrix, b_vector, kernel_size, circular = True):
     #inv_umatrix = np.linalg.inv(u_matrix)
     #a_vector = np.dot(inv_umatrix, b_vector)
     #recalculate residuals to apply standard lstsq uncertainties
-    lstsq_result = np.linalg.lstsq(np.array(u_matrix), np.array(b_vector)) 
+    lstsq_result = np.linalg.lstsq(np.array(u_matrix), np.array(b_vector),rcond=None)
     a_vector = lstsq_result[0] 
     lstsq_fit = np.dot(np.array(u_matrix), a_vector)
     resid = np.array(b_vector) - lstsq_fit

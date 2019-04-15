@@ -503,6 +503,7 @@ class MetaData:
         :param list new_row: the list of values which will be appended to the layer
 
         '''
+
         layer = getattr(self, key_layer)
         layer_keys = layer[1].keys()
 
@@ -649,9 +650,17 @@ class MetaData:
 
                 for name in list_of_images:
 
-                    image_row = np.where(layer[1]['IMAGES'] == name)[0][0]
+                    image_row = np.where(layer[1]['IMAGES'] == name)[0]
 
-                    if layer[1][image_row][column_name] != '1':
+                    if len(image_row) != 0:
+
+                        if layer[1][image_row[0]][column_name] != '1':
+                            logs.ifverbose(log, setup,
+                                           name + ' is a new image to process by stage number: ' + str(stage_number))
+                            new_images.append(name)
+
+                    else:
+
                         logs.ifverbose(log, setup,
                                        name + ' is a new image to process by stage number: ' + str(stage_number))
                         new_images.append(name)
@@ -662,6 +671,7 @@ class MetaData:
 
         if log != None:
             log.info('Total of ' + str(len(new_images)) + ' images need reduction')
+
 
         return new_images
 
@@ -701,8 +711,12 @@ class MetaData:
             column_name = 'STAGE_'+str(stage_number)
             for image in new_images:
 
-                index_image = np.where(layer[1]['IMAGES'] == image)[0][0]
-                self.update_a_cell_to_layer('reduction_status', index_image, column_name, status)
+                if image in layer[1]['IMAGES'] :
+                    index_image = np.where(layer[1]['IMAGES'] == image)[0][0]
+                    self.update_a_cell_to_layer('reduction_status', index_image, column_name, status)
+                else:
+
+                    self.add_row_to_layer('reduction_status',[image]+number_of_columns*[0])
 
         if log != None:
             log.info('Updated the reduction status layer')

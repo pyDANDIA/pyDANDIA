@@ -170,7 +170,7 @@ def run_stage4(setup):
     reduction_metadata.update_reduction_metadata_reduction_status(new_images, stage_number=4, status=1, log=log)
 
     px_scale = float(reduction_metadata.reduction_parameters[1]['PIX_SCALE'])
-    resample_image(all_images, reference_image_name, reference_image_directory, reduction_metadata, setup,
+    resample_image(new_images, reference_image_name, reference_image_directory, reduction_metadata, setup,
                    data_image_directory, resampled_directory_path, ref_row_index, px_scale, log=log,
                    mask_extension_in=3)
 
@@ -397,7 +397,7 @@ def iterate_on_resampling(ref_sources,ref_image, data_image,reduction_metadata,r
             #threshold_star = 10)
             model_robust, inliers = ransac((pts2[:, :2], pts1[:, :2]), tf.AffineTransform, min_samples=50, residual_threshold =1.0, max_trials = 1000)
             model_final = model_robust
-            guess = model_final.params.ravel()
+            #guess = model_final.params.ravel()
             #res = so.leastsq(quick_pos_fit, guess, args=(pts1[inliers], pts2[inliers], e_flux[inliers]), full_output=True)
             #import pdb; pdb.set_trace()
             #res = so.minimize(quick_pos_fit2, guess, args=(reference_image,data_image))
@@ -490,7 +490,7 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
         central_region_x, central_region_y = np.shape(reference_image)
         center_x, center_y = int(central_region_x / 2), int(central_region_y / 2)
         mean_ref, median_ref, std_ref = sigma_clipped_stats(
-            reference_image, sigma=3.0, iters=5)
+            reference_image, sigma=3.0, maxiters=5)
         ref_fwhm_x = reduction_metadata.images_stats[1][ref_row_index]['FWHM_X']
         ref_fwhm_y = reduction_metadata.images_stats[1][ref_row_index]['FWHM_Y']
         ref_fwhm = (ref_fwhm_x ** 2 + ref_fwhm_y ** 2) ** 0.5
@@ -526,7 +526,7 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
         center_x, center_y = int(central_region_x / 2), int(central_region_y / 2)
 
         mean_data, median_data, std_data = sigma_clipped_stats(
-            data_image, sigma=3.0, iters=5)
+            data_image, sigma=3.0, maxiters=5)
         data_fwhm_x = reduction_metadata.images_stats[1][row_index]['FWHM_X']
         data_fwhm_y = reduction_metadata.images_stats[1][row_index]['FWHM_Y']
         data_fwhm = (data_fwhm_x ** 2 + data_fwhm_y ** 2) ** 0.5
@@ -569,11 +569,11 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
 
             # model_final = iterate_on_resampling(pts1, pts2, matching, x_shift, y_shift, threshold_rms=0.05,
             #threshold_star = 10)
-            model_robust, inliers = ransac((pts1[:, :2], pts2[:, :2]), tf.ProjectiveTransform, min_samples=50, residual_threshold =0.05, max_trials = 1000)
+            model_robust, inliers = ransac((pts1[:, :2], pts2[:, :2]), tf.ProjectiveTransform, min_samples=10, residual_threshold =0.1, max_trials = 100)
             model_final = model_robust
             guess = model_final.params.ravel()
             #res = so.leastsq(quick_pos_fit, guess, args=(pts1[inliers], pts2[inliers], e_flux[inliers]), full_output=True)
-            #import pdb; pdb.set_trace()
+           # import pdb; pdb.set_trace()
             #res = so.minimize(quick_pos_fit2, guess, args=(reference_image,data_image))
             #model_final.params = res[0].reshape(3, 3)
 
@@ -590,66 +590,14 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
             model_final = tf.SimilarityTransform(translation=(-x_shift, -y_shift))
             print('Using XY shifts')
 
-
+        shifted = tf.warp(data_image, inverse_map=model_final.inverse, output_shape=data_image.shape, order=5,
+                          mode='constant', cval=np.median(data_image), clip=False, preserve_range=False)
         shifted_mask = tf.warp(mask_image, inverse_map=model_final.inverse, preserve_range=True)
         master_mask += shifted_mask
 
         if mask_extension > -1:
             shifted_mask = tf.warp(mask_image, inverse_map=model_final.inverse, preserve_range=True)
-        
-        shifted = tf.warp(data_image, inverse_map=model_final.inverse,  output_shape=data_image.shape, order=3, mode='constant',
-                         cval=np.median(data_image), clip=False, preserve_range=True)
-        try:
-            shifted_mask = tf.warp(mask_image, inverse_map=model_final.inverse, preserve_range=True)
-            master_mask += shifted_mask
-       
-            if mask_extension > -1:
-                shifted_mask = tf.warp(mask_image, inverse_map=model_final.inverse, preserve_range=True)
-        except:
-            pass
-        #manual_transformation(model_final.params, (0, 0), data_image)
-        #import matplotlib.pyplot as plt
-        #fff,aaa = plt.subplots(3,1,sharex=True,sharey=True)
-        #aaa[0].imshow(reference_image,vmin=0,vmax=10000)
-        #aaa[1].imshow(shifted,vmin=0,vmax=10000)
-        #aaa[2].imshow(shifted-reference_image,vmin=-10000,vmax=10000)
-        #plt.show()
-       
-        #try:
 
-            # shifted = cosmicray_lacosmic(shifted, sigclip=4., objlim = 4)[0]
-        #    pxs = float(np.shape(shifted)[0] * np.shape(shifted)[1])
-        #    zerovals = float(len(np.where(shifted == 0.)[0]))
-        #    if zerovals / pxs < 1.0:
-        #        resampled_image_hdu = fits.PrimaryHDU(shifted)
-        #        resampled_image_hdu.writeto(os.path.join(resampled_directory_path, new_image), overwrite=True)
-        #        if mask_extension > -1:
-        #            if os.path.exists(
-        #                    os.path.join(reduction_metadata.data_architecture[1]['REF_PATH'][0], 'master_mask.fits')):
-        #                mask = fits.open(
-        #                    os.path.join(reduction_metadata.data_architecture[1]['REF_PATH'][0], 'master_mask.fits'))
-        #                bpm_mask = shifted_mask > 0.
-        #                mask[0].data[bpm_mask] = mask[0].data[bpm_mask] + 1
-        #                mask[0].data = np.array(mask[0].data, dtype=np.int)
-        #                mask.writeto(
-        #                    os.path.join(reduction_metadata.data_architecture[1]['REF_PATH'][0], 'master_mask.fits'),
-        #                    overwrite=True)
-        #            else:
-        #                bpm_mask = shifted_mask > 0.
-        #                mask_out = np.zeros(np.shape(shifted_mask))
-        #                mask_out[bpm_mask] = 1.
-        #                resampled_mask_hdu = fits.PrimaryHDU(np.array(mask_out, dtype=np.int))
-        #                resampled_mask_hdu.writeto(
-        #                    os.path.join(reduction_metadata.data_architecture[1]['REF_PATH'][0], 'master_mask.fits'),
-        #                    overwrite=True)
-
-        #except Exception as e:
-        #    resampled_image_hdu = fits.PrimaryHDU(data_image)
-        #    resampled_image_hdu.writeto(os.path.join(resampled_directory_path, new_image), overwrite=True)
-        #    if log is not None:
-        #        logs.ifverbose(log, setup, 'resampling failed:' + new_image + '. skipping! ' + str(e))
-        #    else:
-        #        print(str(e))
 
 
         resampled_image_hdu = fits.PrimaryHDU(shifted)

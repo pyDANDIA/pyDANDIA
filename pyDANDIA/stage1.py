@@ -112,18 +112,13 @@ def run_stage1(setup, rerun_all=None):
         # Add a new row to the images_stats layer
         # (if it doesn't already exist)
 
-        entry = [
-            imname,
-            params['fwhm_x'],
-            params['fwhm_y'],
-            params['sky'],
-            params['corr_xy'],
-		params['nstars'],
-		params['sat_frac'],
-            params['symmetry'],
-            use_phot,
-            use_ref,
-            ]
+        entry = [ imname, params['fwhm_x'], params['fwhm_y'], params['sky'], params['corr_xy'], params['nstars'],
+                  params['sat_frac'], params['symmetry'], use_phot, use_ref, ]
+
+        # filling missing values
+        for missing in range(len(reduction_metadata.images_stats[1].columns[0:]) - len(entry)):
+
+             entry.append(0)
 
         reduction_metadata.add_row_to_layer(key_layer='images_stats',
                                             new_row=entry)

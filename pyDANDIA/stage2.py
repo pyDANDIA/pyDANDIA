@@ -108,6 +108,7 @@ def run_stage2(setup):
     max_adu = float(reduction_metadata.reduction_parameters[1]['MAXVAL'][0])
     psf_size = int(4.*float(reduction_metadata.reduction_parameters[1]['KER_RAD'][0]) * fwhm_max)
     empirical_psf_flag = False
+
     if empirical_psf_flag == True:
     
         for stats_entry in reduction_metadata.images_stats[1]:
