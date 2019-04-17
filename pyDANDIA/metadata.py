@@ -631,12 +631,15 @@ class MetaData:
         :rtype: list
         '''
 
+        layer = self.reduction_status
+
         column_name = 'STAGE_'+str(stage_number)
         if rerun_all:
             for name in list_of_images:
-                self.update_a_cell_to_layer('reduction_status', 0,column_name,0)
 
-        layer = self.reduction_status
+                image_row = np.where(layer[1]['IMAGES'] == name)[0]
+                self.update_a_cell_to_layer('reduction_status', image_row,column_name,0)
+
 
         try:
 

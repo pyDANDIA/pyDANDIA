@@ -20,7 +20,7 @@ from astropy import units as u
 from astropy.coordinates import SkyCoord
 from astropy.coordinates import match_coordinates_sky
 from astropy.stats import sigma_clipped_stats
-#from ccdproc import cosmicray_lacosmic
+# from ccdproc import cosmicray_lacosmic
 from astropy.table import Table
 from photutils import datasets
 from photutils import DAOStarFinder
@@ -68,7 +68,7 @@ def run_stage4(setup):
                                                     os.path.join(setup.red_dir, 'data'), log=log)
 
     new_images = reduction_metadata.find_images_need_to_be_process(setup, all_images,
-                                                                   stage_number=4, rerun_all=None, log=log)
+                                                                   stage_number=4, rerun_all=True, log=log)
 
     if len(all_images) > 0:
         try:
@@ -133,7 +133,7 @@ def run_stage4(setup):
                 return status, report
 
         if ('SHIFT_X' in reduction_metadata.images_stats[1].keys()) and (
-                    'SHIFT_Y' in reduction_metadata.images_stats[1].keys()):
+                'SHIFT_Y' in reduction_metadata.images_stats[1].keys()):
 
             for index in range(len(data)):
                 target_image = data[index][0]
@@ -297,32 +297,33 @@ def correlation_shift(reference_image, target_image):
     good_shift_x = x_shift - x_center
     return good_shift_y, good_shift_x
 
+
 def mutual_information(hgram):
-     """ Mutual information for joint histogram
-     """
-     # Convert bins counts to probability values
-     pxy = hgram / float(np.sum(hgram))
-     px = np.sum(pxy, axis=1) # marginal for x over y
-     py = np.sum(pxy, axis=0) # marginal for y over x
-     px_py = px[:, None] * py[None, :] # Broadcast to multiply marginals
-     # Now we can do the calculation using the pxy, px_py 2D arrays
-     nzs = pxy > 0 # Only non-zero pxy values contribute to the sum
-     return np.sum(pxy[nzs] * np.log(pxy[nzs] / px_py[nzs]))
+    """ Mutual information for joint histogram
+    """
+    # Convert bins counts to probability values
+    pxy = hgram / float(np.sum(hgram))
+    px = np.sum(pxy, axis=1)  # marginal for x over y
+    py = np.sum(pxy, axis=0)  # marginal for y over x
+    px_py = px[:, None] * py[None, :]  # Broadcast to multiply marginals
+    # Now we can do the calculation using the pxy, px_py 2D arrays
+    nzs = pxy > 0  # Only non-zero pxy values contribute to the sum
+    return np.sum(pxy[nzs] * np.log(pxy[nzs] / px_py[nzs]))
 
 
-def quick_pos_fit2(params, reference,data):
-    #import pdb; pdb.set_trace()
+def quick_pos_fit2(params, reference, data):
+    # import pdb; pdb.set_trace()
     tform = tf.ProjectiveTransform()
-    tform.params = params.reshape(3,3) 
+    tform.params = params.reshape(3, 3)
     model = tf.warp(data, inverse_map=tform, preserve_range=True)
-    hist2d,x_edges,y_edges = np.histogram2d(reference.ravel(),model.ravel(),100)
+    hist2d, x_edges, y_edges = np.histogram2d(reference.ravel(), model.ravel(), 100)
     metric = -mutual_information(hist2d)
-    #distance = (pts2[:, 0] - model[0]) ** 2 + (pts2[:, 1] - model[1]) ** 2
-     
+    # distance = (pts2[:, 0] - model[0]) ** 2 + (pts2[:, 1] - model[1]) ** 2
+
     return metric
 
-def quick_pos_fit(params, pts1, pts2, e_pts1):
 
+def quick_pos_fit(params, pts1, pts2, e_pts1):
     model = point_transformation(params, pts1)
 
     distance = (pts2[:, 0] - model[0]) ** 2 + (pts2[:, 1] - model[1]) ** 2
@@ -331,22 +332,22 @@ def quick_pos_fit(params, pts1, pts2, e_pts1):
 
 
 def point_transformation(params, pts1):
-    #import pdb;
-    #pdb.set_trace()
+    # import pdb;
+    # pdb.set_trace()
     rota = tf.ProjectiveTransform
-    rota.params = params.reshape(3,3)
+    rota.params = params.reshape(3, 3)
     model = np.dot(rota.params, pts1.T)
 
     return model
 
-def iterate_on_resampling(ref_sources,ref_image, data_image,reduction_metadata,row_index):
-     
-     data = np.copy(data_image)
-     x_shift, y_shift = -reduction_metadata.images_stats[1][row_index]['SHIFT_X'], - \
-            reduction_metadata.images_stats[1][row_index]['SHIFT_Y']
-     shifteds = []
-     iterations = 0
-     while iterations<3:
+
+def iterate_on_resampling(ref_sources, ref_image, data_image, reduction_metadata, row_index):
+    data = np.copy(data_image)
+    x_shift, y_shift = -reduction_metadata.images_stats[1][row_index]['SHIFT_X'], - \
+        reduction_metadata.images_stats[1][row_index]['SHIFT_Y']
+    shifteds = []
+    iterations = 0
+    while iterations < 3:
 
         central_region_x, central_region_y = np.shape(data)
         center_x, center_y = int(central_region_x / 2), int(central_region_y / 2)
@@ -360,15 +361,14 @@ def iterate_on_resampling(ref_sources,ref_image, data_image,reduction_metadata,r
                                  ratio=min(data_fwhm_x, data_fwhm_y) / max(data_fwhm_x, data_fwhm_y),
                                  threshold=3. * std_data, exclude_border=True)
 
-
         # pts1 = np.c_[]
         # resample image if there is a sufficient number of stars
-        #import pdb; pdb.set_trace()
+        # import pdb; pdb.set_trace()
         try:
             # pts1 = np.c_[ data_sources_x -int(central_region_x/2), data_sources_y -int(central_region_y/2)][matching[:,1]]
             # pts1 = np.c_[data_sources_x - int(central_region_x / 2)-1, data_sources_y - int(central_region_y / 2)-1][matching[:, 1]]
             data_sources = daofind2.find_stars(data - median_data)
-           
+
             data_sources_x, data_sources_y = np.copy(data_sources['xcentroid'].data), np.copy(
                 data_sources['ycentroid'].data)
 
@@ -388,37 +388,36 @@ def iterate_on_resampling(ref_sources,ref_image, data_image,reduction_metadata,r
             pts2 = pts2[order][:]
             e_flux = 0.6 * data_fwhm / data_sources['flux'][matching[:, 1]][order][:].data ** 0.5
 
-            
             # model_robust, inliers = ransac(( pts1,pts2), tf. AffineTransform,min_samples=10, residual_threshold=0.05, max_trials=300)
             pts1 = np.c_[pts1, [1] * len(pts1)]
             pts2 = np.c_[pts2, [1] * len(pts2)]
 
             # model_final = iterate_on_resampling(pts1, pts2, matching, x_shift, y_shift, threshold_rms=0.05,
-            #threshold_star = 10)
-            model_robust, inliers = ransac((pts2[:, :2], pts1[:, :2]), tf.AffineTransform, min_samples=50, residual_threshold =1.0, max_trials = 1000)
+            # threshold_star = 10)
+            model_robust, inliers = ransac((pts2[:, :2], pts1[:, :2]), tf.AffineTransform, min_samples=50,
+                                           residual_threshold=1.0, max_trials=1000)
             model_final = model_robust
-            #guess = model_final.params.ravel()
-            #res = so.leastsq(quick_pos_fit, guess, args=(pts1[inliers], pts2[inliers], e_flux[inliers]), full_output=True)
-            #import pdb; pdb.set_trace()
-            #res = so.minimize(quick_pos_fit2, guess, args=(reference_image,data_image))
-            #model_final.params = res[0].reshape(3, 3)
+            # guess = model_final.params.ravel()
+            # res = so.leastsq(quick_pos_fit, guess, args=(pts1[inliers], pts2[inliers], e_flux[inliers]), full_output=True)
+            # import pdb; pdb.set_trace()
+            # res = so.minimize(quick_pos_fit2, guess, args=(reference_image,data_image))
+            # model_final.params = res[0].reshape(3, 3)
 
-            #model_robust2, inliers2 = ransac((pts1[:, :2], pts2[:, :2]), tf.ProjectiveTransform, min_samples=10, residual_threshold = 0.1, max_trials = 100)
-            #model_final2 = model_robust2
-            #guess2 = model_final2.params.ravel()
-            #res2 = so.leastsq(quick_pos_fit, guess, args=(pts2[inliers2], pts1[inliers2], e_flux[inliers2]), full_output=True)
-            #res2 = so.minimize(quick_pos_fit2, guess2, args=(reference_image,data_image))
-            #model_final2.params = res2[0].reshape(3, 3)
+            # model_robust2, inliers2 = ransac((pts1[:, :2], pts2[:, :2]), tf.ProjectiveTransform, min_samples=10, residual_threshold = 0.1, max_trials = 100)
+            # model_final2 = model_robust2
+            # guess2 = model_final2.params.ravel()
+            # res2 = so.leastsq(quick_pos_fit, guess, args=(pts2[inliers2], pts1[inliers2], e_flux[inliers2]), full_output=True)
+            # res2 = so.minimize(quick_pos_fit2, guess2, args=(reference_image,data_image))
+            # model_final2.params = res2[0].reshape(3, 3)
             print('Using Projective Transformation')
-            print(np.std(pts2[inliers,0]-pts1[inliers,0]),np.std(pts2[inliers,1]-pts1[inliers,1]))
+            print(np.std(pts2[inliers, 0] - pts1[inliers, 0]), np.std(pts2[inliers, 1] - pts1[inliers, 1]))
         except:
 
             model_final = tf.SimilarityTransform(translation=(-x_shift, -y_shift))
             print('Using XY shifts')
 
-
         shifted = tf.warp(data, inverse_map=model_final, output_shape=data.shape, order=3, mode='constant',
-                         cval=np.median(data), clip=False,preserve_range=True)
+                          cval=np.median(data), clip=False, preserve_range=True)
         shifteds.append(shifted)
         data = np.copy(shifted)
         shifts, errors, phasediff = register_translation(ref_image, data, 100)
@@ -427,18 +426,19 @@ def iterate_on_resampling(ref_sources,ref_image, data_image,reduction_metadata,r
         y_shift = shifts[0]
         iterations += 1
 
-       
-     #import pdb; pdb.set_trace()
-     #try:
-     #    import matplotlib.pyplot as plt
-     #    plt.imshow(np.log10(ref_image))
-     #    plt.scatter(pts1[inliers,0],pts1[inliers,1],c='r')
-     #    plt.scatter(pts2[inliers,0],pts2[inliers,1])
-     #    plt.show()
-     #except:
-     #    pass
-     return shifteds
-#def iterate_on_resampling(pts1, pts2, matching, xshift, yshift, threshold_rms=0.05, threshold_star=10):
+    # import pdb; pdb.set_trace()
+    # try:
+    #    import matplotlib.pyplot as plt
+    #    plt.imshow(np.log10(ref_image))
+    #    plt.scatter(pts1[inliers,0],pts1[inliers,1],c='r')
+    #    plt.scatter(pts2[inliers,0],pts2[inliers,1])
+    #    plt.show()
+    # except:
+    #    pass
+    return shifteds
+
+
+# def iterate_on_resampling(pts1, pts2, matching, xshift, yshift, threshold_rms=0.05, threshold_star=10):
 #    print('Sigma clipping on the resampling')
 #    RMS = 2 * threshold_rms
 
@@ -450,7 +450,7 @@ def iterate_on_resampling(ref_sources,ref_image, data_image,reduction_metadata,r
 
 #    while RMS > threshold_rms:
 
-        # bad = np.argmax((e_flux ** 2 * quick_pos_fit(tform.params, pts1, pts2, e_flux)) ** 0.5)
+# bad = np.argmax((e_flux ** 2 * quick_pos_fit(tform.params, pts1, pts2, e_flux)) ** 0.5)
 
 #        matching = np.delete(matching, bad, axis=0)
 #        pts1 = np.delete(pts1, bad, axis=0)
@@ -476,16 +476,15 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
     from skimage.feature import ORB, match_descriptors, plot_matches
     from skimage.measure import ransac
     import sep
-	
+
     if len(new_images) > 0:
         reference_image_hdu = fits.open(os.path.join(reference_image_directory, reference_image_name), memmap=True)
         reference_image = reference_image_hdu[0].data
 
-        #reference_image = cosmicray_lacosmic(reference_image, sigclip=7., objlim=7,
+        # reference_image = cosmicray_lacosmic(reference_image, sigclip=7., objlim=7,
         #                                     satlevel=float(reduction_metadata.reduction_parameters[1]['MAXVAL'][0]))[0]
         # reference_image, bright_reference_mask, reference_image_unmasked = open_reference(setup, reference_image_directory, reference_image_name, ref_extension = 0, log = log, central_crop = maxshift)
         # generate reference catalog
-
 
         central_region_x, central_region_y = np.shape(reference_image)
         center_x, center_y = int(central_region_x / 2), int(central_region_y / 2)
@@ -498,14 +497,13 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
                                 ratio=min(ref_fwhm_x, ref_fwhm_y) / max(ref_fwhm_x, ref_fwhm_y), threshold=3. * std_ref,
                                 exclude_border=True)
         ref_sources = daofind.find_stars(reference_image - median_ref)
-        #ref_sources = reduction_metadata.star_catalog[1]
-       
+        # ref_sources = reduction_metadata.star_catalog[1]
 
         # ref_sources_x, ref_sources_y = np.copy(ref_sources['xcentroid']), np.copy(ref_sources['ycentroid'])
-    
+
     master_mask = 0
     for new_image in new_images:
-        print (new_image)
+        print(new_image)
         row_index = np.where(reduction_metadata.images_stats[1]['IM_NAME'] == new_image)[0][0]
         x_shift, y_shift = -reduction_metadata.images_stats[1][row_index]['SHIFT_X'], - \
             reduction_metadata.images_stats[1][row_index]['SHIFT_Y']
@@ -520,8 +518,8 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
             mask_extension = mask_extension_in
             mask_image = np.array(data_image_hdu[mask_extension].data, dtype=float)
 
-        #import pdb; pdb.set_trace()
- 
+        # import pdb; pdb.set_trace()
+
         central_region_x, central_region_y = np.shape(data_image)
         center_x, center_y = int(central_region_x / 2), int(central_region_y / 2)
 
@@ -534,7 +532,6 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
                                  ratio=min(data_fwhm_x, data_fwhm_y) / max(data_fwhm_x, data_fwhm_y),
                                  threshold=3. * std_data, exclude_border=True)
 
-
         # pts1 = np.c_[]
         # resample image if there is a sufficient number of stars
 
@@ -542,7 +539,7 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
             # pts1 = np.c_[ data_sources_x -int(central_region_x/2), data_sources_y -int(central_region_y/2)][matching[:,1]]
             # pts1 = np.c_[data_sources_x - int(central_region_x / 2)-1, data_sources_y - int(central_region_y / 2)-1][matching[:, 1]]
             data_sources = daofind2.find_stars(data_image - median_data)
-           
+
             data_sources_x, data_sources_y = np.copy(data_sources['xcentroid'].data), np.copy(
                 data_sources['ycentroid'].data)
 
@@ -561,28 +558,28 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
             pts1 = pts1[order][:]
             pts2 = pts2[order][:]
             e_flux = 0.6 * data_fwhm / data_sources['flux'][matching[:, 1]][order][:].data ** 0.5
-            
+
             # model_robust, inliers = ransac(( pts1,pts2), tf. AffineTransform,min_samples=10, residual_threshold=0.05, max_trials=300)
             pts1 = np.c_[pts1, [1] * len(pts1)]
             pts2 = np.c_[pts2, [1] * len(pts2)]
-           
 
             # model_final = iterate_on_resampling(pts1, pts2, matching, x_shift, y_shift, threshold_rms=0.05,
-            #threshold_star = 10)
-            model_robust, inliers = ransac((pts1[:, :2], pts2[:, :2]), tf.ProjectiveTransform, min_samples=10, residual_threshold =0.1, max_trials = 100)
+            # threshold_star = 10)
+            model_robust, inliers = ransac((pts1[:, :2], pts2[:, :2]), tf.ProjectiveTransform, min_samples=10,
+                                           residual_threshold=0.1, max_trials=100)
             model_final = model_robust
             guess = model_final.params.ravel()
-            #res = so.leastsq(quick_pos_fit, guess, args=(pts1[inliers], pts2[inliers], e_flux[inliers]), full_output=True)
-           # import pdb; pdb.set_trace()
-            #res = so.minimize(quick_pos_fit2, guess, args=(reference_image,data_image))
-            #model_final.params = res[0].reshape(3, 3)
+            # res = so.leastsq(quick_pos_fit, guess, args=(pts1[inliers], pts2[inliers], e_flux[inliers]), full_output=True)
+            # import pdb; pdb.set_trace()
+            # res = so.minimize(quick_pos_fit2, guess, args=(reference_image,data_image))
+            # model_final.params = res[0].reshape(3, 3)
 
-            #model_robust2, inliers2 = ransac((pts1[:, :2], pts2[:, :2]), tf.ProjectiveTransform, min_samples=10, residual_threshold = 0.1, max_trials = 100)
-            #model_final2 = model_robust2
-            #guess2 = model_final2.params.ravel()
-            #res2 = so.leastsq(quick_pos_fit, guess, args=(pts2[inliers2], pts1[inliers2], e_flux[inliers2]), full_output=True)
-            #res2 = so.minimize(quick_pos_fit2, guess2, args=(reference_image,data_image))
-            #model_final2.params = res2[0].reshape(3, 3)
+            # model_robust2, inliers2 = ransac((pts1[:, :2], pts2[:, :2]), tf.ProjectiveTransform, min_samples=10, residual_threshold = 0.1, max_trials = 100)
+            # model_final2 = model_robust2
+            # guess2 = model_final2.params.ravel()
+            # res2 = so.leastsq(quick_pos_fit, guess, args=(pts2[inliers2], pts1[inliers2], e_flux[inliers2]), full_output=True)
+            # res2 = so.minimize(quick_pos_fit2, guess2, args=(reference_image,data_image))
+            # model_final2.params = res2[0].reshape(3, 3)
             print('Using Projective Transformation')
 
         except:
@@ -598,14 +595,11 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
         if mask_extension > -1:
             shifted_mask = tf.warp(mask_image, inverse_map=model_final.inverse, preserve_range=True)
 
-
-
         resampled_image_hdu = fits.PrimaryHDU(shifted)
         resampled_image_hdu.writeto(os.path.join(resampled_directory_path, new_image), overwrite=True)
-   
+
     master_mask_hdu = fits.PrimaryHDU(master_mask)
     master_mask_hdu.writeto(os.path.join(reference_image_directory, 'master_mask.fits'), overwrite=True)
-
 
 
 def reformat_catalog(idx_match, dist2d, ref_sources, data_sources, central_region_x, distance_threshold=1.5,
