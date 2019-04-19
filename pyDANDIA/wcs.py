@@ -17,6 +17,7 @@ from astroquery.vizier import Vizier
 from astroquery.gaia import Gaia
 from pyDANDIA import  catalog_utils
 from pyDANDIA import shortest_string
+from pyDANDIA import calc_coord_offsets
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
@@ -49,14 +50,14 @@ def reference_astrometry(setup,log,image_path,detected_sources,diagnostics=True)
                                                     
     transform = shortest_string.find_xy_offset(detected_subregion, 
                                                gaia_subregion, log=log)
-                                               
+                    
     image_wcs = update_wcs(image_wcs,transform,log)
     
     world_coords = calc_world_coordinates(detected_sources,image_wcs,log)
     
     if diagnostics:
         plot_overlaid_sources(path.join(setup.red_dir,'ref'),
-                          world_coords,gaia_sources)
+                          world_coords,gaia_sources, interactive=True)
     
     matched_stars = match_stars_world_coords(world_coords,gaia_sources,log,
                                              verbose=True)
@@ -548,20 +549,29 @@ def diagnostic_plots(output_dir,hdu,image_wcs,detected_sources,
     plt.savefig(path.join(output_dir,'reference_detected_sources_world.png'))
     plt.close(1)
 
-def plot_overlaid_sources(output_dir,detected_sources_world,gaia_sources_world):
+def plot_overlaid_sources(output_dir,detected_sources_world,gaia_sources_world,
+                          interactive=False):
+                              
     matplotlib.use('TkAgg')
     
     fig = plt.figure(1)
+    
     plt.plot(detected_sources_world['ra'], detected_sources_world['dec'], 'r+',
              alpha=0.5,label='Detected sources')
     plt.plot(gaia_sources_world['ra'], gaia_sources_world['dec'], 'bo',
              fillstyle='none', label='Gaia sources')
+             
     plt.xlabel('RA deg')
     plt.ylabel('Dec deg')
+
     plt.legend()
     
-    plt.savefig(path.join(output_dir,'detected_sources_world_overlay.png'))
-    plt.close(1)
+    if interactive:
+        plt.show()
+        
+    else:
+        plt.savefig(path.join(output_dir,'detected_sources_world_overlay.png'))
+        plt.close(1)
     
 def plot_astrometry(output_dir,matched_stars,pfit=None):
 

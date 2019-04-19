@@ -8,6 +8,7 @@ Created on Tue Jul 17 11:41:38 2018
 from sys import argv
 from astropy.coordinates import SkyCoord
 import astropy.units as u
+import numpy as np
 
 def calc_coord_offset():
     """Function to calculate an image's offset in delta RA, delta Dec"""
@@ -50,7 +51,39 @@ def get_star_positions():
         
     return star_true, star_meas
 
+def calc_offset_hist2d(detected_sources_world, catalog_sources_world):
+    """Function to apply the 2D histogram technique of calculating the 
+    offset between two sets of world coordinates.
+    Re-implementation of the the approach used in RoboCut, written by E. Bachelet.
+    """
+    
+    nstars = len(detected_sources_world)
+    
+    (raXX,raYY) = np.meshgrid(detected_sources_world['ra'],catalog_sources_world['ra'])
+    (decXX,decYY) = np.meshgrid(detected_sources_world['dec'],catalog_sources_world['dec'])
 
+    deltaRA = (raXX - raYY).ravel()
+    deltaDec = (decXX - decYY).ravel()
+    
+    best_offset = [[0,0],[0,0]]
+
+    resolution_factor = 20
+    
+    while len(best_offset[0]) != 1:
+        
+        H = np.histogram2d(deltaRA, deltaDec, nstars*resolution_factor)
+        
+        best_offset = np.where(H[0] == np.max(H[0]))
+        
+        resolution_factor = resolution_factor/2.0
+    
+    RAbin = H[1][1]-H[1][0]
+    DECbin = H[2][1]-H[2][0]
+    RA_offset = (H[1][best_offset[0]] + RAbin/2.0)[0]
+    Dec_offset = (H[2][best_offset[1]] + DECbin/2.0)[0]
+    
+    return RA_offset, Dec_offset
+    
 if __name__ == '__main__':
     
     calc_coord_offset()
