@@ -13,3 +13,4 @@ ccdproc
 setuptools
 pyslalib
 uncertainties
+pystackreg
