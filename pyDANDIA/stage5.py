@@ -86,7 +86,7 @@ def run_stage5(setup):
     sigma_max = fwhm_max/(2.*(2.*np.log(2.))**0.5)
     # Factor 4 corresponds to the radius of 2*FWHM the old pipeline
     # Find kernel_sizes for multiple pre-calculated umatrices
-    kernel_percentile = [20., 45., 70.] #assumes ker_rad = 2 * FWHM, check config!
+    kernel_percentile = [25., 50.] #assumes ker_rad = 2 * FWHM, check config!
     kernel_size_array = []
     for percentile in kernel_percentile:
         kernel_size_tmp = int(4.*float(reduction_metadata.reduction_parameters[1]['KER_RAD'][0]) * np.percentile(fwhms,percentile))
@@ -800,7 +800,7 @@ def kernel_solution(u_matrix, b_vector, kernel_size, circular = True):
     #inv_umatrix = np.linalg.inv(u_matrix)
     #a_vector = np.dot(inv_umatrix, b_vector)
     #recalculate residuals to apply standard lstsq uncertainties
-    lstsq_result = np.linalg.lstsq(np.array(u_matrix), np.array(b_vector)) 
+    lstsq_result = np.linalg.lstsq(np.array(u_matrix), np.array(b_vector),rcond=None)
     a_vector = lstsq_result[0] 
     lstsq_fit = np.dot(np.array(u_matrix), a_vector)
     resid = np.array(b_vector) - lstsq_fit
