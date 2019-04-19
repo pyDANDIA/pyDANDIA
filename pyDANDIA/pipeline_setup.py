@@ -21,9 +21,11 @@ class PipelineSetup:
         self.pipeline_config_dir = None
         self.software_dir = getcwd()
         self.verbosity = 0
-
+        self.red_mode = None
+        
     def summary(self):
         output = 'Reduction directory: '+repr(self.red_dir)+'\n'+\
+                 'Mode of reduction: '+repr(self.red_mode)+'\n'+\
                 'Base directory: '+repr(self.base_dir)+'\n'+\
                 'Log directory: '+repr(self.log_dir)+'\n'+\
                 'Pipeline configuration directory: '+repr(self.pipeline_config_dir)+'\n'+\

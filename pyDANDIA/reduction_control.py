@@ -44,12 +44,16 @@ def reduction_control():
     (status,report,meta_data) = stage0.run_stage0(setup)
     log.info('Completed stage 0 with status '+repr(status)+': '+report)
     
-    status = execute_stage(stage1.run_stage1, 'stage 1', setup, status, log)
+    if setup.red_mode == 'new_reference':
+        status = execute_stage(stage1.run_stage1, 'stage 1', setup, status, log)
+        
+        status = execute_stage(stage2.run_stage2, 'stage 2', setup, status, log)
+        
+        status = execute_stage(stage3.run_stage3, 'stage 3', setup, status, log)
     
-    status = execute_stage(stage2.run_stage2, 'stage 2', setup, status, log)
-    
-    status = execute_stage(stage3.run_stage3, 'stage 3', setup, status, log)
-    
+    else:
+        log.info('ERROR: unrecognised reduction mode ('+setup.red_mode+') selected')
+        
 # Code deactivated until stage 6 is fully integrated with pipeline   
 #    status = parallelize_stages345(setup, status, log)
 #    (status, report) = stage6.run_stage6(setup)
@@ -172,10 +176,14 @@ def get_args():
     Main driver program to run pyDANDIA in pipeline mode for a single dataset. 
     
     Command and options:
-    > python reduction_control.py red_dir_path [-v N ]
+    > python reduction_control.py red_dir_path mode [-v N ]
     
     where red_dir_path is the path to a dataset's reduction directory
+          mode is the mode of reduction required
     
+    Reduction mode options are:
+          mode  new_reference
+          
     The -v flag controls the verbosity of the pipeline logging output.  Values 
     N can be:
     -v 0 [Default] Essential logging output only, written to log file. 
@@ -190,15 +198,19 @@ def get_args():
         print(helptext)
         exit()
     
+    reduction_modes = ['new_reference']
+    
     params = {}
     
     if len(argv) == 1:
         
         params['red_dir'] = raw_input('Please enter the path to the datasets reduction directory: ')
+        params['mode'] = raw_input('Please enter the reduction mode ['+','.join(reduction_modes)+']: ')
     
     else:
         
         params['red_dir'] = argv[1]
+        params['mode'] = argv[2]
     
     if '-v' in argv:
         
@@ -214,6 +226,7 @@ def get_args():
     params['software_dir'] = getcwd()
     
     setup = pipeline_setup.pipeline_setup(params)
+    setup.red_mode = params['mode']
     
     return setup
     

@@ -19,6 +19,7 @@ from pyDANDIA import  catalog_utils
 from pyDANDIA import shortest_string
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib
 from scipy import optimize
 
 def reference_astrometry(setup,log,image_path,detected_sources,diagnostics=True):
@@ -52,6 +53,10 @@ def reference_astrometry(setup,log,image_path,detected_sources,diagnostics=True)
     image_wcs = update_wcs(image_wcs,transform,log)
     
     world_coords = calc_world_coordinates(detected_sources,image_wcs,log)
+    
+    if diagnostics:
+        plot_overlaid_sources(path.join(setup.red_dir,'ref'),
+                          world_coords,gaia_sources)
     
     matched_stars = match_stars_world_coords(world_coords,gaia_sources,log,
                                              verbose=True)
@@ -542,7 +547,22 @@ def diagnostic_plots(output_dir,hdu,image_wcs,detected_sources,
     plt.ylabel('Dec [J2000]')
     plt.savefig(path.join(output_dir,'reference_detected_sources_world.png'))
     plt.close(1)
-                    
+
+def plot_overlaid_sources(output_dir,detected_sources_world,gaia_sources_world):
+    matplotlib.use('TkAgg')
+    
+    fig = plt.figure(1)
+    plt.plot(detected_sources_world['ra'], detected_sources_world['dec'], 'r+',
+             alpha=0.5,label='Detected sources')
+    plt.plot(gaia_sources_world['ra'], gaia_sources_world['dec'], 'bo',
+             fillstyle='none', label='Gaia sources')
+    plt.xlabel('RA deg')
+    plt.ylabel('Dec deg')
+    plt.legend()
+    
+    plt.savefig(path.join(output_dir,'detected_sources_world_overlay.png'))
+    plt.close(1)
+    
 def plot_astrometry(output_dir,matched_stars,pfit=None):
 
     dra = np.array(matched_stars.cat2_ra)-np.array(matched_stars.cat1_ra)
@@ -664,29 +684,31 @@ def build_ref_source_catalog(detected_sources,catalog_sources,\
     data[:,8] = -99.999                 # instrumental mag error (null)
     data[:,20] = 0                      # PSF star switch
     
-    for j in range(0,len(matched_stars),1):
-        idx = int(matched_stars[j,0])
+    for j in range(0,len(matched_stars.cat1_index),1):
+        
+        idx1 = int(matched_stars.cat1_index[j])
+        idx2 = int(matched_stars.cat2_index[j])
         
         if cat_source == '2MASS':
-            data[matched_stars.cat1_index[j],9] = validate_entry(catalog_sources[matched_stars.cat2_index[j],2])
-            data[matched_stars.cat1_index[j],10] = validate_entry(catalog_sources[matched_stars.cat2_index[j],3])
-            data[matched_stars.cat1_index[j],11] = validate_entry(catalog_sources[matched_stars.cat2_index[j],4])
-            data[matched_stars.cat1_index[j],12] = validate_entry(catalog_sources[matched_stars.cat2_index[j],5])
-            data[matched_stars.cat1_index[j],13] = validate_entry(catalog_sources[matched_stars.cat2_index[j],6])
-            data[matched_stars.cat1_index[j],14] = validate_entry(catalog_sources[matched_stars.cat2_index[j],7])
+            data[idx1,9] = validate_entry(catalog_sources[matched_stars.cat2_index[j],2])
+            data[idx1,10] = validate_entry(catalog_sources[matched_stars.cat2_index[j],3])
+            data[idx1,11] = validate_entry(catalog_sources[matched_stars.cat2_index[j],4])
+            data[idx1,12] = validate_entry(catalog_sources[matched_stars.cat2_index[j],5])
+            data[idx1,13] = validate_entry(catalog_sources[matched_stars.cat2_index[j],6])
+            data[idx1,14] = validate_entry(catalog_sources[matched_stars.cat2_index[j],7])
         
         elif cat_source == 'Gaia':
-            data[matched_stars.cat1_index[j],9] = validate_entry(catalog_sources['source_id'][matched_stars.cat2_index[j]])
-            data[matched_stars.cat1_index[j],10] = validate_entry(catalog_sources['ra'][matched_stars.cat2_index[j]])
-            data[matched_stars.cat1_index[j],11] = validate_entry(catalog_sources['ra_error'][matched_stars.cat2_index[j]])
-            data[imatched_stars.cat1_index[j],12] = validate_entry(catalog_sources['dec'][matched_stars.cat2_index[j]])
-            data[matched_stars.cat1_index[j],13] = validate_entry(catalog_sources['dec_error'][matched_stars.cat2_index[j]])
-            data[matched_stars.cat1_index[j],14] = validate_entry(catalog_sources['phot_g_mean_flux'][matched_stars.cat2_index[j]])
-            data[matched_stars.cat1_index[j],15] = validate_entry(catalog_sources['phot_g_mean_flux_error'][matched_stars.cat2_index[j]])
-            data[matched_stars.cat1_index[j],16] = validate_entry(catalog_sources['phot_bp_mean_flux'][matched_stars.cat2_index[j]])
-            data[matched_stars.cat1_index[j],17] = validate_entry(catalog_sources['phot_bp_mean_flux_error'][matched_stars.cat2_index[j]])
-            data[matched_stars.cat1_index[j],18] = validate_entry(catalog_sources['phot_rp_mean_flux'][matched_stars.cat2_index[j]])
-            data[matched_stars.cat1_index[j],19] = validate_entry(catalog_sources['phot_rp_mean_flux_error'][matched_stars.cat2_index[j]])
+            data[idx1,9] = validate_entry(catalog_sources['source_id'][idx2])
+            data[idx1,10] = validate_entry(catalog_sources['ra'][idx2])
+            data[idx1,11] = validate_entry(catalog_sources['ra_error'][idx2])
+            data[idx1,12] = validate_entry(catalog_sources['dec'][idx2])
+            data[idx1,13] = validate_entry(catalog_sources['dec_error'][idx2])
+            data[idx1,14] = validate_entry(catalog_sources['phot_g_mean_flux'][idx2])
+            data[idx1,15] = validate_entry(catalog_sources['phot_g_mean_flux_error'][idx2])
+            data[idx1,16] = validate_entry(catalog_sources['phot_bp_mean_flux'][idx2])
+            data[idx1,17] = validate_entry(catalog_sources['phot_bp_mean_flux_error'][idx2])
+            data[idx1,18] = validate_entry(catalog_sources['phot_rp_mean_flux'][idx2])
+            data[idx1,19] = validate_entry(catalog_sources['phot_rp_mean_flux_error'][idx2])
         
         else:
             raise IOError('Unrecognized catalog source '+catalog_source)

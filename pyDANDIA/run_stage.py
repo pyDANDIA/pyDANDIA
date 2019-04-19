@@ -16,6 +16,7 @@ from pyDANDIA import stage0
 from pyDANDIA import stage1
 from pyDANDIA import stage2
 from pyDANDIA import stage3
+from pyDANDIA import calibrate_photometry
 from pyDANDIA import stage3_db_ingest
 from pyDANDIA import stage4
 from pyDANDIA import stage5
@@ -60,6 +61,10 @@ def run_stage_stand_alone():
         
         (status, report) = stage3.run_stage3(setup)
 
+    elif params['stage'] == 'calibrate_photometry':
+        
+        (status, report) = calibrate_photometry.calibrate_photometry(setup)
+        
     elif params['stage'] == 'stage3_db_ingest':
         
         (status, report) = stage3_db_ingest.run_stage3(setup)

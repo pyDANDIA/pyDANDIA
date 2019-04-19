@@ -21,13 +21,11 @@ import matplotlib.pyplot as plt
 
 VERSION = 'calibrate_photometry_0.0.1'
 
-def calibrate_photometry():
+def calibrate_photometry(setup, cl_params=None):
     """Function to calculate the photometric transform between the instrumental
     magnitudes produced by the pyDANDIA pipeline and catalog data."""
     
-    params = get_args()
-
-    setup = pipeline_setup.pipeline_setup(params)
+    params = assign_parameters(setup,cl_params)
     
     log = logs.start_stage_log( setup.red_dir, 'phot_calib', version=VERSION )
     
@@ -53,13 +51,17 @@ def calibrate_photometry():
                        setup,params,log)
     logs.close_log(log)
     
+    status = 'OK'
+    report = 'Completed successfully'
+    
+    return status, report
+    
 def get_args():
     """Function to gather the necessary commandline arguments"""
     
     params = { 'red_dir': '',
                'metadata': '',
                'log_dir': '',
-               'catalog': '',
                'pipeline_config_dir': '',
                'software_dir': '', 
                'verbosity': '',
@@ -69,8 +71,6 @@ def get_args():
         params['red_dir'] = sys.argv[1]
         params['metadata'] = sys.argv[2]
         params['log_dir'] = sys.argv[3]
-        params['ra'] = sys.argv[4]
-        params['dec'] = sys.argv[5]
         
         if len(sys.argv) > 6:
             
@@ -83,14 +83,9 @@ def get_args():
         params['red_dir'] = input('Please enter the path to the reduction directory: ')
         params['metadata'] = input('Please enter the name of the metadata file: ')
         params['log_dir'] = input('Please enter the path to the log directory: ')
-        params['ra'] = input('Please enter the target or field centre RA [sexigesimal format]: ')
-        params['dec'] = input('Please enter the target or field centre Dec [sexigesimal format]: ')
         params['det_mags_max'] = input('Please enter the faintest instrumental magnitude bin to use in calibration (or none to accept the defaults): ')
         params['det_mags_min'] = input('Please enter the brightest instrumental magnitude bin to use in calibration (or none to accept the defaults): ')
         params['cat_merr_max'] = input('Please enter the maximum allowed photometric uncertainty for a catalog measurement (or none to accept the defaults): ')
-    
-    params['target'] = SkyCoord([params['ra']], [params['dec']], 
-                        unit=(u.hourangle, u.deg))
     
     for key in ['det_mags_max', 'det_mags_min', 'cat_merr_max']:
         if key in params.keys() and 'none' not in str(params[key]).lower():
@@ -100,6 +95,21 @@ def get_args():
             
     return params
 
+def assign_parameters(setup,cl_params):
+    """Function to build a dictionary of the parameters required for the
+    photometric calibration.  This construction enables the code to be run
+    independently of the pipeline if necessary"""
+    
+    params = { 'red_dir': setup.red_dir,
+               'metadata': os.path.join(setup.red_dir,'pyDANDIA_metadata.fits'),
+               'log_dir': setup.log_dir }
+    
+    if cl_params != None:
+        for key, value in cl_params.items():
+            params[key] = value
+    
+    return params
+    
 def fetch_metadata(setup,params,log):
     """Function to extract the information necessary for the photometric
     calibration from a metadata file, adding information to the params 
@@ -135,6 +145,9 @@ def fetch_metadata(setup,params,log):
     params['cat_mag_col'] = params['filter'].replace('p','') + 'mag'
     params['cat_err_col'] = 'e_'+params['filter'].replace('p','') + 'mag'
     
+    params['target'] = SkyCoord([params['ra']], [params['dec']], 
+                        unit=(u.hourangle, u.deg))
+    
     log.info('Gathered information from metadata file '+params['metadata']+':')
     log.info('Image field of view: '+str(params['fov'])+'sq. deg')
     log.info('Reference image: '+params['refimage']+\
@@ -148,6 +161,8 @@ def fetch_metadata(setup,params,log):
     star_catalog['DEC'] = reduction_metadata.star_catalog[1]['DEC_J2000']
     star_catalog['mag'] = reduction_metadata.star_catalog[1]['ref_mag']
     star_catalog['mag_err'] = reduction_metadata.star_catalog[1]['ref_mag_err']
+    star_catalog['gaia_ra'] = reduction_metadata.star_catalog[1]['ra']
+    star_catalog['gaia_dec'] = reduction_metadata.star_catalog[1]['dec']
     star_catalog['clean'] = np.zeros(len(reduction_metadata.star_catalog[1]['ref_mag']))
     star_catalog['cal_ref_mag'] = np.zeros(len(reduction_metadata.star_catalog[1]['ref_mag']))
     star_catalog['cal_ref_mag_err'] = np.zeros(len(reduction_metadata.star_catalog[1]['ref_mag']))
@@ -180,8 +195,9 @@ def select_good_detected_stars(star_catalog,params,log,
     
     idx1 = np.where(star_catalog['mag'] > 10.0)[0].tolist()
     idx2 = np.where(star_catalog['mag_err'] > 0.0)[0].tolist()
-    
+    idx3 = np.where(star_catalog['gaia_ra'] != 0.0)[0].tolist()
     idx = set(idx1).intersection(set(idx2))
+    idx = idx.intersection(set(idx3))
 
     log.info('Found '+str(len(list(idx)))+' detected stars with good photometry')
     
@@ -444,11 +460,11 @@ def set_calibration_limits(params,log):
     defaults = {'gp': {'det_mags_max': 15.0,
                        'det_mags_min': 10.0,
                        'cat_merr_max': 0.04},
-                'rp': {'det_mags_max': 13.5,
+                'rp': {'det_mags_max': 15.5,
                        'det_mags_min': 10.0,
                        'cat_merr_max': 0.04},
-                'ip': {'det_mags_max': 13.5,
-                       'det_mags_min': 10.0,
+                'ip': {'det_mags_max': 18.0,
+                       'det_mags_min': 15.5,
                        'cat_merr_max': 0.04}}
     
     def_params = defaults[params['filter']]
@@ -458,7 +474,7 @@ def set_calibration_limits(params,log):
     log.info('Set calibration limits: ')
     for key in ['det_mags_max', 'det_mags_min', 'cat_merr_max']:
         
-        if params[key] != None:
+        if key in params.keys() and params[key] != None:
             
             set_params[key] = params[key]
             
@@ -484,7 +500,7 @@ def model_phot_transform2(params,star_catalog,vphas_cat,match_index,fit,
     cat_merrs = vphas_cat[cerr][match_index[:,1]]
     det_mags = star_catalog['mag'][match_index[:,0]]
     det_mag_errs = star_catalog['mag_err'][match_index[:,0]]
-
+    
     config = set_calibration_limits(params,log)
     
     xibin = 0.5
@@ -691,7 +707,16 @@ def output_to_metadata(star_catalog, reduction_metadata,vphas_cat,match_index,
     reduction_metadata.save_a_layer_to_file(setup.red_dir, 
                                             params['metadata'],
                                             'phot_calib', log=log)
-        
+
+def run_calibration():
+    """Function to run this stage independently of the pipeline infrastructure"""
+    
+    cl_params = get_args()
+
+    setup = pipeline_setup.pipeline_setup(cl_params)
+    
+    (status, report) = calibrate_photometry(setup, cl_params=cl_params)
+    
 if __name__ == '__main__':
     
-    calibrate_photometry()
+    run_calibration()
