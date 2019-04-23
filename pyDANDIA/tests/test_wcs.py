@@ -16,6 +16,8 @@ import match_utils
 from astropy.io import fits
 from astropy.table import Table, Column
 from astropy.wcs import WCS as aWCS
+from astropy.coordinates import SkyCoord
+from astropy import units
 import catalog_utils
 import numpy as np 
 
@@ -171,12 +173,142 @@ def test_match_stars_world_coords():
     assert matched_stars.cat1_dec[0] == matched_stars.cat2_dec[0]
     
     logs.close_log(log)
+
+def test_image_wcs():
+    
+    image = path.join(TEST_DATA,'lsc1m005-fl15-20170701-0144-e91_cropped.fits')
+    header = fits.getheader(image)
+    
+    image_wcs = aWCS(header)
+    
+    catalog_coords = np.array( [ [269.52935399, -28.04729399], 
+                                 [269.54868567, -28.04728673],
+                                 [269.5575608 , -28.04728878], 
+                                 [269.51156351, -28.04750404] ] )
+    
+    positions = image_wcs.wcs_world2pix(catalog_coords,1)
+    
+    print(image_wcs)
+    print(positions)
+    
+    crota2 = np.pi/2.0
+    image_wcs.wcs.cd[0,0] = image_wcs.wcs.cd[0,0] * np.cos(crota2)
+    image_wcs.wcs.cd[0,1] = -image_wcs.wcs.cd[0,0] * np.sin(crota2)
+    image_wcs.wcs.cd[1,0] = image_wcs.wcs.cd[1,0] * np.sin(crota2)
+    image_wcs.wcs.cd[1,1] = image_wcs.wcs.cd[1,1] * np.cos(crota2)
+    
+    positions2 =  image_wcs.wcs_world2pix(catalog_coords,1)
+    
+    print(image_wcs)
+    print(positions2)
+
+def test_calc_world_coordinates():
+    
+    setup = pipeline_setup.pipeline_setup({'red_dir': TEST_DIR})    
+    
+    log = logs.start_stage_log( cwd, 'test_wcs' )
+    
+    image_path = path.join(TEST_DATA,'lsc1m005-fa15-20190416-0242-e91.fits')
+    
+    detected_sources = np.array(  [  [0, 317.0, 2716.65, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1234.0]  ] )
+    star = SkyCoord( '17:59:27.04 -28:36:37.0', frame='icrs', unit=(units.hourangle, units.deg))
+    
+    
+    coords_table = wcs.calc_world_coordinates(setup,image_path,detected_sources,log)
+    
+    logs.close_log(log)
+    
+    print(coords_table)
+    assert type(coords_table) == type(Table())
+
+def test_calc_world_coordinates_astropy():
+    
+    setup = pipeline_setup.pipeline_setup({'red_dir': TEST_DIR})    
+    
+    log = logs.start_stage_log( cwd, 'test_wcs' )
+    
+    image_path = path.join(TEST_DATA,'lsc1m005-fa15-20190416-0242-e91.fits')
+    header = fits.getheader(image_path)
+    
+    image_wcs = aWCS(header)
+    
+    detected_sources = np.array(  [  [0, 317.0, 2716.65, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1234.0]  ] )
+    star = SkyCoord( '17:59:27.04 -28:36:37.0', frame='icrs', unit=(units.hourangle, units.deg))
+    
+    
+    coords_table = wcs.calc_world_coordinates_astropy(setup,image_wcs,detected_sources,log)
+    
+    logs.close_log(log)
+    
+    print(coords_table)
+    assert type(coords_table) == type(Table())
+
+def test_calc_image_coordinates():
+    
+    setup = pipeline_setup.pipeline_setup({'red_dir': TEST_DIR})    
+    
+    log = logs.start_stage_log( cwd, 'test_wcs' )
+
+    image_path = path.join(TEST_DATA,'lsc1m005-fl15-20170701-0144-e91_cropped.fits')
+    
+    catalog_sources = np.array( [ [269.52935399, -28.04729399], 
+                                 [269.54868567, -28.04728673],
+                                 [269.5575608 , -28.04728878], 
+                                 [269.51156351, -28.04750404] ] )
+    
+    coord_data = [ Column(name='ra', data=catalog_sources[:,0]), 
+                   Column(name='dec', data=catalog_sources[:,1]) ]
+    catalog_sources = Table(data=coord_data)
+    
+    catalog_sources = wcs.calc_image_coordinates(setup, image_path, catalog_sources,log)
+    
+    logs.close_log(log)
+    
+    print(catalog_sources)
+    
+    assert 'x' in catalog_sources.colnames
+    assert 'y' in catalog_sources.colnames
+
+def test_calc_image_coordinates_astropy():
+    
+    setup = pipeline_setup.pipeline_setup({'red_dir': TEST_DIR})    
+    
+    log = logs.start_stage_log( cwd, 'test_wcs' )
+    
+    image_path = path.join(TEST_DATA,'lsc1m005-fa15-20190416-0242-e91.fits')
+    
+    hdu = fits.open(image_path)
+    
+    header = hdu[0].header
+
+    image_wcs = aWCS(header)
+    
+    star = SkyCoord( '17:59:27.04 -28:36:37.0', frame='icrs', unit=(units.hourangle, units.deg))
+    star_coords = [317.0, 2716.65]
+    
+    catalog_sources = np.array( [ [star.ra.deg, star.dec.deg] ] )
+
+    coord_data = [ Column(name='ra', data=catalog_sources[:,0]), 
+                   Column(name='dec', data=catalog_sources[:,1]) ]
+
+    catalog_sources = Table(data=coord_data)
+    
+    catalog_sources = wcs.calc_image_coordinates_astropy(setup, image_wcs, catalog_sources,log)
+    
+    print(catalog_sources)
+    
+    assert 'x' in catalog_sources.colnames
+    assert 'y' in catalog_sources.colnames
     
 if __name__ == '__main__':
 
-    test_reference_astrometry()
+    #test_reference_astrometry()
     #test_search_vizier_for_2mass_sources()
     #test_fetch_catalog_sources_for_field()
     #test_search_vizier_for_gaia_sources()
     #test_match_stars_world_coords()
-    
+    #test_image_wcs()
+    test_calc_world_coordinates()
+    test_calc_world_coordinates_astropy()
+    #test_calc_image_coordinates()
+    #test_calc_image_coordinates_astropy()

@@ -16,8 +16,8 @@ import subprocess
 from astroquery.vizier import Vizier
 from astroquery.gaia import Gaia
 from pyDANDIA import  catalog_utils
-from pyDANDIA import shortest_string
-from pyDANDIA import calc_coord_offsets
+from pyDANDIA import  shortest_string
+from pyDANDIA import  calc_coord_offsets
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
@@ -28,32 +28,60 @@ def reference_astrometry(setup,log,image_path,detected_sources,diagnostics=True)
     
     log.info('Performing astrometry on the reference image')
     
-    hdu = fits.open(image_path)
+    header = fits.getheader(image_path)
     
-    image_wcs = wcs.WCS(hdu[0].header)
-    field = hdu[0].header['OBJECT']
+    # Applies known rotation of frames.
+    image_wcs = wcs.WCS(header)
+    crota2 = np.pi
+    image_wcs.wcs.cd[0,0] = image_wcs.wcs.cd[0,0] * np.cos(crota2)
+    image_wcs.wcs.cd[0,1] = -image_wcs.wcs.cd[0,0] * np.sin(crota2)
+    image_wcs.wcs.cd[1,0] = image_wcs.wcs.cd[1,0] * np.sin(crota2)
+    image_wcs.wcs.cd[1,1] = image_wcs.wcs.cd[1,1] * np.cos(crota2)
+    
+    field = header['OBJECT']
     
     log.info('Reference image initial WCS information:')
     log.info(image_wcs)
     
     wcs_image_path = path.join(setup.red_dir,'ref','ref_image_wcs.fits')
     catalog_file = path.join(setup.red_dir,'ref', 'star_catalog.fits')
+    det_catalog_file = path.join(setup.red_dir,'ref', 'bright_detected_stars.reg')
+    cat_catalog_file = path.join(setup.red_dir,'ref', 'bright_catalog_stars.reg')
     
-    gaia_sources = fetch_catalog_sources_for_field(setup,field,hdu[0].header,
+    detected_sources = calc_world_coordinates_astropy(setup,image_wcs,
+                                              detected_sources,log)
+    
+    gaia_sources = fetch_catalog_sources_for_field(setup,field,header,
                                                       image_wcs,log,'Gaia')
     
-    gaia_sources_xy = calc_image_coordinates(gaia_sources,image_wcs,log)
+    gaia_sources = calc_image_coordinates_astropy(setup, image_wcs, gaia_sources,log)
     
-    (detected_subregion, gaia_subregion) = extract_central_region_from_catalogs(detected_sources, 
-                                                                                gaia_sources_xy,
-                                                                                log)
-                                                    
-    transform = shortest_string.find_xy_offset(detected_subregion, 
-                                               gaia_subregion, log=log)
-                    
+    catalog_utils.output_ds9_overlay_from_table(detected_sources,det_catalog_file,colour='green')
+    catalog_utils.output_ds9_overlay_from_table(gaia_sources,cat_catalog_file,colour='blue')
+    exit()
+    #(detected_subregion, gaia_subregion) = extract_central_region_from_catalogs(detected_sources, 
+    #                                                                            gaia_sources,
+    #                                                                            log)
+    
+    (bright_central_detected_stars, bright_central_gaia_stars) = extract_bright_central_stars(detected_sources, 
+                        gaia_sources, image_wcs, log)
+    
+    #transform = shortest_string.find_xy_offset(detected_subregion, 
+    #                                           gaia_subregion, log=log)
+    
+    transform = calc_coord_offsets.calc_offset_hist2d(bright_central_detected_stars, 
+                                                      bright_central_gaia_stars,
+                                                      image_wcs.wcs.crval[0],
+                                                      image_wcs.wcs.crval[1])
+    
+    print(transform)
+    print(transform[0]*3600.0, transform[1]*3600.0)
+    print((transform[0]*3600.0)/0.26, (transform[1]*3600.0)/0.26)
+    exit()
+    
     image_wcs = update_wcs(image_wcs,transform,log)
     
-    world_coords = calc_world_coordinates(detected_sources,image_wcs,log)
+    world_coords = calc_world_coordinates(setup,image_path,detected_sources,log)
     
     if diagnostics:
         plot_overlaid_sources(path.join(setup.red_dir,'ref'),
@@ -74,10 +102,10 @@ def reference_astrometry(setup,log,image_path,detected_sources,diagnostics=True)
 #                         gaia_sources_xy)
 #        log.info('-> Output astrometry diagnostic plots')
 
-    (image_wcs,hdu) = update_image_wcs(hdu,image_wcs)
-    hdu.writeto(wcs_image_path,overwrite=True)
-    log.info('-> Output reference image with updated WCS:')
-    log.info(image_wcs)
+    #(image_wcs,hdu) = update_image_wcs(hdu,image_wcs)
+    #hdu.writeto(wcs_image_path,overwrite=True)
+    #log.info('-> Output reference image with updated WCS:')
+    #log.info(image_wcs)
     
     ref_source_catalog = build_ref_source_catalog(detected_sources,\
                                                     gaia_sources,\
@@ -139,7 +167,42 @@ def fetch_catalog_sources_for_field(setup,field,header,image_wcs,log,
     
     return catalog_sources
 
-def extract_central_region_from_catalogs(detected_sources, gaia_sources_xy,log):
+def extract_bright_central_stars(detected_sources, catalog_sources, image_wcs, log):
+    """Function to extract the bright stars from the central regions of 
+    both detected and catalog starlists"""
+    
+    central_detected_stars = calc_coord_offsets.extract_nearby_stars(detected_sources,
+                                                                     image_wcs.wcs.crval[0],
+                                                                     image_wcs.wcs.crval[1],
+                                                                     1.0)
+    
+    central_catalog_stars = calc_coord_offsets.extract_nearby_stars(catalog_sources,
+                                                                     image_wcs.wcs.crval[0],
+                                                                     image_wcs.wcs.crval[1],
+                                                                     1.0)
+    
+    idx = np.argsort(central_detected_stars['flux'])
+    
+    imin = int(len(central_detected_stars)*0.75)
+    imax = int(len(central_detected_stars)*0.98)
+    
+    bright_central_detected_stars = central_detected_stars[idx[imin:imax]]
+    
+    jdx = []
+    for i,flux in enumerate(central_catalog_stars['phot_rp_mean_flux']):
+        if np.isfinite(flux):
+            jdx.append(i)
+            
+    idx = np.argsort(central_catalog_stars['phot_rp_mean_flux'][jdx])
+    
+    imin = int(len(central_catalog_stars[jdx])*0.75)
+    imax = int(len(central_catalog_stars[jdx])*0.98)
+    
+    bright_central_catalog_stars = central_catalog_stars[jdx][idx[imin:imax]]
+    
+    return bright_central_detected_stars, bright_central_catalog_stars
+    
+def extract_central_region_from_catalogs(detected_sources, gaia_sources, log):
     """Function to extract the positions of stars in the central region of an
     image"""
     
@@ -281,10 +344,56 @@ def search_vizier_for_vphas_sources(params,log):
     
     return vphas_cat
     
-def calc_image_coordinates(catalog_sources,image_wcs,log,verbose=False):
+def calc_image_coordinates(setup, image_path, catalog_sources,log):
     """Function to calculate the x,y pixel coordinates of a set of stars
     specified by their RA, Dec positions, by applying the WCS from a FITS
     image header"""
+    
+    log.info('Calculating the predicted image pixel positions for all catalog stars')
+    
+    
+    coords_file = path.join(setup.red_dir,'ref','catalog_stars.txt')
+
+    coords_list = open(coords_file,'w')
+    
+    for star in catalog_sources['ra','dec'].as_array():
+
+        s = coordinates.SkyCoord(str(star[0])+' '+str(star[1]), 
+                                     frame='icrs', unit=(units.deg, units.deg))
+
+        coords_list.write(s.to_string('hmsdms',sep=':')+'\n')
+
+    coords_list.close()
+
+    # Note that this does NOT apply the CD distortion matrix, so this 
+    # replaced with a call to wcstools:
+    #positions =  image_wcs.wcs_world2pix(np.array(positions),1)
+    
+    cmd = 'sky2xy'
+    args = [cmd, image_path, '@'+coords_file]
+    
+    p = subprocess.Popen(args, stdout=subprocess.PIPE)
+    (output,err) = p.communicate()
+        
+    positions = []
+    for entry in (output.decode('ascii')).split('\n'):
+        
+        if len(entry) > 0:
+            x = entry.split()[4]
+            y = entry.split()[5]
+                        
+            positions.append([x,y])
+            
+    positions = np.array(positions)
+    
+    catalog_sources.add_column( table.Column(name='x', data=positions[:,0]) )
+    catalog_sources.add_column( table.Column(name='y', data=positions[:,1]) )
+
+    log.info('Completed calculation of image coordinates')
+    
+    return catalog_sources
+
+def calc_image_coordinates_astropy(setup, image_wcs, catalog_sources,log):
     
     log.info('Calculating the predicted image pixel positions for all catalog stars')
     
@@ -292,40 +401,129 @@ def calc_image_coordinates(catalog_sources,image_wcs,log,verbose=False):
     
     for star in catalog_sources['ra','dec'].as_array():
 
-        positions.append( [star[0],star[1]] )
-
-        if verbose == True:
-            s = coordinates.SkyCoord(str(star[0])+' '+str(star[1]), 
+        s = coordinates.SkyCoord(str(star[0])+' '+str(star[1]), 
                                      frame='icrs', unit=(units.deg, units.deg))
-            print( star, s.to_string('hmsdms'))
-
-    positions = np.array(positions)
+        
+        positions.append([s.ra.deg, s.dec.deg])
     
+    dpositions =  image_wcs.wcs_world2pix(np.array(positions),1)
+    
+    # Now apply the known image rotation
+    dpositions[:,0] = dpositions[:,0] - image_wcs.wcs.crpix[0]
+    dpositions[:,1] = dpositions[:,1] - image_wcs.wcs.crpix[1]
+    
+    theta = np.pi
+    R = np.zeros((2,2))
+    R[0,0] = np.cos(theta)
+    R[0,1] = -np.sin(theta)
+    R[1,0] = np.sin(theta)
+    R[1,1] = np.cos(theta)
+    
+    positions = np.dot(dpositions, R)
+    
+    positions[:,0] += image_wcs.wcs.crpix[0]
+    positions[:,1] += image_wcs.wcs.crpix[1]
+    
+    catalog_sources.add_column( table.Column(name='x', data=positions[:,0]) )
+    catalog_sources.add_column( table.Column(name='y', data=positions[:,1]) )
     log.info('Completed calculation of image coordinates')
     
-    return image_wcs.wcs_world2pix(positions,1)
-
-
-def calc_world_coordinates(detected_sources,image_wcs,log):
+    return catalog_sources
+    
+def calc_world_coordinates(setup,image_path,detected_sources,log):
     """Function to calculate the RA, Dec positions of an array of image
     pixel positions"""
     
     log.info('Calculating the world coordinates of all detected stars')
     
-    world_coords = image_wcs.wcs_pix2world(detected_sources[:,1:3], 1)
+    coords_file = path.join(setup.red_dir,'ref','detected_stars.txt')
+    
+    coords_list = open(coords_file,'w')
+
+    for j in range(0,len(detected_sources),1):
+
+        coords_list.write(str(detected_sources[j,1])+' '+str(detected_sources[j,2])+'\n')
+
+    coords_list.close()
+    
+    # REPLACED USE OF WCS module because it doesn't handle image distortions
+    #world_coords = image_wcs.wcs_pix2world(detected_sources[:,1:3], 1)
+        
+    cmd = 'xy2sky'
+    args = [cmd, image_path, '@'+coords_file]
+    
+    p = subprocess.Popen(args, stdout=subprocess.PIPE)
+    (output,err) = p.communicate()
+    
+    world_coords = []
+    for entry in (output.decode('ascii')).split('\n'):
+        
+        if len(entry) > 0:
+            ra = entry.split()[0]
+            dec = entry.split()[1]
+            
+            c = coordinates.SkyCoord(ra, dec, frame='icrs', unit=(units.hourangle, units.deg))
+            
+            world_coords.append([c.ra.deg, c.dec.deg])
+            
+    world_coords = np.array(world_coords)
+    
+    if len(world_coords) == len(detected_sources):
+        table_data = [ table.Column(name='ra', data=world_coords[:,0]),
+                       table.Column(name='dec', data=world_coords[:,1]),
+                       table.Column(name='x', data=detected_sources[:,1]),
+                       table.Column(name='y', data=detected_sources[:,2]),
+                       table.Column(name='index', data=detected_sources[:,0]),
+                       table.Column(name='flux', data=detected_sources[:,9]) ]
+       
+        coords_table = table.Table(data=table_data)
+        
+        log.info('Completed calculation of world coordinates')
+        
+    else:
+
+        raise IOError('Could not properly convert all detected source pixel positions to RA, Dec')
+        
+    return coords_table
+    
+def calc_world_coordinates_astropy(setup,image_wcs,detected_sources,log):
+    """Function to calculate the RA, Dec positions of an array of image
+    pixel positions"""
+    
+    log.info('Calculating the world coordinates of all detected stars')
+    
+    
+    # Now apply the known image rotation
+    dpositions = np.copy(detected_sources[:,1:3])
+    dpositions[:,0] = dpositions[:,0] - image_wcs.wcs.crpix[0]
+    dpositions[:,1] = dpositions[:,1] - image_wcs.wcs.crpix[1]
+    
+    theta = -np.pi
+    R = np.zeros((2,2))
+    R[0,0] = np.cos(theta)
+    R[0,1] = -np.sin(theta)
+    R[1,0] = np.sin(theta)
+    R[1,1] = np.cos(theta)
+    
+    positions = np.dot(dpositions, R)
+    
+    positions[:,0] += image_wcs.wcs.crpix[0]
+    positions[:,1] += image_wcs.wcs.crpix[1]
+    
+    world_coords = image_wcs.wcs_pix2world(positions, 1)
     
     table_data = [ table.Column(name='ra', data=world_coords[:,0]),
-                   table.Column(name='dec', data=world_coords[:,1]),
-                   table.Column(name='x', data=detected_sources[:,1]),
-                   table.Column(name='y', data=detected_sources[:,2]),
-                    table.Column(name='index', data=detected_sources[:,0]) ]
-    
+                       table.Column(name='dec', data=world_coords[:,1]),
+                       table.Column(name='x', data=detected_sources[:,1]),
+                       table.Column(name='y', data=detected_sources[:,2]),
+                       table.Column(name='index', data=detected_sources[:,0]),
+                       table.Column(name='flux', data=detected_sources[:,9]) ]
+       
     coords_table = table.Table(data=table_data)
     
     log.info('Completed calculation of world coordinates')
     
     return coords_table
-    
     
 def match_stars_world_coords(detected_sources,catalog_sources,log,
                              verbose=False):
