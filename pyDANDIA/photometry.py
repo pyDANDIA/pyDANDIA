@@ -9,8 +9,7 @@ import sys
 import numpy as np
 from photutils import aperture_photometry
 from photutils import CircularAperture
-
-
+from photutils.utils import calc_total_error
 
 from pyDANDIA import logs
 from pyDANDIA import metadata
@@ -487,8 +486,9 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
 
     positions = ref_star_catalog[:, [1, 2]]
     apertures = CircularAperture(positions, r=half_psf)
+    error = calc_total_error(difference_image, np.std(difference_image.ravel()), 1)
     phot_table = aperture_photometry(difference_image, apertures, method='subpixel',
-                                     error=np.abs(difference_image) ** 0.5)
+                                     error=error)
 
 
     for j in range(0, len(ref_star_catalog), 1)[:]:
@@ -523,8 +523,7 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
 
 
         ##psf_convolve = sndi.filters.convolve(psf_image, kernel,mode='constant')
-        #import pdb;
-        #pdb.set_trace()
+
         #try:
 
         #    max_x = int(np.min([difference_image.shape[0], np.max(X_data + (int(np.round(xstar)) - half_psf)) + 1]))
@@ -589,8 +588,7 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
 
 
             flux = phot_table[j][3]/phot_scale_factor
-            flux_err = phot_table[j][4]*(np.pi*half_psf**2)**0.5
-
+            flux_err = phot_table[j][4]
 
 
             flux_tot = ref_flux*ref_exposure_time - flux
