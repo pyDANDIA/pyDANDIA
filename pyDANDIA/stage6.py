@@ -199,11 +199,12 @@ def run_stage6(setup):
 
 
                 # save_control_stars_of_the_difference_image(setup, new_image, difference_image, star_coordinates)
-
+                #import pdb;
+                #pdb.set_trace()
                 phot_table, control_zone = photometry_on_the_difference_image(setup, reduction_metadata, log,
                                                                               ref_star_catalog, difference_image, psf_model,
                                                                               sky_model, kernel_image, kernel_error,
-                                                                              ref_exposure_time)
+                                                                              ref_exposure_time,idx)
                 psf_model.update_psf_parameters(psf_parameters)
 
                 photometric_table[compt_db, :, :] = phot_table
@@ -469,7 +470,7 @@ def find_the_associated_kernel(setup, kernels_directory, image_name):
 
 
 def photometry_on_the_difference_image(setup, reduction_metadata, log, star_catalog, difference_image, psf_model,
-                                       sky_model, kernel, kernel_error, ref_exposure_time):
+                                       sky_model, kernel, kernel_error, ref_exposure_time,image_id):
     '''
     Find the appropriate kernel associated to an image
     :param object reduction_metadata: the metadata object
@@ -483,7 +484,7 @@ def photometry_on_the_difference_image(setup, reduction_metadata, log, star_cata
     differential_photometry = photometry.run_psf_photometry_on_difference_image(setup, reduction_metadata, log,
                                                                                 star_catalog,
                                                                                 difference_image, psf_model, kernel,
-                                                                                kernel_error, ref_exposure_time)
+                                                                                kernel_error, ref_exposure_time,image_id)
 
     column_names = (
     'exposure_id', 'star_id', 'reference_mag', 'reference_mag_err', 'reference_flux', 'reference_flux_err', 'diff_flux',

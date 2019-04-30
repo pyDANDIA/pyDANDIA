@@ -424,7 +424,7 @@ def quick_polyfit(params,data,weight,psf_fit):
 
 
 def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_star_catalog,
-                                           difference_image, psf_model, kernel, kernel_error, ref_exposure_time):
+                                           difference_image, psf_model, kernel, kernel_error, ref_exposure_time,image_id):
     """Function to perform PSF fitting photometry on all stars for a single difference image.
     
     :param SetUp object setup: Essential reduction parameters
@@ -485,11 +485,15 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
     #radius = half_psf + 1
 
     positions = ref_star_catalog[:, [1, 2]]
-    apertures = CircularAperture(positions, r=half_psf)
+    pixscale = reduction_metadata.reduction_parameters[1]['PIX_SCALE'].data[0]
+    radius = reduction_metadata.images_stats[1]['FWHM_X'][image_id]+reduction_metadata.images_stats[1]['FWHM_Y'][image_id]
+    radius *= 1.177410022515474
+    apertures = CircularAperture(positions, r=radius)
     error = calc_total_error(difference_image, np.std(difference_image.ravel()), 1)
     phot_table = aperture_photometry(difference_image, apertures, method='subpixel',
                                      error=error)
-
+    #import pdb;
+    #pdb.set_trace()
 
     for j in range(0, len(ref_star_catalog), 1)[:]:
      
