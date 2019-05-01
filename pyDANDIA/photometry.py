@@ -477,7 +477,6 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
     error_phot_scale_factor = (phot_scale_factor*0.1)
 
 
-
     control_size = 50
     control_count = 0
     #psf_parameters = psf_model.get_parameters()
@@ -486,15 +485,15 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
 
     positions = ref_star_catalog[:, [1, 2]]
     pixscale = reduction_metadata.reduction_parameters[1]['PIX_SCALE'].data[0]
-    radius = reduction_metadata.images_stats[1]['FWHM_X'][image_id]+reduction_metadata.images_stats[1]['FWHM_Y'][image_id]
-    radius *= 1.177410022515474
+    radius = np.max((reduction_metadata.images_stats[1]['FWHM_X'][image_id],reduction_metadata.images_stats[1]['FWHM_Y'][image_id]))
+    radius *= 1.5852*2
     apertures = CircularAperture(positions, r=radius)
     error = calc_total_error(difference_image, np.std(difference_image.ravel()), 1)
     phot_table = aperture_photometry(difference_image, apertures, method='subpixel',
                                      error=error)
+
     #import pdb;
     #pdb.set_trace()
-
     for j in range(0, len(ref_star_catalog), 1)[:]:
      
         #j = 59716
