@@ -14,7 +14,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 import logs
 import catalog_utils
+import metadata
+import pipeline_setup
 
+cwd = getcwd()
+TEST_DATA = path.join(cwd,'data')
+TEST_DIR = path.join(cwd,'data','proc',
+                        'ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip')
+                        
 def test_calc_transform():
     """Function to test the photometric transform function"""
     
@@ -61,9 +68,27 @@ def test_fetch_catalog_sources_within_image():
     assert len(vphas_cat) > 0
     
     logs.close_log(log)
+
+def test_fetch_catalog_sources_from_metadata():
+    
+    log = logs.start_stage_log( cwd, 'test_wcs' )
+    
+    setup = pipeline_setup.pipeline_setup({'red_dir': TEST_DIR})    
+    
+    meta = metadata.MetaData()
+    meta.load_a_layer_from_file( setup.red_dir, 
+                                'pyDANDIA_metadata.fits', 
+                                'star_catalog' )
+    
+    vphas_cat = calibrate_photometry.fetch_catalog_sources_from_metadata(meta,log)
+    
+    print(vphas_cat)
+    
+    logs.close_log(log)
     
 if __name__ == '__main__':
     
     #test_calc_transform()
-    test_fetch_catalog_sources_within_image()
+    #test_fetch_catalog_sources_within_image()
+    #test_fetch_catalog_sources_from_metadata()
     

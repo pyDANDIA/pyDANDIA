@@ -27,6 +27,7 @@ from astropy.visualization import ZScaleInterval
 from astropy.visualization.mpl_normalize import ImageNormalize
 from astropy.nddata import Cutout2D
 from astropy import units as u
+from astropy import table
 from photutils import background, detection, DAOStarFinder
 from photutils import CircularAperture
 import matplotlib.pyplot as plt
@@ -356,7 +357,7 @@ def build_star_finder(reduction_metadata, image_path, log):
     return daofind
 
 def detect_sources(setup, reduction_metadata, image_path, scidata, log,
-                   diagnostics=False):
+                   diagnostics=False,table_format='table'):
     """Function to detect all sources in the given image
     
     :param MetaData reduction_metadata: pipeline metadata for this dataset
@@ -364,29 +365,41 @@ def detect_sources(setup, reduction_metadata, image_path, scidata, log,
     :param array scidata: image pixel data
     :param logging log: Open reduction log object
     :param diagnostics Bool: Switch for additional diagnostic plots
-
+    :param str table_format: Output table format {'table', 'array'}
+    
     Returns:
     
     :param array detected_sources: position information on all objects in the image
     """
 
+    col_names = { 'id': 'index', 'xcentroid': 'x', 'ycentroid': 'y', 
+                  'sharpness': 'sharpness', 'roundness1': 'roundness1', 
+                  'roundness2': 'roundness2', 'npix': 'npix', 'sky': 'sky', 
+                  'peak': 'peak', 'flux': 'ref_flux', 'mag': 'mag' }
+                  
     daofind = build_star_finder(reduction_metadata, image_path, log)
     
     sources = daofind(scidata)
-        
-    detected_sources = np.zeros([len(sources),len(sources.colnames)])
     
-    for i, col in enumerate(sources.colnames):
-                
-        detected_sources[:,i] = sources[col].data
+    if table_format == 'table':
+        detected_sources = [ table.Column(name='index', data=sources['id'].data),
+                             table.Column(name='x', data=sources['xcentroid'].data),
+                             table.Column(name='y', data=sources['ycentroid'].data),
+                             table.Column(name='ra', data=np.zeros(len(sources))),
+                             table.Column(name='dec', data=np.zeros(len(sources))),
+                             table.Column(name='ref_flux', data=sources['flux'].data),
+                             table.Column(name='ref_flux_err', data=np.zeros(len(sources))),
+                             table.Column(name='ref_mag', data=np.zeros(len(sources))),
+                             table.Column(name='ref_mag_err', data=np.zeros(len(sources))) ]
+        
+        detected_sources = table.Table(detected_sources)
+        
+    else:
+        for i, col in enumerate(sources.colnames):
+            
+            detected_sources[:,i] = sources[col].data
     
     log.info('Detected '+str(len(sources)))
-    
-    if diagnostics:
-        
-        file_path = os.path.join(setup.red_dir,'ref','ref_image_detected_sources.png')
-        
-        plot_detected_sources(image_path,file_path,detected_sources)
     
     return detected_sources
 

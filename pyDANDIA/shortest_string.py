@@ -56,14 +56,30 @@ def find_xy_offset(catalog1, catalog2, log=None, diagnostics=False):
                 
                 matched_stars = cross_match_catalogs(catalog1,catalog_prime)
                 
-                lengths.append(np.median(matched_stars.separation[:]))
+                if len(matched_stars.separation[:]) > 0:
+                    
+                    avg_length = np.median(matched_stars.separation[:])
+                    
+                    stars_matched = matched_stars.n_match
+                    
+                else:
+                    
+                    avg_length = 9999.9
+                    
+                    stars_matched = 0
+                    
+                lengths.append(avg_length)
                 
-                n.append(matched_stars.n_match)
+                n.append(stars_matched)
+                
+                if log!=None:
+                    log.info(' -> Completed trial dx='+str(dx)+', dy='+str(dy)+\
+                             ', n matched='+str(stars_matched)+', avg length='+\
+                             str(avg_length))
                 
             string_lengths.append( lengths )
             n_match.append(n)
             
-            log.info(' -> Completed trial dx='+str(dx)+', dy='+str(dy))
             
         string_lengths = np.array(string_lengths)
         n_match = np.array(n_match)
@@ -158,7 +174,7 @@ def cross_match_catalogs(catalog1,catalog2):
         
         idx = sep.argsort()
         
-        if len(idx) > 0 and sep[idx[0]] <= tol:
+        if len(idx) > 0:
             
             p = {'cat1_index': i,
                  'cat1_ra': None,
@@ -247,4 +263,13 @@ def plot_offsets(dxrange,dyrange,string_lengths,shortest,sub_pixel):
         plt.savefig('string_lengths.png')
     
     plt.close(2)
+
+def extract_pixel_catalog(catalog):
+    
+    positions = np.zeros((len(catalog),2))
+    
+    positions[:,0] = catalog['x'].data
+    positions[:,1] = catalog['y'].data
+    
+    return positions
     

@@ -17,6 +17,7 @@ from pyDANDIA import stage1
 from pyDANDIA import stage2
 from pyDANDIA import stage3
 from pyDANDIA import calibrate_photometry
+from pyDANDIA import reference_astrometry
 from pyDANDIA import stage3_db_ingest
 from pyDANDIA import stage4
 from pyDANDIA import stage5
@@ -56,14 +57,18 @@ def run_stage_stand_alone():
     elif params['stage'] == 'stage2':
         
         (status, report) = stage2.run_stage2(setup)
-
+    
+    elif params['stage'] == 'reference_astrometry':
+        
+        (status, report) = reference_astrometry.run_reference_astrometry(setup)
+        
     elif params['stage'] == 'stage3':
         
         (status, report) = stage3.run_stage3(setup)
 
     elif params['stage'] == 'calibrate_photometry':
         
-        (status, report) = calibrate_photometry.calibrate_photometry(setup)
+        (status, report) = calibrate_photometry.calibrate_photometry_catalog(setup)
         
     elif params['stage'] == 'stage3_db_ingest':
         
@@ -101,7 +106,7 @@ def get_args():
             
             where stage is the name of the stage or code to be run, one of:
                 stage0, stage1, stage2, stage3, stage4, stage5, 
-                starfind, stage3_db_ingest
+                starfind, stage3_db_ingest, reference_astrometry
             
             and the path to the reduction directory is given to the dataset
             to be processed

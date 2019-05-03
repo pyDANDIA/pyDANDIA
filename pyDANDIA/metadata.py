@@ -138,6 +138,21 @@ class MetaData:
 
         setattr(self, layer_name, layer)
 
+    def create_a_new_layer_from_table(self, layer_name, table_data):
+        """
+        Add a new layer to the metadata object from an astropy Table
+
+        :param string layer_name: the name associated to the layer
+        :param list table_data: an astropy-format Table
+        """
+        
+        layer_header = fits.Header()
+        layer_header.update({'NAME': layer_name})
+        
+        layer = [layer_header, table_data]
+
+        setattr(self, layer_name, layer)
+        
     def create_data_architecture_layer(self, metadata_directory, metadata_name):
         '''
         Create the data architecture layer, which contains the different directories paths, names etc.

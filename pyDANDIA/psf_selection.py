@@ -44,8 +44,8 @@ def psf_star_selection(setup,reduction_metadata,log,ref_star_catalog,
     psf_stars_idx = apply_psf_star_limit(reduction_metadata,ref_star_catalog,
                                          psf_stars_idx,log)
     
-    ref_star_catalog[:,20] = psf_stars_idx
-    idx = np.where(ref_star_catalog[:,20] == 1.0)
+    ref_star_catalog[:,11] = psf_stars_idx
+    idx = np.where(ref_star_catalog[:,11] == 1.0)
     
     psf_idx = ref_star_catalog[idx[0],0]
     

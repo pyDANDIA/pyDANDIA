@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt
 
 VERSION = 'calibrate_photometry_0.0.1'
 
-def calibrate_photometry(setup, cl_params=None):
+def calibrate_photometry_catalog(setup, cl_params=None):
     """Function to calculate the photometric transform between the instrumental
     magnitudes produced by the pyDANDIA pipeline and catalog data."""
     
@@ -47,14 +47,40 @@ def calibrate_photometry(setup, cl_params=None):
     
     star_catalog = apply_phot_calib(star_catalog,fit,log)
     
-    output_to_metadata(star_catalog, reduction_metadata,vphas_cat,match_index,
-                       setup,params,log)
+    output_to_metadata(setup, params, star_catalog, reduction_metadata, log)
+    
     logs.close_log(log)
     
     status = 'OK'
     report = 'Completed successfully'
     
     return status, report
+
+def calibrate_photometry(setup, reduction_metadata, log):
+    """Function to perform a photometric calibration where the cross-matching
+    with the VPHAS catalog has already been performed"""
+    
+    params = assign_parameters(setup,None)
+    
+    (reduction_metadata, params, star_catalog) = extract_params_from_metadata(reduction_metadata, params, log)
+    
+    vphas_cat = fetch_catalog_sources_from_metadata(reduction_metadata,log)
+    
+    star_catalog = select_good_detected_stars(star_catalog,params,log)
+    
+    vphas_cat = select_calibration_stars(vphas_cat,params,log)
+    
+    match_index = match_stars_by_position(star_catalog,vphas_cat,log)
+    
+    catalog_file = os.path.join(params['red_dir'],'vphas_catalog.fits')
+    catalog_utils.output_vphas_catalog_file(catalog_file,vphas_cat,match_index=match_index)
+    fit = calc_phot_calib(params,star_catalog,vphas_cat,match_index,log)
+    
+    star_catalog = apply_phot_calib(star_catalog,fit,log)
+    
+    output_to_metadata(setup, params, star_catalog, reduction_metadata, log)
+    
+    return reduction_metadata
     
 def get_args():
     """Function to gather the necessary commandline arguments"""
@@ -135,6 +161,12 @@ def fetch_metadata(setup,params,log):
                                               'phot_calib' )
     except KeyError:
         pass
+
+    (reduction_metadata, params, star_catalog) = extract_params_from_metadata(reduction_metadata, params, log)
+    
+    return reduction_metadata, params, star_catalog
+    
+def extract_params_from_metadata(reduction_metadata, params, log):
     
     params['fov'] = reduction_metadata.reduction_parameters[1]['FOV'][0]
     params['refimage'] = reduction_metadata.data_architecture[1]['REF_IMAGE'][0]
@@ -156,16 +188,16 @@ def fetch_metadata(setup,params,log):
     log.info('Pointing center coordinates: '+params['ra']+' '+params['dec'])
     
     star_catalog = Table()
-    star_catalog['star_index'] = reduction_metadata.star_catalog[1]['star_index']
-    star_catalog['RA'] = reduction_metadata.star_catalog[1]['RA_J2000']
-    star_catalog['DEC'] = reduction_metadata.star_catalog[1]['DEC_J2000']
+    star_catalog['index'] = reduction_metadata.star_catalog[1]['index']
+    star_catalog['RA'] = reduction_metadata.star_catalog[1]['ra']
+    star_catalog['DEC'] = reduction_metadata.star_catalog[1]['dec']
     star_catalog['mag'] = reduction_metadata.star_catalog[1]['ref_mag']
-    star_catalog['mag_err'] = reduction_metadata.star_catalog[1]['ref_mag_err']
+    star_catalog['mag_err'] = reduction_metadata.star_catalog[1]['ref_mag_error']
     star_catalog['gaia_ra'] = reduction_metadata.star_catalog[1]['ra']
     star_catalog['gaia_dec'] = reduction_metadata.star_catalog[1]['dec']
     star_catalog['clean'] = np.zeros(len(reduction_metadata.star_catalog[1]['ref_mag']))
-    star_catalog['cal_ref_mag'] = np.zeros(len(reduction_metadata.star_catalog[1]['ref_mag']))
-    star_catalog['cal_ref_mag_err'] = np.zeros(len(reduction_metadata.star_catalog[1]['ref_mag']))
+    star_catalog['cal_ref_mag'] = np.zeros(len(reduction_metadata.star_catalog[1]['cal_ref_mag']))
+    star_catalog['cal_ref_mag_err'] = np.zeros(len(reduction_metadata.star_catalog[1]['cal_ref_mag_error']))
     
     log.info('Extracted star catalog')
     
@@ -188,6 +220,27 @@ def fetch_catalog_sources_within_image(params,log):
         
     return vphas_cat    
 
+def fetch_catalog_sources_from_metadata(reduction_metadata,log):
+    
+    vphas_cat = Table()
+    
+    vidx = np.where(reduction_metadata.star_catalog[1]['vphas_ra'] > 0.0)
+    
+    vphas_cat['source_id'] = reduction_metadata.star_catalog[1]['vphas_source_id'][vidx]
+    vphas_cat['_RAJ2000'] = reduction_metadata.star_catalog[1]['vphas_ra'][vidx]
+    vphas_cat['_DEJ2000'] = reduction_metadata.star_catalog[1]['vphas_dec'][vidx]
+    vphas_cat['gmag'] = reduction_metadata.star_catalog[1]['gmag'][vidx]
+    vphas_cat['e_gmag'] = reduction_metadata.star_catalog[1]['gmag_error'][vidx]
+    vphas_cat['rmag'] = reduction_metadata.star_catalog[1]['rmag'][vidx]
+    vphas_cat['e_rmag'] = reduction_metadata.star_catalog[1]['rmag_error'][vidx]
+    vphas_cat['imag'] = reduction_metadata.star_catalog[1]['imag'][vidx]
+    vphas_cat['e_imag'] = reduction_metadata.star_catalog[1]['imag_error'][vidx]
+    vphas_cat['clean'] = reduction_metadata.star_catalog[1]['clean'][vidx]
+    
+    log.info('VPHAS+ provided '+str(len(vphas_cat))+' entries')
+    
+    return vphas_cat
+    
 def select_good_detected_stars(star_catalog,params,log,
                                select_around_target=False):
     """Function to identify and flag stars detected in the reference image
@@ -252,8 +305,8 @@ def select_calibration_stars(vphas_cat,params,log):
 
         max_err = 2.0 * med
 
-        log.info('Median photometric uncertainty of catalog stars: '+str(med))
-        log.info('Excluding catalog stars with uncertainty > '+str(max_err))
+        log.info('Median photometric uncertainty ('+f+'-band) of catalog stars: '+str(med))
+        log.info('Excluding catalog stars ('+f+'-band) with uncertainty > '+str(max_err))
                     
         idx1 = np.where(vphas_cat[col] <= max_err)
         idx2 = np.where(vphas_cat[col] > 0)
@@ -463,7 +516,7 @@ def set_calibration_limits(params,log):
                 'rp': {'det_mags_max': 15.5,
                        'det_mags_min': 10.0,
                        'cat_merr_max': 0.04},
-                'ip': {'det_mags_max': 18.0,
+                'ip': {'det_mags_max': 20.0,
                        'det_mags_min': 15.5,
                        'cat_merr_max': 0.04}}
     
@@ -659,54 +712,22 @@ def apply_phot_calib(star_catalog,fit_params,log):
     
     return star_catalog
 
-def output_to_metadata(star_catalog, reduction_metadata,vphas_cat,match_index,
-                       setup,params,log):
+def output_to_metadata(setup, params, star_catalog, reduction_metadata, log):
     """Function to output the star catalog to the reduction metadata. 
     Creates a phot_catalog extension if none exists, or overwrites an 
     existing one"""
     
     cmag = params['cat_mag_col']
     
-    try:
-        
-        reduction_metadata.phot_calib[1]['star_index'] = star_catalog['star_index'][:]
-        reduction_metadata.phot_calib[1]['cal_ref_mag'] = star_catalog['cal_ref_mag'][:]
-        reduction_metadata.phot_calib[1]['cal_ref_mag_err'] = star_catalog['cal_ref_mag_err'][:]
-        reduction_metadata.phot_calib[1]['_RAJ2000'][match_index[:,0]] = vphas_cat['_RAJ2000'][match_index[:,1]]
-        reduction_metadata.phot_calib[1]['_DEJ2000'][match_index[:,0]] = vphas_cat['_DEJ2000'][match_index[:,1]]
-        reduction_metadata.phot_calib[1]['imag'][match_index[:,0]] = vphas_cat['imag'][match_index[:,1]]
-        reduction_metadata.phot_calib[1]['e_imag'][match_index[:,0]] = vphas_cat['e_imag'][match_index[:,1]]
-        reduction_metadata.phot_calib[1]['rmag'][match_index[:,0]] = vphas_cat['rmag'][match_index[:,1]]
-        reduction_metadata.phot_calib[1]['e_rmag'][match_index[:,0]] = vphas_cat['e_rmag'][match_index[:,1]]
-        reduction_metadata.phot_calib[1]['imag'][match_index[:,0]] = vphas_cat['imag'][match_index[:,1]]
-        reduction_metadata.phot_calib[1]['e_imag'][match_index[:,0]] = vphas_cat['e_imag'][match_index[:,1]]
-        reduction_metadata.phot_calib[1]['clean'][match_index[:,0]] = vphas_cat['clean'][match_index[:,1]]
+    reduction_metadata.star_catalog[1]['index'] = star_catalog['index'][:]
+    reduction_metadata.star_catalog[1]['cal_ref_mag'] = star_catalog['cal_ref_mag'][:]
+    reduction_metadata.star_catalog[1]['cal_ref_mag_err'] = star_catalog['cal_ref_mag_err'][:]
 
-        log.info('Updating existing phot_calib table')
-        
-    except AttributeError:
-        
-        phot_catalog = np.zeros([len(star_catalog),12])
-        phot_catalog[:,0] = star_catalog['star_index'][:]
-        phot_catalog[:,1] = star_catalog['cal_ref_mag'][:]
-        phot_catalog[:,2] = star_catalog['cal_ref_mag_err'][:]
-        phot_catalog[match_index[:,0],3] = vphas_cat['_RAJ2000'][match_index[:,1]]
-        phot_catalog[match_index[:,0],4] = vphas_cat['_DEJ2000'][match_index[:,1]]
-        phot_catalog[match_index[:,0],5] = vphas_cat['imag'][match_index[:,1]]
-        phot_catalog[match_index[:,0],6] = vphas_cat['e_imag'][match_index[:,1]]
-        phot_catalog[match_index[:,0],7] = vphas_cat['rmag'][match_index[:,1]]
-        phot_catalog[match_index[:,0],8] = vphas_cat['e_rmag'][match_index[:,1]]
-        phot_catalog[match_index[:,0],9] = vphas_cat['gmag'][match_index[:,1]]
-        phot_catalog[match_index[:,0],10] = vphas_cat['e_gmag'][match_index[:,1]]
-        phot_catalog[match_index[:,0],11] = vphas_cat['clean'][match_index[:,1]]
-    
-        reduction_metadata.create_phot_calibration_layer(phot_catalog,log=log)
-        
-        log.info('Creating phot_calib table')
+    log.info('Updating star_catalog table')
         
     reduction_metadata.save_a_layer_to_file(setup.red_dir, 
                                             params['metadata'],
-                                            'phot_calib', log=log)
+                                            'star_catalog', log=log)
 
 def run_calibration():
     """Function to run this stage independently of the pipeline infrastructure"""
@@ -715,7 +736,7 @@ def run_calibration():
 
     setup = pipeline_setup.pipeline_setup(cl_params)
     
-    (status, report) = calibrate_photometry(setup, cl_params=cl_params)
+    (status, report) = calibrate_photometry_catalog(setup, cl_params=cl_params)
     
 if __name__ == '__main__':
     

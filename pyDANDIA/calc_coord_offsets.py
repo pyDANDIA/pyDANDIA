@@ -6,6 +6,7 @@ Created on Tue Jul 17 11:41:38 2018
 """
 
 from sys import argv
+from os import path
 from astropy.coordinates import SkyCoord
 import astropy.units as u
 import numpy as np
@@ -54,20 +55,13 @@ def get_star_positions():
         
     return star_true, star_meas
 
-def calc_offset_hist2d(detected_sources_world, catalog_sources_world,
-                       field_centre_ra, field_centre_dec):
+def calc_offset_hist2d(setup,detected_stars, catalog_stars,
+                       field_centre_ra, field_centre_dec,log,
+                       diagnostics=False):
     """Function to apply the 2D histogram technique of calculating the 
     offset between two sets of world coordinates.
     Re-implementation of the the approach used in RoboCut, written by E. Bachelet.
     """
-    
-    detected_stars = extract_nearby_stars(detected_sources_world,
-                                          field_centre_ra, field_centre_dec,
-                                          5.0)
-    
-    catalog_stars = extract_nearby_stars(catalog_sources_world,
-                                          field_centre_ra, field_centre_dec,
-                                          5.0)
     
     nstars = len(detected_stars)
     
@@ -77,15 +71,18 @@ def calc_offset_hist2d(detected_sources_world, catalog_sources_world,
     deltaRA = (raXX - raYY).ravel()
     deltaDec = (decXX - decYY).ravel()
     
-    fig = plt.figure(1,(10,10))
-    plt.subplot(2, 1, 1)
-    plt.hist(deltaRA, 100)
-    plt.xlabel('$\\Delta$RA')
-    plt.subplot(2, 1, 2)
-    plt.hist(deltaDec, 100)
-    plt.xlabel('$\\Delta$Dec')
-    plt.show()
-    
+    if diagnostics:
+        fig = plt.figure(1,(10,10))
+        plt.subplot(2, 1, 1)
+        plt.hist(deltaRA, 100)
+        plt.xlabel('$\\Delta$RA')
+        plt.subplot(2, 1, 2)
+        plt.hist(deltaDec, 100)
+        plt.xlabel('$\\Delta$Dec')
+        plt.grid()
+        plt.savefig(path.join(setup.red_dir,'ref','detected_catalog_sources_offset.png'))
+        plt.close(1)
+        
     best_offset = [[0,0],[0,0]]
 
     resolution_factor = 20
@@ -103,8 +100,63 @@ def calc_offset_hist2d(detected_sources_world, catalog_sources_world,
     RA_offset = (H[1][best_offset[0]] + RAbin/2.0)[0]
     Dec_offset = (H[2][best_offset[1]] + DECbin/2.0)[0]
     
+    log.info('Measured transform: dRA='+str(RA_offset)+', dDec='+str(Dec_offset)+' deg')
+    
     return RA_offset, Dec_offset
 
+def calc_offset_pixels(setup, detected_stars, catalog_stars,log,
+                       diagnostics=False):
+    """Function to apply the 2D histogram technique of calculating the 
+    offset between two sets of world coordinates.
+    Re-implementation of the the approach used in RoboCut, written by E. Bachelet.
+    """
+    
+    nstars = len(detected_stars)
+    
+    (xXX,xYY) = np.meshgrid(detected_stars['x'],catalog_stars['x'])
+    (yXX,yYY) = np.meshgrid(detected_stars['y'],catalog_stars['y'])
+
+    deltaX = (xXX - xYY).ravel()
+    deltaY = (yXX - yYY).ravel()
+    
+    if diagnostics:
+        fig = plt.figure(1,(10,10))
+        plt.subplot(2, 1, 1)
+        plt.hist(deltaX, 100)
+        plt.xlabel('$\\Delta$X')
+        plt.grid()
+        plt.subplot(2, 1, 2)
+        plt.hist(deltaY, 100)
+        plt.xlabel('$\\Delta$Y')
+        plt.grid()
+        plt.savefig(path.join(setup.red_dir,'ref','detected_catalog_sources_offset.png'))
+        plt.close(1)
+    
+    nxbins = int(detected_stars['x'].max() - detected_stars['x'].min())
+    nybins = int(detected_stars['y'].max() - detected_stars['y'].min())
+    (xH,xedges) = np.histogram(deltaX,bins=nxbins)
+    (yH,yedges) = np.histogram(deltaY,bins=nybins)
+    xdx = np.where(xH == xH.max())
+    ydx = np.where(yH == yH.max())
+    
+    best_offset = [[0,0],[0,0]]
+
+    resolution_factor = 2
+    
+    while len(best_offset[0]) != 1:
+        
+        (H,xedges,yedges) = np.histogram2d(deltaX, deltaY, nxbins*resolution_factor)
+        
+        best_offset = np.where(H == np.max(H))
+        resolution_factor = resolution_factor/2.0
+    
+    X_offset = (xedges[best_offset[0][0]] + xedges[best_offset[0][0]+1])/2.0
+    Y_offset = (yedges[best_offset[1][0]] + xedges[best_offset[1][0]+1])/2.0
+    
+    log.info('Measured transform: dRA='+str(X_offset)+', dDec='+str(Y_offset)+' pixels')
+    
+    return X_offset, Y_offset
+    
 def extract_nearby_stars(catalog,ra,dec,radius):
     
     centre = SkyCoord(ra,dec,frame='icrs', unit=(u.deg, u.deg))

@@ -10,13 +10,14 @@ from astroquery.vizier import Vizier
 from astroquery.gaia import Gaia
 from astropy import wcs, coordinates, units, visualization
 
-def search_vizier_for_sources(ra, dec, radius, catalog, row_limit=-1):
+def search_vizier_for_sources(ra, dec, radius, catalog, row_limit=-1, 
+                              coords='sexigesimal'):
     """Function to perform online query of the 2MASS catalogue and return
     a catalogue of known objects within the field of view
     
     Inputs:
-        :param str ra: RA J2000 in sexigesimal format
-        :param str dec: Dec J2000 in sexigesimal format
+        :param str ra: RA J2000 in sexigesimal format [default, accepts degrees]
+        :param str dec: Dec J2000 in sexigesimal format [default, accepts degrees]
         :param float radius: Search radius in arcmin
         :param str catalog: Catalog to search.  Options include:
                                     ['2MASS', 'VPHAS+']
@@ -37,7 +38,12 @@ def search_vizier_for_sources(ra, dec, radius, catalog, row_limit=-1):
                 column_filters=cat_filters)
 
     v.ROW_LIMIT = row_limit
-    c = coordinates.SkyCoord(ra+' '+dec, frame='icrs', unit=(units.hourangle, units.deg))
+    
+    if 'sexigesimal' in coords:
+        c = coordinates.SkyCoord(ra+' '+dec, frame='icrs', unit=(units.hourangle, units.deg))
+    else:
+        c = coordinates.SkyCoord(ra, dec, frame='icrs', unit=(units.deg, units.deg))
+        
     r = radius * units.arcminute
     
     catalog_list = Vizier.find_catalogs(cat_id)

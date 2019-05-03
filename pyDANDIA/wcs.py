@@ -23,20 +23,19 @@ import matplotlib.pyplot as plt
 import matplotlib
 from scipy import optimize
 
-def reference_astrometry(setup,log,image_path,detected_sources,diagnostics=True):
+
+def reference_astrometry(setup,log,image_path,detected_objects,
+                         find_transform=False,
+                         diagnostics=True):
     """Function to calculate the World Coordinate System (WCS) for an image"""
     
     log.info('Performing astrometry on the reference image')
     
+    detected_sources = build_detect_source_catalog(detected_objects)
+    
     header = fits.getheader(image_path)
     
-    # Applies known rotation of frames.
     image_wcs = wcs.WCS(header)
-    crota2 = np.pi
-    image_wcs.wcs.cd[0,0] = image_wcs.wcs.cd[0,0] * np.cos(crota2)
-    image_wcs.wcs.cd[0,1] = -image_wcs.wcs.cd[0,0] * np.sin(crota2)
-    image_wcs.wcs.cd[1,0] = image_wcs.wcs.cd[1,0] * np.sin(crota2)
-    image_wcs.wcs.cd[1,1] = image_wcs.wcs.cd[1,1] * np.cos(crota2)
     
     field = header['OBJECT']
     
@@ -45,8 +44,8 @@ def reference_astrometry(setup,log,image_path,detected_sources,diagnostics=True)
     
     wcs_image_path = path.join(setup.red_dir,'ref','ref_image_wcs.fits')
     catalog_file = path.join(setup.red_dir,'ref', 'star_catalog.fits')
-    det_catalog_file = path.join(setup.red_dir,'ref', 'bright_detected_stars.reg')
-    cat_catalog_file = path.join(setup.red_dir,'ref', 'bright_catalog_stars.reg')
+    det_catalog_file = path.join(setup.red_dir,'ref', 'detected_stars_full.reg')
+    cat_catalog_file = path.join(setup.red_dir,'ref', 'catalog_stars_full.reg')
     
     detected_sources = calc_world_coordinates_astropy(setup,image_wcs,
                                               detected_sources,log)
@@ -58,54 +57,45 @@ def reference_astrometry(setup,log,image_path,detected_sources,diagnostics=True)
     
     catalog_utils.output_ds9_overlay_from_table(detected_sources,det_catalog_file,colour='green')
     catalog_utils.output_ds9_overlay_from_table(gaia_sources,cat_catalog_file,colour='blue')
-    exit()
-    #(detected_subregion, gaia_subregion) = extract_central_region_from_catalogs(detected_sources, 
-    #                                                                            gaia_sources,
-    #                                                                            log)
     
-    (bright_central_detected_stars, bright_central_gaia_stars) = extract_bright_central_stars(detected_sources, 
-                        gaia_sources, image_wcs, log)
+    (bright_central_detected_stars, bright_central_gaia_stars) = extract_bright_central_stars(setup,detected_sources, 
+                        gaia_sources, image_wcs, log, radius=0.05)
     
-    #transform = shortest_string.find_xy_offset(detected_subregion, 
-    #                                           gaia_subregion, log=log)
-    
-    transform = calc_coord_offsets.calc_offset_hist2d(bright_central_detected_stars, 
-                                                      bright_central_gaia_stars,
-                                                      image_wcs.wcs.crval[0],
-                                                      image_wcs.wcs.crval[1])
-    
-    print(transform)
-    print(transform[0]*3600.0, transform[1]*3600.0)
-    print((transform[0]*3600.0)/0.26, (transform[1]*3600.0)/0.26)
-    exit()
-    
-    image_wcs = update_wcs(image_wcs,transform,log)
-    
-    world_coords = calc_world_coordinates(setup,image_path,detected_sources,log)
-    
+    if find_transform:
+        
+        bright_central_detected_pix = shortest_string.extract_pixel_catalog(bright_central_detected_stars)
+        bright_central_gaia_pix = shortest_string.extract_pixel_catalog(bright_central_gaia_stars)
+        
+        transform = shortest_string.find_xy_offset(bright_central_detected_pix, 
+                                                   bright_central_gaia_pix, log=log)
+        
+        #transform = calc_coord_offsets.calc_offset_hist2d(setup,bright_central_detected_stars, 
+        #                                                  bright_central_gaia_stars,
+        #                                                  image_wcs.wcs.crval[0],
+        #                                                  image_wcs.wcs.crval[1],
+        #                                                  log,
+        #                                                  diagnostics=True)
+        
+        image_wcs = update_wcs(image_wcs,transform,header['PIXSCALE'],log,
+                               transform_type='pixels')
+        
+        detected_sources = calc_world_coordinates_astropy(setup,image_wcs,
+                                                      detected_sources,log)
+        
+        gaia_sources = calc_image_coordinates_astropy(setup, image_wcs, gaia_sources,log)
+        
+        cat_catalog_file = path.join(setup.red_dir,'ref', 'catalog_stars_full_updated.reg')
+        catalog_utils.output_ds9_overlay_from_table(gaia_sources,cat_catalog_file,colour='red')
+        
     if diagnostics:
         plot_overlaid_sources(path.join(setup.red_dir,'ref'),
-                          world_coords,gaia_sources, interactive=True)
+                          detected_sources,gaia_sources, interactive=False)
     
-    matched_stars = match_stars_world_coords(world_coords,gaia_sources,log,
+    matched_stars = match_stars_world_coords(detected_sources,gaia_sources,log,
                                              verbose=True)
     
-    analyze_coord_residuals(matched_stars,world_coords,gaia_sources,
+    analyze_coord_residuals(matched_stars,detected_sources,gaia_sources,
                             path.join(setup.red_dir,'ref'))
-    
-    #(matched_stars,image_wcs) = refine_wcs(detected_sources, gaia_sources_xy, 
-    #                               image_wcs, log, path.join(setup.red_dir,'ref'))
-
-#    if diagnostics == True:
-#        diagnostic_plots(path.join(setup.red_dir,'ref'),hdu,image_wcs,
-#                         detected_sources,
-#                         gaia_sources_xy)
-#        log.info('-> Output astrometry diagnostic plots')
-
-    #(image_wcs,hdu) = update_image_wcs(hdu,image_wcs)
-    #hdu.writeto(wcs_image_path,overwrite=True)
-    #log.info('-> Output reference image with updated WCS:')
-    #log.info(image_wcs)
     
     ref_source_catalog = build_ref_source_catalog(detected_sources,\
                                                     gaia_sources,\
@@ -135,7 +125,8 @@ def fetch_catalog_sources_for_field(setup,field,header,image_wcs,log,
     if catalog_sources != None:
         
         log.info('Read data for '+str(len(catalog_sources))+\
-                 ' '+catalog_name+' stars from stored catalog for field '+field)
+                 ' '+catalog_name+' stars from stored catalog for field '+field+', '+\
+                 catalog_file)
         
     else:
         
@@ -167,28 +158,39 @@ def fetch_catalog_sources_for_field(setup,field,header,image_wcs,log,
     
     return catalog_sources
 
-def extract_bright_central_stars(detected_sources, catalog_sources, image_wcs, log):
+def extract_bright_central_stars(setup, detected_sources, catalog_sources, 
+                                 image_wcs, log, radius=0.1):
     """Function to extract the bright stars from the central regions of 
-    both detected and catalog starlists"""
+    both detected and catalog starlists
     
+    radius float degrees    
+    """
+    
+    log.info('Selecting bright, central stars within '+str(radius)+\
+             ' deg of the image centre to calculate the transformation')
+             
     central_detected_stars = calc_coord_offsets.extract_nearby_stars(detected_sources,
                                                                      image_wcs.wcs.crval[0],
                                                                      image_wcs.wcs.crval[1],
-                                                                     1.0)
+                                                                     radius)
     
     central_catalog_stars = calc_coord_offsets.extract_nearby_stars(catalog_sources,
                                                                      image_wcs.wcs.crval[0],
                                                                      image_wcs.wcs.crval[1],
-                                                                     1.0)
+                                                                     radius)
     
-    idx = np.argsort(central_detected_stars['flux'])
+    idx = np.argsort(central_detected_stars['ref_flux'])
     
     imin = int(len(central_detected_stars)*0.75)
     imax = int(len(central_detected_stars)*0.98)
     
-    bright_central_detected_stars = central_detected_stars[idx[imin:imax]]
+    bright_central_detected_stars = central_detected_stars[idx][imin:imax]
     
+    log.info('Selected '+str(len(bright_central_detected_stars))+\
+             ' bright detected stars close to the centre of the image')
+             
     jdx = []
+    
     for i,flux in enumerate(central_catalog_stars['phot_rp_mean_flux']):
         if np.isfinite(flux):
             jdx.append(i)
@@ -199,6 +201,16 @@ def extract_bright_central_stars(detected_sources, catalog_sources, image_wcs, l
     imax = int(len(central_catalog_stars[jdx])*0.98)
     
     bright_central_catalog_stars = central_catalog_stars[jdx][idx[imin:imax]]
+    
+    log.info('Selected '+str(len(bright_central_catalog_stars))+\
+             ' bright detected stars close to the centre of the image')
+             
+    det_catalog_file = path.join(setup.red_dir,'ref', 'bright_detected_stars.reg')
+    cat_catalog_file = path.join(setup.red_dir,'ref', 'bright_catalog_stars.reg')
+    catalog_utils.output_ds9_overlay_from_table(bright_central_detected_stars,
+                                                det_catalog_file,colour='yellow')
+    catalog_utils.output_ds9_overlay_from_table(bright_central_catalog_stars,
+                                                cat_catalog_file,colour='magenta')
     
     return bright_central_detected_stars, bright_central_catalog_stars
     
@@ -398,34 +410,47 @@ def calc_image_coordinates_astropy(setup, image_wcs, catalog_sources,log):
     log.info('Calculating the predicted image pixel positions for all catalog stars')
     
     positions = []
-    
-    for star in catalog_sources['ra','dec'].as_array():
+    jidx = None
+    for j,star in enumerate(catalog_sources['ra','dec'].as_array()):
 
         s = coordinates.SkyCoord(str(star[0])+' '+str(star[1]), 
                                      frame='icrs', unit=(units.deg, units.deg))
         
         positions.append([s.ra.deg, s.dec.deg])
-    
+        
     dpositions =  image_wcs.wcs_world2pix(np.array(positions),1)
     
-    # Now apply the known image rotation
-    dpositions[:,0] = dpositions[:,0] - image_wcs.wcs.crpix[0]
-    dpositions[:,1] = dpositions[:,1] - image_wcs.wcs.crpix[1]
+    # Now apply the known image rotation, if required:
+    if image_wcs.wcs.cd[0,0] < 0.0:
+        
+        log.info('Applying WCS CD transform parameters')
+        
+        dpositions[:,0] = dpositions[:,0] - image_wcs.wcs.crpix[0]
+        dpositions[:,1] = dpositions[:,1] - image_wcs.wcs.crpix[1]
+        
+        theta = np.pi
+        R = np.zeros((2,2))
+        R[0,0] = np.cos(theta)
+        R[0,1] = -np.sin(theta)
+        R[1,0] = np.sin(theta)
+        R[1,1] = np.cos(theta)
+        
+        positions = np.dot(dpositions, R)
+        
+        positions[:,0] += image_wcs.wcs.crpix[0]
+        positions[:,1] += image_wcs.wcs.crpix[1]
     
-    theta = np.pi
-    R = np.zeros((2,2))
-    R[0,0] = np.cos(theta)
-    R[0,1] = -np.sin(theta)
-    R[1,0] = np.sin(theta)
-    R[1,1] = np.cos(theta)
+    else:
+        positions = dpositions
+            
+    if 'x' in catalog_sources.colnames:
+        catalog_sources['x'] = positions[:,0]
+        catalog_sources['y'] = positions[:,1]
+        
+    else:
+        catalog_sources.add_column( table.Column(name='x', data=positions[:,0]) )
+        catalog_sources.add_column( table.Column(name='y', data=positions[:,1]) )
     
-    positions = np.dot(dpositions, R)
-    
-    positions[:,0] += image_wcs.wcs.crpix[0]
-    positions[:,1] += image_wcs.wcs.crpix[1]
-    
-    catalog_sources.add_column( table.Column(name='x', data=positions[:,0]) )
-    catalog_sources.add_column( table.Column(name='y', data=positions[:,1]) )
     log.info('Completed calculation of image coordinates')
     
     return catalog_sources
@@ -486,44 +511,47 @@ def calc_world_coordinates(setup,image_path,detected_sources,log):
         
     return coords_table
     
-def calc_world_coordinates_astropy(setup,image_wcs,detected_sources,log):
+def calc_world_coordinates_astropy(setup,image_wcs,detected_sources,log,
+                                   rotate=False):
     """Function to calculate the RA, Dec positions of an array of image
     pixel positions"""
     
     log.info('Calculating the world coordinates of all detected stars')
     
-    
     # Now apply the known image rotation
-    dpositions = np.copy(detected_sources[:,1:3])
-    dpositions[:,0] = dpositions[:,0] - image_wcs.wcs.crpix[0]
-    dpositions[:,1] = dpositions[:,1] - image_wcs.wcs.crpix[1]
+    if rotate:
+        dpositions = np.zeros([len(detected_sources),2])
+        dpositions[:,0] = detected_sources['x'].data
+        dpositions[:,1] = detected_sources['y'].data
+        
+        dpositions[:,0] = dpositions[:,0] - image_wcs.wcs.crpix[0]
+        dpositions[:,1] = dpositions[:,1] - image_wcs.wcs.crpix[1]
+        
+        theta = -np.pi
+        R = np.zeros((2,2))
+        R[0,0] = np.cos(theta)
+        R[0,1] = -np.sin(theta)
+        R[1,0] = np.sin(theta)
+        R[1,1] = np.cos(theta)
+        
+        positions = np.dot(dpositions, R)
+        
+        positions[:,0] += image_wcs.wcs.crpix[0]
+        positions[:,1] += image_wcs.wcs.crpix[1]
     
-    theta = -np.pi
-    R = np.zeros((2,2))
-    R[0,0] = np.cos(theta)
-    R[0,1] = -np.sin(theta)
-    R[1,0] = np.sin(theta)
-    R[1,1] = np.cos(theta)
-    
-    positions = np.dot(dpositions, R)
-    
-    positions[:,0] += image_wcs.wcs.crpix[0]
-    positions[:,1] += image_wcs.wcs.crpix[1]
-    
+    else:
+        positions = np.zeros([len(detected_sources),2])
+        positions[:,0] = detected_sources['x'].data
+        positions[:,1] = detected_sources['y'].data
+        
     world_coords = image_wcs.wcs_pix2world(positions, 1)
     
-    table_data = [ table.Column(name='ra', data=world_coords[:,0]),
-                       table.Column(name='dec', data=world_coords[:,1]),
-                       table.Column(name='x', data=detected_sources[:,1]),
-                       table.Column(name='y', data=detected_sources[:,2]),
-                       table.Column(name='index', data=detected_sources[:,0]),
-                       table.Column(name='flux', data=detected_sources[:,9]) ]
-       
-    coords_table = table.Table(data=table_data)
+    detected_sources['ra'] = world_coords[:,0]
+    detected_sources['dec'] = world_coords[:,1]
     
     log.info('Completed calculation of world coordinates')
     
-    return coords_table
+    return detected_sources
     
 def match_stars_world_coords(detected_sources,catalog_sources,log,
                              verbose=False):
@@ -559,31 +587,33 @@ def match_stars_world_coords(detected_sources,catalog_sources,log,
         kdx = kdx.intersection(set(kdx3))
         kdx = list(kdx.intersection(set(kdx4)))
         
-        (idx, d2d, d3d) = c.match_to_catalog_sky(det_sources[kdx])
-        i = int(idx)
-        
-        if d2d.value < tol:
+        if len(kdx) > 0:
             
-            p = {'cat1_index': detected_sources['index'][kdx[i]],
-                 'cat1_ra': detected_sources['ra'][kdx[i]],
-                 'cat1_dec': detected_sources['dec'][kdx[i]],
-                 'cat1_x': detected_sources['x'][kdx[i]],
-                 'cat1_y': detected_sources['y'][kdx[i]],
-                 'cat2_index': j, 
-                 'cat2_ra': catalog_sources['ra'][j], 
-                 'cat2_dec': catalog_sources['dec'][j], \
-                 'separation': d2d.value[0]}
-                 
-            matched_stars.add_match(p)
+            (idx, d2d, d3d) = c.match_to_catalog_sky(det_sources[kdx])
+            i = int(idx)
             
-            if verbose:
-                log.info(matched_stars.summarize_last())
-            
-            if j%jincr == 0:
-                percentage = round((float(j)/float(len(catalog_sources)))*100.0,0)
-                log.info(' -> Completed cross-match of '+str(percentage)+\
-                            '% ('+str(j)+' of catalog stars out of '+\
-                            str(len(catalog_sources))+')')
+            if d2d.value < tol:
+                
+                p = {'cat1_index': kdx[i],
+                     'cat1_ra': detected_sources['ra'][kdx[i]],
+                     'cat1_dec': detected_sources['dec'][kdx[i]],
+                     'cat1_x': detected_sources['x'][kdx[i]],
+                     'cat1_y': detected_sources['y'][kdx[i]],
+                     'cat2_index': j, 
+                     'cat2_ra': catalog_sources['ra'][j], 
+                     'cat2_dec': catalog_sources['dec'][j], \
+                     'separation': d2d.value[0]}
+                     
+                matched_stars.add_match(p)
+                
+                if verbose:
+                    log.info(matched_stars.summarize_last())
+                
+                if j%jincr == 0:
+                    percentage = round((float(j)/float(len(catalog_sources)))*100.0,0)
+                    log.info(' -> Completed cross-match of '+str(percentage)+\
+                                '% ('+str(j)+' of catalog stars out of '+\
+                                str(len(catalog_sources))+')')
 
     log.info(' -> Matched '+str(matched_stars.n_match)+' stars')
 
@@ -696,16 +726,21 @@ def calc_transform_uncertainty(pfit,matched_stars):
     
     return sep.std()
 
-def update_wcs(image_wcs,transform,log):
+def update_wcs(image_wcs,transform,pixscale,log,transform_type='pixels'):
     """Function to update the WCS object for an image"""
     
-    (xprime,yprime) = transform_coords(transform,image_wcs.wcs.crpix[1],
-                                                image_wcs.wcs.crpix[0])
+    if transform_type == 'sky':
+        dx = (transform[0]*3600.0) / pixscale
+        dy = (transform[1]*3600.0) / pixscale
+    else:
+        dx = -transform[0]
+        dy = -transform[1]
         
-    image_wcs.wcs.crpix[0] = yprime
-    image_wcs.wcs.crpix[1] = xprime
+    image_wcs.wcs.crpix[0] += dx
+    image_wcs.wcs.crpix[1] += dy
     
     log.info('Updated image WCS information')
+    log.info(image_wcs)
     
     return image_wcs
     
@@ -752,8 +787,12 @@ def plot_overlaid_sources(output_dir,detected_sources_world,gaia_sources_world,
                               
     matplotlib.use('TkAgg')
     
-    fig = plt.figure(1)
+    fig = plt.figure(1,(20,10))
     
+    plt.subplot(211)
+    plt.subplots_adjust(left=0.2, bottom=0.1, right=0.9, top=0.95,
+                wspace=0.5, hspace=0.3)
+
     plt.plot(detected_sources_world['ra'], detected_sources_world['dec'], 'r+',
              alpha=0.5,label='Detected sources')
     plt.plot(gaia_sources_world['ra'], gaia_sources_world['dec'], 'bo',
@@ -763,6 +802,22 @@ def plot_overlaid_sources(output_dir,detected_sources_world,gaia_sources_world,
     plt.ylabel('Dec deg')
 
     plt.legend()
+    plt.grid()
+    
+    plt.subplot(212)
+    plt.subplots_adjust(left=0.2, bottom=0.1, right=0.9, top=0.95,
+                wspace=0.5, hspace=0.3)
+
+    plt.plot(detected_sources_world['x'], detected_sources_world['y'], 'r+',
+             alpha=0.5,label='Detected sources')
+    plt.plot(gaia_sources_world['x'], gaia_sources_world['y'], 'bo',
+             fillstyle='none', label='Gaia sources')
+             
+    plt.xlabel('X pixels')
+    plt.ylabel('Y pixels')
+
+    plt.legend()
+    plt.grid()
     
     if interactive:
         plt.show()
@@ -840,28 +895,49 @@ def plot_astrometry(output_dir,matched_stars,pfit=None):
     plt.savefig(path.join(output_dir,'detected_catalog_positions.png'))
     plt.close(2)
 
-def build_ref_source_catalog(detected_sources,catalog_sources,\
-                            matched_stars,image_wcs):
+def build_detect_source_catalog(detected_objects):
+    """Function to build an astroph Table with all the columns necessary"""
+    
+    detected_data = [ table.Column(name='index', data=detected_objects['index']),
+                      table.Column(name='x', data=detected_objects['x']),
+                      table.Column(name='y', data=detected_objects['y']),
+                      table.Column(name='ra', data=np.zeros(len(detected_objects))),
+                      table.Column(name='dec', data=np.zeros(len(detected_objects))),
+                      table.Column(name='ref_flux', data=detected_objects['ref_flux']),
+                      table.Column(name='ref_flux_err', data=np.zeros(len(detected_objects))),
+                      table.Column(name='ref_mag', data=np.zeros(len(detected_objects))),
+                      table.Column(name='ref_mag_err', data=np.zeros(len(detected_objects))) ]
+    
+    detected_sources = table.Table(data=detected_data)
+    
+    return detected_sources
+    
+def build_ref_source_catalog(detected_sources,gaia_sources,vphas_sources,\
+                            matched_stars_gaia,matched_stars_vphas,image_wcs):
     """Function to calculate the positions of all objects detected in the
     reference image in world coordinates, combining this catalogue with
-    information from the 2MASS Point Source Catalogue where available.
+    information from the Gaia and VPHAS+ Catalogues where available.
     
-    Output catalog is in numpy array format with columns (2MASS):
-    0   1  2  3   4     5        6             7         8        9   10   11 12   13   14   15-19   20
-    idx x  y  ra  dec  ref_flux  ref_flux_err ref_mag ref_mag_err J  Jerr  H Herr   K   Kerr null  psf_star
-    
-    Output catalog is in numpy array format with columns (Gaia):
-    0   1  2  3   4     5        6             7         8            9   
-    idx x  y  ra  dec  ref_flux  ref_flux_err ref_mag ref_mag_err gaia_source_id 
-    10      11           12       13            14              15
+    Output catalog is in numpy array format with columns:
+    0   1  2  3   4     5        6             7         8            9                 10
+    idx x  y  ra  dec  ref_flux  ref_flux_err ref_mag ref_mag_err   cal_ref_mag   cal_ref_mag_error
+    11
+    gaia_source_id 
+    12      13           14       15            16              17
     ra    ra_error      dec     dec_error   phot_g_mean_flux phot_g_mean_flux_error 
-    16                      17    
+    18                      19    
     phot_bp_mean_flux phot_bp_mean_flux_error 
-    18                  19                          20
-    phot_rp_mean_flux phot_rp_mean_flux_error    psf_star
+    20                  21                          
+    phot_rp_mean_flux phot_rp_mean_flux_error    
+    22                  23              24      25      26
+    vphas_source_id     vphas_ra    vphas_dec  gmag    gmag_error   
+    27          28          29          30          31
+    rmag     rmag_error     imag     imag_error     clean 
+    32
+    psf_star
     
-    J, H, K magnitudes and their photometric errors are added if a given 
-    star has been matched with the 2MASS PSC.  Similarly, instrumental 
+    Catalogue positions and magnitudes and their errors are added if a given 
+    star has been matched with the Gaia and VPHAS catalogues.  Similarly, instrumental 
     magnitudes and magnitude errors are given where available.  
     If no entry is available for these quantities, -99.999 values are given, 
     so that the catalog can be output to a valid FITS table. 
@@ -873,54 +949,99 @@ def build_ref_source_catalog(detected_sources,catalog_sources,\
         null default used in the pipeline"""
     
         if str(cat_entry) == '--' or np.isnan(cat_entry) == True:
-            cat_entry = -99.999
+            cat_entry = -9999.999
             
         return cat_entry
     
-    cat_source = 'Gaia'
+    def validate_entry_string(cat_entry):
+        """Function to intercept the NaNs used by Vizier to fill in data 
+        missing from the catalog and replace them with the FITS-compatible
+        null default used in the pipeline"""
     
-    world_coords = image_wcs.wcs_pix2world(detected_sources[:,1:3], 1)
-    
-    data = np.zeros([len(detected_sources),21])
-        
-    data[:,0] = detected_sources[:,0]   # Index
-    data[:,1] = detected_sources[:,1]   # X
-    data[:,2] = detected_sources[:,2]   # Y
-    data[:,3] = world_coords[:,0]       # RA
-    data[:,4] = world_coords[:,1]       # Dec
-    data[:,7] = detected_sources[:,10]  # instrumental mag
-    data[:,8] = -99.999                 # instrumental mag error (null)
-    data[:,20] = 0                      # PSF star switch
-    
-    for j in range(0,len(matched_stars.cat1_index),1):
-        
-        idx1 = int(matched_stars.cat1_index[j])
-        idx2 = int(matched_stars.cat2_index[j])
-        
-        if cat_source == '2MASS':
-            data[idx1,9] = validate_entry(catalog_sources[matched_stars.cat2_index[j],2])
-            data[idx1,10] = validate_entry(catalog_sources[matched_stars.cat2_index[j],3])
-            data[idx1,11] = validate_entry(catalog_sources[matched_stars.cat2_index[j],4])
-            data[idx1,12] = validate_entry(catalog_sources[matched_stars.cat2_index[j],5])
-            data[idx1,13] = validate_entry(catalog_sources[matched_stars.cat2_index[j],6])
-            data[idx1,14] = validate_entry(catalog_sources[matched_stars.cat2_index[j],7])
-        
-        elif cat_source == 'Gaia':
-            data[idx1,9] = validate_entry(catalog_sources['source_id'][idx2])
-            data[idx1,10] = validate_entry(catalog_sources['ra'][idx2])
-            data[idx1,11] = validate_entry(catalog_sources['ra_error'][idx2])
-            data[idx1,12] = validate_entry(catalog_sources['dec'][idx2])
-            data[idx1,13] = validate_entry(catalog_sources['dec_error'][idx2])
-            data[idx1,14] = validate_entry(catalog_sources['phot_g_mean_flux'][idx2])
-            data[idx1,15] = validate_entry(catalog_sources['phot_g_mean_flux_error'][idx2])
-            data[idx1,16] = validate_entry(catalog_sources['phot_bp_mean_flux'][idx2])
-            data[idx1,17] = validate_entry(catalog_sources['phot_bp_mean_flux_error'][idx2])
-            data[idx1,18] = validate_entry(catalog_sources['phot_rp_mean_flux'][idx2])
-            data[idx1,19] = validate_entry(catalog_sources['phot_rp_mean_flux_error'][idx2])
-        
-        else:
-            raise IOError('Unrecognized catalog source '+catalog_source)
-            exit()
+        if '--' in str(cat_entry):
+            cat_entry = -99.999
             
-    return data
+        else:
+            cat_entry = float(cat_entry)
+            
+        return cat_entry
+    
+    data = np.zeros([len(detected_sources),19])
+    source_ids = np.empty([len(detected_sources),2], dtype='S30')
+    
+    for j in range(0,len(matched_stars_gaia.cat1_index),1):
+        
+        idx1 = int(matched_stars_gaia.cat1_index[j])
+        idx2 = int(matched_stars_gaia.cat2_index[j])
+        
+        source_ids[idx1,0] = gaia_sources['source_id'][idx2]
+
+        data[idx1,0] = validate_entry(gaia_sources['ra'][idx2])
+        data[idx1,1] = validate_entry(gaia_sources['ra_error'][idx2])
+        data[idx1,2] = validate_entry(gaia_sources['dec'][idx2])
+        data[idx1,3] = validate_entry(gaia_sources['dec_error'][idx2])
+        data[idx1,4] = validate_entry(gaia_sources['phot_g_mean_flux'][idx2])
+        data[idx1,5] = validate_entry(gaia_sources['phot_g_mean_flux_error'][idx2])
+        data[idx1,6] = validate_entry(gaia_sources['phot_bp_mean_flux'][idx2])
+        data[idx1,7] = validate_entry(gaia_sources['phot_bp_mean_flux_error'][idx2])
+        data[idx1,8] = validate_entry(gaia_sources['phot_rp_mean_flux'][idx2])
+        data[idx1,9] = validate_entry(gaia_sources['phot_rp_mean_flux_error'][idx2])
+    
+    for j in range(0,len(matched_stars_vphas.cat1_index),1):
+        
+        jdx1 = int(matched_stars_vphas.cat1_index[j])
+        jdx2 = int(matched_stars_vphas.cat2_index[j])
+        
+        print(j,jdx1,jdx2,len(source_ids),len(vphas_sources))
+        
+        source_ids[jdx1,1] = vphas_sources['source_id'][jdx2]
+
+        data[jdx1,10] = validate_entry(vphas_sources['ra'][jdx2])
+        data[jdx1,11] = validate_entry(vphas_sources['dec'][jdx2])
+        data[jdx1,12] = validate_entry(vphas_sources['gmag'][jdx2])
+        data[jdx1,13] = validate_entry(vphas_sources['gmag_error'][jdx2])
+        data[jdx1,14] = validate_entry(vphas_sources['rmag'][jdx2])
+        data[jdx1,15] = validate_entry(vphas_sources['rmag_error'][jdx2])
+        data[jdx1,16] = validate_entry(vphas_sources['imag'][jdx2])
+        data[jdx1,17] = validate_entry(vphas_sources['imag_error'][jdx2])
+        data[jdx1,18] = validate_entry(vphas_sources['clean'][jdx2])
+    
+    table_data = [ table.Column(name='index', data=detected_sources['index'].data),
+                      table.Column(name='x', data=detected_sources['x'].data),
+                      table.Column(name='y', data=detected_sources['y'].data),
+                      table.Column(name='ra', data=detected_sources['ra'].data),
+                      table.Column(name='dec', data=detected_sources['dec'].data),
+                      table.Column(name='ref_flux', data=detected_sources['ref_flux'].data),
+                      table.Column(name='ref_flux_error', data=detected_sources['ref_flux_err'].data),
+                      table.Column(name='ref_mag', data=detected_sources['ref_mag'].data),
+                      table.Column(name='ref_mag_error', data=detected_sources['ref_mag_err'].data),
+                      table.Column(name='cal_ref_mag', data=np.zeros(len(detected_sources))),
+                      table.Column(name='cal_ref_mag_error', data=np.zeros(len(detected_sources))),
+                      table.Column(name='gaia_source_id', data=source_ids[:,0]),
+                      table.Column(name='gaia_ra', data=data[:,0]),
+                      table.Column(name='gaia_ra_error', data=data[:,1]),
+                      table.Column(name='gaia_dec', data=data[:,2]),
+                      table.Column(name='gaia_dec_error', data=data[:,3]),
+                      table.Column(name='phot_g_mean_flux', data=data[:,4]),
+                      table.Column(name='phot_g_mean_flux_error', data=data[:,5]),
+                      table.Column(name='phot_bp_mean_flux', data=data[:,6]),
+                      table.Column(name='phot_bp_mean_flux_error', data=data[:,7]),
+                      table.Column(name='phot_rp_mean_flux', data=data[:,8]),
+                      table.Column(name='phot_rp_mean_flux_error', data=data[:,9]),
+                      table.Column(name='vphas_source_id', data=source_ids[:,1]),
+                      table.Column(name='vphas_ra', data=data[:,10]),
+                      table.Column(name='vphas_dec', data=data[:,11]),
+                      table.Column(name='gmag', data=data[:,12]),
+                      table.Column(name='gmag_error', data=data[:,13]),
+                      table.Column(name='rmag', data=data[:,14]),
+                      table.Column(name='rmag_error', data=data[:,15]),
+                      table.Column(name='imag', data=data[:,16]),
+                      table.Column(name='imag_error', data=data[:,17]),
+                      table.Column(name='clean', data=data[:,18]),
+                      table.Column(name='psf_star', data=np.zeros(len(detected_sources))),
+                    ]
+    
+    combined_table = table.Table(data=table_data)
+    
+    return combined_table
     
