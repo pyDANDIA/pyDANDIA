@@ -161,7 +161,9 @@ def phot_catalog_objects_in_reference_image(setup, header, fov, image_wcs, log):
     dec = image_wcs.wcs.crval[1]
     radius = (np.sqrt(fov)/2.0)*60.0
     
-    log.info('Search radius: '+str(radius)+' arcmin')
+    log.info('VPHAS+ catalog search parameters: ')
+    log.info('RA = '+str(ra)+', Dec = '+str(dec))
+    log.info('Radius: '+str(radius)+' arcmin')
     
     vphas_sources = vizier_tools.search_vizier_for_sources(ra, dec, radius, 'VPHAS+',
                                                            coords='degrees')

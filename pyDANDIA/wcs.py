@@ -142,7 +142,7 @@ def fetch_catalog_sources_for_field(setup,field,header,image_wcs,log,
             catalog_sources = vizier_tools.search_vizier_for_sources(ra, dec, 
                                                                      radius, 
                                                                      catalog_name, 
-                                                                     row_limit=2000)
+                                                                     row_limit=-1)
             
         else:
             

@@ -33,8 +33,11 @@ def calibrate_photometry_catalog(setup, cl_params=None):
     
     star_catalog = select_good_detected_stars(star_catalog,params,log)
     
-    vphas_cat = fetch_catalog_sources_within_image(params,log)
+    vphas_cat = fetch_catalog_sources_from_metadata(reduction_metadata,log)
     
+    if len(vphas_cat) == 0:
+        vphas_cat = fetch_catalog_sources_within_image(params,log)
+        
     vphas_cat = select_calibration_stars(vphas_cat,params,log)
     
     catalog_file = os.path.join(params['red_dir'],'vphas_catalog.fits')
@@ -195,7 +198,7 @@ def extract_params_from_metadata(reduction_metadata, params, log):
     star_catalog['mag_err'] = reduction_metadata.star_catalog[1]['ref_mag_error']
     star_catalog['gaia_ra'] = reduction_metadata.star_catalog[1]['ra']
     star_catalog['gaia_dec'] = reduction_metadata.star_catalog[1]['dec']
-    star_catalog['clean'] = np.zeros(len(reduction_metadata.star_catalog[1]['ref_mag']))
+    star_catalog['clean'] = np.zeros(len(reduction_metadata.star_catalog[1]['clean']))
     star_catalog['cal_ref_mag'] = np.zeros(len(reduction_metadata.star_catalog[1]['cal_ref_mag']))
     star_catalog['cal_ref_mag_err'] = np.zeros(len(reduction_metadata.star_catalog[1]['cal_ref_mag_error']))
     
@@ -209,12 +212,15 @@ def fetch_catalog_sources_within_image(params,log):
     
     params['radius'] = (np.sqrt(params['fov'])/2.0)*60.0
     
-    log.info('Search radius: '+str(params['radius'])+' arcmin')
+    log.info('VPHAS+ catalog search parameters: ')
+    log.info('RA = '+str(params['ra'])+', Dec = '+str(params['dec']))
+    log.info('Radius: '+str(params['radius'])+' arcmin')
     
     vphas_cat = vizier_tools.search_vizier_for_sources(params['ra'], 
                                                        params['dec'], 
                                                         params['radius'], 
-                                                        'VPHAS+')
+                                                        'VPHAS+', 
+                                                        row_limit=-1)
         
     log.info('VPHAS+ search returned '+str(len(vphas_cat))+' entries')
         
@@ -226,16 +232,17 @@ def fetch_catalog_sources_from_metadata(reduction_metadata,log):
     
     vidx = np.where(reduction_metadata.star_catalog[1]['vphas_ra'] > 0.0)
     
-    vphas_cat['source_id'] = reduction_metadata.star_catalog[1]['vphas_source_id'][vidx]
-    vphas_cat['_RAJ2000'] = reduction_metadata.star_catalog[1]['vphas_ra'][vidx]
-    vphas_cat['_DEJ2000'] = reduction_metadata.star_catalog[1]['vphas_dec'][vidx]
-    vphas_cat['gmag'] = reduction_metadata.star_catalog[1]['gmag'][vidx]
-    vphas_cat['e_gmag'] = reduction_metadata.star_catalog[1]['gmag_error'][vidx]
-    vphas_cat['rmag'] = reduction_metadata.star_catalog[1]['rmag'][vidx]
-    vphas_cat['e_rmag'] = reduction_metadata.star_catalog[1]['rmag_error'][vidx]
-    vphas_cat['imag'] = reduction_metadata.star_catalog[1]['imag'][vidx]
-    vphas_cat['e_imag'] = reduction_metadata.star_catalog[1]['imag_error'][vidx]
-    vphas_cat['clean'] = reduction_metadata.star_catalog[1]['clean'][vidx]
+    if len(vidx) > 0:
+        vphas_cat['source_id'] = reduction_metadata.star_catalog[1]['vphas_source_id'][vidx]
+        vphas_cat['_RAJ2000'] = reduction_metadata.star_catalog[1]['vphas_ra'][vidx]
+        vphas_cat['_DEJ2000'] = reduction_metadata.star_catalog[1]['vphas_dec'][vidx]
+        vphas_cat['gmag'] = reduction_metadata.star_catalog[1]['gmag'][vidx]
+        vphas_cat['e_gmag'] = reduction_metadata.star_catalog[1]['gmag_error'][vidx]
+        vphas_cat['rmag'] = reduction_metadata.star_catalog[1]['rmag'][vidx]
+        vphas_cat['e_rmag'] = reduction_metadata.star_catalog[1]['rmag_error'][vidx]
+        vphas_cat['imag'] = reduction_metadata.star_catalog[1]['imag'][vidx]
+        vphas_cat['e_imag'] = reduction_metadata.star_catalog[1]['imag_error'][vidx]
+        vphas_cat['clean'] = reduction_metadata.star_catalog[1]['clean'][vidx]
     
     log.info('VPHAS+ provided '+str(len(vphas_cat))+' entries')
     
@@ -596,6 +603,11 @@ def model_phot_transform2(params,star_catalog,vphas_cat,match_index,fit,
             f.write(str(xbins[i])+' '+str(ybins[i])+'\n')
         f.close()
         
+        plot_file = os.path.join(params['red_dir'],
+                    'phot_model_transform_'+params['filter']+'.png')
+        if os.path.isfile(plot_file):
+            os.remove(plot_file)
+            
         fig = plt.figure(3)
         
         plt_errs = False
@@ -613,7 +625,7 @@ def model_phot_transform2(params,star_catalog,vphas_cat,match_index,fit,
 
         xplot = np.linspace(xbins.min(),xbins.max(),50)
         yplot = phot_func(fit,xplot)
-    
+        
         plt.plot(xplot, yplot,'k-')
 
         plt.xlabel('Instrumental magnitude')
@@ -624,11 +636,10 @@ def model_phot_transform2(params,star_catalog,vphas_cat,match_index,fit,
         
         plt.axis([xmax,xmin,ymax,ymin])
         
-        plt.savefig(os.path.join(params['red_dir'],
-                    'phot_model_transform_'+params['filter']+'.png'))
+        plt.savefig(plot_file)
     
         plt.close(3)
-
+    
     log.info('Fitted parameters: '+repr(fit))
     
     return fit
