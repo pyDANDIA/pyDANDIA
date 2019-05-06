@@ -19,7 +19,7 @@ import numpy as np
 from scipy import optimize
 import matplotlib.pyplot as plt
 
-VERSION = 'calibrate_photometry_0.0.1'
+VERSION = 'calibrate_photometry_0.1'
 
 def calibrate_photometry_catalog(setup, cl_params=None):
     """Function to calculate the photometric transform between the instrumental
