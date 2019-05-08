@@ -41,7 +41,10 @@ def find_xy_offset(catalog1, catalog2, log=None, diagnostics=False):
             sub_pixel = False
         else:
             sub_pixel = True
-            
+        sub_pixel = True
+        x_offset = 0.0
+        y_offset = 0.0
+        
         (dxrange,dyrange) = calc_xy_ranges(catalog1,sub_pixel,
                                             x_offset,y_offset,log=log)
         

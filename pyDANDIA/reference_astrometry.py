@@ -18,6 +18,7 @@ from pyDANDIA import  wcs
 from pyDANDIA import  stage3
 from pyDANDIA import  catalog_utils
 from pyDANDIA import  calc_coord_offsets
+from pyDANDIA import  shortest_string
 from pyDANDIA import  calibrate_photometry
 from pyDANDIA import  vizier_tools
 
@@ -74,7 +75,14 @@ def run_reference_astrometry(setup):
         (bright_central_detected_stars, bright_central_gaia_stars) = wcs.extract_bright_central_stars(setup,detected_sources, 
                         gaia_sources, image_wcs, log, radius=0.05)
         
-        for it in range(0,2,1):
+        transform = [999.9, 999.9]
+        it = 0
+        iterate = True
+        use_short_string = True
+        
+        while iterate:
+            it += 1
+            
             transform = calc_coord_offsets.calc_offset_pixels(setup,bright_central_detected_stars, 
                                                       bright_central_gaia_stars,
                                                       log,
@@ -85,15 +93,41 @@ def run_reference_astrometry(setup):
     
             (bright_central_detected_stars,bright_central_gaia_stars) = update_computed_coordinates(setup, image_wcs, bright_central_detected_stars, 
                                                         bright_central_gaia_stars, log)
+            
+            if use_short_string:
+                det_array = np.zeros((len(bright_central_detected_stars),2))
+                det_array[:,0] = bright_central_detected_stars['x'].data
+                det_array[:,1] = bright_central_detected_stars['y'].data
+                
+                cat_array = np.zeros((len(bright_central_gaia_stars),2))
+                cat_array[:,0] = bright_central_gaia_stars['x'].data
+                cat_array[:,1] = bright_central_gaia_stars['y'].data
+                
+                transform = shortest_string.find_xy_offset(det_array, cat_array,
+                                                              log=log,
+                                                              diagnostics=True)
+                
+                image_wcs = wcs.update_wcs(image_wcs,transform,header['PIXSCALE'],log,
+                                                           transform_type='pixels')
         
+                (bright_central_detected_stars,bright_central_gaia_stars) = update_computed_coordinates(setup, image_wcs, bright_central_detected_stars, 
+                                                            bright_central_gaia_stars, log)
+                                                        
+            if it >= 1 or (transform[0] < 1.0 and transform[1] < 1.0):
+                iterate = False
+                
         (detected_sources, gaia_sources) = update_computed_coordinates(setup, image_wcs, detected_sources, 
                                                         gaia_sources, log)
                                                         
         matched_stars_gaia = wcs.match_stars_world_coords(detected_sources,gaia_sources,log,
-                                                 verbose=True)
+                                                          radius=0.1, ra_centre=image_wcs.wcs.crval[0],
+                                                          dec_centre=image_wcs.wcs.crval[1],
+                                                          verbose=True)
         
         matched_stars_vphas = wcs.match_stars_world_coords(detected_sources,vphas_sources,log,
-                                                 verbose=True)
+                                                          radius=0.1, ra_centre=image_wcs.wcs.crval[0],
+                                                          dec_centre=image_wcs.wcs.crval[1],
+                                                          verbose=True)
                                                  
         ref_source_catalog = wcs.build_ref_source_catalog(detected_sources,\
                                                         gaia_sources, vphas_sources,\

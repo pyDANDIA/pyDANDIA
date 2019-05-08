@@ -554,6 +554,7 @@ def calc_world_coordinates_astropy(setup,image_wcs,detected_sources,log,
     return detected_sources
     
 def match_stars_world_coords(detected_sources,catalog_sources,log,
+                             radius=None, ra_centre=None, dec_centre=None,
                              verbose=False):
     """Function to match stars between the objects detected in an image
     and those extracted from a catalog, using image pixel postions."""
@@ -568,12 +569,35 @@ def match_stars_world_coords(detected_sources,catalog_sources,log,
                                        detected_sources['dec'], 
                                        frame='icrs', 
                                        unit=(units.deg, units.deg))
-
+                                       
+    cat_sources = coordinates.SkyCoord(catalog_sources['ra'], 
+                                       catalog_sources['dec'], 
+                                       frame='icrs', 
+                                       unit=(units.deg, units.deg))
+    
+    
+    if radius != None:
+        
+        centre = coordinates.SkyCoord(ra_centre, dec_centre,
+                                      frame='icrs', unit=(units.deg, units.deg))
+                                      
+        separations = centre.separation(cat_sources)
+    
+        jdx = np.where(abs(separations.deg) <= radius)[0]
+        
+        log.info('Selected '+str(len(jdx))+' catalog stars centred around '+\
+                 str(ra_centre)+', '+str(dec_centre))
+    else:
+        
+        jdx = np.arange(0,len(cat_sources),1)
+        
+        log.info('All catalog stars selected')
+    
     matched_stars = match_utils.StarMatchIndex()
     
     jincr = int(float(len(catalog_sources))*0.01)
     
-    for j in range(0,len(catalog_sources),1):
+    for j in jdx:
         
         c = coordinates.SkyCoord(catalog_sources['ra'][j], 
                                  catalog_sources['dec'][j], 
@@ -603,7 +627,7 @@ def match_stars_world_coords(detected_sources,catalog_sources,log,
                      'cat2_ra': catalog_sources['ra'][j], 
                      'cat2_dec': catalog_sources['dec'][j], \
                      'separation': d2d.value[0]}
-                     
+                
                 matched_stars.add_match(p)
                 
                 if verbose:
@@ -733,9 +757,13 @@ def update_wcs(image_wcs,transform,pixscale,log,transform_type='pixels'):
         dx = (transform[0]*3600.0) / pixscale
         dy = (transform[1]*3600.0) / pixscale
     else:
-        dx = transform[0]
-        dy = transform[1]
-        
+        if image_wcs.wcs.cd[0][0] < 0.0:
+            dx = transform[0]
+            dy = transform[1]
+        else:
+            dx = -transform[0]
+            dy = -transform[1]
+            
     image_wcs.wcs.crpix[0] += dx
     image_wcs.wcs.crpix[1] += dy
     
