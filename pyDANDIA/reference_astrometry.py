@@ -83,7 +83,10 @@ def run_reference_astrometry(setup):
             image_wcs = wcs.update_wcs(image_wcs,transform,header['PIXSCALE'],log,
                                                        transform_type='pixels')
     
-            (detected_sources, gaia_sources) = update_computed_coordinates(setup, image_wcs, detected_sources, 
+            (bright_central_detected_stars,bright_central_gaia_stars) = update_computed_coordinates(setup, image_wcs, bright_central_detected_stars, 
+                                                        bright_central_gaia_stars, log)
+        
+        (detected_sources, gaia_sources) = update_computed_coordinates(setup, image_wcs, detected_sources, 
                                                         gaia_sources, log)
                                                         
         matched_stars_gaia = wcs.match_stars_world_coords(detected_sources,gaia_sources,log,

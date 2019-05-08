@@ -407,7 +407,7 @@ def calc_image_coordinates(setup, image_path, catalog_sources,log):
 
 def calc_image_coordinates_astropy(setup, image_wcs, catalog_sources,log):
     
-    log.info('Calculating the predicted image pixel positions for all catalog stars')
+    log.info('Calculating the predicted image pixel positions for catalog stars')
     
     positions = []
     jidx = None
@@ -516,7 +516,7 @@ def calc_world_coordinates_astropy(setup,image_wcs,detected_sources,log,
     """Function to calculate the RA, Dec positions of an array of image
     pixel positions"""
     
-    log.info('Calculating the world coordinates of all detected stars')
+    log.info('Calculating the world coordinates of detected stars')
     
     # Now apply the known image rotation
     if rotate:
@@ -991,8 +991,6 @@ def build_ref_source_catalog(detected_sources,gaia_sources,vphas_sources,\
         
         jdx1 = int(matched_stars_vphas.cat1_index[j])
         jdx2 = int(matched_stars_vphas.cat2_index[j])
-        
-        print(j,jdx1,jdx2,len(source_ids),len(vphas_sources))
         
         source_ids[jdx1,1] = vphas_sources['source_id'][jdx2]
 
