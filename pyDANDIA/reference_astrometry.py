@@ -74,20 +74,16 @@ def run_reference_astrometry(setup):
         (bright_central_detected_stars, bright_central_gaia_stars) = wcs.extract_bright_central_stars(setup,detected_sources, 
                         gaia_sources, image_wcs, log, radius=0.05)
         
-        transform = [0.0, 0.0]
         for it in range(0,2,1):
-            t = calc_coord_offsets.calc_offset_pixels(setup,bright_central_detected_stars, 
+            transform = calc_coord_offsets.calc_offset_pixels(setup,bright_central_detected_stars, 
                                                       bright_central_gaia_stars,
                                                       log,
                                                       diagnostics=True)
             
-            transform[0] += t[0]
-            transform[1] += t[1]
-            
-        image_wcs = wcs.update_wcs(image_wcs,transform,header['PIXSCALE'],log,
+            image_wcs = wcs.update_wcs(image_wcs,transform,header['PIXSCALE'],log,
                                                        transform_type='pixels')
     
-        (detected_sources, gaia_sources) = update_computed_coordinates(setup, image_wcs, detected_sources, 
+            (detected_sources, gaia_sources) = update_computed_coordinates(setup, image_wcs, detected_sources, 
                                                         gaia_sources, log)
                                                         
         matched_stars_gaia = wcs.match_stars_world_coords(detected_sources,gaia_sources,log,

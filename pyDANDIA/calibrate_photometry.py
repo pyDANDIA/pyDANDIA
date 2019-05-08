@@ -248,8 +248,7 @@ def fetch_catalog_sources_from_metadata(reduction_metadata,log):
     
     return vphas_cat
     
-def select_good_detected_stars(star_catalog,params,log,
-                               select_around_target=False):
+def select_good_detected_stars(star_catalog,params,log):
     """Function to identify and flag stars detected in the reference image
     for which the photometry is poor."""
     
