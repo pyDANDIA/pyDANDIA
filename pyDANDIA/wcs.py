@@ -757,12 +757,8 @@ def update_wcs(image_wcs,transform,pixscale,log,transform_type='pixels'):
         dx = (transform[0]*3600.0) / pixscale
         dy = (transform[1]*3600.0) / pixscale
     else:
-        if image_wcs.wcs.cd[0][0] < 0.0:
-            dx = transform[0]
-            dy = transform[1]
-        else:
-            dx = -transform[0]
-            dy = -transform[1]
+        dx = -transform[0]
+        dy = -transform[1]
             
     image_wcs.wcs.crpix[0] += dx
     image_wcs.wcs.crpix[1] += dy
