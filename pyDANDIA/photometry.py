@@ -7,6 +7,10 @@ Created on Wed Oct 18 15:42:26 2017
 import os
 import sys
 import numpy as np
+from photutils import aperture_photometry
+from photutils import CircularAperture
+from photutils.utils import calc_total_error
+
 from pyDANDIA import logs
 from pyDANDIA import metadata
 import matplotlib.pyplot as plt
@@ -420,7 +424,7 @@ def quick_polyfit(params,data,weight,psf_fit):
 
 
 def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_star_catalog,
-                                           difference_image, psf_model, kernel, kernel_error, ref_exposure_time):
+                                           difference_image, psf_model, kernel, kernel_error, ref_exposure_time,image_id):
     """Function to perform PSF fitting photometry on all stars for a single difference image.
     
     :param SetUp object setup: Essential reduction parameters
@@ -440,7 +444,7 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
     # plt.show()
 
     psf_size = reduction_metadata.reduction_parameters[1]['PSF_SIZE'][0]
-    half_psf = int(psf_size)/2
+    half_psf = int(psf_size)
 
     size_stamp = int(2 * half_psf) + 1
     if size_stamp % 2 == 0:
@@ -473,16 +477,26 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
     error_phot_scale_factor = (phot_scale_factor*0.1)
 
 
-
     control_size = 50
     control_count = 0
-    psf_parameters = psf_model.get_parameters()
+    #psf_parameters = psf_model.get_parameters()
 
-    radius = half_psf + 1
+    #radius = half_psf + 1
 
+    positions = ref_star_catalog[:, [1, 2]]
+    pixscale = reduction_metadata.reduction_parameters[1]['PIX_SCALE'].data[0]
+    radius = np.max((reduction_metadata.images_stats[1]['FWHM_X'][image_id],reduction_metadata.images_stats[1]['FWHM_Y'][image_id]))
+    radius *= 1.5852*2
+    apertures = CircularAperture(positions, r=radius)
+    error = calc_total_error(difference_image, np.std(difference_image.ravel()), 1)
+    phot_table = aperture_photometry(difference_image, apertures, method='subpixel',
+                                     error=error)
+
+    #import pdb;
+    #pdb.set_trace()
     for j in range(0, len(ref_star_catalog), 1)[:]:
      
-
+        #j = 59716
         list_image_id.append(0)
         list_star_id.append(ref_star_catalog[j, 0])
 
@@ -494,47 +508,51 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
         list_ref_flux.append(ref_flux)
         list_ref_flux_error.append(error_ref_flux)
 
-        xstar = ref_star_catalog[j, 1]
-        ystar = ref_star_catalog[j, 2]
+        #### comented for swithcing from psf fitting to aperture photometry
 
-        X_grid = X_data + (int(np.round(xstar)) - half_psf)
-        Y_grid = Y_data + (int(np.round(ystar)) - half_psf)
+        #xstar = ref_star_catalog[j, 1]
+        #ystar = ref_star_catalog[j, 2]
+
+        #X_grid = X_data + (int(np.round(xstar)) - half_psf)
+        #Y_grid = Y_data + (int(np.round(ystar)) - half_psf)
 
         # logs.ifverbose(log, setup, ' -> Star ' + str(j) + ' at position (' + \
         #               str(xstar) + ', ' + str(ystar) + ')')
 
-        psf_parameters[1] = xstar
-        psf_parameters[2] = ystar
+        #psf_parameters[1] = xstar
+        #psf_parameters[2] = ystar
 
-        psf_image = psf_model.psf_model(X_grid, Y_grid, psf_parameters)
-
-
-        psf_convolve = sndi.filters.convolve(psf_image, kernel,mode='constant')
-
-        try:
-
-            max_x = int(np.min([difference_image.shape[0], np.max(X_data + (int(np.round(xstar)) - half_psf)) + 1]))
-            min_x = int(np.max([0, np.min(X_data + (int(np.round(xstar)) - half_psf))]))
-            max_y = int(np.min([difference_image.shape[1], np.max(Y_data + (int(np.round(ystar)) - half_psf)) + 1]))
-            min_y = int(np.max([0, np.min(Y_data + (int(np.round(ystar)) - half_psf))]))
-
-            data = difference_image[min_y:max_y, min_x:max_x]
-
-            max_x = int(max_x - (int(np.round(xstar)) - half_psf))
-            min_x = int(min_x - (int(np.round(xstar)) - half_psf))
-            max_y = int(max_y - (int(np.round(ystar)) - half_psf))
-            min_y = int(min_y - (int(np.round(ystar)) - half_psf))
-
-            PSF = psf_convolve[min_y:max_y, min_x:max_x]
+        #psf_image = psf_model.psf_model(X_grid, Y_grid, psf_parameters)
 
 
-            psf_fit = PSF
+        ##psf_convolve = sndi.filters.convolve(psf_image, kernel,mode='constant')
 
-            good_fit = True
+        #try:
+
+        #    max_x = int(np.min([difference_image.shape[0], np.max(X_data + (int(np.round(xstar)) - half_psf)) + 1]))
+        #    min_x = int(np.max([0, np.min(X_data + (int(np.round(xstar)) - half_psf))]))
+        #    max_y = int(np.min([difference_image.shape[1], np.max(Y_data + (int(np.round(ystar)) - half_psf)) + 1]))
+        #    min_y = int(np.max([0, np.min(Y_data + (int(np.round(ystar)) - half_psf))]))
+
+        #    data = difference_image[min_y:max_y, min_x:max_x]
+
+        #    max_x = int(max_x - (int(np.round(xstar)) - half_psf))
+        #    min_x = int(min_x - (int(np.round(xstar)) - half_psf))
+        #    max_y = int(max_y - (int(np.round(ystar)) - half_psf))
+        #    min_y = int(min_y - (int(np.round(ystar)) - half_psf))
+
+        #    PSF = psf_convolve[min_y:max_y, min_x:max_x]
 
 
-        except:
-            good_fit = False
+        #    psf_fit = PSF
+
+        #    good_fit = True
+
+
+        #except:
+        #    good_fit = False
+
+        good_fit = True
 
         if good_fit == True:
 
@@ -543,34 +561,39 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
 
          
 
-            weight1 = (0.5 + np.abs(data + 0.25) ** 0.5)
-            weight2 = (-0.5 + np.abs(data + 0.25) ** 0.5)
-            weight = (weight1 ** 2 + weight2 ** 2)
-            poids = weight**0.5
-            
-            
-          
-          
-
-            intensities, cov = np.polyfit(psf_fit.ravel(), data.ravel(), 1,  cov=True)
-           
-		
-            (flux,flux_err) = (intensities[0], cov[0][0] ** 0.5)
-           
-            flux = np.sum(flux*psf_image)
-
- 
+            #weight1 = (0.5 + np.abs(data + 0.25) ** 0.5)
+            #weight2 = (-0.5 + np.abs(data + 0.25) ** 0.5)
+            #weight = (weight1 ** 2 + weight2 ** 2)
+            #poids = weight**0.5
 
 
-            (back, back_err) = (intensities[1], cov[1][1] ** 0.5)
-           
-            residus = data - psf_fit * intensities[0]-back
 
-          
-            flux_err = (flux_err**2+np.mean(residus**2))**0.5
-           
-            
-            
+            #intensities, cov = np.polyfit(psf_fit.ravel(), data.ravel(), 1, w=1/poids.ravel(), cov=True)
+
+            #(flux,flux_err) = (intensities[0], cov[0][0] ** 0.5)
+            #(back, back_err) = (intensities[1], cov[1][1] ** 0.5)
+
+            #flux = np.sum(flux*psf_image)
+
+            #flux2 = np.sum(data.ravel())
+
+
+
+            #SNR = flux2/len(data)**2
+            #flux = flux2/phot_scale_factor
+            #flux_err = flux/SNR
+
+
+            #residus = data - psf_fit * intensities[0]-back
+
+
+            #flux_err = (flux_err**2+np.mean(residus**2))**0.5
+
+
+            flux = phot_table[j][3]/phot_scale_factor
+            flux_err = phot_table[j][4]
+
+
             flux_tot = ref_flux*ref_exposure_time - flux
         
             flux_err_tot = (error_ref_flux ** 2*ref_exposure_time + flux_err**2/phot_scale_factor**2) ** 0.5
@@ -585,11 +608,17 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
             list_mag_error.append(mag_err)
             list_phot_scale_factor.append(phot_scale_factor)
             list_phot_scale_factor_error.append(error_phot_scale_factor)
-            list_background.append(back)
-            list_background_error.append(back_err)
+            #list_background.append(back)
+            #list_background_error.append(back_err)
 
-            list_align_x.append(xstar)
-            list_align_y.append(ystar)
+            #list_align_x.append(xstar)
+            #list_align_y.append(ystar)
+
+            list_background.append(0)
+            list_background_error.append(0)
+
+            list_align_x.append(positions[j][0])
+            list_align_y.append(positions[j][1])
 
 
 

@@ -60,7 +60,7 @@ def run_stage6(setup):
                                                     os.path.join(setup.red_dir, 'data'), log=log)
 
     new_images = reduction_metadata.find_images_need_to_be_process(setup, all_images,
-                                                                   stage_number=6, rerun_all=None, log=log)
+                                                                   stage_number=6, rerun_all=True, log=log)
 
     # find the starlist
     starlist = reduction_metadata.star_catalog[1]
@@ -170,41 +170,43 @@ def run_stage6(setup):
 
         for idx, new_image in enumerate(new_images[:]):
             print(new_image)
-            index_image = np.where(new_image == reduction_metadata.headers_summary[1]['IMAGES'].data)[0][0]
-            image_header = reduction_metadata.headers_summary[1][index_image]
-
-            ddate = reduction_metadata.headers_summary[1]['DATEKEY'][index_image]
-            jd =  dateutil.parser.parse(ddate)
-            time = astropy.time.Time(jd)
-            date.append(time.jd)
-
-            #ingest_exposure_in_db(setup, image_header, ref_image_id)
-            #conn = db_phot.get_connection(dsn=setup.red_dir + 'phot.db')
-
-           # image_id = db_phot.query_to_astropy_table(conn,
-          #                                          "SELECT exposure_id FROM exposures WHERE exposure_name='%s'" % new_image)[
-            #    0][0]
-
-            #conn.commit()
-            image_id = idx
-            exposures_id.append(image_id)
-
-            log.info('Starting difference photometry of ' + new_image)
-            #target_image,date = open_an_image(setup, images_directory, new_image, image_index=0, log=None)
-            kernel_image, kernel_error, kernel_bkg = find_the_associated_kernel(setup, kernels_directory, new_image)
-
-            # difference_image = subtract_images(target_image, reference_image, kernel_image, kernel_size, kernel_bkg)
-            difference_image = open_an_image(setup, diffim_directory, 'diff_' + new_image, 0, log=None)[0]
-
-
-            # save_control_stars_of_the_difference_image(setup, new_image, difference_image, star_coordinates)
-
-            phot_table, control_zone = photometry_on_the_difference_image(setup, reduction_metadata, log,
-                                                                          ref_star_catalog, difference_image, psf_model,
-                                                                          sky_model, kernel_image, kernel_error,
-                                                                          ref_exposure_time)
-            psf_model.update_psf_parameters(psf_parameters)
             try:
+                index_image = np.where(new_image == reduction_metadata.headers_summary[1]['IMAGES'].data)[0][0]
+                image_header = reduction_metadata.headers_summary[1][index_image]
+
+                ddate = reduction_metadata.headers_summary[1]['DATEKEY'][index_image]
+                jd =  dateutil.parser.parse(ddate)
+                time = astropy.time.Time(jd)
+                date.append(time.jd)
+
+                #ingest_exposure_in_db(setup, image_header, ref_image_id)
+                #conn = db_phot.get_connection(dsn=setup.red_dir + 'phot.db')
+
+               # image_id = db_phot.query_to_astropy_table(conn,
+              #                                          "SELECT exposure_id FROM exposures WHERE exposure_name='%s'" % new_image)[
+                #    0][0]
+
+                #conn.commit()
+                image_id = idx
+                exposures_id.append(image_id)
+
+                log.info('Starting difference photometry of ' + new_image)
+                #target_image,date = open_an_image(setup, images_directory, new_image, image_index=0, log=None)
+                kernel_image, kernel_error, kernel_bkg = find_the_associated_kernel(setup, kernels_directory, new_image)
+
+                # difference_image = subtract_images(target_image, reference_image, kernel_image, kernel_size, kernel_bkg)
+                difference_image = open_an_image(setup, diffim_directory, 'diff_' + new_image, 0, log=None)[0]
+
+
+                # save_control_stars_of_the_difference_image(setup, new_image, difference_image, star_coordinates)
+                #import pdb;
+                #pdb.set_trace()
+                phot_table, control_zone = photometry_on_the_difference_image(setup, reduction_metadata, log,
+                                                                              ref_star_catalog, difference_image, psf_model,
+                                                                              sky_model, kernel_image, kernel_error,
+                                                                              ref_exposure_time,idx)
+                psf_model.update_psf_parameters(psf_parameters)
+
                 photometric_table[compt_db, :, :] = phot_table
                 phot_table = np.zeros(phot_table.shape)
                 compt_db += 1
@@ -226,7 +228,7 @@ def run_stage6(setup):
 
         jd = np.array(date)
 
-        for star in range(len(photometric_table[0, :, 0])):
+        for star in range(len(photometric_table[0, :, 0]))[:]:
             mag = photometric_table[:, star, [8,9]]
             lightcurve = np.c_[jd,mag]
 
@@ -468,7 +470,7 @@ def find_the_associated_kernel(setup, kernels_directory, image_name):
 
 
 def photometry_on_the_difference_image(setup, reduction_metadata, log, star_catalog, difference_image, psf_model,
-                                       sky_model, kernel, kernel_error, ref_exposure_time):
+                                       sky_model, kernel, kernel_error, ref_exposure_time,image_id):
     '''
     Find the appropriate kernel associated to an image
     :param object reduction_metadata: the metadata object
@@ -482,7 +484,7 @@ def photometry_on_the_difference_image(setup, reduction_metadata, log, star_cata
     differential_photometry = photometry.run_psf_photometry_on_difference_image(setup, reduction_metadata, log,
                                                                                 star_catalog,
                                                                                 difference_image, psf_model, kernel,
-                                                                                kernel_error, ref_exposure_time)
+                                                                                kernel_error, ref_exposure_time,image_id)
 
     column_names = (
     'exposure_id', 'star_id', 'reference_mag', 'reference_mag_err', 'reference_flux', 'reference_flux_err', 'diff_flux',
