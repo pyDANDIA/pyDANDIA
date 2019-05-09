@@ -92,7 +92,7 @@ def run_reference_astrometry(setup):
                                                        transform_type='pixels')
     
             (bright_central_detected_stars,bright_central_gaia_stars) = update_computed_coordinates(setup, image_wcs, bright_central_detected_stars, 
-                                                        bright_central_gaia_stars, log)
+                                                        bright_central_gaia_stars, log, 'catalog_stars_bright_initial.reg')
             
             if use_short_string:
                 det_array = np.zeros((len(bright_central_detected_stars),2))
@@ -111,13 +111,13 @@ def run_reference_astrometry(setup):
                                                            transform_type='pixels')
         
                 (bright_central_detected_stars,bright_central_gaia_stars) = update_computed_coordinates(setup, image_wcs, bright_central_detected_stars, 
-                                                            bright_central_gaia_stars, log)
+                                                            bright_central_gaia_stars, log, 'catalog_stars_bright_revised_'+str(it)+'.reg')
                                                         
             if it >= 1 or (transform[0] < 1.0 and transform[1] < 1.0):
                 iterate = False
                 
         (detected_sources, gaia_sources) = update_computed_coordinates(setup, image_wcs, detected_sources, 
-                                                        gaia_sources, log)
+                                                        gaia_sources, log, 'catalog_stars_full_revised_'+str(it)+'.reg')
                                                         
         matched_stars_gaia = wcs.match_stars_world_coords(detected_sources,gaia_sources,log,
                                                           radius=0.1, ra_centre=image_wcs.wcs.crval[0],
@@ -224,7 +224,7 @@ def phot_catalog_objects_in_reference_image(setup, header, fov, image_wcs, log):
     return vphas_sources
     
 def update_computed_coordinates(setup, image_wcs, detected_sources, 
-                                gaia_sources, log):
+                                gaia_sources, log, filename):
     
     detected_sources = wcs.calc_world_coordinates_astropy(setup,image_wcs,
                                                   detected_sources,log)
@@ -232,7 +232,7 @@ def update_computed_coordinates(setup, image_wcs, detected_sources,
     gaia_sources = wcs.calc_image_coordinates_astropy(setup, image_wcs, 
                                                       gaia_sources,log)
     
-    cat_catalog_file = os.path.join(setup.red_dir,'ref', 'catalog_stars_full_updated.reg')
+    cat_catalog_file = os.path.join(setup.red_dir,'ref', filename)
     catalog_utils.output_ds9_overlay_from_table(gaia_sources,cat_catalog_file,colour='red')
 
     wcs.plot_overlaid_sources(os.path.join(setup.red_dir,'ref'),
