@@ -168,6 +168,7 @@ def test_match_stars_world_coords():
     matched_stars = wcs.match_stars_world_coords(detected_sources,
                                                  catalog_sources,log,
                                                  verbose=True)
+    print(matched_stars)
     
     assert matched_stars.n_match == 1
     assert type(matched_stars) == type(test_match)
@@ -178,6 +179,38 @@ def test_match_stars_world_coords():
     
     logs.close_log(log)
 
+def test_match_stars_pixel_coords():
+    
+    log = logs.start_stage_log( cwd, 'test_wcs' )
+        
+    detected_data = [ Column(name='x', data=np.linspace(10.0,500.0,20)),
+                      Column(name='y', data=np.linspace(25.0,550.0,20)),
+                      Column(name='ra', data=np.linspace(269.2,269.8,20)),
+                      Column(name='dec', data=np.linspace(-28.4,-28.0,20)) ]
+    
+    detected_sources = Table(data=detected_data)
+        
+    catalog_data = [ Column(name='x', data=np.linspace(10.0,500.0,20)),
+                     Column(name='y', data=np.linspace(25.0,550.0,20)),
+                      Column(name='ra', data=np.linspace(269.2,269.8,20)),
+                      Column(name='dec', data=np.linspace(-28.4,-28.0,20)) ]
+    
+    catalog_sources = Table(data=catalog_data)
+    
+    test_match = match_utils.StarMatchIndex()
+    
+    matched_stars = wcs.match_stars_pixel_coords(detected_sources,
+                                                 catalog_sources,log,
+                                                 verbose=True)
+    
+    assert matched_stars.n_match == len(catalog_sources)
+    assert detected_sources['x'][matched_stars.cat1_index[0]] == catalog_sources['x'][matched_stars.cat2_index[0]]
+    assert detected_sources['y'][matched_stars.cat1_index[0]] == catalog_sources['y'][matched_stars.cat2_index[0]]
+    assert matched_stars.cat1_ra[0] == matched_stars.cat2_ra[0]
+    assert matched_stars.cat1_dec[0] == matched_stars.cat2_dec[0]
+    
+    logs.close_log(log)
+    
 def test_image_wcs():
     
     image = path.join(TEST_DATA,'lsc1m005-fl15-20170701-0144-e91_cropped.fits')
@@ -518,7 +551,7 @@ def test_extract_bright_central_stars():
     
 if __name__ == '__main__':
 
-    test_reference_astrometry()
+    #test_reference_astrometry()
     #test_search_vizier_for_2mass_sources()
     #test_fetch_catalog_sources_for_field()
     #test_search_vizier_for_gaia_sources()
@@ -530,4 +563,4 @@ if __name__ == '__main__':
     #test_calc_image_coordinates_astropy2()
     #test_calc_image_coordinates_astropy3()
     #test_extract_bright_central_stars()
-    
+    test_match_stars_pixel_coords()

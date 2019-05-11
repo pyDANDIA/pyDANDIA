@@ -557,7 +557,7 @@ def match_stars_world_coords(detected_sources,catalog_sources,log,
                              radius=None, ra_centre=None, dec_centre=None,
                              verbose=False):
     """Function to match stars between the objects detected in an image
-    and those extracted from a catalog, using image pixel postions."""
+    and those extracted from a catalog, using image world postions."""
     
     log.info('Matching detected and catalog sources via their world coordinates')
     
@@ -645,6 +645,89 @@ def match_stars_world_coords(detected_sources,catalog_sources,log,
     
     return matched_stars
 
+def match_stars_pixel_coords(detected_sources,catalog_sources,log,
+                             radius=None, x_centre=None, y_centre=None,
+                             verbose=False, tol=1.5):
+    """Function to match stars between the objects detected in an image
+    and those extracted from a catalog, using image pixel postions."""
+    
+    log.info('Matching detected and catalog sources via their world coordinates')
+    
+    tol = 1.5
+    dpix = 10.0
+    
+    if radius != None:
+        
+        centre = coordinates.SkyCoord(ra_centre, dec_centre,
+                                      frame='icrs', unit=(units.deg, units.deg))
+        
+        dx = catalog_sources['x'].data - x_centre
+        dy = catalog_sources['y'].data - y_centre
+        separations = np.sqrt( dx*dx + dy*dy )
+        
+        jdx = np.where(abs(separations) <= radius)[0]
+        
+        log.info('Selected '+str(len(jdx))+' catalog stars centred around '+\
+                 str(x_centre)+', '+str(y_centre))
+    else:
+        
+        jdx = np.arange(0,len(catalog_sources),1)
+        
+        log.info('All catalog stars selected')
+    
+    matched_stars = match_utils.StarMatchIndex()
+    
+    jincr = int(float(len(catalog_sources))*0.01)
+    
+    for j in jdx:
+        cat_x = catalog_sources['x'][j]
+        cat_y = catalog_sources['y'][j]
+        
+        kdx1 = np.where(detected_sources['x'] >= (cat_x-dpix))[0]
+        kdx2 = np.where(detected_sources['x'] <= (cat_x+dpix))[0]
+        kdx3 = np.where(detected_sources['y'] >= (cat_y-dpix))[0]
+        kdx4 = np.where(detected_sources['y'] <= (cat_y+dpix))[0]
+        kdx = set(kdx1).intersection(set(kdx2))
+        kdx = kdx.intersection(set(kdx3))
+        kdx = list(kdx.intersection(set(kdx4)))
+        
+        if len(kdx) > 0:
+            
+            dx = detected_sources['x'][kdx].data - cat_x
+            dy = detected_sources['y'][kdx].data - cat_y
+            separations = np.sqrt( dx*dx + dy*dy )
+            
+            if separations.min() <= tol:
+                i = np.where(separations == separations.min())[0][0]
+                
+                p = {'cat1_index': kdx[i],
+                     'cat1_ra': detected_sources['ra'][kdx[i]],
+                     'cat1_dec': detected_sources['dec'][kdx[i]],
+                     'cat1_x': detected_sources['x'][kdx[i]],
+                     'cat1_y': detected_sources['y'][kdx[i]],
+                     'cat2_index': j, 
+                     'cat2_ra': catalog_sources['ra'][j], 
+                     'cat2_dec': catalog_sources['dec'][j], \
+                     'cat2_x': catalog_sources['x'][j], 
+                     'cat2_y': catalog_sources['y'][j], \
+                     'separation': separations.min()}
+                
+                matched_stars.add_match(p)
+                
+                if verbose:
+                    log.info(matched_stars.summarize_last())
+                
+                if j%jincr == 0:
+                    percentage = round((float(j)/float(len(catalog_sources)))*100.0,0)
+                    log.info(' -> Completed cross-match of '+str(percentage)+\
+                                '% ('+str(j)+' of catalog stars out of '+\
+                                str(len(catalog_sources))+')')
+
+    log.info(' -> Matched '+str(matched_stars.n_match)+' stars')
+
+    log.info('Completed star match in world coordinates')
+    
+    return matched_stars
 
 def refine_wcs(detected_sources,catalog_sources_xy,image_wcs,
                log,output_dir,verbose=False):

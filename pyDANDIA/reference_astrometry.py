@@ -77,11 +77,21 @@ def run_reference_astrometry(setup):
         
         transform = [999.9, 999.9]
         it = 0
+        max_it = 2
         iterate = True
-        use_short_string = True
+        use_short_string = False
         
         while iterate:
             it += 1
+            
+            matched_stars = wcs.match_stars_pixel_coords(bright_central_detected_stars, 
+                                                         bright_central_gaia_stars,log,
+                                                         tol=5.0)
+            
+            (transform, inliers) = calc_coord_offsets.detect_correspondances(setup, 
+                                                bright_central_detected_stars[matched_stars.cat1_index], 
+                                                bright_central_gaia_stars[matched_stars.cat2_index],
+                                                log)
             
             transform = calc_coord_offsets.calc_offset_pixels(setup,bright_central_detected_stars, 
                                                       bright_central_gaia_stars,
@@ -113,7 +123,7 @@ def run_reference_astrometry(setup):
                 (bright_central_detected_stars,bright_central_gaia_stars) = update_computed_coordinates(setup, image_wcs, bright_central_detected_stars, 
                                                             bright_central_gaia_stars, log, 'catalog_stars_bright_revised_'+str(it)+'.reg')
                                                         
-            if it >= 1 or (transform[0] < 1.0 and transform[1] < 1.0):
+            if it >= max_it or (transform[0] < 1.0 and transform[1] < 1.0):
                 iterate = False
                 
         (detected_sources, gaia_sources) = update_computed_coordinates(setup, image_wcs, detected_sources, 

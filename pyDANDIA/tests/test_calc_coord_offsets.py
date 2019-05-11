@@ -10,8 +10,23 @@ from sys import path as systempath
 cwd = getcwd()
 systempath.append(path.join(cwd,'../'))
 import calc_coord_offsets
+import pipeline_setup
+import logs
 from astropy.table import Table, Column
 import numpy as np
+
+test_full_frame = True
+cwd = getcwd()
+TEST_DATA = path.join(cwd,'data')
+
+if test_full_frame:
+
+    TEST_DIR = path.join(cwd,'data','proc',
+                        'ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip')
+else:
+    
+    TEST_DIR = path.join(cwd,'data','proc',
+                        'ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip')
 
 def test_calc_offset_hist2d():
     
@@ -60,9 +75,38 @@ def test_extract_nearby_stars():
     assert sub_catalog['dec'].max() <= dec_cen+radius
     assert sub_catalog['dec'].min() >= dec_cen-radius
     assert len(sub_catalog) <= len(catalog)
+
+def test_detect_correspondances():
+    
+    setup = pipeline_setup.pipeline_setup({'red_dir': TEST_DIR})
+    
+    log = logs.start_stage_log( cwd, 'test_wcs' )
+    
+    xx = np.linspace(1.0,500.0,100)
+    yy = np.linspace(1.0,500.0,100)
+    
+    coord_data = [ Column(name='x', data=xx), Column(name='y', data=yy) ]
+    detected_stars = Table(data=coord_data)
+    
+    x_offset = 4.2
+    y_offset = -1.5
+    
+    xx2 = np.linspace(1.0,500.0,100)
+    yy2 = np.linspace(1.0,500.0,100)
+    
+    xx2 = xx2 + x_offset
+    yy2 = yy2 + y_offset
+    
+    coord_data = [ Column(name='x', data=xx2), Column(name='y', data=yy2) ]
+    catalog_stars = Table(data=coord_data)
+    
+    (model, inliers) = calc_coord_offsets.detect_correspondances(setup, detected_stars, catalog_stars,log)
+    
+    logs.close_log(log)
     
 if __name__ == '__main__':
     
-    test_calc_offset_hist2d()
- #   test_extract_nearby_stars()
+#    test_calc_offset_hist2d()
+#    test_extract_nearby_stars()
+    test_detect_correspondances()
     

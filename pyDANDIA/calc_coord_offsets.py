@@ -12,7 +12,10 @@ import astropy.units as u
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
+from astropy.visualization import ZScaleInterval, ImageNormalize
 matplotlib.use('TkAgg')
+from skimage.measure import ransac
+from skimage.transform import AffineTransform
 
 def calc_coord_offset():
     """Function to calculate an image's offset in delta RA, delta Dec"""
@@ -112,50 +115,86 @@ def calc_offset_pixels(setup, detected_stars, catalog_stars,log,
     """
     
     nstars = len(detected_stars)
+    nxbins = int(detected_stars['x'].max() - detected_stars['x'].min())
+    nybins = int(detected_stars['y'].max() - detected_stars['y'].min())
+    resolution_factor = 2
+    nbins = nxbins*resolution_factor
     
     (xXX,xYY) = np.meshgrid(detected_stars['x'],catalog_stars['x'])
     (yXX,yYY) = np.meshgrid(detected_stars['y'],catalog_stars['y'])
-
+    
+    close = calc_separations(setup, detected_stars, catalog_stars,log)
+    
     deltaX = (xXX - xYY).ravel()
     deltaY = (yXX - yYY).ravel()
     
-    if diagnostics:
-        fig = plt.figure(1,(10,10))
-        plt.subplot(2, 1, 1)
-        plt.hist(deltaX, 100)
-        plt.xlabel('$\\Delta$X')
-        plt.grid()
-        plt.subplot(2, 1, 2)
-        plt.hist(deltaY, 100)
-        plt.xlabel('$\\Delta$Y')
-        plt.grid()
-        plt.savefig(path.join(setup.red_dir,'ref','detected_catalog_sources_offset.png'))
-        plt.close(1)
-    
-    nxbins = int(detected_stars['x'].max() - detected_stars['x'].min())
-    nybins = int(detected_stars['y'].max() - detected_stars['y'].min())
     (xH,xedges) = np.histogram(deltaX,bins=nxbins)
     (yH,yedges) = np.histogram(deltaY,bins=nybins)
     xdx = np.where(xH == xH.max())
     ydx = np.where(yH == yH.max())
+    print(xdx, ydx, xH.max(), yH.max(), deltaX[xdx], deltaY[ydx])
     
     best_offset = [[0,0],[0,0]]
 
-    resolution_factor = 2
-    
     while len(best_offset[0]) != 1:
+        nbins = nxbins*resolution_factor
         
-        (H,xedges,yedges) = np.histogram2d(deltaX, deltaY, nxbins*resolution_factor)
-        
+        (H,xedges,yedges) = np.histogram2d(deltaX, deltaY, nbins)
         best_offset = np.where(H == np.max(H))
         resolution_factor = resolution_factor/2.0
     
     X_offset = (xedges[best_offset[0][0]] + xedges[best_offset[0][0]+1])/2.0
     Y_offset = (yedges[best_offset[1][0]] + xedges[best_offset[1][0]+1])/2.0
     
-    log.info('Measured transform: dRA='+str(X_offset)+', dDec='+str(Y_offset)+' pixels')
+    log.info('Measured transform: dX='+str(X_offset)+', dY='+str(Y_offset)+' pixels')
     
+    if diagnostics:
+        fig = plt.figure(1,(10,10))
+        plt.subplot(2, 1, 1)
+        plt.hist(deltaX, nbins)
+        [xmin,xmax,ymin,ymax] = plt.axis()
+        plt.axis([-50.0,50.0,ymax*0.7,ymax])
+        plt.plot([X_offset,X_offset],[ymin,ymax],'r-')
+        plt.xlabel('$\\Delta$X')
+        plt.grid()
+        plt.subplot(2, 1, 2)
+        plt.hist(deltaY, nbins)
+        [xmin,xmax,ymin,ymax] = plt.axis()
+        plt.axis([-50.0,50.0,ymax*0.7,ymax])
+        plt.plot([Y_offset,Y_offset],[ymin,ymax],'r-')
+        plt.xlabel('$\\Delta$Y')
+        plt.grid()
+        plt.savefig(path.join(setup.red_dir,'ref','detected_catalog_sources_offset.png'))
+        plt.close(1)
+        
+        fig = plt.figure(1,(10,10))
+        norm = ImageNormalize(H, interval=ZScaleInterval())
+        plt.imshow(H, norm=norm)
+        plt.colorbar()
+        plt.savefig(path.join(setup.red_dir,'ref','detected_catalog_sources_offset_2D.png'))
+        plt.close(1)
+        #plt.show()
+        
     return X_offset, Y_offset
+
+def calc_separations(setup, detected_stars, catalog_stars,log):
+    
+    (xXX,xYY) = np.meshgrid(detected_stars['x'],catalog_stars['x'])
+    (yXX,yYY) = np.meshgrid(detected_stars['y'],catalog_stars['y'])
+    
+    separations = np.sqrt( (xXX-xYY)**2 + (yXX-yYY)**2 )
+    
+    close = np.where(separations < 10.0)
+    
+    print(close)
+    print(separations[close])
+    
+    for k in range(0,10,1):
+        i = close[0][k]
+        j = close[1][k]
+        print(xXX[i],yXX[i],xYY[j],yYY[j])
+    
+    return close
     
 def extract_nearby_stars(catalog,ra,dec,radius):
     
@@ -171,6 +210,24 @@ def extract_nearby_stars(catalog,ra,dec,radius):
     sub_catalog = catalog[idx]
     
     return sub_catalog
+
+def detect_correspondances(setup, detected_stars, catalog_stars,log):
+    
+    det_array = np.zeros((len(detected_stars),2))
+    det_array[:,0] = detected_stars['x'].data
+    det_array[:,1] = detected_stars['y'].data
+    
+    cat_array = np.zeros((len(catalog_stars),2))
+    cat_array[:,0] = catalog_stars['x'].data
+    cat_array[:,1] = catalog_stars['y'].data
+    
+    (model, inliers) = ransac((det_array, cat_array), AffineTransform, min_samples=3,
+                               residual_threshold=2, max_trials=100)
+    
+    print(model)
+    print(inliers.shape)
+    
+    return model, inliers
     
 if __name__ == '__main__':
     

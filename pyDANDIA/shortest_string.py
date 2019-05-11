@@ -32,7 +32,7 @@ def find_xy_offset(catalog1, catalog2, log=None, diagnostics=False):
     x_offset = None
     y_offset = None
     
-    for it in range(0,2,1):
+    for it in range(0,1,1):
         
         string_lengths = []
         n_match = []
@@ -177,7 +177,7 @@ def cross_match_catalogs(catalog1,catalog2):
         
         idx = sep.argsort()
         
-        if len(idx) > 0:
+        if len(idx) > 0 and sep[idx[0]] <= tol:
             
             p = {'cat1_index': i,
                  'cat1_ra': None,
