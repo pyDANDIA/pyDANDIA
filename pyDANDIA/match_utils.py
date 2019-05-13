@@ -34,22 +34,33 @@ class StarMatchIndex:
                 
         self.n_match += 1
         
-    def summary(self):
+    def summary(self,units='deg'):
         
         for j in range(0,self.n_match,1):
-            output = 'Catalog 1 star '+str(self.cat1_index[j])+' at ('+\
+            
+            if units=='deg':
+
+                output = 'Catalog 1 star '+str(self.cat1_index[j])+' at ('+\
                     str(self.cat1_ra[j])+', '+str(self.cat1_dec[j])+\
                     ') matches Catalog 2 star '+str(self.cat2_index[j])+' at ('+\
                     str(self.cat2_ra[j])+', '+str(self.cat2_dec[j])+\
-                    '), separation '+str(self.separation[j])+' deg\n'
+                    '), separation '+str(self.separation[j])+' '+units+'\n'
+                    
+            else:
+                
+                output = 'Catalog 1 star '+str(self.cat1_index[j])+' at ('+\
+                    str(self.cat1_x[j])+', '+str(self.cat1_y[j])+\
+                    ') matches Catalog 2 star '+str(self.cat2_index[j])+' at ('+\
+                    str(self.cat2_x[j])+', '+str(self.cat2_y[j])+\
+                    '), separation '+str(self.separation[j])+' '+units+'\n'
                     
         return output
     
-    def summarize_last(self,type='angle'):
+    def summarize_last(self,units='deg'):
         
         j = self.n_match - 1
         
-        if type == 'angle':
+        if units == 'deg':
         
             output = 'Catalog 1 star '+str(self.cat1_index[j])+' at ('+\
                     str(self.cat1_ra[j])+', '+str(self.cat1_dec[j])+\

@@ -75,36 +75,37 @@ def run_reference_astrometry(setup):
         (bright_central_detected_stars, bright_central_gaia_stars) = wcs.extract_bright_central_stars(setup,detected_sources, 
                         gaia_sources, image_wcs, log, radius=0.05)
         
+        (bright_central_detected_stars,bright_central_gaia_stars) = update_computed_coordinates(setup, image_wcs, bright_central_detected_stars, 
+                                                        bright_central_gaia_stars, log, 'catalog_stars_bright_initial.reg')
+                                                        
         transform = [999.9, 999.9]
         it = 0
-        max_it = 2
+        max_it = 3
         iterate = True
-        use_short_string = False
+        method = 'ransac'
         
         while iterate:
             it += 1
             
-            matched_stars = wcs.match_stars_pixel_coords(bright_central_detected_stars, 
-                                                         bright_central_gaia_stars,log,
-                                                         tol=5.0)
-            
-            (transform, inliers) = calc_coord_offsets.detect_correspondances(setup, 
-                                                bright_central_detected_stars[matched_stars.cat1_index], 
-                                                bright_central_gaia_stars[matched_stars.cat2_index],
-                                                log)
-            
-            transform = calc_coord_offsets.calc_offset_pixels(setup,bright_central_detected_stars, 
+            if it == 1 and method in ['histogram', 'ransac']:
+                log.info('Calculating transformation using the histogram method, iteration '+str(it))
+                transform = calc_coord_offsets.calc_offset_pixels(setup,bright_central_detected_stars, 
                                                       bright_central_gaia_stars,
                                                       log,
                                                       diagnostics=True)
             
-            image_wcs = wcs.update_wcs(image_wcs,transform,header['PIXSCALE'],log,
-                                                       transform_type='pixels')
-    
-            (bright_central_detected_stars,bright_central_gaia_stars) = update_computed_coordinates(setup, image_wcs, bright_central_detected_stars, 
-                                                        bright_central_gaia_stars, log, 'catalog_stars_bright_initial.reg')
+            elif it > 1 and method in ['histogram', 'ransac']:
+                log.info('Calculating transformation using the ransac method, iteration '+str(it))
+                matched_stars = wcs.match_stars_pixel_coords(bright_central_detected_stars, 
+                                                         bright_central_gaia_stars,log,
+                                                         tol=5.0,verbose=False)
             
-            if use_short_string:
+                transform = calc_coord_offsets.detect_correspondances(setup, 
+                                                bright_central_detected_stars[matched_stars.cat1_index], 
+                                                bright_central_gaia_stars[matched_stars.cat2_index],
+                                                log)
+            
+            if method == 'shortest_string':
                 det_array = np.zeros((len(bright_central_detected_stars),2))
                 det_array[:,0] = bright_central_detected_stars['x'].data
                 det_array[:,1] = bright_central_detected_stars['y'].data
@@ -117,14 +118,15 @@ def run_reference_astrometry(setup):
                                                               log=log,
                                                               diagnostics=True)
                 
-                image_wcs = wcs.update_wcs(image_wcs,transform,header['PIXSCALE'],log,
-                                                           transform_type='pixels')
-        
-                (bright_central_detected_stars,bright_central_gaia_stars) = update_computed_coordinates(setup, image_wcs, bright_central_detected_stars, 
+            image_wcs = wcs.update_wcs(image_wcs,transform,header['PIXSCALE'],log,
+                                                       transform_type='pixels')
+    
+            (bright_central_detected_stars,bright_central_gaia_stars) = update_computed_coordinates(setup, image_wcs, bright_central_detected_stars, 
                                                             bright_central_gaia_stars, log, 'catalog_stars_bright_revised_'+str(it)+'.reg')
                                                         
-            if it >= max_it or (transform[0] < 1.0 and transform[1] < 1.0):
+            if it >= max_it or (abs(transform[0]) < 0.5 and abs(transform[1]) < 0.5):
                 iterate = False
+                log.info('Coordinate transform halting on iteration '+str(it)+' (of '+str(max_it)+'), latest transform '+repr(transform))
                 
         (detected_sources, gaia_sources) = update_computed_coordinates(setup, image_wcs, detected_sources, 
                                                         gaia_sources, log, 'catalog_stars_full_revised_'+str(it)+'.reg')
@@ -132,7 +134,7 @@ def run_reference_astrometry(setup):
         matched_stars_gaia = wcs.match_stars_world_coords(detected_sources,gaia_sources,log,
                                                           radius=0.1, ra_centre=image_wcs.wcs.crval[0],
                                                           dec_centre=image_wcs.wcs.crval[1],
-                                                          verbose=True)
+                                                          verbose=False)
         
         matched_stars_vphas = wcs.match_stars_world_coords(detected_sources,vphas_sources,log,
                                                           radius=0.1, ra_centre=image_wcs.wcs.crval[0],

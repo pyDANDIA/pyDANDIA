@@ -123,7 +123,7 @@ def calc_offset_pixels(setup, detected_stars, catalog_stars,log,
     (xXX,xYY) = np.meshgrid(detected_stars['x'],catalog_stars['x'])
     (yXX,yYY) = np.meshgrid(detected_stars['y'],catalog_stars['y'])
     
-    close = calc_separations(setup, detected_stars, catalog_stars,log)
+    #close = calc_separations(setup, detected_stars, catalog_stars,log)
     
     deltaX = (xXX - xYY).ravel()
     deltaY = (yXX - yYY).ravel()
@@ -132,7 +132,6 @@ def calc_offset_pixels(setup, detected_stars, catalog_stars,log,
     (yH,yedges) = np.histogram(deltaY,bins=nybins)
     xdx = np.where(xH == xH.max())
     ydx = np.where(yH == yH.max())
-    print(xdx, ydx, xH.max(), yH.max(), deltaX[xdx], deltaY[ydx])
     
     best_offset = [[0,0],[0,0]]
 
@@ -224,10 +223,16 @@ def detect_correspondances(setup, detected_stars, catalog_stars,log):
     (model, inliers) = ransac((det_array, cat_array), AffineTransform, min_samples=3,
                                residual_threshold=2, max_trials=100)
     
-    print(model)
-    print(inliers.shape)
+    log.info('RANSAC identified '+str(len(inliers))+' inlying objects in the matched set')
+    log.info('Pixel offsets, dx='+str(model.translation[0])+', dy='+str(model.translation[1])+' pixels')
+    log.info('Pixel scale factor '+repr(model.scale))
+    log.info('Pixel rotation '+repr(model.rotation))
     
-    return model, inliers
+    dx = np.median(det_array[inliers,0] - cat_array[inliers,0])
+    dy = np.median(det_array[inliers,1] - cat_array[inliers,1])
+    log.info('Median offsets = '+str(dx)+', '+str(dy))
+    
+    return [ dx, dy ]
     
 if __name__ == '__main__':
     

@@ -651,15 +651,12 @@ def match_stars_pixel_coords(detected_sources,catalog_sources,log,
     """Function to match stars between the objects detected in an image
     and those extracted from a catalog, using image pixel postions."""
     
-    log.info('Matching detected and catalog sources via their world coordinates')
+    log.info('Matching detected and catalog sources via their pixel coordinates')
     
     tol = 1.5
     dpix = 10.0
     
     if radius != None:
-        
-        centre = coordinates.SkyCoord(ra_centre, dec_centre,
-                                      frame='icrs', unit=(units.deg, units.deg))
         
         dx = catalog_sources['x'].data - x_centre
         dy = catalog_sources['y'].data - y_centre
@@ -715,7 +712,7 @@ def match_stars_pixel_coords(detected_sources,catalog_sources,log,
                 matched_stars.add_match(p)
                 
                 if verbose:
-                    log.info(matched_stars.summarize_last())
+                    log.info(matched_stars.summarize_last(units='pixels'))
                 
                 if j%jincr == 0:
                     percentage = round((float(j)/float(len(catalog_sources)))*100.0,0)
