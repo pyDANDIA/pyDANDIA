@@ -1078,14 +1078,17 @@ def build_ref_source_catalog(detected_sources,gaia_sources,vphas_sources,\
     
     data = np.zeros([len(detected_sources),19])
     source_ids = np.empty([len(detected_sources),2], dtype='S30')
+    gaia_source_ids = [ 'None' ] * len(detected_sources)
+    vphas_source_ids = [ 'None' ] * len(detected_sources)
     
     for j in range(0,len(matched_stars_gaia.cat1_index),1):
         
         idx1 = int(matched_stars_gaia.cat1_index[j])
         idx2 = int(matched_stars_gaia.cat2_index[j])
         
-        source_ids[idx1,0] = gaia_sources['source_id'][idx2]
-
+        #source_ids[idx1,0] = gaia_sources['source_id'][idx2]
+        gaia_source_ids[idx1] = gaia_sources['source_id'][idx2]
+        
         data[idx1,0] = validate_entry(gaia_sources['ra'][idx2])
         data[idx1,1] = validate_entry(gaia_sources['ra_error'][idx2])
         data[idx1,2] = validate_entry(gaia_sources['dec'][idx2])
@@ -1102,8 +1105,9 @@ def build_ref_source_catalog(detected_sources,gaia_sources,vphas_sources,\
         jdx1 = int(matched_stars_vphas.cat1_index[j])
         jdx2 = int(matched_stars_vphas.cat2_index[j])
         
-        source_ids[jdx1,1] = vphas_sources['source_id'][jdx2]
-
+        #source_ids[jdx1,1] = vphas_sources['source_id'][jdx2]
+        vphas_source_ids[jdx1] = vphas_sources['source_id'][jdx2]
+        
         data[jdx1,10] = validate_entry(vphas_sources['ra'][jdx2])
         data[jdx1,11] = validate_entry(vphas_sources['dec'][jdx2])
         data[jdx1,12] = validate_entry(vphas_sources['gmag'][jdx2])
@@ -1125,7 +1129,7 @@ def build_ref_source_catalog(detected_sources,gaia_sources,vphas_sources,\
                       table.Column(name='ref_mag_error', data=detected_sources['ref_mag_err'].data),
                       table.Column(name='cal_ref_mag', data=np.zeros(len(detected_sources))),
                       table.Column(name='cal_ref_mag_error', data=np.zeros(len(detected_sources))),
-                      table.Column(name='gaia_source_id', data=source_ids[:,0]),
+                      table.Column(name='gaia_source_id', data=np.array(gaia_source_ids)),
                       table.Column(name='gaia_ra', data=data[:,0]),
                       table.Column(name='gaia_ra_error', data=data[:,1]),
                       table.Column(name='gaia_dec', data=data[:,2]),
@@ -1136,7 +1140,7 @@ def build_ref_source_catalog(detected_sources,gaia_sources,vphas_sources,\
                       table.Column(name='phot_bp_mean_flux_error', data=data[:,7]),
                       table.Column(name='phot_rp_mean_flux', data=data[:,8]),
                       table.Column(name='phot_rp_mean_flux_error', data=data[:,9]),
-                      table.Column(name='vphas_source_id', data=source_ids[:,1]),
+                      table.Column(name='vphas_source_id', data=np.array(vphas_source_ids)),
                       table.Column(name='vphas_ra', data=data[:,10]),
                       table.Column(name='vphas_dec', data=data[:,11]),
                       table.Column(name='gmag', data=data[:,12]),

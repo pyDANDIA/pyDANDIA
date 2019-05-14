@@ -72,7 +72,7 @@ def run_stage_stand_alone():
         
     elif params['stage'] == 'stage3_db_ingest':
         
-        (status, report) = stage3_db_ingest.run_stage3(setup)
+        (status, report) = stage3_db_ingest.run_stage3(setup, primary_ref=params['primary_ref'])
 
     elif params['stage'] == 'stage4':
 
@@ -102,7 +102,7 @@ def get_args():
     helptext = """              RUN STAGE STAND ALONE
             
             Call sequence is:
-            > python run_stage.py [stage] [path to reduction directory] [-v]
+            > python run_stage.py [stage] [path to reduction directory] [dataset] [-v]
             
             where stage is the name of the stage or code to be run, one of:
                 stage0, stage1, stage2, stage3, stage4, stage5, 
@@ -110,6 +110,9 @@ def get_args():
             
             and the path to the reduction directory is given to the dataset
             to be processed
+            
+            and field indicates the name of the field being process 
+            (e.g. ROME-FIELD-0001, etc)
             
             The optional -v flag controls the verbosity of the pipeline 
             logging output.  Values 
@@ -126,10 +129,11 @@ def get_args():
         print(helptext)
         exit()
         
-    if len(argv) < 3:
+    if len(argv) < 4:
         
         params['stage'] = input('Please enter the name of the stage or code you wish to run: ')
         params['red_dir'] = input('Please enter the path to the reduction directory: ')
+        params['field'] = input('Please enter the name of the field being reduced: ')
     
     if '-primary-ref' in argv:
         

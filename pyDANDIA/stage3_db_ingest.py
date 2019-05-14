@@ -47,7 +47,7 @@ def run_stage3_db_ingest(setup, primary_ref=False):
                      'airmass','moon_phase','moon_separation',
                      'delta_x','delta_y']
     
-    log = logs.start_stage_log( setup.log_dir, 'stage3_db_ingest', 
+    log = logs.start_stage_log( setup.red_dir, 'stage3_db_ingest', 
                                version=VERSION )
                                
     conn = phot_db.get_connection(dsn=setup.phot_db_path)
@@ -80,8 +80,6 @@ def run_stage3_db_ingest(setup, primary_ref=False):
     
     commit_reference_image(conn, dataset_params, log)
     commit_reference_component(conn, dataset_params, log)
-    
-    #star_catalog = read_combined_star_catalog(params)
     
     # CONVERT THIS TO USE METADATA TABLE
     # ADD INGEST OF CATALOG DATA

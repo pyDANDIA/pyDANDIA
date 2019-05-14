@@ -124,7 +124,9 @@ def test_commit_reference_component():
     
 def test_run_stage3_db_ingest():
     
-    stage3_db_ingest.run_stage3_db_ingest()
+    setup = pipeline_setup.pipeline_setup({'red_dir': TEST_DIR})
+    
+    stage3_db_ingest.run_stage3_db_ingest(setup)
 
 def fetch_test_db_contents():
     
@@ -315,5 +317,5 @@ if __name__ == '__main__':
     #test_commit_reference_component()
     #test_read_combined_star_catalog()
     #test_commit_stars()
-    test_commit_photometry()
-    #test_run_stage3_db_ingest()
+    #test_commit_photometry()
+    test_run_stage3_db_ingest()

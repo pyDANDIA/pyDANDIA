@@ -93,18 +93,30 @@ def run_reference_astrometry(setup):
                                                       bright_central_gaia_stars,
                                                       log,
                                                       diagnostics=True)
-            
+                
+                # This method is not robust when the residual offsets are small
+                # Therefore, any proposed transform is ignored if it is smaller
+                # than a threshold value
+                if abs(transform[0]) < 3.0 and abs(transform[1]) < 3.0:
+                    
+                    transform = [ 0.0, 0.0 ]
+                    
+                    log.info('Histogram method found a small transform, below the methods reliability threshold.  This transform will be ignored in favour of the RANSAC method')
+                    
             elif it > 1 and method in ['histogram', 'ransac']:
                 log.info('Calculating transformation using the ransac method, iteration '+str(it))
                 matched_stars = wcs.match_stars_pixel_coords(bright_central_detected_stars, 
                                                          bright_central_gaia_stars,log,
-                                                         tol=5.0,verbose=False)
-            
-                transform = calc_coord_offsets.detect_correspondances(setup, 
+                                                         tol=2.0,verbose=False)
+                
+                if len(matched_stars.cat1_index) > 0:
+                    transform = calc_coord_offsets.detect_correspondances(setup, 
                                                 bright_central_detected_stars[matched_stars.cat1_index], 
                                                 bright_central_gaia_stars[matched_stars.cat2_index],
                                                 log)
-            
+                else:
+                    raise ValueError('No matched stars')
+                    
             if method == 'shortest_string':
                 det_array = np.zeros((len(bright_central_detected_stars),2))
                 det_array[:,0] = bright_central_detected_stars['x'].data
