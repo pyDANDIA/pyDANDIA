@@ -11,6 +11,8 @@ from astropy.io import fits
 from astropy import table
 from astropy import time
 import numpy as np
+import glob
+from shutil import move
 from pyDANDIA import  logs
 from pyDANDIA import  metadata
 from pyDANDIA import  phot_db
@@ -19,12 +21,14 @@ from pyDANDIA import  time_utils
 
 VERSION = 'stage3_ingest_v1.0'
 
-def run_stage3_db_ingest():
+def run_stage3_db_ingest(setup, primary_ref=False):
     """Function to commit the information on, and measurements from, the 
     reference image(s) used to reduce the data for a given field.
     """
     
-    params = configure_setup()
+    #params = configure_setup()
+    
+    archive_existing_db(setup,primary_ref)
     
     facility_keys = ['facility_code', 'site', 'enclosure', 
                      'telescope', 'instrument']
@@ -43,48 +47,50 @@ def run_stage3_db_ingest():
                      'airmass','moon_phase','moon_separation',
                      'delta_x','delta_y']
     
-    log = logs.start_stage_log( params['log_dir'], 'stage3_db_ingest', 
+    log = logs.start_stage_log( setup.log_dir, 'stage3_db_ingest', 
                                version=VERSION )
                                
-    conn = phot_db.get_connection(dsn=params['database_file_path'])
+    conn = phot_db.get_connection(dsn=setup.phot_db_path)
     
-    for f in ['gp', 'rp', 'ip']:
-        
-        log.info('\nIngesting data for '+f+' data')
-        
-        setup = params['setup_'+f]
-        
-        reduction_metadata = metadata.MetaData()
-        reduction_metadata.load_a_layer_from_file( setup.red_dir, 
-                                              'pyDANDIA_metadata.fits', 
-                                              'data_architecture' )
-        reduction_metadata.load_a_layer_from_file( setup.red_dir, 
-                                              'pyDANDIA_metadata.fits', 
-                                              'reduction_parameters' )
-        reduction_metadata.load_a_layer_from_file( setup.red_dir, 
-                                              'pyDANDIA_metadata.fits', 
-                                              'headers_summary' )
-        reduction_metadata.load_a_layer_from_file( setup.red_dir, 
-                                              'pyDANDIA_metadata.fits', 
-                                              'images_stats' )
-        reduction_metadata.load_a_layer_from_file( setup.red_dir, 
-                                              'pyDANDIA_metadata.fits', 
-                                              'software' )
-        
-        dataset_params = harvest_dataset_parameters(setup,reduction_metadata)
-        
-        phot_db.check_before_commit(conn, dataset_params, 'facilities', facility_keys, 'facility_code')
-        phot_db.check_before_commit(conn, dataset_params, 'software', software_keys, 'version')
-        phot_db.check_before_commit(conn, dataset_params, 'images', image_keys, 'filename')
-        
-        commit_reference_image(conn, dataset_params, log)
-        commit_reference_component(conn, dataset_params, log)
-        
-        star_catalog = read_combined_star_catalog(params)
+    reduction_metadata = metadata.MetaData()
+    reduction_metadata.load_a_layer_from_file( setup.red_dir, 
+                                          'pyDANDIA_metadata.fits', 
+                                          'data_architecture' )
+    reduction_metadata.load_a_layer_from_file( setup.red_dir, 
+                                          'pyDANDIA_metadata.fits', 
+                                          'reduction_parameters' )
+    reduction_metadata.load_a_layer_from_file( setup.red_dir, 
+                                          'pyDANDIA_metadata.fits', 
+                                          'headers_summary' )
+    reduction_metadata.load_a_layer_from_file( setup.red_dir, 
+                                          'pyDANDIA_metadata.fits', 
+                                          'images_stats' )
+    reduction_metadata.load_a_layer_from_file( setup.red_dir, 
+                                          'pyDANDIA_metadata.fits', 
+                                          'software' )
+    reduction_metadata.load_a_layer_from_file( setup.red_dir, 
+                                          'pyDANDIA_metadata.fits', 
+                                          'star_catalog' )
+    
+    dataset_params = harvest_dataset_parameters(setup,reduction_metadata)
+    
+    phot_db.check_before_commit(conn, dataset_params, 'facilities', facility_keys, 'facility_code')
+    phot_db.check_before_commit(conn, dataset_params, 'software', software_keys, 'version')
+    phot_db.check_before_commit(conn, dataset_params, 'images', image_keys, 'filename')
+    
+    commit_reference_image(conn, dataset_params, log)
+    commit_reference_component(conn, dataset_params, log)
+    
+    #star_catalog = read_combined_star_catalog(params)
+    
+    # CONVERT THIS TO USE METADATA TABLE
+    # ADD INGEST OF CATALOG DATA
+    if primary_ref:
         
         star_ids = commit_stars(conn, dataset_params, star_catalog, log)
-        
-        commit_photometry(conn, dataset_params, star_catalog, star_ids, log)
+    
+    # CONVERT THIS TO USE METADATA TABLE
+    commit_photometry(conn, dataset_params, star_catalog, star_ids, log)
         
     conn.close()
     
@@ -147,6 +153,49 @@ def configure_setup(log=None):
                 
     return params
 
+def archive_existing_db(setup,primary_ref):
+    """Function to archive an existing photometric DB, if one exists, in the
+    event that a new primary reference is adopted"""
+    
+    def identify_archive_index(db_list):
+        
+        if len(db_list) > 0:
+            
+            idx = 0
+            for db_file in db_list:
+                
+                suffix = db_file.split('.')[-1]
+                
+                if 'db' not in suffix:
+                    try:
+                        i = int(suffix)
+                    except TypeError:
+                        pass
+                    if i > idx:
+                        idx = i
+            
+        else:
+            
+            idx = 0
+        
+        idx += 1
+        
+        return idx
+        
+    if primary_ref:
+        
+        db_list = glob.glob(setup.phot_db_path+'*')
+        
+        idx = identify_archive_index(db_list)
+        
+        if path.isfile(setup.phot_db_path):
+            
+            dest = setup.phot_db_path + '.' + str(idx)
+            
+            move(setup.phot_db_path, dest)
+            
+            log.info('-> Archived old PHOT_DB to '+dest)
+            
 def harvest_dataset_parameters(setup,reduction_metadata):
     """Function to harvest the parameters required for ingest of a single 
     dataset into the photometric database."""

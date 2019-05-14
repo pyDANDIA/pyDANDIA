@@ -119,7 +119,7 @@ def get_args():
             -v 2           Detailed logging output, written to screen and to log file.
             """
     
-    params = {'red_dir1': None, 'red_dir2': None, 'red_dir3': None}
+    params = {}
     
     if len(argv) == 1 or '-help' in argv:
         
@@ -129,20 +129,15 @@ def get_args():
     if len(argv) < 3:
         
         params['stage'] = input('Please enter the name of the stage or code you wish to run: ')
-        params['red_dir1'] = input('Please enter the path to the reduction directory (should be SDSS-g for multi-filter analysis): ')
-        params['red_dir2'] = input('Please enter the path to the second filter reduction directory (should be SDSS-r or None): ')
-        params['red_dir3'] = input('Please enter the path to the third filter reduction directory (should be SDSS-i or None): ')
+        params['red_dir'] = input('Please enter the path to the reduction directory: ')
     
-    elif len(argv) == 3:
+    if '-primary-ref' in argv:
         
-        params['stage'] = argv[1]
-        params['red_dir1'] = argv[2]    
-    
+        params['primary_ref'] = True
+        
     else:
-        params['stage'] = argv[1]
-        params['red_dir1'] = argv[2]    
-        params['red_dir2'] = argv[3]    
-        params['red_dir3'] = argv[4]    
+        
+        params['primary_ref'] = False
     
     if '-v' in argv:
         
@@ -151,8 +146,6 @@ def get_args():
         if len(argv) >= idx + 1:
             
             params['verbosity'] = int(argv[idx+1])
-    
-    params['red_dir'] = params['red_dir1']
     
     return params
 
