@@ -135,6 +135,12 @@ def get_args():
         params['red_dir'] = input('Please enter the path to the reduction directory: ')
         params['field'] = input('Please enter the name of the field being reduced: ')
     
+    else:
+        
+        params['stage'] = argv[1]
+        params['red_dir'] = argv[2]
+        params['field'] = argv[3]
+        
     if '-primary-ref' in argv:
         
         params['primary_ref'] = True

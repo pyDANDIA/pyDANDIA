@@ -548,6 +548,105 @@ def test_extract_bright_central_stars():
     assert faintest_remaining > faintest_catalog
     
     logs.close_log(log)
+
+def test_image_wcs_object():
+    
+    setup = pipeline_setup.pipeline_setup({'red_dir': TEST_DIR})    
+    
+    log = logs.start_stage_log( cwd, 'test_wcs' )
+    
+    header1 = {'CTYPE1':'RA---TAN', 
+              'CTYPE2':'DEC--TAN',
+              'CRVAL1': 270.0749817,
+              'CRVAL2': -28.5375586, 
+              'CRPIX1': 2048.0,
+              'CRPIX2': 2048.0,
+              'CD1_1' : -0.0001081,
+              'CD1_2' : 0.0,
+              'CD2_1' : 0.0,
+              'CD2_2' : 0.0001081,
+              'NAXIS1': 4096,
+              'NAXIS2': 4096}
+    
+    header2 = {'CTYPE1':'RA---TAN', 
+              'CTYPE2':'DEC--TAN',
+              'CRVAL1': 270.0749817,
+              'CRVAL2': -28.5375586, 
+              'CRPIX1': 2040.5850854933833,
+              'CRPIX2': 2047.4916249890805,
+              'CD1_1' : -0.0001081,
+              'CD1_2' : 0.0,
+              'CD2_1' : 0.0,
+              'CD2_2' : 0.0001081,
+              'NAXIS1': 4096,
+              'NAXIS2': 4096}
+              
+    image_wcs1 = aWCS(header1) 
+    image_wcs2 = aWCS(header2)
+    
+    test_xy = np.array( [[2059.161, 2000.866]] )
+    test_xy_ref = np.array( [[header1['CRPIX1'], header1['CRPIX2']]] )
+    test_radec = np.array([ [270.0772669215088, -28.532480828945243] ])
+    test_radec_ref = np.array([ [270.0749817, -28.5375586] ])
+    
+    test_c = SkyCoord(test_radec, frame='icrs', unit=(units.deg, units.deg))
+    
+    table_data = [ Column(name='ra', data=test_radec[:,0]),
+                   Column(name='dec', data=test_radec[:,1]) ]
+    catalog_sources = Table(data=table_data)
+    
+    world_coords = image_wcs1.wcs_pix2world(test_xy, 1)
+    world_coords_ref = image_wcs1.wcs_pix2world(test_xy_ref, 1)
+    pixel_coords = image_wcs1.wcs_world2pix(test_radec, 1)
+    pixel_coords_ref = image_wcs1.wcs_world2pix(test_radec_ref, 1)
+    c = SkyCoord(world_coords, frame='icrs', unit=(units.deg, units.deg))
+    
+    catalog_sources = wcs.calc_image_coordinates_astropy(setup, image_wcs1, catalog_sources,log)
+    
+    sep = test_c.separation(c)
+
+    print('Initial WCS:')
+    print('-> Input RA, Dec: '+repr(test_radec))
+    print('-> Computed x,y pixel position: '+repr(pixel_coords))
+    print('-> Computed x,y pixel ref position: '+repr(pixel_coords_ref))
+    print('-> Input x,y coordinates: '+repr(test_xy))
+    print('-> Computed world coordinates: '+repr(world_coords))
+    print('-> Computed world coordinates (wcs function): '+repr(catalog_sources))
+    print('-> Computed world coordinates ref pixel: '+repr(world_coords_ref))
+    print('-> Separation = '+str(sep[0]))
+    
+    world_coords = image_wcs2.wcs_pix2world(test_xy, 1)
+    c = SkyCoord(world_coords, frame='icrs', unit=(units.deg, units.deg))
+    
+    sep = test_c.separation(c)
+    
+    test_xy_ref = np.array( [[header2['CRPIX1'], header2['CRPIX2']]] )
+    world_coords_ref = image_wcs2.wcs_pix2world(test_xy_ref, 1)
+    pixel_coords = image_wcs2.wcs_world2pix(test_radec, 1)
+    
+    table_data = [ Column(name='ra', data=test_radec[:,0]),
+                   Column(name='dec', data=test_radec[:,1]) ]
+    catalog_sources = Table(data=table_data)
+    
+    catalog_sources2 = wcs.calc_image_coordinates_astropy(setup, image_wcs2, catalog_sources,log)
+    
+    print('Refined WCS:')
+    print('-> Input RA, Dec: '+repr(test_radec))
+    print('-> Computed x,y pixel position: '+repr(pixel_coords))
+    print('-> Input x,y coordinates: '+repr(test_xy))
+    print('-> Computed world coordinates: '+repr(world_coords))
+    print('-> Separation = '+str(sep[0]))
+    print('-> Computed world coordinates ref pixel: '+repr(world_coords_ref))
+    print('-> Computed world coordinates (wcs function): '+repr(catalog_sources))
+    print('-> Computed world coordinates (wcs function): '+repr(catalog_sources2))
+    
+    table_data = [ Column(name='x', data=test_xy[:,0]),
+                   Column(name='y', data=test_xy[:,1]) ]
+    catalog_sources = Table(data=table_data)
+    catalog_sources2 = wcs.calc_world_coordinates_astropy(setup, image_wcs2, catalog_sources,log)
+    print('-> Ref star computed world coordinates (wcs function): '+repr(catalog_sources2))
+    
+    logs.close_log(log)
     
 if __name__ == '__main__':
 
@@ -563,4 +662,6 @@ if __name__ == '__main__':
     #test_calc_image_coordinates_astropy2()
     #test_calc_image_coordinates_astropy3()
     #test_extract_bright_central_stars()
-    test_match_stars_pixel_coords()
+    #test_match_stars_pixel_coords()
+    #test_image_wcs_object()
+    

@@ -232,7 +232,41 @@ def detect_correspondances(setup, detected_stars, catalog_stars,log):
     dy = np.median(det_array[inliers,1] - cat_array[inliers,1])
     log.info('Median offsets = '+str(dx)+', '+str(dy))
     
+    det_array = np.zeros((len(detected_stars),2))
+    det_array[:,0] = detected_stars['ra'].data
+    det_array[:,1] = detected_stars['dec'].data
+    
+    cat_array = np.zeros((len(catalog_stars),2))
+    cat_array[:,0] = catalog_stars['ra'].data
+    cat_array[:,1] = catalog_stars['dec'].data
+    
+    (model2, inliers2) = ransac((det_array, cat_array), AffineTransform, min_samples=3,
+                               residual_threshold=2, max_trials=100)
+    
+    log.info('RANSAC identified '+str(len(inliers2))+' inlying objects in the matched set in world coordinates')
+    log.info('Pixel offsets, dx='+str(model2.translation[0])+', dy='+str(model2.translation[1])+' deg')
+    log.info('Pixel scale factor '+repr(model2.scale))
+    log.info('Pixel rotation '+repr(model2.rotation))
+    
     return [ dx, dy ]
+
+def transform_world_coordinates(setup, detected_stars, transform):
+    
+    ra = detected_stars['ra'].data
+    dec = detected_stars['dec'].data
+    
+    ra1 = transform.scale[0] * ra * np.cos(transform.rotation) \
+                - transform.scale[1] * dec * np.sin(transform.rotation + transform.shear) \
+                + transform.translation[0]
+                
+    dec1 = transform.scale[0] * ra * np.cos(transform.rotation) \
+                + transform.scale[1] * dec * np.sin(transform.rotation + transform.shear) \
+                + transform.translation[1]
+    
+    detected_stars['ra'] = ra1
+    detected_stars['dec'] = dec1
+    
+    return detected_stars
     
 if __name__ == '__main__':
     

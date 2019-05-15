@@ -543,12 +543,16 @@ def calc_world_coordinates_astropy(setup,image_wcs,detected_sources,log,
         positions = np.zeros([len(detected_sources),2])
         positions[:,0] = detected_sources['x'].data
         positions[:,1] = detected_sources['y'].data
-        
+    
+    
     world_coords = image_wcs.wcs_pix2world(positions, 1)
     
     detected_sources['ra'] = world_coords[:,0]
     detected_sources['dec'] = world_coords[:,1]
     
+    for j in range(0,len(detected_sources),1):
+        print(detected_sources['x'][j],detected_sources['y'][j],' -> ',
+              detected_sources['ra'][j],detected_sources['dec'][j])
     log.info('Completed calculation of world coordinates')
     
     return detected_sources
@@ -719,7 +723,7 @@ def match_stars_pixel_coords(detected_sources,catalog_sources,log,
                     log.info(' -> Completed cross-match of '+str(percentage)+\
                                 '% ('+str(j)+' of catalog stars out of '+\
                                 str(len(catalog_sources))+')')
-
+    
     log.info(' -> Matched '+str(matched_stars.n_match)+' stars')
 
     log.info('Completed star match in world coordinates')
