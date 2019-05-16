@@ -72,7 +72,7 @@ def run_stage_stand_alone():
         
     elif params['stage'] == 'stage3_db_ingest':
         
-        (status, report) = stage3_db_ingest.run_stage3(setup, primary_ref=params['primary_ref'])
+        (status, report) = stage3_db_ingest.run_stage3_db_ingest(setup, primary_ref=params['primary_ref'])
 
     elif params['stage'] == 'stage4':
 
