@@ -13,6 +13,7 @@ import wcs
 import stage3
 import pipeline_setup
 import match_utils
+import calc_coord_offsets
 from astropy.io import fits
 from astropy.table import Table, Column
 from astropy.wcs import WCS as aWCS
@@ -549,6 +550,16 @@ def test_extract_bright_central_stars():
     
     logs.close_log(log)
 
+class AffineTransform():
+    
+    def __init__(self):
+        
+        self.scale = [ 0.0, 0.0 ]
+        self.translation = [ 0.0, 0.0 ]
+        self.rotation = 0.0
+        self.shear = 0.0
+        self.matrix = np.zeros([3,3])
+        
 def test_image_wcs_object():
     
     setup = pipeline_setup.pipeline_setup({'red_dir': TEST_DIR})    
@@ -646,8 +657,24 @@ def test_image_wcs_object():
     catalog_sources2 = wcs.calc_world_coordinates_astropy(setup, image_wcs2, catalog_sources,log)
     print('-> Ref star computed world coordinates (wcs function): '+repr(catalog_sources2))
     
-    logs.close_log(log)
+    transform = AffineTransform()
+    transform.translation = [-0.4098763052732579, -0.6609356377717006]
+    transform.scale = [1.0011820643023979, 1.0012879895508038]
+    transform.rotation = 0.002582311161541344
+    transform.shear = 0.0
+    transform.matrix = np.array( [[ 1.00117873, -0.00328719, -0.40987631],
+                                  [ 0.00258536,  1.00128259, -0.66093564],
+                                  [ 0.        ,  0.        ,  1.        ]] )
+       
+    catalog_sources2 = calc_coord_offsets.transform_coordinates(setup, catalog_sources2, transform, coords='radec')
+    print('-> Ref star computed world coordinates (wcs function): '+repr(catalog_sources2))
+    c = SkyCoord(catalog_sources2['ra'], catalog_sources2['dec'], frame='icrs', unit=(units.deg, units.deg))
     
+    sep = test_c.separation(c)
+    print('-> Separation = '+str(sep[0]))
+    
+    logs.close_log(log)
+
 if __name__ == '__main__':
 
     #test_reference_astrometry()
@@ -663,5 +690,5 @@ if __name__ == '__main__':
     #test_calc_image_coordinates_astropy3()
     #test_extract_bright_central_stars()
     #test_match_stars_pixel_coords()
-    #test_image_wcs_object()
+    test_image_wcs_object()
     

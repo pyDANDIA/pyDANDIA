@@ -120,8 +120,8 @@ def calc_offset_pixels(setup, detected_stars, catalog_stars,log,
     resolution_factor = 2
     nbins = nxbins*resolution_factor
     
-    (xXX,xYY) = np.meshgrid(detected_stars['x'],catalog_stars['x'])
-    (yXX,yYY) = np.meshgrid(detected_stars['y'],catalog_stars['y'])
+    (xXX,xYY) = np.meshgrid(detected_stars['x'],catalog_stars['x1'])
+    (yXX,yYY) = np.meshgrid(detected_stars['y'],catalog_stars['y1'])
     
     #close = calc_separations(setup, detected_stars, catalog_stars,log)
     
@@ -173,8 +173,10 @@ def calc_offset_pixels(setup, detected_stars, catalog_stars,log,
         plt.savefig(path.join(setup.red_dir,'ref','detected_catalog_sources_offset_2D.png'))
         plt.close(1)
         #plt.show()
-        
-    return X_offset, Y_offset
+    
+    transform = AffineTransform(translation=(X_offset, Y_offset))
+    
+    return transform
 
 def calc_separations(setup, detected_stars, catalog_stars,log):
     
@@ -247,25 +249,89 @@ def detect_correspondances(setup, detected_stars, catalog_stars,log):
     log.info('Pixel offsets, dx='+str(model2.translation[0])+', dy='+str(model2.translation[1])+' deg')
     log.info('Pixel scale factor '+repr(model2.scale))
     log.info('Pixel rotation '+repr(model2.rotation))
+    log.info('Transform matrix '+repr(model2.params))
     
     return [ dx, dy ]
 
-def transform_world_coordinates(setup, detected_stars, transform):
+def calc_pixel_transform(setup, ref_catalog, catalog2, log):
+    """Calculates the transformation from the reference catalog positions to 
+    those of the working catalog positions"""
     
-    ra = detected_stars['ra'].data
-    dec = detected_stars['dec'].data
+    ref_array = np.zeros((len(ref_catalog),2))
+    ref_array[:,0] = ref_catalog['x'].data
+    ref_array[:,1] = ref_catalog['y'].data
     
-    ra1 = transform.scale[0] * ra * np.cos(transform.rotation) \
-                - transform.scale[1] * dec * np.sin(transform.rotation + transform.shear) \
-                + transform.translation[0]
-                
-    dec1 = transform.scale[0] * ra * np.cos(transform.rotation) \
-                + transform.scale[1] * dec * np.sin(transform.rotation + transform.shear) \
-                + transform.translation[1]
+    cat_array = np.zeros((len(catalog2),2))
+    cat_array[:,0] = catalog2['x'].data
+    cat_array[:,1] = catalog2['y'].data
     
-    detected_stars['ra'] = ra1
-    detected_stars['dec'] = dec1
+    (model, inliers) = ransac((ref_array, cat_array), AffineTransform, min_samples=3,
+                               residual_threshold=2, max_trials=100)
     
+    log.info('RANSAC identified '+str(len(inliers))+' inlying objects in the matched set')
+    log.info('Pixel offsets, dx='+str(model.translation[0])+', dy='+str(model.translation[1])+' pixel')
+    log.info('Pixel scale factor '+repr(model.scale))
+    log.info('Pixel rotation '+repr(model.rotation))
+    log.info('Transform matrix '+repr(model.params))
+    
+    return model
+    
+def calc_world_transform(setup, detected_stars, catalog_stars, log):
+    
+    det_array = np.zeros((len(detected_stars),2))
+    det_array[:,0] = detected_stars['ra'].data
+    det_array[:,1] = detected_stars['dec'].data
+    
+    cat_array = np.zeros((len(catalog_stars),2))
+    cat_array[:,0] = catalog_stars['ra'].data
+    cat_array[:,1] = catalog_stars['dec'].data
+    
+    (model, inliers) = ransac((det_array, cat_array), AffineTransform, min_samples=3,
+                               residual_threshold=2, max_trials=100)
+    
+    log.info('RANSAC identified '+str(len(inliers))+' inlying objects in the matched set')
+    log.info('Pixel offsets, dRA='+str(model.translation[0])+', dDec='+str(model.translation[1])+' deg')
+    log.info('Pixel scale factor '+repr(model.scale))
+    log.info('Pixel rotation '+repr(model.rotation))
+    log.info('Transform matrix '+repr(model.params))
+    
+    return model
+    
+def transform_coordinates(setup, detected_stars, transform, coords='pixel',
+                          verbose=False):
+    
+    if coords == 'pixel':
+        x = detected_stars['x'].data
+        y = detected_stars['y'].data
+    else:
+        x = detected_stars['ra'].data
+        y = detected_stars['dec'].data
+    
+    #print('A coeffs: ',transform.params[0,:])
+    x1 = transform.params[0,0] * x + \
+            transform.params[0,1] * y + \
+                transform.params[0,2]
+    
+    #x1 = x + transform.params[0,2]
+    
+    #print('B coeffs: ',transform.params[1,:])
+    y1 = transform.params[1,0] * x + \
+            transform.params[1,1] * y + \
+                transform.params[1,2]
+    #y1 = y + transform.params[1,2]
+    
+    if coords == 'pixel':
+        detected_stars['x1'] = x1
+        detected_stars['y1'] = y1
+    else:
+        detected_stars['ra'] = x1
+        detected_stars['dec'] = y1
+    
+    if verbose:
+        for j in range(0,len(x),1):
+            if x[j] >= 270.072 and x[j] <= 270.073 and y[j] >= -28.54 and y[j] <= -28.55:
+                print(str(x[j])+','+str(y[j])+' -> '+str(x1[j])+', '+str(y1[j]))
+            
     return detected_stars
     
 if __name__ == '__main__':

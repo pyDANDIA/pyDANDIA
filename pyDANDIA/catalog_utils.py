@@ -391,22 +391,30 @@ def read_Gaia_vizier_catalog(path_to_cat_file):
         
     return new_table
 
-def output_ds9_overlay_from_table(catalog,file_path,radius=None,colour='green'):
+def output_ds9_overlay_from_table(catalog,file_path,radius=None,colour='green',
+                                  transformed_coords=False):
     """Function to output from an astropy Table that includes x,y 
     image coordinates as Columns named 'x' and 'y' as an region overlay
     file for use in DS9"""
     
+    if transformed_coords:
+        xcol = 'x1'
+        ycol = 'y1'
+    else:
+        xcol = 'x'
+        ycol = 'y'
+        
     f = open(file_path,'w')
     for j in range(0,len(catalog),1):
         
         if radius != None:
             
-            f.write('circle '+str(catalog['x'][j])+' '+str(catalog['y'][j])+
+            f.write('circle '+str(catalog[xcol][j])+' '+str(catalog[ycol][j])+
                 ' '+str(radius)+' # color='+colour+'\n')
             
         else:
             
-            f.write('point '+str(catalog['x'][j])+' '+str(catalog['y'][j])+
+            f.write('point '+str(catalog[xcol][j])+' '+str(catalog[ycol][j])+
                 ' # color='+colour+'\n')
                 
     f.close()

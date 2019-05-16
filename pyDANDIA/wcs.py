@@ -201,6 +201,10 @@ def extract_bright_central_stars(setup, detected_sources, catalog_sources,
     imax = int(len(central_catalog_stars[jdx])*0.98)
     
     bright_central_catalog_stars = central_catalog_stars[jdx][idx[imin:imax]]
+
+    if 'x1' not in bright_central_catalog_stars.colnames:
+        bright_central_catalog_stars.add_column( table.Column(name='x1', data=np.copy(bright_central_catalog_stars['x'])) )
+        bright_central_catalog_stars.add_column( table.Column(name='y1', data=np.copy(bright_central_catalog_stars['y'])) )
     
     log.info('Selected '+str(len(bright_central_catalog_stars))+\
              ' bright detected stars close to the centre of the image')
@@ -512,7 +516,7 @@ def calc_world_coordinates(setup,image_path,detected_sources,log):
     return coords_table
     
 def calc_world_coordinates_astropy(setup,image_wcs,detected_sources,log,
-                                   rotate=False):
+                                   rotate=False, verbose=False):
     """Function to calculate the RA, Dec positions of an array of image
     pixel positions"""
     
@@ -550,9 +554,11 @@ def calc_world_coordinates_astropy(setup,image_wcs,detected_sources,log,
     detected_sources['ra'] = world_coords[:,0]
     detected_sources['dec'] = world_coords[:,1]
     
-    for j in range(0,len(detected_sources),1):
-        print(detected_sources['x'][j],detected_sources['y'][j],' -> ',
-              detected_sources['ra'][j],detected_sources['dec'][j])
+    if verbose:
+        for j in range(0,len(detected_sources),1):
+            log.info(detected_sources['x'][j],detected_sources['y'][j],' -> ',
+                  detected_sources['ra'][j],detected_sources['dec'][j])
+                  
     log.info('Completed calculation of world coordinates')
     
     return detected_sources
@@ -662,8 +668,8 @@ def match_stars_pixel_coords(detected_sources,catalog_sources,log,
     
     if radius != None:
         
-        dx = catalog_sources['x'].data - x_centre
-        dy = catalog_sources['y'].data - y_centre
+        dx = catalog_sources['x1'].data - x_centre
+        dy = catalog_sources['y1'].data - y_centre
         separations = np.sqrt( dx*dx + dy*dy )
         
         jdx = np.where(abs(separations) <= radius)[0]
@@ -681,8 +687,8 @@ def match_stars_pixel_coords(detected_sources,catalog_sources,log,
     jincr = int(float(len(catalog_sources))*0.01)
     
     for j in jdx:
-        cat_x = catalog_sources['x'][j]
-        cat_y = catalog_sources['y'][j]
+        cat_x = catalog_sources['x1'][j]    # Transformed coordinates
+        cat_y = catalog_sources['y1'][j]
         
         kdx1 = np.where(detected_sources['x'] >= (cat_x-dpix))[0]
         kdx2 = np.where(detected_sources['x'] <= (cat_x+dpix))[0]
@@ -701,6 +707,7 @@ def match_stars_pixel_coords(detected_sources,catalog_sources,log,
             if separations.min() <= tol:
                 i = np.where(separations == separations.min())[0][0]
                 
+                # Note: stores untransformed coordinates for catalogue stars
                 p = {'cat1_index': kdx[i],
                      'cat1_ra': detected_sources['ra'][kdx[i]],
                      'cat1_dec': detected_sources['dec'][kdx[i]],

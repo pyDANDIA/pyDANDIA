@@ -103,10 +103,89 @@ def test_detect_correspondances():
     (model, inliers) = calc_coord_offsets.detect_correspondances(setup, detected_stars, catalog_stars,log)
     
     logs.close_log(log)
+
+def test_calc_pixel_transform():
+    
+    setup = pipeline_setup.pipeline_setup({'red_dir': TEST_DIR})
+    
+    log = logs.start_stage_log( cwd, 'test_wcs' )
+    
+    xx = np.linspace(1.0,500.0,100)
+    yy = np.linspace(1.0,500.0,100)
+    
+    coord_data = [ Column(name='x', data=xx), Column(name='y', data=yy) ]
+    ref_catalog = Table(data=coord_data)
+    
+    x_offset = 4.2
+    y_offset = -1.5
+    
+    xx2 = np.linspace(1.0,500.0,100)
+    yy2 = np.linspace(1.0,500.0,100)
+    
+    xx2 = xx2 + x_offset
+    yy2 = yy2 + y_offset
+    
+    coord_data = [ Column(name='x', data=xx2), Column(name='y', data=yy2) ]
+    catalog2 = Table(data=coord_data)
+    
+    model = calc_coord_offsets.calc_pixel_transform(setup, ref_catalog, 
+                                                    catalog2, log)
+    
+    assert round(model.params[0,2],1) == x_offset
+    assert round(model.params[1,2],1) == y_offset
+    
+    logs.close_log(log)
+
+def test_transform_coordinates():
+    
+    setup = pipeline_setup.pipeline_setup({'red_dir': TEST_DIR})
+    
+    log = logs.start_stage_log( cwd, 'test_wcs' )
+    
+    x_offset = 4.2
+    y_offset = -1.5
+    
+    xx = np.linspace(1.0,500.0,100)
+    yy = np.linspace(1.0,500.0,100)
+    #xx = xx + x_offset
+    #yy = yy + y_offset
+    
+    coord_data = [ Column(name='x', data=xx), Column(name='y', data=yy) ]
+    ref_catalog = Table(data=coord_data)
+    
+    print('Reference catalogue: ',ref_catalog)
+    
+    xx2 = np.linspace(1.0,500.0,100)
+    yy2 = np.linspace(1.0,500.0,100)
+    xx2 = xx2 + x_offset
+    yy2 = yy2 + y_offset
+    
+    coord_data = [ Column(name='x', data=xx2), Column(name='y', data=yy2) ]
+    catalog2 = Table(data=coord_data)
+    
+    print('Catalogue 2: ',catalog2)
+    
+    model = calc_coord_offsets.calc_pixel_transform(setup, catalog2, 
+                                                    ref_catalog, log)
+
+    print('Transform: ',model.params)
+    
+    catalog2 = calc_coord_offsets.transform_coordinates(setup, catalog2, 
+                                                              model, coords='pixel')
+    
+    print('Transformed catalogue 2: ',catalog2)
+    
+    for i in range(0,10,1):
+        assert round(ref_catalog['x'][i],1) == round(catalog2['x1'][i],1)
+        assert round(ref_catalog['y'][i],1) == round(catalog2['y1'][i],1)
+        
+    logs.close_log(log)
     
 if __name__ == '__main__':
     
 #    test_calc_offset_hist2d()
 #    test_extract_nearby_stars()
-    test_detect_correspondances()
+#    test_detect_correspondances()
+    test_calc_pixel_transform()
+    test_transform_coordinates()
     

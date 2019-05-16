@@ -21,6 +21,8 @@ from pyDANDIA import  calc_coord_offsets
 from pyDANDIA import  shortest_string
 from pyDANDIA import  calibrate_photometry
 from pyDANDIA import  vizier_tools
+from pyDANDIA import  match_utils
+from skimage.transform import AffineTransform
 
 VERSION = 'pyDANDIA_reference_astrometry_v0.1'
 
@@ -61,11 +63,13 @@ def run_reference_astrometry(setup):
         field = header['OBJECT']
         fov = reduction_metadata.reduction_parameters[1]['FOV'][0]
         
+        # Calculates initial RA,Dec from image WCS
         detected_sources = detect_objects_in_reference_image(setup, 
                                                              reduction_metadata, 
                                                              meta_pars, 
                                                              image_wcs, log)
         
+        # Calculates initial x,y from image WCS, initializes (x,y) -> (x1,y1)
         gaia_sources = catalog_objects_in_reference_image(setup, header, 
                                                           image_wcs, log)
         
@@ -75,14 +79,15 @@ def run_reference_astrometry(setup):
         (bright_central_detected_stars, bright_central_gaia_stars) = wcs.extract_bright_central_stars(setup,detected_sources, 
                         gaia_sources, image_wcs, log, radius=0.05)
         
-        (bright_central_detected_stars,bright_central_gaia_stars) = update_computed_coordinates(setup, image_wcs, bright_central_detected_stars, 
-                                                        bright_central_gaia_stars, log, 'catalog_stars_bright_initial.reg')
-                                                        
-        transform = [999.9, 999.9]
+        wcs.plot_overlaid_sources(os.path.join(setup.red_dir,'ref'),
+                      bright_central_detected_stars, bright_central_gaia_stars, interactive=False)
+        
+        transform = AffineTransform()
         it = 0
         max_it = 3
         iterate = True
         method = 'ransac'
+        old_n_match = 0
         
         while iterate:
             it += 1
@@ -93,13 +98,14 @@ def run_reference_astrometry(setup):
                                                       bright_central_gaia_stars,
                                                       log,
                                                       diagnostics=True)
+                matched_stars = match_utils.StarMatchIndex()
                 
                 # This method is not robust when the residual offsets are small
                 # Therefore, any proposed transform is ignored if it is smaller
                 # than a threshold value
-                if abs(transform[0]) < 3.0 and abs(transform[1]) < 3.0:
+                if abs(transform.translation[0]) < 3.0 and abs(transform.translation[1]) < 3.0:
                     
-                    transform = [ 0.0, 0.0 ]
+                    transform = AffineTransform()
                     
                     log.info('Histogram method found a small transform, below the methods reliability threshold.  This transform will be ignored in favour of the RANSAC method')
                     
@@ -110,10 +116,11 @@ def run_reference_astrometry(setup):
                                                          tol=2.0,verbose=False)
                 
                 if len(matched_stars.cat1_index) > 0:
-                    transform = calc_coord_offsets.detect_correspondances(setup, 
-                                                bright_central_detected_stars[matched_stars.cat1_index], 
+                    transform = calc_coord_offsets.calc_pixel_transform(setup, 
                                                 bright_central_gaia_stars[matched_stars.cat2_index],
+                                                bright_central_detected_stars[matched_stars.cat1_index], 
                                                 log)
+                                                
                 else:
                     raise ValueError('No matched stars')
                     
@@ -126,23 +133,39 @@ def run_reference_astrometry(setup):
                 cat_array[:,0] = bright_central_gaia_stars['x'].data
                 cat_array[:,1] = bright_central_gaia_stars['y'].data
                 
-                transform = shortest_string.find_xy_offset(det_array, cat_array,
+                (x_offset,y_offset) = shortest_string.find_xy_offset(det_array, cat_array,
                                                               log=log,
                                                               diagnostics=True)
-                
-            image_wcs = wcs.update_wcs(image_wcs,transform,header['PIXSCALE'],log,
-                                                       transform_type='pixels')
-    
-            (bright_central_detected_stars,bright_central_gaia_stars) = update_computed_coordinates(setup, image_wcs, bright_central_detected_stars, 
-                                                            bright_central_gaia_stars, log, 'catalog_stars_bright_revised_'+str(it)+'.reg')
-                                                        
-            if it >= max_it or (abs(transform[0]) < 0.5 and abs(transform[1]) < 0.5):
+            
+            if old_n_match <= matched_stars.n_match:
+                bright_central_gaia_stars = update_catalog_image_coordinates(setup, image_wcs, 
+                                                            bright_central_gaia_stars, log, 
+                                                            'catalog_stars_bright_revised_'+str(it)+'.reg',
+                                                            transform)
+                                                            
+            if it >= max_it or (abs(transform.translation[0]) < 0.5 and abs(transform.translation[1]) < 0.5\
+                and transform.translation[0] != 0.0 and transform.translation[1] != 0.0) or \
+                    old_n_match > matched_stars.n_match:
                 iterate = False
-                log.info('Coordinate transform halting on iteration '+str(it)+' (of '+str(max_it)+'), latest transform '+repr(transform))
+                log.info('Coordinate transform halting on iteration '+str(it)+' (of '+str(max_it)+'), latest transform '+repr(transform.translation)+\
+                        ', Nstars matched '+str(matched_stars.n_match)+', compared with '+str(old_n_match)+' previously')
                 
-        (detected_sources, gaia_sources) = update_computed_coordinates(setup, image_wcs, detected_sources, 
-                                                        gaia_sources, log, 'catalog_stars_full_revised_'+str(it)+'.reg')
-                                                        
+            else:
+                old_n_match = matched_stars.n_match
+                
+        gaia_sources = update_catalog_image_coordinates(setup, image_wcs, 
+                                                        gaia_sources, log, 'catalog_stars_full_revised_'+str(it)+'.reg',
+                                                        transform)
+        
+        transform = calc_coord_offsets.calc_world_transform(setup, 
+                                                bright_central_detected_stars[matched_stars.cat1_index], 
+                                                bright_central_gaia_stars[matched_stars.cat2_index],
+                                                log)
+        
+        detected_sources = calc_coord_offsets.transform_coordinates(setup, detected_sources, 
+                                                                transform, coords='radec',
+                                                                verbose=True)
+        
         matched_stars_gaia = wcs.match_stars_world_coords(detected_sources,gaia_sources,log,
                                                           radius=0.1, ra_centre=image_wcs.wcs.crval[0],
                                                           dec_centre=image_wcs.wcs.crval[1],
@@ -151,7 +174,7 @@ def run_reference_astrometry(setup):
         matched_stars_vphas = wcs.match_stars_world_coords(detected_sources,vphas_sources,log,
                                                           radius=0.1, ra_centre=image_wcs.wcs.crval[0],
                                                           dec_centre=image_wcs.wcs.crval[1],
-                                                          verbose=True)
+                                                          verbose=False)
                                                  
         ref_source_catalog = wcs.build_ref_source_catalog(detected_sources,\
                                                         gaia_sources, vphas_sources,\
@@ -208,6 +231,9 @@ def catalog_objects_in_reference_image(setup, header, image_wcs, log):
     
     gaia_sources = wcs.calc_image_coordinates_astropy(setup, image_wcs, 
                                                       gaia_sources,log)
+                                                      
+    gaia_sources.add_column( table.Column(name='x1', data=np.copy(gaia_sources['x'])) )
+    gaia_sources.add_column( table.Column(name='y1', data=np.copy(gaia_sources['y'])) )
     
     cat_catalog_file = os.path.join(setup.red_dir,'ref', 'catalog_stars_full.reg')
     catalog_utils.output_ds9_overlay_from_table(gaia_sources,cat_catalog_file,
@@ -247,20 +273,20 @@ def phot_catalog_objects_in_reference_image(setup, header, fov, image_wcs, log):
         
     return vphas_sources
     
-def update_computed_coordinates(setup, image_wcs, detected_sources, 
-                                gaia_sources, log, filename):
-    
-    detected_sources = wcs.calc_world_coordinates_astropy(setup,image_wcs,
-                                                  detected_sources,log)
+def update_catalog_image_coordinates(setup, image_wcs, gaia_sources, 
+                                     log, filename, transform=None):
     
     gaia_sources = wcs.calc_image_coordinates_astropy(setup, image_wcs, 
                                                       gaia_sources,log)
     
+    if transform != None:
+        gaia_sources = calc_coord_offsets.transform_coordinates(setup, gaia_sources, 
+                                                                transform, coords='pixel')
+        log.info('-> Updated catalog image coordinates')
+        
     cat_catalog_file = os.path.join(setup.red_dir,'ref', filename)
-    catalog_utils.output_ds9_overlay_from_table(gaia_sources,cat_catalog_file,colour='red')
-
-    wcs.plot_overlaid_sources(os.path.join(setup.red_dir,'ref'),
-                      detected_sources, gaia_sources, interactive=False)
+    catalog_utils.output_ds9_overlay_from_table(gaia_sources,cat_catalog_file,
+                                                colour='red', 
+                                                transformed_coords=True)
     
-    return detected_sources, gaia_sources
-    
+    return gaia_sources
