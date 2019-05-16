@@ -81,13 +81,10 @@ def run_stage3_db_ingest(setup, primary_ref=False):
     commit_reference_image(conn, dataset_params, log)
     commit_reference_component(conn, dataset_params, log)
     
-    # CONVERT THIS TO USE METADATA TABLE
-    # ADD INGEST OF CATALOG DATA
     if primary_ref:
         
         star_ids = commit_stars(conn, dataset_params, reduction_metadata, log)
         
-        # CONVERT THIS TO USE METADATA TABLE
         commit_photometry(conn, dataset_params, reduction_metadata, star_ids, log)
         
     conn.close()
