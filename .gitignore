@@ -1,2 +1,7 @@
 *.pyc
 *.log
+*.png
+*.pdf
+*.eps
+pyDANDIA/tests/calctime.py
+pyDANDIA/tests/timesubs.py
