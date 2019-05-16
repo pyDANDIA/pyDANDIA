@@ -380,7 +380,7 @@ class MetaData:
         
         layer_name = 'phot_calib'
         
-        names = [ 'star_index', 'cal_ref_mag', 'cal_ref_mag_err',
+        names = [ 'star_index', 'cal_ref_mag', 'cal_ref_mag_error',
                  '_RAJ2000', '_DEJ2000',
                  'imag', 'e_imag', 'rmag', 'e_rmag', 'gmag', 'e_gmag',
                  'clean'

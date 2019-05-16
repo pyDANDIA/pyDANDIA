@@ -731,7 +731,7 @@ def output_to_metadata(setup, params, star_catalog, reduction_metadata, log):
     
     reduction_metadata.star_catalog[1]['index'] = star_catalog['index'][:]
     reduction_metadata.star_catalog[1]['cal_ref_mag'] = star_catalog['cal_ref_mag'][:]
-    reduction_metadata.star_catalog[1]['cal_ref_mag_err'] = star_catalog['cal_ref_mag_err'][:]
+    reduction_metadata.star_catalog[1]['cal_ref_mag_error'] = star_catalog['cal_ref_mag_err'][:]
 
     log.info('Updating star_catalog table')
         

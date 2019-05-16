@@ -122,11 +122,11 @@ def test_commit_reference_component():
     
     logs.close_log(log)
     
-def test_run_stage3_db_ingest():
+def test_run_stage3_db_ingest_primary_ref():
     
     setup = pipeline_setup.pipeline_setup({'red_dir': TEST_DIR})
     
-    stage3_db_ingest.run_stage3_db_ingest(setup)
+    stage3_db_ingest.run_stage3_db_ingest(setup, primary_ref=True)
 
 def fetch_test_db_contents():
     
@@ -318,4 +318,4 @@ if __name__ == '__main__':
     #test_read_combined_star_catalog()
     #test_commit_stars()
     #test_commit_photometry()
-    test_run_stage3_db_ingest()
+    test_run_stage3_db_ingest_primary_ref()

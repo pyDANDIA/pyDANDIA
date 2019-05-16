@@ -5,8 +5,8 @@ Created on Wed Feb 13 09:26:13 2019
 @author: rstreet
 """
 
-import os
-import sys
+from os import path
+from sys import argv
 from astropy.io import fits
 from astropy import table
 from astropy import time
@@ -28,8 +28,6 @@ def run_stage3_db_ingest(setup, primary_ref=False):
     
     #params = configure_setup()
     
-    archive_existing_db(setup,primary_ref)
-    
     facility_keys = ['facility_code', 'site', 'enclosure', 
                      'telescope', 'instrument']
     software_keys = ['code_name', 'stage', 'version']
@@ -50,6 +48,8 @@ def run_stage3_db_ingest(setup, primary_ref=False):
     log = logs.start_stage_log( setup.red_dir, 'stage3_db_ingest', 
                                version=VERSION )
                                
+    archive_existing_db(setup,primary_ref,log)
+    
     conn = phot_db.get_connection(dsn=setup.phot_db_path)
     
     reduction_metadata = metadata.MetaData()
@@ -85,10 +85,10 @@ def run_stage3_db_ingest(setup, primary_ref=False):
     # ADD INGEST OF CATALOG DATA
     if primary_ref:
         
-        star_ids = commit_stars(conn, dataset_params, star_catalog, log)
-    
-    # CONVERT THIS TO USE METADATA TABLE
-    commit_photometry(conn, dataset_params, star_catalog, star_ids, log)
+        star_ids = commit_stars(conn, dataset_params, reduction_metadata, log)
+        
+        # CONVERT THIS TO USE METADATA TABLE
+        commit_photometry(conn, dataset_params, reduction_metadata, star_ids, log)
         
     conn.close()
     
@@ -108,7 +108,7 @@ def configure_setup(log=None):
               'red_dir_rp': None,
               'red_dir_ip': None}
     
-    if len(sys.argv) == 1:
+    if len(argv) == 1:
         
         params['red_dir_gp'] = input('Please enter the path to the SDSS-g reduction directory (or None): ')
         params['red_dir_rp'] = input('Please enter the path to the SDSS-r reduction directory (or None): ')
@@ -125,12 +125,12 @@ def configure_setup(log=None):
                 
     else:
         
-        params['red_dir_gp'] = sys.argv[1]
-        params['red_dir_rp'] = sys.argv[2]
-        params['red_dir_ip'] = sys.argv[3]
-        params['combined_starcat'] = sys.argv[4]
-        params['database_file_path'] = sys.argv[5]
-        params['log_dir'] = sys.argv[6]
+        params['red_dir_gp'] = argv[1]
+        params['red_dir_rp'] = argv[2]
+        params['red_dir_ip'] = argv[3]
+        params['combined_starcat'] = argv[4]
+        params['database_file_path'] = argv[5]
+        params['log_dir'] = argv[6]
 
     if log!=None:
         
@@ -151,7 +151,7 @@ def configure_setup(log=None):
                 
     return params
 
-def archive_existing_db(setup,primary_ref):
+def archive_existing_db(setup,primary_ref,log):
     """Function to archive an existing photometric DB, if one exists, in the
     event that a new primary reference is adopted"""
     
@@ -203,7 +203,7 @@ def harvest_dataset_parameters(setup,reduction_metadata):
     ref_path = reduction_metadata.data_architecture[1]['REF_PATH'][0]
     ref_filename = reduction_metadata.data_architecture[1]['REF_IMAGE'][0]
     
-    ref_hdr_image = fits.getheader(os.path.join(ref_path, ref_filename))
+    ref_hdr_image = fits.getheader(path.join(ref_path, ref_filename))
     
     # Facility
     dataset_params['site'] = ref_hdr_image['SITEID']
@@ -281,7 +281,7 @@ def harvest_dataset_parameters(setup,reduction_metadata):
                                   dataset_params['RA'],dataset_params['Dec'],
                                   dataset_params['exposure_time'])
     
-    print(dataset_params)
+    
     return dataset_params
 
 def set_if_present(header, key):
@@ -363,7 +363,7 @@ def commit_reference_component(conn, params, log):
 
 def read_combined_star_catalog(params):
     
-    if os.path.isfile(params['combined_starcat']) == False:
+    if path.isfile(params['combined_starcat']) == False:
         
         raise IOError('Cannot find combined star catalogue file '+\
                         params['combined_starcat'])
@@ -372,7 +372,7 @@ def read_combined_star_catalog(params):
     
     return star_catalog
 
-def commit_stars(conn, params, star_catalog, log):
+def commit_stars(conn, params, reduction_metadata, log):
     
     query = 'SELECT refimg_id, filename FROM reference_images WHERE filename ="'+params['filename']+'"'
     refimage = phot_db.query_to_astropy_table(conn, query, args=())    
@@ -380,12 +380,47 @@ def commit_stars(conn, params, star_catalog, log):
     
     tol = 1.0/3600.0
     
-    star_ids = np.zeros(len(star_catalog))
+    n_stars = len(reduction_metadata.star_catalog[1])
     
-    for j in range(0,len(star_catalog),1):
+    star_keys = ['ra', 'dec', 'reference_image', 
+                 'gaia_source_id', 'gaia_ra', 'gaia_ra_error', 'gaia_dec', 'gaia_dec_error', 
+                 'gaia_phot_g_mean_flux', 'gaia_phot_g_mean_flux_error', 
+                 'gaia_phot_bp_mean_flux', 'gaia_phot_bp_mean_flux_error', 
+                 'gaia_phot_rp_mean_flux', 'gaia_phot_rp_mean_flux_error',
+                 'vphas_source_id', 'vphas_ra', 'vphas_dec', 
+                 'vphas_gmag', 'vphas_gmag_error', 
+                 'vphas_rmag', 'vphas_rmag_error', 
+                 'vphas_imag', 'vphas_imag_error', 'vphas_clean']
+                 
+    star_ids = np.zeros(n_stars)
+    
+    for j in range(0,n_stars,1):
         
-        ra = star_catalog[j][1]
-        dec = star_catalog[j][2]
+        ra = reduction_metadata.star_catalog[1]['ra'][j]
+        dec = reduction_metadata.star_catalog[1]['dec'][j]
+        
+        star_pars = [ str(ra), str(dec), str(refimage['refimg_id'][0]),
+                    str(reduction_metadata.star_catalog[1]['gaia_source_id'][j]),
+                    str(reduction_metadata.star_catalog[1]['gaia_ra'][j]),
+                    str(reduction_metadata.star_catalog[1]['gaia_ra_error'][j]),
+                    str(reduction_metadata.star_catalog[1]['gaia_dec'][j]),
+                    str(reduction_metadata.star_catalog[1]['gaia_dec_error'][j]),
+                    str(reduction_metadata.star_catalog[1]['phot_g_mean_flux'][j]),
+                    str(reduction_metadata.star_catalog[1]['phot_g_mean_flux_error'][j]),
+                    str(reduction_metadata.star_catalog[1]['phot_bp_mean_flux'][j]),
+                    str(reduction_metadata.star_catalog[1]['phot_bp_mean_flux_error'][j]),
+                    str(reduction_metadata.star_catalog[1]['phot_rp_mean_flux'][j]),
+                    str(reduction_metadata.star_catalog[1]['phot_rp_mean_flux_error'][j]),
+                    str(reduction_metadata.star_catalog[1]['vphas_source_id'][j]),
+                    str(reduction_metadata.star_catalog[1]['vphas_ra'][j]),
+                    str(reduction_metadata.star_catalog[1]['vphas_dec'][j]),
+                    str(reduction_metadata.star_catalog[1]['gmag'][j]),
+                    str(reduction_metadata.star_catalog[1]['gmag_error'][j]),
+                    str(reduction_metadata.star_catalog[1]['rmag'][j]),
+                    str(reduction_metadata.star_catalog[1]['rmag_error'][j]),
+                    str(reduction_metadata.star_catalog[1]['imag'][j]),
+                    str(reduction_metadata.star_catalog[1]['imag_error'][j]),
+                    str((int(reduction_metadata.star_catalog[1]['clean'][j]))) ]
 
         results = phot_db.box_search_on_position(conn, ra, dec, tol, tol)
         
@@ -399,9 +434,9 @@ def commit_stars(conn, params, star_catalog, log):
             
         else:
             
-            command = 'INSERT OR REPLACE INTO stars (ra,dec,reference_image) VALUES ('+\
-                str(ra)+','+str(dec)+','+str(refimage['refimg_id'][0])+')'
-
+            command = 'INSERT OR REPLACE INTO stars ('+','.join(star_keys)+') VALUES ("'
+            command += '","'.join(star_pars) + '")'
+            
             cursor = conn.cursor()
                 
             cursor.execute(command)
@@ -417,7 +452,7 @@ def commit_stars(conn, params, star_catalog, log):
     
     return star_ids
 
-def commit_photometry(conn, params, star_catalog, star_ids, log):
+def commit_photometry(conn, params, reduction_metadata, star_ids, log):
     
     query = 'SELECT facility_id, facility_code FROM facilities WHERE facility_code="'+params['facility_code']+'"'
     facility = phot_db.query_to_astropy_table(conn, query, args=())
@@ -450,47 +485,24 @@ def commit_photometry(conn, params, star_catalog, star_ids, log):
     
     wildcards = ','.join(['?']*len(key_list))
     
-    # Data column indices in the combined star catalog, must match
-    # combine_colour_data.py.  Ideally this should be in a shared 
-    # config file when I get around to it.
-    if params['filter_name'] == 'gp':
-        xcol = 25
-        ycol = 26
-        mag_col = 11
-        mag_err_col = 12
-        cal_mag_col = 13
-        cal_mag_err_col = 14
-        flux_col = 31
-        flux_err_col = 32
-    elif params['filter_name'] == 'rp':
-        xcol = 23
-        ycol = 24
-        mag_col = 7
-        mag_err_col = 8
-        cal_mag_col = 9
-        cal_mag_err_col = 10
-        flux_col = 29
-        flux_err_col = 30
-    elif params['filter_name'] == 'ip':
-        xcol = 21
-        ycol = 22
-        mag_col = 3
-        mag_err_col = 4
-        cal_mag_col = 5
-        cal_mag_err_col = 6
-        flux_col = 27
-        flux_err_col = 28
+    n_stars = len(reduction_metadata.star_catalog[1])
     
     values = []
-    for j in range(0,len(star_catalog),1):
+    for j in range(0,n_stars,1):
+        
+        x = str(reduction_metadata.star_catalog[1]['x'][j])
+        y = str(reduction_metadata.star_catalog[1]['y'][j])
+        mag = str(reduction_metadata.star_catalog[1]['ref_mag'][j])
+        mag_err = str(reduction_metadata.star_catalog[1]['ref_mag_error'][j])
+        cal_mag = str(reduction_metadata.star_catalog[1]['cal_ref_mag'][j])
+        cal_mag_err = str(reduction_metadata.star_catalog[1]['cal_ref_mag_error'][j])
+        flux = str(reduction_metadata.star_catalog[1]['ref_flux'][j])
+        flux_err = str(reduction_metadata.star_catalog[1]['ref_flux_error'][j])
         
         entry = (str(int(star_ids[j])), str(refimage['refimg_id'][0]), str(image['img_id'][0]),
                    str(facility['facility_id'][0]), str(f['filter_id'][0]), str(code['code_id'][0]),
-                    str(star_catalog[j][xcol]), str(star_catalog[j][ycol]),
-                    str(params['hjd_ref']),
-                    str(star_catalog[j][mag_col]), str(star_catalog[j][mag_err_col]),
-                    str(star_catalog[j][cal_mag_col]), str(star_catalog[j][cal_mag_err_col]),
-                    str(star_catalog[j][flux_col]), str(star_catalog[j][flux_err_col]),
+                    x, y, str(params['hjd_ref']), 
+                    mag, mag_err, cal_mag, cal_mag_err, flux, flux_err,
                     '0.0', '0.0',   # No phot scale factor for PSF fitting photometry
                     '0.0', '0.0',   # No background measurements propageted
                     'PSF_FITTING' )
