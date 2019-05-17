@@ -1040,21 +1040,21 @@ def build_ref_source_catalog(detected_sources,gaia_sources,vphas_sources,\
     information from the Gaia and VPHAS+ Catalogues where available.
     
     Output catalog is in numpy array format with columns:
-    0   1  2  3   4     5        6             7         8            9                 10
-    idx x  y  ra  dec  ref_flux  ref_flux_err ref_mag ref_mag_err   cal_ref_mag   cal_ref_mag_error
-    11
+    0   1  2  3   4     5        6             7         8            9                 10              11                  12
+    idx x  y  ra  dec  ref_flux  ref_flux_err ref_mag ref_mag_err   cal_ref_mag   cal_ref_mag_error  cal_ref_flux       cal_ref_flux_error
+    13
     gaia_source_id 
-    12      13           14       15            16              17
+    14      15           16       17            18              19
     ra    ra_error      dec     dec_error   phot_g_mean_flux phot_g_mean_flux_error 
-    18                      19    
+    20                      21    
     phot_bp_mean_flux phot_bp_mean_flux_error 
-    20                  21                          
+    22                  23                          
     phot_rp_mean_flux phot_rp_mean_flux_error    
-    22                  23              24      25      26
+    24                  25              26      27      28
     vphas_source_id     vphas_ra    vphas_dec  gmag    gmag_error   
-    27          28          29          30          31
+    29          30          31          32          33
     rmag     rmag_error     imag     imag_error     clean 
-    32
+    34
     psf_star
     
     Catalogue positions and magnitudes and their errors are added if a given 
@@ -1140,6 +1140,8 @@ def build_ref_source_catalog(detected_sources,gaia_sources,vphas_sources,\
                       table.Column(name='ref_mag_error', data=detected_sources['ref_mag_err'].data),
                       table.Column(name='cal_ref_mag', data=np.zeros(len(detected_sources))),
                       table.Column(name='cal_ref_mag_error', data=np.zeros(len(detected_sources))),
+                      table.Column(name='cal_ref_flux', data=np.zeros(len(detected_sources))),
+                      table.Column(name='cal_ref_flux_error', data=np.zeros(len(detected_sources))),
                       table.Column(name='gaia_source_id', data=np.array(gaia_source_ids)),
                       table.Column(name='gaia_ra', data=data[:,0]),
                       table.Column(name='gaia_ra_error', data=data[:,1]),

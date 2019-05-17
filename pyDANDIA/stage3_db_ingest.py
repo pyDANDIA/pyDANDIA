@@ -28,22 +28,7 @@ def run_stage3_db_ingest(setup, primary_ref=False):
     
     #params = configure_setup()
     
-    facility_keys = ['facility_code', 'site', 'enclosure', 
-                     'telescope', 'instrument']
-    software_keys = ['code_name', 'stage', 'version']
-    image_keys =    ['filename', 'field_id',
-                     'date_obs_utc','date_obs_jd','exposure_time',
-                     'fwhm','fwhm_err',
-                     'ellipticity','ellipticity_err',
-                     'slope','slope_err','intercept','intercept_err',
-                     'wcsfrcat','wcsimcat','wcsmatch','wcsnref','wcstol','wcsra',
-                     'wcsdec','wequinox','wepoch','radecsys',
-                     'ctype1','ctype2','cdelt1','cdelt2','crota1','crota2',
-                     'secpix1','secpix2',
-                     'wcssep','equinox',
-                     'cd1_1','cd1_2','cd2_1','cd2_2','epoch',
-                     'airmass','moon_phase','moon_separation',
-                     'delta_x','delta_y']
+    (facility_keys, software_keys, image_keys) = define_table_keys()
     
     log = logs.start_stage_log( setup.red_dir, 'stage3_db_ingest', 
                                version=VERSION )
@@ -96,6 +81,27 @@ def run_stage3_db_ingest(setup, primary_ref=False):
     logs.close_log(log)
         
     return status, report
+
+def define_table_keys():
+    
+    facility_keys = ['facility_code', 'site', 'enclosure', 
+                     'telescope', 'instrument']
+    software_keys = ['code_name', 'stage', 'version']
+    image_keys =    ['filename', 'field_id',
+                     'date_obs_utc','date_obs_jd','exposure_time',
+                     'fwhm','fwhm_err',
+                     'ellipticity','ellipticity_err',
+                     'slope','slope_err','intercept','intercept_err',
+                     'wcsfrcat','wcsimcat','wcsmatch','wcsnref','wcstol','wcsra',
+                     'wcsdec','wequinox','wepoch','radecsys',
+                     'ctype1','ctype2','cdelt1','cdelt2','crota1','crota2',
+                     'secpix1','secpix2',
+                     'wcssep','equinox',
+                     'cd1_1','cd1_2','cd2_1','cd2_2','epoch',
+                     'airmass','moon_phase','moon_separation',
+                     'delta_x','delta_y']
+
+    return facility_keys, software_keys, image_keys
     
 def configure_setup(log=None):
 
@@ -207,10 +213,7 @@ def harvest_dataset_parameters(setup,reduction_metadata):
     dataset_params['enclosure'] = ref_hdr_image['ENCID']
     dataset_params['telescope'] = ref_hdr_image['TELID']
     dataset_params['instrument'] = ref_hdr_image['INSTRUME']
-    dataset_params['facility_code'] = dataset_params['site']+'-'+\
-                                      dataset_params['enclosure']+'-'+\
-                                      dataset_params['telescope']+'-'+\
-                                      dataset_params['instrument']
+    dataset_params['facility_code'] = phot_db.get_facility_code(dataset_params)
     
     # Software
     dataset_params['version'] = reduction_metadata.software[1]['stage3_version'][0]

@@ -12,9 +12,12 @@ sys.path.append(os.path.join(cwd,'../'))
 import phot_db
 import pipeline_setup
 import metadata
+import stage3_db_ingest
+import logs
 import sqlite3
 import numpy as np
 from astropy import table
+from astropy.io import fits
 
 TEST_DIR = os.path.join(cwd,'data','proc',
                         'ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip')
@@ -290,6 +293,142 @@ def test_update_stars_ref_image_id():
     t = phot_db.query_to_astropy_table(conn, query, args=())
     
     assert t['reference_images'].all() == refimg_id
+
+def test_find_previous_reference_image_for_dataset():
+    
+    if os.path.isfile(db_file_path):
+        os.remove(db_file_path)
+    
+    log = logs.start_stage_log( TEST_DIR, 'test_phot_db' )
+    
+    setup = pipeline_setup.pipeline_setup({'red_dir': TEST_DIR})
+    setup.phot_db_path = db_file_path
+    
+    conn = phot_db.get_connection(dsn=db_file_path)
+    
+    meta = metadata.MetaData()
+    meta.load_a_layer_from_file( setup.red_dir, 
+                                'pyDANDIA_metadata.fits', 
+                                'headers_summary' )
+    meta.load_a_layer_from_file( setup.red_dir, 
+                                'pyDANDIA_metadata.fits', 
+                                'data_architecture' )
+                                
+    ref_image_dir = meta.data_architecture[1]['REF_PATH'].data[0]
+
+    ref_image_name = meta.data_architecture[1]['REF_IMAGE'].data[0]
+
+    i = np.where(ref_image_name == meta.headers_summary[1]['IMAGES'].data)[0][0]
+    
+    ref_header = fits.getheader(os.path.join(ref_image_dir, ref_image_name))
+        
+    field_id = 'ROME-TEST-01'
+    version = 'Code_test'
+    
+    (facility_keys, software_keys, image_keys) = stage3_db_ingest.define_table_keys()
+    
+    params = {'filename': ref_image_name}
+    params['version'] = 'test'
+    params['code_name'] = 'test_phot_db'
+    params['stage'] = 'stage3_db_ingest'
+    params['site'] = ref_header['SITEID']
+    params['enclosure'] = ref_header['ENCID']
+    params['telescope'] = ref_header['TELID']
+    params['instrument'] = ref_header['INSTRUME']
+    params['filter_name'] = ref_header['FILTER']
+    params['facility_code'] = phot_db.get_facility_code(params)
+
+    phot_db.check_before_commit(conn, params, 'facilities', facility_keys, 'facility_code')
+    phot_db.check_before_commit(conn, params, 'software', software_keys, 'version')
+    stage3_db_ingest.commit_reference_image(conn, params, log)
+
+    query = 'SELECT refimg_id FROM reference_images WHERE filename="'+ref_image_name+'"'
+    t = phot_db.query_to_astropy_table(conn, query, args=())
+    test_refimg_id = t['refimg_id'].data
+
+    ref_id = phot_db.find_previous_reference_image_for_dataset(conn,params)
+    
+    assert test_refimg_id == ref_id
+    
+    logs.close_log(log)
+    
+def test_cascade_delete_reference_image():
+    
+    if os.path.isfile(db_file_path):
+        os.remove(db_file_path)
+    
+    log = logs.start_stage_log( TEST_DIR, 'test_phot_db' )
+    
+    setup = pipeline_setup.pipeline_setup({'red_dir': TEST_DIR})
+    setup.phot_db_path = db_file_path
+    
+    conn = phot_db.get_connection(dsn=db_file_path)
+    
+    meta = metadata.MetaData()
+    meta.load_a_layer_from_file( setup.red_dir, 
+                                'pyDANDIA_metadata.fits', 
+                                'headers_summary' )
+    meta.load_a_layer_from_file( setup.red_dir, 
+                                'pyDANDIA_metadata.fits', 
+                                'reduction_parameters' )
+    meta.load_a_layer_from_file( setup.red_dir, 
+                                'pyDANDIA_metadata.fits', 
+                                'data_architecture' )
+    meta.load_a_layer_from_file( setup.red_dir, 
+                                'pyDANDIA_metadata.fits', 
+                                'software' )
+    meta.load_a_layer_from_file( setup.red_dir, 
+                                'pyDANDIA_metadata.fits', 
+                                'images_stats' )
+                                
+    ref_image_dir = meta.data_architecture[1]['REF_PATH'].data[0]
+
+    ref_image_name = meta.data_architecture[1]['REF_IMAGE'].data[0]
+
+    i = np.where(ref_image_name == meta.headers_summary[1]['IMAGES'].data)[0][0]
+    
+    ref_header = fits.getheader(os.path.join(ref_image_dir, ref_image_name))
+        
+    field_id = 'ROME-TEST-01'
+    version = 'Code_test'
+    
+    (facility_keys, software_keys, image_keys) = stage3_db_ingest.define_table_keys()
+    
+    params = {'filename': ref_image_name}
+    params['version'] = 'test'
+    params['code_name'] = 'test_phot_db'
+    params['stage'] = 'stage3_db_ingest'
+    params['site'] = ref_header['SITEID']
+    params['enclosure'] = ref_header['ENCID']
+    params['telescope'] = ref_header['TELID']
+    params['instrument'] = ref_header['INSTRUME']
+    params['filter_name'] = ref_header['FILTER']
+    params['field_id'] = field_id
+    params['facility_code'] = phot_db.get_facility_code(params)
+    
+    params = stage3_db_ingest.harvest_dataset_parameters(setup,meta)
+    
+    phot_db.check_before_commit(conn, params, 'facilities', facility_keys, 'facility_code')
+    phot_db.check_before_commit(conn, params, 'software', software_keys, 'version')
+    phot_db.check_before_commit(conn, params, 'images', image_keys, 'filename')
+    stage3_db_ingest.commit_reference_image(conn, params, log)
+    stage3_db_ingest.commit_reference_component(conn, params, log)
+
+    query = 'SELECT refimg_id FROM reference_images WHERE filename="'+ref_image_name+'"'
+    t = phot_db.query_to_astropy_table(conn, query, args=())
+    refimg_id = t['refimg_id'].data[0]
+    
+    query = 'SELECT img_id FROM images WHERE filename="'+ref_image_name+'"'
+    t = phot_db.query_to_astropy_table(conn, query, args=())
+    img_id_list = t['img_id'].data
+    
+    print('Reference image entry = '+str(refimg_id))
+    
+    phot_db.cascade_delete_reference_image(conn, refimg_id, img_id_list)
+    
+    t = phot_db.query_to_astropy_table(conn, query, args=())
+    
+    assert len(t) == 0
     
 if __name__ == '__main__':
     
@@ -301,4 +440,7 @@ if __name__ == '__main__':
     #test_box_search_on_position()
     #test_update_table_entry()
     #test_update_stars_ref_image_id()
-    test_check_before_commit()
+    #test_check_before_commit()
+    #test_find_previous_reference_image_for_dataset()
+    test_cascade_delete_reference_image()
+    

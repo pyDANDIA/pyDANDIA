@@ -10,6 +10,7 @@ from pyDANDIA import pipeline_setup
 from pyDANDIA import logs
 from pyDANDIA import metadata
 from pyDANDIA import catalog_utils
+from pyDANDIA import photometry
 from astropy.coordinates import SkyCoord
 from astropy.coordinates import matching
 import astropy.units as u
@@ -201,6 +202,8 @@ def extract_params_from_metadata(reduction_metadata, params, log):
     star_catalog['clean'] = np.zeros(len(reduction_metadata.star_catalog[1]['clean']))
     star_catalog['cal_ref_mag'] = np.zeros(len(reduction_metadata.star_catalog[1]['cal_ref_mag']))
     star_catalog['cal_ref_mag_err'] = np.zeros(len(reduction_metadata.star_catalog[1]['cal_ref_mag_error']))
+    star_catalog['cal_ref_flux'] = np.zeros(len(reduction_metadata.star_catalog[1]['cal_ref_flux']))
+    star_catalog['cal_ref_flux_err'] = np.zeros(len(reduction_metadata.star_catalog[1]['cal_ref_flux_error']))
     
     log.info('Extracted star catalog')
     
@@ -718,6 +721,12 @@ def apply_phot_calib(star_catalog,fit_params,log):
     star_catalog['cal_ref_mag'] = cal_mags
     star_catalog['cal_ref_mag_err'] = star_catalog['mag_err']
 
+    (cal_flux, cal_flux_error) = photometry.convert_mag_to_flux(star_catalog['cal_ref_mag'],
+                                                                star_catalog['cal_ref_mag_err'])
+    
+    star_catalog['cal_ref_flux'] = cal_flux
+    star_catalog['cal_ref_flux_err'] = cal_flux_error
+    
     log.info('Calculated calibrated reference magnitudes for all detected stars')
     
     return star_catalog
@@ -732,6 +741,8 @@ def output_to_metadata(setup, params, star_catalog, reduction_metadata, log):
     reduction_metadata.star_catalog[1]['index'] = star_catalog['index'][:]
     reduction_metadata.star_catalog[1]['cal_ref_mag'] = star_catalog['cal_ref_mag'][:]
     reduction_metadata.star_catalog[1]['cal_ref_mag_error'] = star_catalog['cal_ref_mag_err'][:]
+    reduction_metadata.star_catalog[1]['cal_ref_flux'] = star_catalog['cal_ref_flux'][:]
+    reduction_metadata.star_catalog[1]['cal_ref_flux_error'] = star_catalog['cal_ref_flux_err'][:]
 
     log.info('Updating star_catalog table')
         

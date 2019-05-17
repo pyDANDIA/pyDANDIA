@@ -698,7 +698,31 @@ def convert_flux_to_mag(flux, flux_err, exp_time=None):
 
     return mag, mag_err, flux, flux_err
 
+def convert_mag_to_flux(mag, mag_err):
+    """Function to convert the flux of a star from its fitted PSF model 
+    and its uncertainty onto the magnitude scale.
     
+    :param float flux: Total star flux
+    :param float flux_err: Uncertainty in star flux
+    
+    Returns:
+    
+    :param float mag: Measured star magnitude
+    :param float flux_mag: Uncertainty in measured magnitude
+    :param float flux: Total flux, scaled by the exposure time if given
+    :param float flux_err: Uncertainty on total flux, scaled by the exposure 
+                            time, if given
+    """
+
+    ZP = 25.0
+    
+    flux = 10**( (mag - ZP) / -2.5 )
+    
+    ferr = mag_err/(2.5*np.log10(np.e)) * flux
+    
+    return flux, ferr
+    
+
 def plot_ref_mag_errors(setup,ref_star_catalog):
     """Function to output a diagnostic plot of the fitted PSF magnitudes
     against photometric error"""
