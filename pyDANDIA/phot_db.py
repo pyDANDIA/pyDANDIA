@@ -24,13 +24,6 @@ TEST_DIR = path.join(cwd,'data','proc',
 DB_FILE = 'test.db'
 database_file_path = path.join(TEST_DIR, '..', DB_FILE)
 
-########## THESE NEED TO BE CHANGED TO THE ACTUAL VALUES TO USE #################
-#environ["PHOTDB_PATH"] = '/home/Tux/ytsapras/Programs/Workspace/pyDANDIA/pyDANDIA/db/phot_db'
-#database_file_path = path.expanduser(environ["PHOTDB_PATH"])
-
-#telescopes = {'Chile':[40.1,60.4,2235.6]}
-#instruments = {'camera1':[1,2,3,'blah']}
-#filters = {'i':'SDSS-i'}
 #################################################################################
 
 class TableDef(object):
@@ -163,12 +156,17 @@ class ReferenceComponents(TableDef):
     
     c_000_component_id = 'INTEGER PRIMARY KEY'
     c_010_image = 'INTEGER REFERENCES images(img_id)'
-    c_020_reference_image = 'INTEGER REFERENCES reference_images(refimg_id)'
+    c_020_reference_image = 'INTEGER REFERENCES reference_images(refimg_id) ON DELETE CASCADE'
     
 class ReferenceImages(TableDef):
     """Photometry database table describing the images used as references 
     in difference image photometry, which may be single images or the product
     of stacking several individual images together.
+    
+    The active parameter is used to indicate whether a reference image (and
+    all data associated with it) is the current best-available reduction for 
+    the associated dataset.  This parameter is used to tombstone older 
+    reduction products.
     """
     
     c_000_refimg_id = 'INTEGER PRIMARY KEY'
@@ -183,9 +181,10 @@ class Stars(TableDef):
     """
     
     c_000_star_id = 'INTEGER PRIMARY KEY'
+    c_001_star_index = 'INTEGER'
     c_010_ra = 'DOUBLE PRECISION'
     c_020_dec = 'DOUBLE PRECISION'    
-    c_030_reference_image = 'INTEGER REFERENCES reference_images(refimg_id)'
+    c_030_reference_image = 'INTEGER REFERENCES reference_images(refimg_id) ON DELETE CASCADE'
     c_040_gaia_source_id = 'TEXT'
     c_041_gaia_ra = 'DOUBLE PRECISION'
     c_042_gaia_ra_error = 'DOUBLE PRECISION'
@@ -220,8 +219,8 @@ class PhotometryPoints(TableDef):
     
     c_000_phot_id = 'INTEGER PRIMARY KEY'
     c_010_star_id = 'INTEGER REFERENCES stars(star_id)'
-    c_020_reference_image = 'INTEGER REFERENCES reference_images(refimg_id)'
-    c_030_image = 'INTEGER REFERENCES images(img_id)'
+    c_020_reference_image = 'INTEGER REFERENCES reference_images(refimg_id) ON DELETE CASCADE'
+    c_030_image = 'INTEGER REFERENCES images(img_id) ON DELETE CASCADE'
     c_040_facility = 'INTEGER REFERENCES facilities(facility_id)'
     c_050_filter = 'INTEGER REFERENCES filters(filter_id)'
     c_060_software = 'INTEGER REFERENCES software(code_id)'
@@ -550,7 +549,7 @@ def ingest_reference_in_db(conn, setup, reference_header,
     
     conn.commit()
 
-def find_previous_reference_image_for_dataset(conn,params):
+def find_reference_image_for_dataset(conn,params):
     """Function to identify the reference image used for a previous reduction 
     of a given dataset, if any are present
     params dictionary must include site, enclosure, telescope, instrument and
@@ -567,7 +566,7 @@ def find_previous_reference_image_for_dataset(conn,params):
         return None
     
     
-    query = 'SELECT facility_id FROM facilities WHERE facility_code="'+facility_code+'"'
+    query = 'SELECT facility_id FROM facilities WHERE facility_code="'+params['facility_code']+'"'
     t = query_to_astropy_table(conn, query, args=())
     if len(t) > 0:    
         facility_id = t['facility_id'].data[-1]
@@ -577,7 +576,7 @@ def find_previous_reference_image_for_dataset(conn,params):
     query = 'SELECT refimg_id FROM reference_images WHERE facility='+str(facility_id)+' AND filter='+str(filter_id)
     t = query_to_astropy_table(conn, query, args=())
     if len(t) > 0:    
-        ref_id = t['refimg_id'].data[-1]
+        ref_id = t['refimg_id'].data
     else:
         return None
     
@@ -635,25 +634,19 @@ def box_search_on_position(conn, ra_centre, dec_centre, dra, ddec):
     
     return t
 
-def cascade_delete_reference_image(conn, refimg_id, img_id_list):
+def cascade_delete_reference_images(conn, refimg_id_list,log):
     """Function to remove all database entries corresponding to a given 
     reference image, including both the entries for the image itself and 
     photometry derived from it"""
-
-    for img_id in img_id_list:
-        command = 'DELETE FROM images WHERE img_id="'+str(img_id)+'"'
-        cursor = conn.cursor()
-        cursor.execute(command, ())
-        conn.commit()
-        
-        command = 'DELETE FROM reference_components WHERE refimg_id="'+str(refimg_id)+'"'
-        cursor = conn.cursor()
-        cursor.execute(command, ())
-        conn.commit()
-        
-    command = 'DELETE FROM reference_images WHERE refimg_id="'+str(refimg_id)+'"'
+    
+    log.info('WARNING: Existing database entries found for a reference image this dataset')
+    log.info('--> Performing cascade delete of all data associated with the old reduction <--')
     
     cursor = conn.cursor()
-    cursor.execute(command, ())
-    conn.commit()
+    
+    for refimg_id in refimg_id_list:
+        
+        command = 'DELETE FROM reference_images WHERE refimg_id="'+str(refimg_id)+'"'
+        cursor.execute(command, ())
+        conn.commit()
     

@@ -10,6 +10,8 @@ from sys import argv
 from astropy.io import fits
 from astropy import table
 from astropy import time
+from astropy import units
+from astropy.coordinates import SkyCoord
 import numpy as np
 import glob
 from shutil import move
@@ -18,6 +20,7 @@ from pyDANDIA import  metadata
 from pyDANDIA import  phot_db
 from pyDANDIA import  pipeline_setup
 from pyDANDIA import  time_utils
+from pyDANDIA import  match_utils
 
 VERSION = 'stage3_ingest_v1.0'
 
@@ -25,8 +28,6 @@ def run_stage3_db_ingest(setup, primary_ref=False):
     """Function to commit the information on, and measurements from, the 
     reference image(s) used to reduce the data for a given field.
     """
-    
-    #params = configure_setup()
     
     (facility_keys, software_keys, image_keys) = define_table_keys()
     
@@ -63,6 +64,11 @@ def run_stage3_db_ingest(setup, primary_ref=False):
     phot_db.check_before_commit(conn, dataset_params, 'software', software_keys, 'version')
     phot_db.check_before_commit(conn, dataset_params, 'images', image_keys, 'filename')
     
+    ref_id_list = phot_db.find_previous_reference_image_for_dataset(conn,params)
+    
+    if len(ref_id_list) > 0:
+        phot_db.cascade_delete_reference_images(conn, ref_id_list, log)
+        
     commit_reference_image(conn, dataset_params, log)
     commit_reference_component(conn, dataset_params, log)
     
@@ -71,6 +77,11 @@ def run_stage3_db_ingest(setup, primary_ref=False):
         star_ids = commit_stars(conn, dataset_params, reduction_metadata, log)
         
         commit_photometry(conn, dataset_params, reduction_metadata, star_ids, log)
+        
+    else:
+        
+        starlist = fetch_field_starlist(conn,params,log)
+    
         
     conn.close()
     
@@ -326,7 +337,7 @@ def commit_reference_image(conn, params, log):
         conn.commit()
         
         log.info('Submitted reference_image '+params['filename']+' to phot_db')
-
+    
 def error_wrong_number_entries(results_table,param_value):
     
     if len(results_table) == 0:
@@ -372,7 +383,8 @@ def read_combined_star_catalog(params):
     
     return star_catalog
 
-def commit_stars(conn, params, reduction_metadata, log):
+def commit_stars(conn, params, reduction_metadata, log, 
+                 search_for_match=False):
     
     query = 'SELECT refimg_id, filename FROM reference_images WHERE filename ="'+params['filename']+'"'
     refimage = phot_db.query_to_astropy_table(conn, query, args=())    
@@ -382,7 +394,7 @@ def commit_stars(conn, params, reduction_metadata, log):
     
     n_stars = len(reduction_metadata.star_catalog[1])
     
-    star_keys = ['ra', 'dec', 'reference_image', 
+    star_keys = ['star_index', 'ra', 'dec', 'reference_image', 
                  'gaia_source_id', 'gaia_ra', 'gaia_ra_error', 'gaia_dec', 'gaia_dec_error', 
                  'gaia_phot_g_mean_flux', 'gaia_phot_g_mean_flux_error', 
                  'gaia_phot_bp_mean_flux', 'gaia_phot_bp_mean_flux_error', 
@@ -396,10 +408,11 @@ def commit_stars(conn, params, reduction_metadata, log):
     
     for j in range(0,n_stars,1):
         
+        idx = reduction_metadata.star_catalog[1]['index'][j]
         ra = reduction_metadata.star_catalog[1]['ra'][j]
         dec = reduction_metadata.star_catalog[1]['dec'][j]
         
-        star_pars = [ str(ra), str(dec), str(refimage['refimg_id'][0]),
+        star_pars = [ str(idx), str(ra), str(dec), str(refimage['refimg_id'][0]),
                     str(reduction_metadata.star_catalog[1]['gaia_source_id'][j]),
                     str(reduction_metadata.star_catalog[1]['gaia_ra'][j]),
                     str(reduction_metadata.star_catalog[1]['gaia_ra_error'][j]),
@@ -422,17 +435,29 @@ def commit_stars(conn, params, reduction_metadata, log):
                     str(reduction_metadata.star_catalog[1]['imag_error'][j]),
                     str((int(reduction_metadata.star_catalog[1]['clean'][j]))) ]
 
-        results = phot_db.box_search_on_position(conn, ra, dec, tol, tol)
-        
-        if len(results) > 0:
+        if search_for_match:
             
-            log.info('Catalog star at RA, Dec '+str(ra)+','+str(dec)+\
+            results = phot_db.box_search_on_position(conn, ra, dec, tol, tol)
+        
+            if len(results) > 0:
+            
+                log.info('Catalog star at RA, Dec '+str(ra)+','+str(dec)+\
                      ' matches a star already in the phot_db with RA, Dec '+\
                      str(results['ra'][0])+','+str(results['dec'][0]))
             
-            star_ids[j] = int(results['star_id'][0])
+                star_ids[j] = int(results['star_id'][0])
+                
+                submit = False
+                
+            else:
+                
+                submit = True
             
         else:
+            
+            submit = True
+            
+        if submit:
             
             command = 'INSERT OR REPLACE INTO stars ('+','.join(star_keys)+') VALUES ("'
             command += '","'.join(star_pars) + '")'
@@ -486,10 +511,16 @@ def commit_photometry(conn, params, reduction_metadata, star_ids, log):
     wildcards = ','.join(['?']*len(key_list))
     
     n_stars = len(reduction_metadata.star_catalog[1])
+    print(n_stars, len(star_ids))
     
     values = []
     for j in range(0,n_stars,1):
         
+        print(j, star_ids[j])
+        if j != star_ids[j]:
+            print('HERE')
+            exit()
+        k = reduction_metadata.star_catalog[1]['index'][j]
         x = str(reduction_metadata.star_catalog[1]['x'][j])
         y = str(reduction_metadata.star_catalog[1]['y'][j])
         mag = str(reduction_metadata.star_catalog[1]['ref_mag'][j])
@@ -508,15 +539,69 @@ def commit_photometry(conn, params, reduction_metadata, star_ids, log):
                     'PSF_FITTING' )
                     
         values.append(entry)
-    
+        
+        if int(star_ids[j]) == 931:
+            print(entry)
+        if j == 930:
+            print(entry, k)
+            
     command = 'INSERT OR REPLACE INTO phot('+','.join(key_list)+\
                 ') VALUES ('+wildcards+')'
     
     cursor = conn.cursor()
         
     cursor.executemany(command,values)
-    
+    exit()
     conn.commit()
         
     log.info('Completed ingest of photometry for '+str(len(star_ids))+' stars')
- 
+
+def fetch_field_starlist(conn,params,log):
+    
+    refimg_id = phot_db.find_reference_image_for_dataset(conn,params)[0]
+    
+    query = 'SELECT * FROM stars WHERE reference_image="'+str(refimg_id)+'"'
+    starlist = phot_db.query_to_astropy_table(conn, query, args=())
+    
+    return starlist
+
+def match_new_data_with_starlist(conn,params,starlist,reduction_metadata,refimg_id,log):
+    
+    matched_stars = match_utils.StarMatchIndex()
+    
+    idx = np.where(starlist['gaia_source_id'] != 'None')
+    jdx = np.where(reduction_metadata.star_catalog[1]['gaia_source_id'] != 'None')[0]
+    
+    for star in starlist[idx]:
+        
+        kdx = np.where(reduction_metadata.star_catalog[1]['gaia_source_id'][jdx] == star['gaia_source_id'])
+        
+        if len(kdx) == 1:
+            
+            query = 'SELECT star_id,x,y FROM phot WHERE reference_image="'+str(refimg_id)+'" AND star_id="'+str(star['star_id'])+'"'
+            phot_data = phot_db.query_to_astropy_table(conn, query, args=())
+            
+            if len(phot_data) == 0:
+                print(phot_data, star)
+            dx = phot_data['x'] - reduction_metadata.star_catalog[1]['x'][jdx[kdx[0]]]
+            dy = phot_data['y'] - reduction_metadata.star_catalog[1]['y'][jdx[kdx[0]]]
+            separation = np.sqrt( dx*dx + dy*dy )
+            
+            print(separation)
+            
+            p = {'cat1_index': star['star_id'],
+                 'cat1_ra': star['ra'],
+                 'cat1_dec': star['dec'],
+                 'cat1_x': phot_data['x'],
+                 'cat1_y': phot_data['y'],
+                 'cat2_index': jdx[kdx[0]], 
+                 'cat2_ra': reduction_metadata.star_catalog[1]['ra'][jdx[kdx[0]]],
+                 'cat2_dec': reduction_metadata.star_catalog[1]['dec'][jdx[kdx[0]]],
+                 'cat2_x': reduction_metadata.star_catalog[1]['x'][jdx[kdx[0]]],
+                 'cat2_y': reduction_metadata.star_catalog[1]['y'][jdx[kdx[0]]],
+                 'separation': separation}
+            
+            matched_stars.add_match(p)
+            
+    return matched_stars
+    

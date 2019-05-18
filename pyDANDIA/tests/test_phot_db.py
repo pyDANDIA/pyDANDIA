@@ -293,7 +293,9 @@ def test_update_stars_ref_image_id():
     t = phot_db.query_to_astropy_table(conn, query, args=())
     
     assert t['reference_images'].all() == refimg_id
-
+    
+    conn.close()
+    
 def test_find_previous_reference_image_for_dataset():
     
     if os.path.isfile(db_file_path):
@@ -351,14 +353,13 @@ def test_find_previous_reference_image_for_dataset():
     assert test_refimg_id == ref_id
     
     logs.close_log(log)
+    conn.close()
     
-def test_cascade_delete_reference_image():
+def setup_test_phot_db(log):
     
     if os.path.isfile(db_file_path):
         os.remove(db_file_path)
-    
-    log = logs.start_stage_log( TEST_DIR, 'test_phot_db' )
-    
+        
     setup = pipeline_setup.pipeline_setup({'red_dir': TEST_DIR})
     setup.phot_db_path = db_file_path
     
@@ -411,24 +412,51 @@ def test_cascade_delete_reference_image():
     phot_db.check_before_commit(conn, params, 'facilities', facility_keys, 'facility_code')
     phot_db.check_before_commit(conn, params, 'software', software_keys, 'version')
     phot_db.check_before_commit(conn, params, 'images', image_keys, 'filename')
+    
     stage3_db_ingest.commit_reference_image(conn, params, log)
     stage3_db_ingest.commit_reference_component(conn, params, log)
 
+    return conn, params, ref_image_name
+    
+def test_cascade_delete_reference_image():
+    
+    log = logs.start_stage_log( TEST_DIR, 'test_phot_db' )
+    
+    (conn,params,ref_image_name) = setup_test_phot_db(log)
+    
     query = 'SELECT refimg_id FROM reference_images WHERE filename="'+ref_image_name+'"'
     t = phot_db.query_to_astropy_table(conn, query, args=())
     refimg_id = t['refimg_id'].data[0]
     
-    query = 'SELECT img_id FROM images WHERE filename="'+ref_image_name+'"'
+    query = 'SELECT component_id, image FROM reference_components WHERE reference_image="'+str(refimg_id)+'"'
     t = phot_db.query_to_astropy_table(conn, query, args=())
-    img_id_list = t['img_id'].data
     
+    print('Pre-deletion: ',t)
     print('Reference image entry = '+str(refimg_id))
     
-    phot_db.cascade_delete_reference_image(conn, refimg_id, img_id_list)
+    phot_db.cascade_delete_reference_images(conn, [refimg_id], log)
     
     t = phot_db.query_to_astropy_table(conn, query, args=())
+    print('Post deletion: ',t)
     
     assert len(t) == 0
+    
+    logs.close_log(log)
+    conn.close()
+
+def test_find_reference_image_for_dataset():
+    
+    log = logs.start_stage_log( TEST_DIR, 'test_phot_db' )
+    
+    (conn,params,ref_image_name) = setup_test_phot_db(log)
+    
+    id_list = phot_db.find_reference_image_for_dataset(conn,params)
+    
+    assert len(id_list) == 1
+    assert id_list[0] == 1
+    
+    logs.close_log(log)
+    conn.close()
     
 if __name__ == '__main__':
     
@@ -442,5 +470,6 @@ if __name__ == '__main__':
     #test_update_stars_ref_image_id()
     #test_check_before_commit()
     #test_find_previous_reference_image_for_dataset()
-    test_cascade_delete_reference_image()
+    #test_cascade_delete_reference_image()
+    test_find_reference_image_for_dataset()
     
