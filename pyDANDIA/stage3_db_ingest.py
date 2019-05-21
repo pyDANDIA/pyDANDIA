@@ -21,6 +21,7 @@ from pyDANDIA import  phot_db
 from pyDANDIA import  pipeline_setup
 from pyDANDIA import  time_utils
 from pyDANDIA import  match_utils
+from pyDANDIA import  calc_coord_offsets
 
 VERSION = 'stage3_ingest_v1.0'
 
@@ -82,14 +83,15 @@ def run_stage3_db_ingest(setup, primary_ref=False):
         
         starlist = fetch_field_starlist(conn,params,log)
     
-        matched_stars = stage3_db_ingest.match_new_data_with_starlist(conn,params,starlist,
+        matched_stars = stage3_db_ingest.match_catalog_entries_with_starlist(conn,params,starlist,
                                                                   reduction_metadata,
                                                                   ref_id_list[0],
                                                                   log)
         
-        # Calculate pixel offset between the reference image and primary ref
+        transform = calc_transform_to_primary_ref(setup,matched_stars,log)
         
-        # Match all stars, taking the offset into account
+        matched_stars = match_all_entries_with_starlist(conn,params,starlist,reduction_metadata,
+                                    refimg_id,transform,log)
         
         commit_photometry_matching(conn, params, reduction_metadata, matched_stars, log)
 
@@ -639,9 +641,14 @@ def fetch_field_starlist(conn,params,log):
     query = 'SELECT * FROM stars WHERE reference_image="'+str(refimg_id)+'"'
     starlist = phot_db.query_to_astropy_table(conn, query, args=())
     
+    log.info('Selected '+str(len(starlist))+' stars known in this field')
+    
     return starlist
 
-def match_new_data_with_starlist(conn,params,starlist,reduction_metadata,refimg_id,log):
+def match_catalog_entries_with_starlist(conn,params,starlist,reduction_metadata,
+                                        refimg_id,log,verbose=False):
+    
+    log.info('Matching all stars from the reference frame with catalog identifications with the DB')
     
     matched_stars = match_utils.StarMatchIndex()
     
@@ -657,8 +664,6 @@ def match_new_data_with_starlist(conn,params,starlist,reduction_metadata,refimg_
             query = 'SELECT star_id,x,y FROM phot WHERE reference_image="'+str(refimg_id)+'" AND star_id="'+str(star['star_id'])+'"'
             phot_data = phot_db.query_to_astropy_table(conn, query, args=())
             
-            if star['star_id'] == 981:
-                print(star['star_id'], phot_data)
             dx = phot_data['x'] - reduction_metadata.star_catalog[1]['x'][jdx[kdx[0]]]
             dy = phot_data['y'] - reduction_metadata.star_catalog[1]['y'][jdx[kdx[0]]]
             separation = np.sqrt( dx*dx + dy*dy )
@@ -666,8 +671,8 @@ def match_new_data_with_starlist(conn,params,starlist,reduction_metadata,refimg_
             p = {'cat1_index': star['star_id'],
                  'cat1_ra': star['ra'],
                  'cat1_dec': star['dec'],
-                 'cat1_x': phot_data['x'],
-                 'cat1_y': phot_data['y'],
+                 'cat1_x': phot_data['x'][0],
+                 'cat1_y': phot_data['y'][0],
                  'cat2_index': jdx[kdx[0]], 
                  'cat2_ra': reduction_metadata.star_catalog[1]['ra'][jdx[kdx[0]]][0],
                  'cat2_dec': reduction_metadata.star_catalog[1]['dec'][jdx[kdx[0]]][0],
@@ -676,7 +681,72 @@ def match_new_data_with_starlist(conn,params,starlist,reduction_metadata,refimg_
                  'separation': separation[0]}
             
             matched_stars.add_match(p)
-            #print(matched_stars.summarize_last())
             
+            if verbose:
+                log.info(matched_stars.summarize_last())
+
+    return matched_stars
+
+def calc_transform_to_primary_ref(setup,matched_stars,log):
+    
+    primary_cat = table.Table( [ table.Column(name='x', data=matched_stars.cat1_x),
+                                 table.Column(name='y', data=matched_stars.cat1_y) ] )
+    
+    refframe_cat = table.Table( [ table.Column(name='x', data=matched_stars.cat2_x),
+                                  table.Column(name='y', data=matched_stars.cat2_y) ] )
+                                 
+    transform = calc_coord_offsets.calc_pixel_transform(setup, 
+                                        refframe_cat, primary_cat,
+                                        log)
+                                        
+    return transform
+
+def match_all_entries_with_starlist(setup,conn,params,starlist,reduction_metadata,
+                                    refimg_id,transform,log, verbose=False):
+    
+    tol = 2.0  # pixels
+    
+    log.info('Matching all stars from starlist with the transformed coordinates of stars detected in the new reference image')
+    log.info('Match tolerance: '+str(tol)+' pixels')
+    
+    matched_stars = match_utils.StarMatchIndex()
+    
+    query = 'SELECT star_id,x,y FROM phot WHERE reference_image="'+str(refimg_id)+'" AND star_id IN '+str(tuple(starlist['star_id'].data))
+    phot_data = phot_db.query_to_astropy_table(conn, query, args=())
+    
+    refframe_coords = table.Table( [ table.Column(name='x', data=reduction_metadata.star_catalog[1]['x']),
+                                     table.Column(name='y', data=reduction_metadata.star_catalog[1]['y']) ] )
+                                     
+    refframe_coords = calc_coord_offsets.transform_coordinates(setup, refframe_coords, transform, coords='pixel')
+    
+    log.info('Transformed star coordinates from the reference image')
+    log.info('Matching all stars against field starlist:')
+    
+    for j in range(0,len(phot_data),1):
+
+        dx = phot_data['x'][j] - refframe_coords['x1']
+        dy = phot_data['y'][j] - refframe_coords['y1']
+        separation = np.sqrt( dx*dx + dy*dy )
+        
+        jdx = np.where(separation == separation.min())[0]
+        
+        p = {'cat1_index': phot_data['star_id'][j],
+             'cat1_ra': starlist['ra'][j],
+             'cat1_dec': starlist['dec'][j],
+             'cat1_x': phot_data['x'][j],
+             'cat1_y': phot_data['y'][j],
+             'cat2_index': jdx[0], 
+             'cat2_ra': reduction_metadata.star_catalog[1]['ra'][jdx[0]],
+             'cat2_dec': reduction_metadata.star_catalog[1]['dec'][jdx[0]],
+             'cat2_x': reduction_metadata.star_catalog[1]['x'][jdx[0]],
+             'cat2_y': reduction_metadata.star_catalog[1]['y'][jdx[0]],
+             'separation': separation[jdx[0]]}
+        
+        if separation[jdx[0]] <= tol:
+            matched_stars.add_match(p)
+        
+            if verbose:
+                log.info(matched_stars.summarize_last())
+
     return matched_stars
     
