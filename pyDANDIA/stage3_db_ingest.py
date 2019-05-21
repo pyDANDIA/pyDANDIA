@@ -34,7 +34,9 @@ def run_stage3_db_ingest(setup, primary_ref=False):
     
     log = logs.start_stage_log( setup.red_dir, 'stage3_db_ingest', 
                                version=VERSION )
-                               
+    if primary_ref:
+        log.info('Running in PRIMARY-REF mode.')
+        
     archive_existing_db(setup,primary_ref,log)
     
     conn = phot_db.get_connection(dsn=setup.phot_db_path)
@@ -65,9 +67,9 @@ def run_stage3_db_ingest(setup, primary_ref=False):
     phot_db.check_before_commit(conn, dataset_params, 'software', software_keys, 'version')
     phot_db.check_before_commit(conn, dataset_params, 'images', image_keys, 'filename')
     
-    ref_id_list = phot_db.find_previous_reference_image_for_dataset(conn,params)
+    ref_id_list = phot_db.find_reference_image_for_dataset(conn,dataset_params)
     
-    if len(ref_id_list) > 0:
+    if ref_id_list != None and len(ref_id_list) > 0:
         phot_db.cascade_delete_reference_images(conn, ref_id_list, log)
         
     commit_reference_image(conn, dataset_params, log)

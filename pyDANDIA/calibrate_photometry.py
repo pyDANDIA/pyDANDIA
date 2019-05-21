@@ -519,10 +519,10 @@ def model_phot_transform(params,star_catalog,vphas_cat,match_index,fit,
 def set_calibration_limits(params,log):
     """Function to use the parameters given or set defaults"""
     
-    defaults = {'gp': {'det_mags_max': 15.0,
+    defaults = {'gp': {'det_mags_max': 20.0,
                        'det_mags_min': 10.0,
                        'cat_merr_max': 0.04},
-                'rp': {'det_mags_max': 15.5,
+                'rp': {'det_mags_max': 20.0,
                        'det_mags_min': 10.0,
                        'cat_merr_max': 0.04},
                 'ip': {'det_mags_max': 20.0,
