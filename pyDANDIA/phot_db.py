@@ -17,6 +17,8 @@ import sqlite3
 from os import getcwd, path, remove, environ
 import numpy as np
 from astropy import table
+from astropy.coordinates import SkyCoord
+from astropy import units
 
 cwd = getcwd()
 TEST_DIR = path.join(cwd,'data','proc',
@@ -631,6 +633,14 @@ def box_search_on_position(conn, ra_centre, dec_centre, dra, ddec):
             str(dec_min)+' AND '+str(dec_max)
     
     t = query_to_astropy_table(conn, query, args=())
+    
+    c = SkyCoord(ra_centre, dec_centre, frame='icrs', unit=(units.deg,units.deg))
+    
+    s = SkyCoord(t['ra'], t['dec'], frame='icrs', unit=(units.deg,units.deg))
+    
+    separations = c.separation(s)
+    
+    t.add_column(table.Column(name='separation', data=separations))
     
     return t
 

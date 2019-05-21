@@ -393,7 +393,7 @@ def test_match_new_data_with_starlist():
     stage3_db_ingest.commit_photometry(conn, params, reduction_metadata, star_ids, log)
 
     starlist = stage3_db_ingest.fetch_field_starlist(conn,params,log)
-
+    
     ref_id_list = phot_db.find_reference_image_for_dataset(conn,params)
     
     matched_stars = stage3_db_ingest.match_new_data_with_starlist(conn,params,starlist,
@@ -402,6 +402,7 @@ def test_match_new_data_with_starlist():
                                                                   log)
     
     assert type(matched_stars) == type(match_utils.StarMatchIndex())
+    assert len(matched_stars.cat1_index) > 0
     
     conn.close()
     
