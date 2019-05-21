@@ -86,7 +86,13 @@ def run_stage3_db_ingest(setup, primary_ref=False):
                                                                   reduction_metadata,
                                                                   ref_id_list[0],
                                                                   log)
-                                                                  
+        
+        # Calculate pixel offset between the reference image and primary ref
+        
+        # Match all stars, taking the offset into account
+        
+        commit_photometry_matching(conn, params, reduction_metadata, matched_stars, log)
+
     conn.close()
     
     status = 'OK'
@@ -94,7 +100,7 @@ def run_stage3_db_ingest(setup, primary_ref=False):
     
     log.info('Stage 3 DB ingest: '+report)
     logs.close_log(log)
-        
+    
     return status, report
 
 def define_table_keys():
@@ -552,8 +558,79 @@ def commit_photometry(conn, params, reduction_metadata, star_ids, log):
     cursor.executemany(command,values)
     
     conn.commit()
-        
+    
     log.info('Completed ingest of photometry for '+str(len(star_ids))+' stars')
+
+def commit_photometry_matching(conn, params, reduction_metadata, matched_stars, log):
+    
+    query = 'SELECT facility_id, facility_code FROM facilities WHERE facility_code="'+params['facility_code']+'"'
+    facility = phot_db.query_to_astropy_table(conn, query, args=())
+    error_wrong_number_entries(facility,params['facility_code'])
+    
+    query = 'SELECT filter_id, filter_name FROM filters WHERE filter_name="'+params['filter_name']+'"'
+    f = phot_db.query_to_astropy_table(conn, query, args=())
+    error_wrong_number_entries(f,params['filter_name'])
+        
+    query = 'SELECT code_id, version FROM software WHERE version="'+params['version']+'"'
+    code = phot_db.query_to_astropy_table(conn, query, args=())
+    error_wrong_number_entries(code,params['version'])
+    
+    query = 'SELECT refimg_id, filename FROM reference_images WHERE filename ="'+params['filename']+'"'
+    refimage = phot_db.query_to_astropy_table(conn, query, args=())    
+    error_wrong_number_entries(refimage,params['filename'])
+    
+    query = 'SELECT img_id, filename FROM images WHERE filename ="'+params['filename']+'"'
+    image = phot_db.query_to_astropy_table(conn, query, args=())    
+    error_wrong_number_entries(image,params['filename'])
+    
+    key_list = ['star_id', 'reference_image', 'image', 
+                'facility', 'filter', 'software', 
+                'x', 'y', 'hjd', 'magnitude', 'magnitude_err', 
+                'calibrated_mag', 'calibrated_mag_err',
+                'flux', 'flux_err', 
+                'phot_scale_factor', 'phot_scale_factor_err',
+                'local_background', 'local_background_err',
+                'phot_type']
+    
+    wildcards = ','.join(['?']*len(key_list))
+    
+    n_stars = len(reduction_metadata.star_catalog[1])
+    
+    values = []
+    for i in range(0,matched_stars.n_match,1):
+        
+        j_cat = matched_stars.cat1_index[i]     # Starlist index in DB
+        j_new = matched_stars.cat2_index[i]     # Star detected in image
+        
+        x = str(reduction_metadata.star_catalog[1]['x'][j_new][0])
+        y = str(reduction_metadata.star_catalog[1]['y'][j_new][0])
+        mag = str(reduction_metadata.star_catalog[1]['ref_mag'][j_new][0])
+        mag_err = str(reduction_metadata.star_catalog[1]['ref_mag_error'][j_new][0])
+        cal_mag = str(reduction_metadata.star_catalog[1]['cal_ref_mag'][j_new][0])
+        cal_mag_err = str(reduction_metadata.star_catalog[1]['cal_ref_mag_error'][j_new][0])
+        flux = str(reduction_metadata.star_catalog[1]['ref_flux'][j_new][0])
+        flux_err = str(reduction_metadata.star_catalog[1]['ref_flux_error'][j_new][0])
+        
+        entry = (str(int(j_cat)), str(refimage['refimg_id'][0]), str(image['img_id'][0]),
+                   str(facility['facility_id'][0]), str(f['filter_id'][0]), str(code['code_id'][0]),
+                    x, y, str(params['hjd_ref']), 
+                    mag, mag_err, cal_mag, cal_mag_err, flux, flux_err,
+                    '0.0', '0.0',   # No phot scale factor for PSF fitting photometry
+                    '0.0', '0.0',   # No background measurements propageted
+                    'PSF_FITTING' )
+                
+        values.append(entry)
+        
+    command = 'INSERT OR REPLACE INTO phot('+','.join(key_list)+\
+                ') VALUES ('+wildcards+')'
+    
+    cursor = conn.cursor()
+        
+    cursor.executemany(command,values)
+    
+    conn.commit()
+    
+    log.info('Completed ingest of photometry for '+str(len(matched_stars.cat1_index))+' stars')
 
 def fetch_field_starlist(conn,params,log):
     

@@ -609,6 +609,7 @@ def query_to_astropy_table(conn, query, args=()):
     data = [table.Column(name=k,
             data=getColumn(i))
         for i,k in enumerate(keys)]
+            
     return table.Table(data=data)
 
 def box_search_on_position(conn, ra_centre, dec_centre, dra, ddec):
