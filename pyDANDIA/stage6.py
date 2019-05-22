@@ -65,15 +65,15 @@ def run_stage6(setup):
     # find the starlist
     starlist = reduction_metadata.star_catalog[1]
 
-    max_x = np.max(starlist['x_pixel'].data)
-    max_y = np.max(starlist['y_pixel'].data)
-    mask = (starlist['psf_star'].data == 1) & (starlist['x_pixel'].data < max_x - 25) & (
-    starlist['x_pixel'].data > 25) & (starlist['y_pixel'].data < max_y - 25) & (starlist['y_pixel'].data > 25)
+    max_x = np.max(starlist['x'].data)
+    max_y = np.max(starlist['y'].data)
+    mask = (starlist['psf_star'].data == 1) & (starlist['x'].data < max_x - 25) & (
+    starlist['x'].data > 25) & (starlist['y'].data < max_y - 25) & (starlist['y'].data > 25)
 
     control_stars = starlist[mask][:10]
-    star_coordinates = np.c_[control_stars['star_index'].data,
-                             control_stars['x_pixel'].data,
-                             control_stars['y_pixel'].data]
+    star_coordinates = np.c_[control_stars['index'].data,
+                             control_stars['x'].data,
+                             control_stars['y'].data]
 
     for index, key in enumerate(starlist.columns.keys()):
 
@@ -107,7 +107,7 @@ def run_stage6(setup):
     psf_model = psf.get_psf_object(psf_type)
     psf_model.update_psf_parameters(psf_parameters)
 
-    ind = ((starlist['x_pixel'] - 150) ** 2 < 1) & ((starlist['y_pixel'] - 150) ** 2 < 1)
+    ind = ((starlist['x'] - 150) ** 2 < 1) & ((starlist['y'] - 150) ** 2 < 1)
 
     time = []
     exposures_id = []
