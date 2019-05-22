@@ -46,6 +46,7 @@ from pyDANDIA import empirical_psf_simple
 
 ###############################################################################
 def starfind(setup, path_to_image, reduction_metadata, plot_it=False,
+                                                           thumbsize = 250,
                                                            log=None):
     """
     The routine will quickly identify stars in a given image and return 
@@ -62,6 +63,9 @@ def starfind(setup, path_to_image, reduction_metadata, plot_it=False,
                          which to extract the saturation value.
     
     :param boolean plot_it: Do you want to plot the selected stars?
+    
+    :param int thumbsize: Size of the pixel subregions to split a large image
+                          into. Default 250x250.
     
     :param string log: Full The full path to the log file.
     
@@ -89,8 +93,9 @@ def starfind(setup, path_to_image, reduction_metadata, plot_it=False,
     # Get size of image
     ymax, xmax = scidata.shape
     
-    # If it is a large image, consider 250x250 pixel subregions and
-    # choose the one with the fewest saturated pixels to evaluate stats
+    # If it is a large image, consider thumbnail sized (deftault 250x250) pixel 
+    # subregions and choose the one with the fewest saturated pixels to evaluate 
+    # stats
     try:
         
         saturation = reduction_metadata.reduction_parameters[1]['MAXVAL']
@@ -110,33 +115,46 @@ def starfind(setup, path_to_image, reduction_metadata, plot_it=False,
 
    
             
-    nr_sat_pix = 100000
+    nr_sat_pix = 1000000
     bestx1 = -1
     bestx2 = -1
     besty1 = -1
     besty2 = -1
-    regionsx = np.arange(0, xmax, 250)
-    regionsy = np.arange(0, ymax, 250)
     
-    for i in regionsx[0:-1]:
+    # Attempt to consider subregrions from a large image
+    # provided the thumbsize is smaller than half the size of the image.
+    # Alternatively use the whole image. 
+    if (thumbsize <= xmax/2.0) and (thumbsize <= ymax/2.0): 
+        regionsx = np.arange(0, xmax, thumbsize)
+        regionsy = np.arange(0, ymax, thumbsize)
         
-        x1 = i
-        x2 = i + 250
+        for i in regionsx[0:-1]:
+            
+            x1 = i
+            x2 = i + thumbsize
+            
+            for j in regionsy[0:-1]:
+                
+                y1 = j
+                y2 = j + thumbsize
+                nr_pix = len(scidata[y1:y2,x1:x2][np.where(scidata[y1:y2,x1:x2] > saturation)])
+                #print x1, x2, y1, y2, nr_pix
+                
+                if nr_pix < nr_sat_pix:
+                    nr_sat_pix = nr_pix
+                    bestx1 = x1
+                    bestx2 = x2
+                    besty1 = y1
+                    besty2 = y2
+    
+    else:
+        nr_pix = len(scidata[:,:][np.where(scidata[:,:] > saturation)])
+        nr_sat_pix = nr_pix
+        bestx1 = 1
+        bestx2 = xmax
+        besty1 = 1
+        besty2 = ymax
         
-        for j in regionsy[0:-1]:
-            
-            y1 = j
-            y2 = j + 250
-            nr_pix = len(scidata[y1:y2,x1:x2][np.where(scidata[y1:y2,x1:x2] > saturation)])
-            #print x1, x2, y1, y2, nr_pix
-            
-            if nr_pix < nr_sat_pix:
-               nr_sat_pix = nr_pix
-               bestx1 = x1
-               bestx2 = x2
-               besty1 = y1
-               besty2 = y2
-               
     #mean, median, std = sigma_clipped_stats(scidata[1:ymax, 1:xmax], sigma=3.0, maxiters=5)
     # Evaluate mean, median and standard deviation for the selected subregion
     mean, median, std = sigma_clipped_stats(scidata[besty1:besty2, bestx1:bestx2],
@@ -175,14 +193,20 @@ def starfind(setup, path_to_image, reduction_metadata, plot_it=False,
     sources.reverse()
     
     # Store the number of identified sources and fraction of saturated pixels
-    nstars = len(sources)
-    sat_frac = nr_sat_pix/(250.*250.)
-    
     # Discount stars too close to the edges of the image
-    sources = sources[np.where((sources['xcentroid'] > 10) & 
-                               (sources['xcentroid'] < 240) &  
-                   (sources['ycentroid'] < 240) & 
-                   (sources['ycentroid'] > 30))]
+    nstars = len(sources)
+    if (thumbsize <= xmax/2.0) and (thumbsize <= ymax/2.0):
+        sat_frac = nr_sat_pix/(thumbsize*thumbsize)
+        sources = sources[np.where((sources['xcentroid'] > 10) & 
+                          (sources['xcentroid'] < thumbsize-10) &  
+                          (sources['ycentroid'] < thumbsize-10) & 
+                          (sources['ycentroid'] > 30))]
+    else:
+        sat_frac = nr_sat_pix/(xmax*ymax)
+        sources = sources[np.where((sources['xcentroid'] > 10) & 
+                          (sources['xcentroid'] < xmax-10) &  
+                          (sources['ycentroid'] < ymax-10) & 
+                          (sources['ycentroid'] > 30))]
     
     # Keep only up to 100 stars
     sources = sources[0:100]
