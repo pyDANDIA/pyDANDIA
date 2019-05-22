@@ -20,7 +20,7 @@ from astropy import units as u
 from astropy.coordinates import SkyCoord
 from astropy.coordinates import match_coordinates_sky
 from astropy.stats import sigma_clipped_stats
-from ccdproc import cosmicray_lacosmic
+# from ccdproc import cosmicray_lacosmic
 from astropy.table import Table
 from photutils import datasets
 from photutils import DAOStarFinder
@@ -31,11 +31,20 @@ from skimage.transform import resize
 from pyDANDIA import config_utils
 import scipy.optimize as so
 import scipy.ndimage as sn
+from skimage.measure import ransac
+import skimage.feature as sf
+from photutils import centroid_com
 
 from pyDANDIA import metadata
 from pyDANDIA import logs
 from pyDANDIA import convolution
 from pyDANDIA import psf
+from pystackreg import StackReg
+import astroalign
+from skimage.feature import register_translation
+
+from skimage.feature import (ORB, match_descriptors,
+                             plot_matches)
 
 
 def run_stage4(setup):
@@ -62,7 +71,7 @@ def run_stage4(setup):
                                                     os.path.join(setup.red_dir, 'data'), log=log)
 
     new_images = reduction_metadata.find_images_need_to_be_process(setup, all_images,
-                                                                   stage_number=4, rerun_all=None, log=log)
+                                                                   stage_number=4, rerun_all=True, log=log)
 
     if len(all_images) > 0:
         try:
@@ -127,7 +136,7 @@ def run_stage4(setup):
                 return status, report
 
         if ('SHIFT_X' in reduction_metadata.images_stats[1].keys()) and (
-                    'SHIFT_Y' in reduction_metadata.images_stats[1].keys()):
+                'SHIFT_Y' in reduction_metadata.images_stats[1].keys()):
 
             for index in range(len(data)):
                 target_image = data[index][0]
@@ -164,7 +173,7 @@ def run_stage4(setup):
     reduction_metadata.update_reduction_metadata_reduction_status(new_images, stage_number=4, status=1, log=log)
 
     px_scale = float(reduction_metadata.reduction_parameters[1]['PIX_SCALE'])
-    resample_image(all_images, reference_image_name, reference_image_directory, reduction_metadata, setup,
+    resample_image(new_images, reference_image_name, reference_image_directory, reduction_metadata, setup,
                    data_image_directory, resampled_directory_path, ref_row_index, px_scale, log=log,
                    mask_extension_in=3)
 
@@ -292,8 +301,65 @@ def correlation_shift(reference_image, target_image):
     return good_shift_y, good_shift_x
 
 
-def quick_pos_fit(params, pts1, pts2, e_pts1):
+def mutual_information(hgram):
+    """ Mutual information for joint histogram
+    """
+    # Convert bins counts to probability values
+    pxy = hgram / float(np.sum(hgram))
+    px = np.sum(pxy, axis=1)  # marginal for x over y
+    py = np.sum(pxy, axis=0)  # marginal for y over x
+    px_py = px[:, None] * py[None, :]  # Broadcast to multiply marginals
+    # Now we can do the calculation using the pxy, px_py 2D arrays
+    nzs = pxy > 0  # Only non-zero pxy values contribute to the sum
+    return np.sum(pxy[nzs] * np.log(pxy[nzs] / px_py[nzs]))
 
+
+def correlation_coefficient(patch1, patch2):
+    product = np.mean((patch1 - patch1.mean()) * (patch2 - patch2.mean()))
+    stds = patch1.std() * patch2.std()
+    if stds == 0:
+        return 0
+    else:
+        product /= stds
+        return product
+
+def corr2_coeff(A,B):
+    # Rowwise mean of input arrays & subtract from input arrays themeselves
+    A_mA = A - A.mean(1)[:,None]
+    B_mB = B - B.mean(1)[:,None]
+
+    # Sum of squares across rows
+    ssA = (A_mA**2).sum(1);
+    ssB = (B_mB**2).sum(1);
+
+    # Finally get corr coeff
+    return np.dot(A_mA,B_mB.T)/np.sqrt(np.dot(ssA[:,None],ssB[None]))
+
+def quick_pos_fit2(params, reference, data, tform):
+
+    tform.params = params.reshape(3, 3)
+    model =tf.warp(data, inverse_map=tform.inverse, output_shape=data.shape, order=1, mode='constant',
+                          cval=np.median(data), clip=False, preserve_range=True)
+
+    #corr = np.corrcoef(reference.ravel(), model.ravel())[0, 1]
+    #print(corr)
+
+    #corr2 = corr2_coeff(reference, model)
+    #print(corr2)
+
+    #sh_row, sh_col = reference.shape
+    #import pdb;
+    #pdb.set_trace()
+    #mse = np.sum((reference - model) ** 2) / (reference.shape[0] * model.shape[1])
+   # print(mse)
+    norm_cross_corr = np.sum((reference - np.mean(reference)) * (model - np.mean(model)) / (
+    (len(reference) ** 2 * np.std(reference) * np.std(model))))
+    print(norm_cross_corr)
+    if np.isnan(norm_cross_corr):
+        return np.inf
+    return -norm_cross_corr
+
+def quick_pos_fit(params, pts1, pts2, e_pts1):
     model = point_transformation(params, pts1)
 
     distance = (pts2[:, 0] - model[0]) ** 2 + (pts2[:, 1] - model[1]) ** 2
@@ -302,116 +368,42 @@ def quick_pos_fit(params, pts1, pts2, e_pts1):
 
 
 def point_transformation(params, pts1):
-    #import pdb;
-    #pdb.set_trace()
-    rota = tf.AffineTransform
-    rota.params = params.reshape(3,3)
+    # import pdb;
+    # pdb.set_trace()
+    rota = tf.ProjectiveTransform
+    rota.params = params.reshape(3, 3)
     model = np.dot(rota.params, pts1.T)
 
     return model
 
 
-def iterate_on_resampling(pts1, pts2, matching, xshift, yshift, threshold_rms=0.05, threshold_star=10):
-    print('Sigma clipping on the resampling')
-    RMS = 2 * threshold_rms
+def iterate_on_resampling(ref_sources, ref_image, data_image, reduction_metadata, row_index):
+    data = np.copy(data_image)
+    x_shift, y_shift = -reduction_metadata.images_stats[1][row_index]['SHIFT_X'], - \
+        reduction_metadata.images_stats[1][row_index]['SHIFT_Y']
+    shifteds = []
+    iterations = 0
+    while iterations < 3:
 
-    tform = tf.estimate_transform('affine', pts1[:, :2], pts2[:, :2])
-    model = point_transformation(tform.params, pts1)
-    distances = (pts2[:, 0] - model[0]) ** 2 + (pts2[:, 1] - model[1]) ** 2
-
-    bad = np.where(distances > np.percentile(distances, 99))[0]
-
-    while RMS > threshold_rms:
-
-        # bad = np.argmax((e_flux ** 2 * quick_pos_fit(tform.params, pts1, pts2, e_flux)) ** 0.5)
-
-        matching = np.delete(matching, bad, axis=0)
-        pts1 = np.delete(pts1, bad, axis=0)
-        pts2 = np.delete(pts2, bad, axis=0)
-
-        if len(pts1) < threshold_star:
-            tform = tf.SimilarityTransform(translation=(-xshift, -yshift))
-
-            break
-        tform = tf.estimate_transform('affine', pts1[:, :2], pts2[:, :2])
-        model = point_transformation(tform.params, pts1)
-        distances = (pts2[:, 0] - model[0]) ** 2 + (pts2[:, 1] - model[1]) ** 2
-        bad = np.where(distances > np.percentile(distances, 99))[0]
-        RMS = np.std(distances ** 0.5)
-        print(RMS, ' pixels for ', len(pts1), 'stars')
-
-    return tform
-
-
-def resample_image(new_images, reference_image_name, reference_image_directory, reduction_metadata, setup,
-                   data_image_directory, resampled_directory_path, ref_row_index, px_scale, log=None,
-                   mask_extension_in=-1):
-    from skimage.feature import ORB, match_descriptors, plot_matches
-    from skimage.measure import ransac
-
-    if len(new_images) > 0:
-        reference_image_hdu = fits.open(os.path.join(reference_image_directory, reference_image_name), memmap=True)
-        reference_image = reference_image_hdu[0].data
-
-        reference_image = cosmicray_lacosmic(reference_image, sigclip=7., objlim=7,
-                                             satlevel=float(reduction_metadata.reduction_parameters[1]['MAXVAL'][0]))[0]
-        # reference_image, bright_reference_mask, reference_image_unmasked = open_reference(setup, reference_image_directory, reference_image_name, ref_extension = 0, log = log, central_crop = maxshift)
-        # generate reference catalog
-
-
-        central_region_x, central_region_y = np.shape(reference_image)
-        center_x, center_y = int(central_region_x / 2), int(central_region_y / 2)
-        mean_ref, median_ref, std_ref = sigma_clipped_stats(
-            reference_image[center_x - int(central_region_x / 4):center_x + int(central_region_x / 4),
-            center_y - int(central_region_y / 4):center_y + int(central_region_y / 4)], sigma=3.0, iters=5)
-        ref_fwhm_x = reduction_metadata.images_stats[1][ref_row_index]['FWHM_X']
-        ref_fwhm_y = reduction_metadata.images_stats[1][ref_row_index]['FWHM_Y']
-        ref_fwhm = (ref_fwhm_x ** 2 + ref_fwhm_y ** 2) ** 0.5
-        daofind = DAOStarFinder(fwhm=max(ref_fwhm_x, ref_fwhm_y),
-                                ratio=min(ref_fwhm_x, ref_fwhm_y) / max(ref_fwhm_x, ref_fwhm_y), threshold=3. * std_ref,
-                                exclude_border=True)
-        ref_sources = daofind.find_stars(reference_image - median_ref)
-        ref_sources = reduction_metadata.star_catalog[1]
-
-
-        # ref_sources_x, ref_sources_y = np.copy(ref_sources['xcentroid']), np.copy(ref_sources['ycentroid'])
-
-    for new_image in new_images:
-        print (new_image)
-        row_index = np.where(reduction_metadata.images_stats[1]['IM_NAME'] == new_image)[0][0]
-        x_shift, y_shift = -reduction_metadata.images_stats[1][row_index]['SHIFT_X'], - \
-            reduction_metadata.images_stats[1][row_index]['SHIFT_Y']
-
-        data_image_hdu = fits.open(os.path.join(data_image_directory, new_image), memmap=True)
-        data_image = data_image_hdu[0].data
-
-        data_image = cosmicray_lacosmic(data_image, sigclip=7., objlim=7,
-                                        satlevel=float(reduction_metadata.reduction_parameters[1]['MAXVAL'][0]))[0]
-        if mask_extension_in > len(data_image_hdu) - 1 or mask_extension_in == -1:
-            mask_extension = -1
-        else:
-            mask_extension = mask_extension_in
-            mask_image = np.array(data_image_hdu[mask_extension].data, dtype=float)
-        central_region_x, central_region_y = np.shape(data_image)
+        central_region_x, central_region_y = np.shape(data)
         center_x, center_y = int(central_region_x / 2), int(central_region_y / 2)
 
         mean_data, median_data, std_data = sigma_clipped_stats(
-            data_image[center_x - int(central_region_x / 4):center_x + int(central_region_x / 4),
-            center_y - int(central_region_y / 4):center_y + int(central_region_y / 4)], sigma=3.0, iters=5)
+            data, sigma=3.0, iters=5)
         data_fwhm_x = reduction_metadata.images_stats[1][row_index]['FWHM_X']
         data_fwhm_y = reduction_metadata.images_stats[1][row_index]['FWHM_Y']
-        data_fwhm = (ref_fwhm_x ** 2 + ref_fwhm_y ** 2) ** 0.5
+        data_fwhm = (data_fwhm_x ** 2 + data_fwhm_y ** 2) ** 0.5
         daofind2 = DAOStarFinder(fwhm=max(data_fwhm_x, data_fwhm_y),
                                  ratio=min(data_fwhm_x, data_fwhm_y) / max(data_fwhm_x, data_fwhm_y),
-                                 threshold=10. * std_data, exclude_border=True)
-
+                                 threshold=3. * std_data, exclude_border=True)
 
         # pts1 = np.c_[]
         # resample image if there is a sufficient number of stars
+        # import pdb; pdb.set_trace()
         try:
             # pts1 = np.c_[ data_sources_x -int(central_region_x/2), data_sources_y -int(central_region_y/2)][matching[:,1]]
             # pts1 = np.c_[data_sources_x - int(central_region_x / 2)-1, data_sources_y - int(central_region_y / 2)-1][matching[:, 1]]
-            data_sources = daofind2.find_stars(data_image - median_data)
+            data_sources = daofind2.find_stars(data - median_data)
 
             data_sources_x, data_sources_y = np.copy(data_sources['xcentroid'].data), np.copy(
                 data_sources['ycentroid'].data)
@@ -420,86 +412,291 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
             data_sources_x -= x_shift
             data_sources_y -= y_shift
 
-            pts1, pts2, matching = reformat_catalog2(np.c_[ref_sources['x_pixel'], ref_sources['y_pixel']], np.c_[
+            pts1, pts2, matching = reformat_catalog2(np.c_[ref_sources['xcentroid'], ref_sources['ycentroid']], np.c_[
                 data_sources['xcentroid'] - x_shift, data_sources['ycentroid'] - y_shift],
                                                      distance_threshold=8)
             pts1 = np.c_[data_sources_x + x_shift, data_sources_y + y_shift][matching[:, 1]]
             pts2[:, 0] -= 0
             pts2[:, 1] -= 0
-            order = ref_sources['ref_flux'][matching[:, 0]].argsort()
+            order = ref_sources['flux'][matching[:, 0]].argsort()
 
             pts1 = pts1[order][:]
             pts2 = pts2[order][:]
             e_flux = 0.6 * data_fwhm / data_sources['flux'][matching[:, 1]][order][:].data ** 0.5
-
 
             # model_robust, inliers = ransac(( pts1,pts2), tf. AffineTransform,min_samples=10, residual_threshold=0.05, max_trials=300)
             pts1 = np.c_[pts1, [1] * len(pts1)]
             pts2 = np.c_[pts2, [1] * len(pts2)]
 
             # model_final = iterate_on_resampling(pts1, pts2, matching, x_shift, y_shift, threshold_rms=0.05,
-            #threshold_star = 10)
-            model_robust, inliers = ransac((pts1[:, :2], pts2[:, :2]), tf.AffineTransform, min_samples=10, residual_threshold = 0.1, max_trials = 100)
+            # threshold_star = 10)
+            model_robust, inliers = ransac((pts2[:, :2], pts1[:, :2]), tf.AffineTransform, min_samples=50,
+                                           residual_threshold=1.0, max_trials=1000)
             model_final = model_robust
-            guess = model_final.params.ravel()
-            res = so.leastsq(quick_pos_fit, guess, args=(pts1[inliers], pts2[inliers], e_flux[inliers]), full_output=True)
-            model_final.params = res[0].reshape(3, 3)
+            # guess = model_final.params.ravel()
+            # res = so.leastsq(quick_pos_fit, guess, args=(pts1[inliers], pts2[inliers], e_flux[inliers]), full_output=True)
+            # import pdb; pdb.set_trace()
+            # res = so.minimize(quick_pos_fit2, guess, args=(reference_image,data_image))
+            # model_final.params = res[0].reshape(3, 3)
+
+            # model_robust2, inliers2 = ransac((pts1[:, :2], pts2[:, :2]), tf.ProjectiveTransform, min_samples=10, residual_threshold = 0.1, max_trials = 100)
+            # model_final2 = model_robust2
+            # guess2 = model_final2.params.ravel()
+            # res2 = so.leastsq(quick_pos_fit, guess, args=(pts2[inliers2], pts1[inliers2], e_flux[inliers2]), full_output=True)
+            # res2 = so.minimize(quick_pos_fit2, guess2, args=(reference_image,data_image))
+            # model_final2.params = res2[0].reshape(3, 3)
+            print('Using Projective Transformation')
+            print(np.std(pts2[inliers, 0] - pts1[inliers, 0]), np.std(pts2[inliers, 1] - pts1[inliers, 1]))
         except:
 
             model_final = tf.SimilarityTransform(translation=(-x_shift, -y_shift))
+            print('Using XY shifts')
+
+        shifted = tf.warp(data, inverse_map=model_final, output_shape=data.shape, order=3, mode='constant',
+                          cval=np.median(data), clip=False, preserve_range=True)
+        shifteds.append(shifted)
+        data = np.copy(shifted)
+        shifts, errors, phasediff = register_translation(ref_image, data, 100)
+
+        x_shift = shifts[1]
+        y_shift = shifts[0]
+        iterations += 1
+
+    # import pdb; pdb.set_trace()
+    # try:
+    #    import matplotlib.pyplot as plt
+    #    plt.imshow(np.log10(ref_image))
+    #    plt.scatter(pts1[inliers,0],pts1[inliers,1],c='r')
+    #    plt.scatter(pts2[inliers,0],pts2[inliers,1])
+    #    plt.show()
+    # except:
+    #    pass
+    return shifteds
+
+
+# def iterate_on_resampling(pts1, pts2, matching, xshift, yshift, threshold_rms=0.05, threshold_star=10):
+#    print('Sigma clipping on the resampling')
+#    RMS = 2 * threshold_rms
+
+#    tform = tf.estimate_transform('affine', pts1[:, :2], pts2[:, :2])
+#    model = point_transformation(tform.params, pts1)
+#    distances = (pts2[:, 0] - model[0]) ** 2 + (pts2[:, 1] - model[1]) ** 2
+
+#    bad = np.where(distances > np.percentile(distances, 99))[0]
+
+#    while RMS > threshold_rms:
+
+# bad = np.argmax((e_flux ** 2 * quick_pos_fit(tform.params, pts1, pts2, e_flux)) ** 0.5)
+
+#        matching = np.delete(matching, bad, axis=0)
+#        pts1 = np.delete(pts1, bad, axis=0)
+#        pts2 = np.delete(pts2, bad, axis=0)
+
+#        if len(pts1) < threshold_star:
+#            tform = tf.SimilarityTransform(translation=(-xshift, -yshift))
+
+#            break
+#        tform = tf.estimate_transform('affine', pts1[:, :2], pts2[:, :2])
+#        model = point_transformation(tform.params, pts1)
+#        distances = (pts2[:, 0] - model[0]) ** 2 + (pts2[:, 1] - model[1]) ** 2
+#        bad = np.where(distances > np.percentile(distances, 99))[0]
+#        RMS = np.std(distances ** 0.5)
+#        print(RMS, ' pixels for ', len(pts1), 'stars')
+
+#    return tform
+
+def extract_catalog(reduction_metadata, data_image, row_index):
+
+
+    central_region_x, central_region_y = np.shape(data_image)
+    center_x, center_y = int(central_region_x / 2), int(central_region_y / 2)
+
+    mean_data, median_data, std_data = sigma_clipped_stats(
+        data_image, sigma=3.0, maxiters=5)
+    data_fwhm_x = reduction_metadata.images_stats[1][row_index]['FWHM_X']
+    data_fwhm_y = reduction_metadata.images_stats[1][row_index]['FWHM_Y']
+    data_fwhm = (data_fwhm_x ** 2 + data_fwhm_y ** 2) ** 0.5
+    daofind2 = DAOStarFinder(fwhm=max(data_fwhm_x, data_fwhm_y),
+                             ratio=min(data_fwhm_x, data_fwhm_y) / max(data_fwhm_x, data_fwhm_y),
+                             threshold=3. * std_data, exclude_border=True)
+
+    data_sources = daofind2.find_stars(data_image - median_data)
+
+    return data_sources, data_fwhm
+
+
+def crossmatch_catalogs(ref_sources, data_sources, x_shift = 0 ,y_shift = 0):
+
+
+    data_sources_x, data_sources_y = np.copy(data_sources['xcentroid'].data), np.copy(
+        data_sources['ycentroid'].data)
+
+    # correct for shift to facilitate cross-match
+    data_sources_x -= x_shift
+    data_sources_y -= y_shift
+
+    pts1, pts2, matching = reformat_catalog2(np.c_[ref_sources['xcentroid'], ref_sources['ycentroid']], np.c_[
+        data_sources['xcentroid'] - x_shift, data_sources['ycentroid'] - y_shift],
+                                             distance_threshold=8)
+    pts1 = np.c_[data_sources_x + x_shift, data_sources_y + y_shift][matching[:, 1]]
+    pts2[:, 0] -= 0
+    pts2[:, 1] -= 0
+    order = ref_sources['flux'][matching[:, 0]].argsort()[::-1]
+
+    pts1 = pts1[order][:]
+    pts2 = pts2[order][:]
+
+    # model_robust, inliers = ransac(( pts1,pts2), tf. AffineTransform,min_samples=10, residual_threshold=0.05, max_trials=300)
+    pts1 = np.c_[pts1, [1] * len(pts1)]
+    pts2 = np.c_[pts2, [1] * len(pts2)]
+
+    e_pos = 0.6  / data_sources['flux'][matching[:, 1]][order][:].data ** 0.5 # Kozlowski 2006
+
+    return pts1,pts2,e_pos
+
+def refine_positions(image,positions):
+
+    Y,X = np.ogrid[:image.shape[0], :image.shape[1]]
+
+    fake_image = np.zeros(image.shape)
+
+    refine_positions = np.copy(positions)
+    for idx,pos in enumerate(positions):
+
+        dist_from_center = ((X - pos[1]) ** 2 + (Y - pos[0]) ** 2)
+
+        mask = dist_from_center<pos[2]**2
+
+        fake_image[mask] = image[mask]
+
+        com = centroid_com(fake_image)
+
+        fake_image[mask] = 0
+
+        refine_positions[idx,:2] = com[::-1]
+
+    return refine_positions
+
+def resample_image(new_images, reference_image_name, reference_image_directory, reduction_metadata, setup,
+                   data_image_directory, resampled_directory_path, ref_row_index, px_scale, log=None,
+                   mask_extension_in=-1):
+    from skimage.feature import ORB, match_descriptors, plot_matches
+    from skimage.measure import ransac
+    import sep
+
+    if len(new_images) > 0:
+
+        reference_image_hdu = fits.open(os.path.join(reference_image_directory, reference_image_name), memmap=True)
+        reference_image = reference_image_hdu[0].data
+
+        ref_sources,ref_fwhm = extract_catalog(reduction_metadata, reference_image, ref_row_index)
+
+    #pts_reference = sf.blob_log(reference_image, min_sigma=2, max_sigma=5, threshold=1)
+    #pts_reference = refine_positions(reference_image, pts_reference)
+    master_mask = 0
+
+    for new_image in new_images:
+        print(new_image)
+
+        row_index = np.where(reduction_metadata.images_stats[1]['IM_NAME'] == new_image)[0][0]
+        x_shift, y_shift = -reduction_metadata.images_stats[1][row_index]['SHIFT_X'], - \
+            reduction_metadata.images_stats[1][row_index]['SHIFT_Y']
+
+        data_image_hdu = fits.open(os.path.join(data_image_directory, new_image), memmap=True)
+        data_image = data_image_hdu[0].data
+
+        if mask_extension_in > len(data_image_hdu) - 1 or mask_extension_in == -1:
+            mask_extension = -1
+            mask_image = np.zeros(data_image.shape)
+        else:
+            mask_extension = mask_extension_in
+            mask_image = np.array(data_image_hdu[mask_extension].data, dtype=float)
+
+        shifted_mask = np.copy(mask_image)
+        shifted = np.copy(data_image)
+
+        iteration = 0
+        corr_ini = np.corrcoef(reference_image.ravel(), shifted.ravel())[0, 1]
+        while iteration <3:
 
 
 
-        shifted = tf.warp(data_image, inverse_map=model_final.inverse, preserve_range=True)
+
+            data_sources,data_fwhm = extract_catalog(reduction_metadata, shifted, row_index)
+            #pts_data = sf.blob_doh(shifted, min_sigma=2, max_sigma=5, threshold=1)
+            #pts_data = refine_positions(shifted,pts_data)
+
+           # import pdb;
+           # pdb.set_trace()
+            try:
+                if iteration > 0 :
+
+                    x_shift = 0
+                    y_shift = 0
+                    original_matrix = model_final.params
+
+                else:
+
+                    original_matrix = np.identity(3)
+
+                pts_data,pts_reference,e_pos = crossmatch_catalogs(ref_sources, data_sources, x_shift,y_shift )
+
+                pts_reference2 = pts_reference
+
+                #e_pos *= data_fwhm
+
+                ##model_robust, inliers = ransac((pts_data[:, :2], pts_reference[:, :2]), tf.ProjectiveTransform, min_samples=int(0.5*len(pts_data)),
+                 #                              residual_threshold=5, max_trials=200)
+
+
+
+               # pts_data[:,0] -= y_shift
+               # pts_data[:,1] -= x_shift
+
+               # match = sf.match_descriptors(pts_reference, pts_data,max_distance = 10)
+               # pts_reference2 = pts_reference[match[:,0]]
+               # pts_data = pts_data[match[:,1]]
+
+
+               # pts_data[:, 0] += y_shift
+               # pts_data[:, 1] += x_shift
+
+                model_robust, inliers = ransac((pts_data[:, :2], pts_reference2[:, :2]), tf.ProjectiveTransform, min_samples=min(500,int(0.1*len(pts_data))), residual_threshold=10.0,max_trials=100)
+
+                model_final = model_robust
+
+                print('Using Projective Transformation')
+
+            except:
+
+                model_final = tf.SimilarityTransform(translation=(-x_shift, -y_shift))
+                print('Using XY shifts')
+
+            model_final.params = np.dot(original_matrix,model_final.params)
+
+            shifted = tf.warp(data_image, inverse_map=model_final.inverse, output_shape=data_image.shape, order=3,
+                              mode='constant', cval=np.median(data_image), clip=False, preserve_range=False)
+
+            shifted_mask = tf.warp(shifted_mask, inverse_map=model_final.inverse, preserve_range=True)
+
+            corr = np.corrcoef(reference_image.ravel(),shifted.ravel())[0,1]
+
+            print(iteration,len(pts_data[inliers]),corr_ini,corr)
+
+            iteration += 1
+
+
+
+        master_mask += shifted_mask
 
         if mask_extension > -1:
-            shifted_mask = tf.warp(mask_image, inverse_map=model_final.inverse, preserve_range=True)
-        # import pdb;
-        # pdb.set_trace()
-        manual_transformation(model_final.params, (0, 0), data_image)
-        #import matplotlib.pyplot as plt
-        #fff,aaa = plt.subplots(3,1,sharex=True,sharey=True)
-        #aaa[0].imshow(reference_image,vmin=0,vmax=10000)
-        #aaa[1].imshow(shifted,vmin=0,vmax=10000)
-        #aaa[2].imshow(shifted-reference_image,vmin=-10000,vmax=10000)
-        #plt.show()
-        #import pdb;
-        #pdb.set_trace()
-        try:
+            shifted_mask = tf.warp(shifted_mask, inverse_map=model_final.inverse, preserve_range=True)
 
-            # shifted = cosmicray_lacosmic(shifted, sigclip=4., objlim = 4)[0]
-            pxs = float(np.shape(shifted)[0] * np.shape(shifted)[1])
-            zerovals = float(len(np.where(shifted == 0.)[0]))
-            if zerovals / pxs < 1.0:
-                resampled_image_hdu = fits.PrimaryHDU(shifted)
-                resampled_image_hdu.writeto(os.path.join(resampled_directory_path, new_image), overwrite=True)
-                if mask_extension > -1:
-                    if os.path.exists(
-                            os.path.join(reduction_metadata.data_architecture[1]['REF_PATH'][0], 'master_mask.fits')):
-                        mask = fits.open(
-                            os.path.join(reduction_metadata.data_architecture[1]['REF_PATH'][0], 'master_mask.fits'))
-                        bpm_mask = shifted_mask > 0.
-                        mask[0].data[bpm_mask] = mask[0].data[bpm_mask] + 1
-                        mask[0].data = np.array(mask[0].data, dtype=np.int)
-                        mask.writeto(
-                            os.path.join(reduction_metadata.data_architecture[1]['REF_PATH'][0], 'master_mask.fits'),
-                            overwrite=True)
-                    else:
-                        bpm_mask = shifted_mask > 0.
-                        mask_out = np.zeros(np.shape(shifted_mask))
-                        mask_out[bpm_mask] = 1.
-                        resampled_mask_hdu = fits.PrimaryHDU(np.array(mask_out, dtype=np.int))
-                        resampled_mask_hdu.writeto(
-                            os.path.join(reduction_metadata.data_architecture[1]['REF_PATH'][0], 'master_mask.fits'),
-                            overwrite=True)
+        resampled_image_hdu = fits.PrimaryHDU(shifted)
+        resampled_image_hdu.writeto(os.path.join(resampled_directory_path, new_image), overwrite=True)
 
-        except Exception as e:
-            resampled_image_hdu = fits.PrimaryHDU(data_image)
-            resampled_image_hdu.writeto(os.path.join(resampled_directory_path, new_image), overwrite=True)
-            if log is not None:
-                logs.ifverbose(log, setup, 'resampling failed:' + new_image + '. skipping! ' + str(e))
-            else:
-                print(str(e))
+    master_mask_hdu = fits.PrimaryHDU(master_mask)
+    master_mask_hdu.writeto(os.path.join(reference_image_directory, 'master_mask.fits'), overwrite=True)
 
 
 def reformat_catalog(idx_match, dist2d, ref_sources, data_sources, central_region_x, distance_threshold=1.5,

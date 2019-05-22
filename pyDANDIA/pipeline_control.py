@@ -21,7 +21,7 @@ def pipeline_control():
     
     pipeline_version = 'pipeline_control v0.1'
     
-    setup = get_pipeline_setup()
+    setup = get_args()
 
     log = logs.start_pipeline_log(setup.log_dir, 'pipeline_control', 
                                version=pipeline_version)
@@ -41,24 +41,24 @@ def get_args(debug=False):
     
     if debug == True:
         
-        params['red_dir'] = cwd
+        params['base_dir'] = cwd
         
     elif debug == False and len(argv) == 1:
         
-        params['red_dir'] = raw_input('Please enter the path to the base directory: ')
+        params['base_dir'] = input('Please enter the path to the base directory: ')
         
     elif debug == False and len(argv) > 1:
 
-        params['red_dir'] = argv[1]
+        params['base_dir'] = argv[1]
     
-    if path.isdir(params['red_dir']) == False:
+    if path.isdir(params['base_dir']) == False:
         
-        print('ERROR: Cannot find reduction base directory '+params['red_dir'])
+        print('ERROR: Cannot find reduction base directory '+params['base_dir'])
     
-    params['log_dir'] = path.join(params['red_dir'],'logs')
-    params['pipeline_config_dir'] = path.join(params['red_dir'],'..','config')
+    params['log_dir'] = path.join(params['base_dir'],'logs')
+    params['pipeline_config_dir'] = path.join(params['base_dir'],'config')
     
-    setup = pipeline_setup.PipelineSetup(params)
+    setup = pipeline_setup.pipeline_setup(params)
     
     return setup
     
@@ -89,7 +89,8 @@ def get_datasets_for_reduction(setup,log):
         
         for line in file_lines:
             
-            datasets.append(line.replace('\n',''))
+            if len(line.replace('\n','')) > 0:
+                datasets.append(line.replace('\n',''))
             
             log.info(datasets[-1])
             
@@ -103,12 +104,13 @@ def get_datasets_for_reduction(setup,log):
         
         for item in dir_list:
             
-            if 'logs' not in item and 'config' not in item:
+            if 'logs' not in item and 'config' not in item \
+                and len(path.basename(item)) > 0:
                 
                 datasets.append(path.basename(item))
                 
                 log.info(datasets[-1])
-            
+
     return datasets
 
 

@@ -206,7 +206,6 @@ def test_fit_star_existing_model():
     
     psf_image = psf.model_psf_in_image(image,sub_psf_model,
                             [x_cen,y_cen],
-                            corners,
                             diagnostics=True)
     
     residuals = image - psf_image
@@ -307,7 +306,6 @@ def test_fit_existing_psf_stamp():
 
     psf_image = psf.model_psf_in_image(image, sub_psf_model,
                             [x_psf_cen,y_psf_cen], 
-                            corners,
                             diagnostics=True)
                             
     residuals = image - psf_image
@@ -649,7 +647,7 @@ def test_model_psf_in_image():
                                     over_edge=True, diagnostics=False)
 
     psf_image =  psf.model_psf_in_image(image, psf_model, 
-                                             star_data, corners, 
+                                             star_data, 
                                              diagnostics=True)
     
     assert type(psf_image) == type(image)

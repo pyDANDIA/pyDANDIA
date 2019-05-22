@@ -137,7 +137,7 @@ def get_args():
     
     if len(argv) == 1:
         
-        input_file = raw_input('Please enter the path to the parameter file: ')
+        input_file = input('Please enter the path to the parameter file: ')
 
     else:
 
@@ -474,7 +474,7 @@ def measure_photometric_source_colours(params,target,log):
         setattr(target,'fb_'+f2, blend_flux)
         setattr(target,'sig_fb_'+f2, sig_blend_flux)
         
-        plot_file = path.join(params['red_dir'], 'flux_curve_'+f1+'_'+f2+'.png')
+        plot_file = path.join(params['red_dir'], 'flux_curve_'+f1+'_'+f2+'.eps')
     
         phot_source_colour.plot_bicolour_flux_curves(target.lightcurves[f1],
                                                      target.lightcurves[f2],
@@ -652,14 +652,28 @@ def plot_crosshairs(fig,xvalue,yvalue,linecolour):
     ydata = np.zeros(len(xdata))
     ydata.fill(yvalue)
     
-    plt.plot(xdata, ydata, linecolour+'-')
+    plt.plot(xdata, ydata, linecolour+'-', alpha=0.5)
     
     ydata = np.linspace(ymin,ymax,10.0)
     xdata = np.zeros(len(ydata))
     xdata.fill(xvalue)
     
-    plt.plot(xdata, ydata, linecolour+'-')
+    plt.plot(xdata, ydata, linecolour+'-', alpha=0.5)
     
+def plot_extinction_vector(fig,params,yaxis_filter):
+    """Function to add a extinction vector to a colour-magnitude diagram."""
+    
+    [xmin,xmax,ymin,ymax] = plt.axis()
+    
+    deltay = (ymin-ymax) * 0.1
+    deltax = (xmax-xmin) * 0.1
+    
+    ystart = ymin-deltay-params['A_'+yaxis_filter]
+    
+    plt.arrow(xmin+deltax, ystart, 0.0, params['A_'+yaxis_filter], 
+              color='k', head_width=deltax*0.1, head_length=deltay/4.0)
+    
+    plt.text((xmin+deltax*0.9),ystart,'$A_'+yaxis_filter+'$')
     
 def plot_colour_mag_diagram(params,mags, colours, local_mags, local_colours, 
                             target, source, blend, RC, blue_filter, red_filter, 
@@ -691,6 +705,7 @@ def plot_colour_mag_diagram(params,mags, colours, local_mags, local_colours,
     add_source = True
     add_blend = True
     add_rc_centroid = True
+    add_extinction_vector = True
     
     fig = plt.figure(1,(10,10))
     
@@ -714,7 +729,7 @@ def plot_colour_mag_diagram(params,mags, colours, local_mags, local_colours,
         plt.errorbar(getattr(source,col_key), getattr(source,yaxis_filter), 
                  yerr = getattr(source,'sig_'+yaxis_filter),
                  xerr = getattr(source,'sig_'+col_key), color='m',
-                 marker='d',markersize=10, label='Source')
+                 marker='d',markersize=10, label='Source crosshairs')
         
         if add_crosshairs:
             plot_crosshairs(fig,getattr(source,col_key),getattr(source,yaxis_filter),'m')
@@ -760,7 +775,7 @@ def plot_colour_mag_diagram(params,mags, colours, local_mags, local_colours,
                  yerr=getattr(RC,'sig_'+yaxis_filter), 
                  xerr=getattr(RC,'sig_'+col_key),
                  color='g', marker='s',markersize=10, label='Red Clump centroid')
-                 
+    
     plt.xlabel('SDSS ('+blue_filter+'-'+red_filter+') [mag]')
 
     plt.ylabel('SDSS-'+yaxis_filter+' [mag]')
@@ -777,21 +792,24 @@ def plot_colour_mag_diagram(params,mags, colours, local_mags, local_colours,
         
     plot_file = path.join(params['red_dir'],'colour_magnitude_diagram_'+\
                                             yaxis_filter+'_vs_'+blue_filter+red_filter\
-                                            +'.png')
+                                            +'.pdf')
 
     plt.grid()
         
     if red_filter == 'i' and blue_filter == 'r' and yaxis_filter == 'i':
-        plt.axis([-0.5,2.0,20.2,13.5])
+        plt.axis([0.5,2.0,20.2,13.5])
         
     if red_filter == 'i' and blue_filter == 'r' and yaxis_filter == 'r':
-        plt.axis([-0.5,2.0,21.0,13.5])
+        plt.axis([0.0,1.5,21.0,13.5])
         
     if red_filter == 'r' and blue_filter == 'g':
         plt.axis([0.5,3.0,22.0,14.0])
     
     if red_filter == 'i' and blue_filter == 'g':
         plt.axis([0.5,4.4,22.0,14.0])
+    
+    if add_extinction_vector:
+        plot_extinction_vector(fig,params,yaxis_filter)
         
     box = ax.get_position()
     ax.set_position([box.x0, box.y0 + box.height * -0.025,
@@ -807,7 +825,7 @@ def plot_colour_mag_diagram(params,mags, colours, local_mags, local_colours,
     plt.rc('xtick', labelsize=18) 
     plt.rc('ytick', labelsize=18)
     
-    plt.savefig(plot_file)
+    plt.savefig(plot_file,bbox_inches='tight')
 
     plt.close(1)
     
@@ -893,7 +911,10 @@ def plot_colour_colour_diagram(params,star_catalog,catalog_header,
                              color='m',marker='d',markersize=10, label='Source')
         
         if blend.gr_0 != None and blend.ri_0 != None and add_blend:
-            plt.plot(blend.gr_0, blend.ri_0,'bv',markersize=10, label='Blend')
+            #plt.plot(blend.gr_0, blend.ri_0,'bv',markersize=10, label='Blend')
+            plt.errorbar(blend.gr_0, blend.ri_0, 
+                         yerr = blend.sig_gr_0, xerr = blend.sig_ri_0, 
+                             color='b',marker='v',markersize=10, label='Blend')
 
         if target.lightcurves['g'] != None and target.lightcurves['r'] != None\
             and target.lightcurves['i'] != None and add_target_trail:
@@ -921,31 +942,33 @@ def plot_colour_colour_diagram(params,star_catalog,catalog_header,
             spt = spectral_type[i]+luminosity_class[i]
             
             if luminosity_class[i] == 'V':
-                c = 'k'
+                c = '#8d929b'
             else:
-                c = 'k'
+                c = '#8d929b'
                         
             if luminosity_class[i] == 'III' and plot_giants:
                 
-                plt.plot(gr_colour[i], ri_colour[i], marker='s', color=c, alpha=0.5)
+                plt.plot(gr_colour[i], ri_colour[i], marker='s', color=c, 
+                         markeredgecolor='k', alpha=0.5)
 
                 plt.annotate(spt, (gr_colour[i], ri_colour[i]-0.1), 
-                                color=c, size=10, rotation=-30.0, alpha=1.0)
+                                color='k', size=10, rotation=-30.0, alpha=1.0)
 
             if luminosity_class[i] == 'V' and plot_dwarfs:
                 
-                plt.plot(gr_colour[i], ri_colour[i], marker='s', color=c, alpha=0.5)
+                plt.plot(gr_colour[i], ri_colour[i], marker='s', color=c, 
+                         markeredgecolor='k', alpha=0.5)
 
                 plt.annotate(spt, (gr_colour[i], 
                                ri_colour[i]+0.1), 
-                                 color=c, size=10, 
+                                 color='k', size=10, 
                                  rotation=-30.0, alpha=1.0)
 
         plt.xlabel('SDSS (g-r) [mag]')
     
         plt.ylabel('SDSS (r-i) [mag]')
         
-        plot_file = path.join(params['red_dir'],'colour_colour_diagram.png')
+        plot_file = path.join(params['red_dir'],'colour_colour_diagram.pdf')
         
         plt.axis([-1.0,2.0,-1.0,1.0])
         
@@ -975,7 +998,7 @@ def plot_colour_colour_diagram(params,star_catalog,catalog_header,
         plt.rc('xtick', labelsize=18) 
         plt.rc('ytick', labelsize=18)
     
-        plt.savefig(plot_file)
+        plt.savefig(plot_file,bbox_inches='tight')
     
         plt.close(1)
         
@@ -1058,7 +1081,7 @@ def calibrate_instrumental_colour_colour_diagram(params,star_catalog,
         
             plt.ylabel('SDSS (r-i) [mag]')
             
-            plot_file = path.join(params['red_dir'],'calib_colour_colour_diagram.png')
+            plot_file = path.join(params['red_dir'],'calib_colour_colour_diagram.eps')
             
             plt.grid()
             
@@ -1103,7 +1126,7 @@ def plot_phot_transform(params, inst_mag, cal_mag, bandpass):
     plt.axis([xmax,xmin,ymax,ymin])
     
     plt.savefig(path.join(params['red_dir'],
-                'phot_transform_'+bandpass+'.png'))
+                'phot_transform_'+bandpass+'.eps'))
 
     plt.close(2)
 
@@ -1521,7 +1544,7 @@ def output_red_clump_data_latex(params,RC,log):
     
     t.write('\\begin{table}[h!]\n')
     t.write('\\centering\n')
-    t.write('\\caption{Photometric properties of the Red Clump, with absolute magnitudes (M) taken from \cite{Ruiz-Dern2018}, and the measured properties from ROME data.} \label{tab:RCproperties}\n')
+    t.write('\\caption{Photometric properties of the Red Clump, with absolute magnitudes ($M_{\\lambda}$) taken from \cite{Ruiz-Dern2018}, and the measured properties from ROME data.} \label{tab:RCproperties}\n')
     t.write('\\begin{tabular}{ll}\n')
     t.write('\\hline\n')
     t.write('\\hline\n')
@@ -1562,27 +1585,27 @@ def output_source_blend_data_latex(params,source,blend,log):
 
     t.write('\\begin{table}[h!]\n')
     t.write('\\centering\n')
-    t.write('\\caption{Photometric properties of the source star (s) and blend (b).} \label{tab:targetphot}\n')
+    t.write('\\caption{Photometric properties of the source star (S) and blend (b).} \label{tab:targetphot}\n')
     t.write('\\begin{tabular}{llll}\n')
     t.write('\\hline\n')
     t.write('\\hline\n')
-    t.write('$m_{g,s}$ & '+convert_ndp(source.g,3)+' $\pm$ '+convert_ndp(source.sig_g,3)+'\,mag & $m_{g,b}$ & '+convert_ndp(blend.g,3)+' $\pm$ '+convert_ndp(blend.sig_g,3)+'\,mag\\\\\n')
-    t.write('$m_{r,s}$ & '+convert_ndp(source.r,3)+' $\pm$ '+convert_ndp(source.sig_r,3)+'\,mag & $m_{r,b}$ & '+convert_ndp(blend.r,3)+' $\pm$ '+convert_ndp(blend.sig_r,3)+'\,mag\\\\\n')
-    t.write('$m_{i,s}$ & '+convert_ndp(source.i,3)+' $\pm$ '+convert_ndp(source.sig_i,3)+'\,mag & $m_{i,b}$ & '+convert_ndp(blend.i,3)+' $\pm$ '+convert_ndp(blend.sig_i,3)+'\,mag\\\\\n')
-    t.write('$(g-r)_{s}$ & '+convert_ndp(source.gr,3)+' $\pm$ '+convert_ndp(source.sig_gr,3)+'\,mag & $(g-r)_{b}$ & '+convert_ndp(blend.gr,3)+' $\pm$ '+convert_ndp(blend.sig_gr,3)+'\,mag\\\\\n')
-    t.write('$(g-i)_{s}$ & '+convert_ndp(source.gi,3)+' $\pm$ '+convert_ndp(source.sig_gi,3)+'\,mag & $(g-i)_{b}$ & '+convert_ndp(blend.gi,3)+' $\pm$ '+convert_ndp(blend.sig_gi,3)+'\,mag\\\\\n')
-    t.write('$(r-i)_{s}$ & '+convert_ndp(source.ri,3)+' $\pm$ '+convert_ndp(source.sig_ri,3)+'\,mag & $(r-i)_{b}$ & '+convert_ndp(blend.ri,3)+' $\pm$ '+convert_ndp(blend.sig_ri,3)+'\,mag\\\\\n')
+    t.write('$m_{g,\\rm S}$ & '+convert_ndp(source.g,3)+' $\pm$ '+convert_ndp(source.sig_g,3)+'\,mag & $m_{g,b}$ & '+convert_ndp(blend.g,3)+' $\pm$ '+convert_ndp(blend.sig_g,3)+'\,mag\\\\\n')
+    t.write('$m_{r,\\rm S}$ & '+convert_ndp(source.r,3)+' $\pm$ '+convert_ndp(source.sig_r,3)+'\,mag & $m_{r,b}$ & '+convert_ndp(blend.r,3)+' $\pm$ '+convert_ndp(blend.sig_r,3)+'\,mag\\\\\n')
+    t.write('$m_{i,\\rm S}$ & '+convert_ndp(source.i,3)+' $\pm$ '+convert_ndp(source.sig_i,3)+'\,mag & $m_{i,b}$ & '+convert_ndp(blend.i,3)+' $\pm$ '+convert_ndp(blend.sig_i,3)+'\,mag\\\\\n')
+    t.write('$(g-r)_{\\rm S}$ & '+convert_ndp(source.gr,3)+' $\pm$ '+convert_ndp(source.sig_gr,3)+'\,mag & $(g-r)_{b}$ & '+convert_ndp(blend.gr,3)+' $\pm$ '+convert_ndp(blend.sig_gr,3)+'\,mag\\\\\n')
+    t.write('$(g-i)_{\\rm S}$ & '+convert_ndp(source.gi,3)+' $\pm$ '+convert_ndp(source.sig_gi,3)+'\,mag & $(g-i)_{b}$ & '+convert_ndp(blend.gi,3)+' $\pm$ '+convert_ndp(blend.sig_gi,3)+'\,mag\\\\\n')
+    t.write('$(r-i)_{\\rm S}$ & '+convert_ndp(source.ri,3)+' $\pm$ '+convert_ndp(source.sig_ri,3)+'\,mag & $(r-i)_{b}$ & '+convert_ndp(blend.ri,3)+' $\pm$ '+convert_ndp(blend.sig_ri,3)+'\,mag\\\\\n')
 #    t.write('$m_{g,s,0}$ & '+convert_ndp(source.g_0,3)+' $\pm$ '+convert_ndp(source.sig_g_0,3)+'\,mag & $m_{g,b,0}$ & '+convert_ndp(blend.g_0,3)+' $\pm$ '+convert_ndp(blend.sig_g_0,3)+'\,mag\\\\\n')
 #    t.write('$m_{r,s,0}$ & '+convert_ndp(source.r_0,3)+' $\pm$ '+convert_ndp(source.sig_r_0,3)+'\,mag & $m_{r,b,0}$ & '+convert_ndp(blend.r_0,3)+' $\pm$ '+convert_ndp(blend.sig_r_0,3)+'\,mag\\\\\n')
 #    t.write('$m_{i,s,0}$ & '+convert_ndp(source.i_0,3)+' $\pm$ '+convert_ndp(source.sig_i_0,3)+'\,mag & $m_{i,b,0}$ & '+convert_ndp(blend.i_0,3)+' $\pm$ '+convert_ndp(blend.sig_i_0,3)+'\,mag\\\\\n')
 #    t.write('$(g-r)_{s,0}$ & '+convert_ndp(source.gr_0,3)+' $\pm$ '+convert_ndp(source.sig_gr_0,3)+'\,mag & $(g-r)_{b,0}$ & '+convert_ndp(blend.gr_0,3)+' $\pm$ '+convert_ndp(blend.sig_gr_0,3)+'\,mag\\\\\n')
 #    t.write('$(r-i)_{s,0}$ & '+convert_ndp(source.ri_0,3)+' $\pm$ '+convert_ndp(source.sig_ri_0,3)+'\,mag & $(r-i)_{b,0}$ & '+convert_ndp(blend.ri_0,3)+' $\pm$ '+convert_ndp(blend.sig_ri_0,3)+'\,mag\\\\\n')
-    t.write('$m_{g,s,0}$ & '+convert_ndp(source.g_0,3)+' $\pm$ '+convert_ndp(source.sig_g_0,3)+'\,mag &  & \\\\\n')
-    t.write('$m_{r,s,0}$ & '+convert_ndp(source.r_0,3)+' $\pm$ '+convert_ndp(source.sig_r_0,3)+'\,mag &  & \\\\\n')
-    t.write('$m_{i,s,0}$ & '+convert_ndp(source.i_0,3)+' $\pm$ '+convert_ndp(source.sig_i_0,3)+'\,mag &  & \\\\\n')
-    t.write('$(g-r)_{s,0}$ & '+convert_ndp(source.gr_0,3)+' $\pm$ '+convert_ndp(source.sig_gr_0,3)+'\,mag &  & \\\\\n')
-    t.write('$(g-i)_{s,0}$ & '+convert_ndp(source.gi_0,3)+' $\pm$ '+convert_ndp(source.sig_gi_0,3)+'\,mag &  & \\\\\n')
-    t.write('$(r-i)_{s,0}$ & '+convert_ndp(source.ri_0,3)+' $\pm$ '+convert_ndp(source.sig_ri_0,3)+'\,mag &  & \\\\\n')
+    t.write('$m_{g,\\rm S,0}$ & '+convert_ndp(source.g_0,3)+' $\pm$ '+convert_ndp(source.sig_g_0,3)+'\,mag &  & \\\\\n')
+    t.write('$m_{r,\\rm S,0}$ & '+convert_ndp(source.r_0,3)+' $\pm$ '+convert_ndp(source.sig_r_0,3)+'\,mag &  & \\\\\n')
+    t.write('$m_{i,\\rm S,0}$ & '+convert_ndp(source.i_0,3)+' $\pm$ '+convert_ndp(source.sig_i_0,3)+'\,mag &  & \\\\\n')
+    t.write('$(g-r)_{\\rm S,0}$ & '+convert_ndp(source.gr_0,3)+' $\pm$ '+convert_ndp(source.sig_gr_0,3)+'\,mag &  & \\\\\n')
+    t.write('$(g-i)_{\\rm S,0}$ & '+convert_ndp(source.gi_0,3)+' $\pm$ '+convert_ndp(source.sig_gi_0,3)+'\,mag &  & \\\\\n')
+    t.write('$(r-i)_{\\rm S,0}$ & '+convert_ndp(source.ri_0,3)+' $\pm$ '+convert_ndp(source.sig_ri_0,3)+'\,mag &  & \\\\\n')
     t.write('\\hline\n')
     t.write('\\end{tabular}\n')
     t.write('\\end{table}\n')
@@ -1605,16 +1628,16 @@ def output_lens_parameters_latex(params,source,lens,log):
     t.write('\\hline\n')
     t.write('\\hline\n')
     t.write('Parameter   &   Units    &   Value \\\\\n')
-    t.write('$\\theta_{\\rm{S}}$  & $\\mu$as     & '+str(round(source.ang_radius,3))+'$\pm$'+str(round(source.sig_ang_radius,3))+'\\\\\n')
-    t.write('$\\theta_{\\rm{E}}$  & $\\mu$as     & '+str(round(lens.thetaE,3))+'$\pm$'+str(round(lens.sig_thetaE,3))+'\\\\\n')
-    t.write('$R_{\\rm{S}}$       & $R_{\\odot}$ & '+str(round(source.radius,3))+'$\pm$'+str(round(source.sig_radius,3))+'\\\\\n')
-    t.write('$M_{L,tot}$        & $M_{\\odot}$ & '+str(round(lens.ML,3))+'$\pm$'+str(round(lens.sig_ML,3))+'\\\\\n')
-    t.write('$M_{L,1}$          & $M_{\\odot}$ & '+str(round(lens.M1,3))+'$\pm$'+str(round(lens.sig_M1,3))+'\\\\\n')
-    t.write('$M_{L,2}$          & $M_{\\odot}$ & '+str(round(lens.M2,3))+'$\pm$'+str(round(lens.sig_M2,3))+'\\\\\n')
-    t.write('$D_{L}$            & Kpc         & '+str(round(lens.D,3))+'$\pm$'+str(round(lens.sig_D,3))+'\\\\\n')
-    t.write('$a_{\\perp}$       & AU          & '+str(round(lens.a_proj,3))+'$\pm$'+str(round(lens.sig_a_proj,3))+'\\\\\n')
-#    t.write('KE/PE              &             & '+str(round(lens.kepe,3))+'$\pm$'+str(round(lens.sig_kepe,3))+'\\\\\n')
-    t.write('$\mu$              & mas yr$^{-1}$ & '+str(round(lens.mu_rel,2))+'$\pm$'+str(round(lens.sig_mu_rel,2))+'\\\\\n')
+    t.write('$\\theta_{\\rm{S}}$  & $\\mu$as     & '+convert_ndp(source.ang_radius,3)+'$\pm$'+convert_ndp(source.sig_ang_radius,3)+'\\\\\n')
+    t.write('$\\theta_{\\rm{E}}$  & $\\mu$as     & '+convert_ndp(lens.thetaE,3)+'$\pm$'+convert_ndp(lens.sig_thetaE,3)+'\\\\\n')
+    t.write('$R_{\\rm{S}}$       & $R_{\\odot}$ & '+convert_ndp(source.radius,3)+'$\pm$'+convert_ndp(source.sig_radius,3)+'\\\\\n')
+    t.write('$M_{L,tot}$        & $M_{\\odot}$ & '+convert_ndp(lens.ML,3)+'$\pm$'+convert_ndp(lens.sig_ML,3)+'\\\\\n')
+    t.write('$M_{L,1}$          & $M_{\\odot}$ & '+convert_ndp(lens.M1,3)+'$\pm$'+convert_ndp(lens.sig_M1,3)+'\\\\\n')
+    t.write('$M_{L,2}$          & $M_{\\odot}$ & '+convert_ndp(lens.M2,3)+'$\pm$'+convert_ndp(lens.sig_M2,3)+'\\\\\n')
+    t.write('$D_{L}$            & Kpc         & '+convert_ndp(lens.D,3)+'$\pm$'+convert_ndp(lens.sig_D,3)+'\\\\\n')
+    t.write('$a_{\\perp}$       & AU          & '+convert_ndp(lens.a_proj,3)+'$\pm$'+convert_ndp(lens.sig_a_proj,3)+'\\\\\n')
+#    t.write('KE/PE              &             & '+convert_ndp(lens.kepe,3)+'$\pm$'+convert_ndp(lens.sig_kepe,3)+'\\\\\n')
+    t.write('$\mu$              & mas yr$^{-1}$ & '+convert_ndp(lens.mu_rel,2)+'$\pm$'+convert_ndp(lens.sig_mu_rel,2)+'\\\\\n')
     t.write('\\hline\n')
     t.write('\\end{tabular}\n')
     t.write('\\end{table}\n')

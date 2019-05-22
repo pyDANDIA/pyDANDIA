@@ -11,3 +11,7 @@ astroquery
 scikit-image
 ccdproc
 setuptools
+pyslalib
+uncertainties
+pystackreg
+astroalign

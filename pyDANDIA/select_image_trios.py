@@ -70,7 +70,7 @@ class TriColourDataset:
         
         qc = ['0']*len(names)
         
-        image_table = np.array(zip(names,f,fwhmx,fwhmy,sky,qc))
+        image_table = np.array(list(zip(names,f,fwhmx,fwhmy,sky,qc)))
         
         idx = np.argsort(image_table[:,0])
         

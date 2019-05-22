@@ -263,6 +263,12 @@
 	"format":"float",
 	"unit":""
     }, 
+    "max_psf_stars": {
+        "comment": "max_psf_stars - INT - Maximum number of PSF stars to select (default=2000).", 
+        "value": 2000,
+	"format":"int",
+	"unit":""
+    }, 
     "replace_cr": {
         "comment": "replace_cr - INT - Switch for replacing pixel values that have been contaminated by cosmic ray events (0 = NO : 1 = YES : Default value = 0).", 
         "value": 0,

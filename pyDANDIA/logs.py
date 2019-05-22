@@ -6,7 +6,7 @@ Created on Thu Jul 20 12:43:20 2017
 """
 
 import logging
-from os import path, remove
+from os import path, remove, makedirs
 from sys import exit
 from astropy.time import Time
 from datetime import datetime
@@ -37,10 +37,13 @@ def start_stage_log( log_dir, stage_name, version=None ):
     # Console output not captured, though code remains for testing purposes
     console = False
 
+    if path.isdir(log_dir) == False:
+        makedirs(log_dir)
+        
     log_file = path.join(log_dir, stage_name+'.log')
     if path.isfile(log_file) == True:
         remove(log_file)
-        
+    
     # To capture the logging stream from the whole script, create
     # a log instance together with a console handler.  
     # Set formatting as appropriate.
@@ -129,6 +132,9 @@ def start_pipeline_log( log_dir, log_name, version=None ):
 
     ts = datetime.utcnow()
 
+    if path.isdir(log_dir) == False:
+        makedirs(log_dir)
+        
     log_file = path.join(log_dir, log_name+'_'+ts.strftime("%Y-%m-%d")+'.log')
         
     # To capture the logging stream from the whole script, create

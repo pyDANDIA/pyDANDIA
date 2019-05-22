@@ -4,7 +4,8 @@ Created on Wed Oct 11 17:04:53 2017
 
 @author: rstreet
 """
-
+import matplotlib
+matplotlib.use('Agg')
 from os import getcwd, path, remove
 from sys import argv, exit
 from sys import path as systempath
@@ -15,6 +16,9 @@ from pyDANDIA import stage0
 from pyDANDIA import stage1
 from pyDANDIA import stage2
 from pyDANDIA import stage3
+from pyDANDIA import calibrate_photometry
+from pyDANDIA import reference_astrometry
+from pyDANDIA import stage3_db_ingest
 from pyDANDIA import stage4
 from pyDANDIA import stage5
 #from pyDANDIA.db import astropy_interface
@@ -53,10 +57,22 @@ def run_stage_stand_alone():
     elif params['stage'] == 'stage2':
         
         (status, report) = stage2.run_stage2(setup)
-
+    
+    elif params['stage'] == 'reference_astrometry':
+        
+        (status, report) = reference_astrometry.run_reference_astrometry(setup)
+        
     elif params['stage'] == 'stage3':
         
         (status, report) = stage3.run_stage3(setup)
+
+    elif params['stage'] == 'calibrate_photometry':
+        
+        (status, report) = calibrate_photometry.calibrate_photometry_catalog(setup)
+        
+    elif params['stage'] == 'stage3_db_ingest':
+        
+        (status, report) = stage3_db_ingest.run_stage3_db_ingest(setup, primary_ref=params['primary_ref'])
 
     elif params['stage'] == 'stage4':
 
@@ -86,13 +102,17 @@ def get_args():
     helptext = """              RUN STAGE STAND ALONE
             
             Call sequence is:
-            > python run_stage.py [stage] [path to reduction directory] [-v]
+            > python run_stage.py [stage] [path to reduction directory] [dataset] [-v]
             
             where stage is the name of the stage or code to be run, one of:
-                stage0, stage1, stage2, stage3, stage4, stage5, starfind
+                stage0, stage1, stage2, stage3, stage4, stage5, 
+                starfind, stage3_db_ingest, reference_astrometry
             
             and the path to the reduction directory is given to the dataset
             to be processed
+            
+            and field indicates the name of the field being process 
+            (e.g. ROME-FIELD-0001, etc)
             
             The optional -v flag controls the verbosity of the pipeline 
             logging output.  Values 
@@ -109,15 +129,25 @@ def get_args():
         print(helptext)
         exit()
         
-    if len(argv) < 3:
+    if len(argv) < 4:
         
-        params['stage'] = raw_input('Please enter the name of the stage or code you wish to run: ')
-        params['red_dir'] = raw_input('Please enter the path to the reduction directory: ')
+        params['stage'] = input('Please enter the name of the stage or code you wish to run: ')
+        params['red_dir'] = input('Please enter the path to the reduction directory: ')
+        params['field'] = input('Please enter the name of the field being reduced: ')
     
     else:
         
         params['stage'] = argv[1]
-        params['red_dir'] = argv[2]    
+        params['red_dir'] = argv[2]
+        params['field'] = argv[3]
+    
+    if '-primary-ref' in argv:
+        
+        params['primary_ref'] = True
+        
+    else:
+        
+        params['primary_ref'] = False
     
     if '-v' in argv:
         

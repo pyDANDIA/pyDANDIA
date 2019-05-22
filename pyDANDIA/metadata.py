@@ -138,6 +138,21 @@ class MetaData:
 
         setattr(self, layer_name, layer)
 
+    def create_a_new_layer_from_table(self, layer_name, table_data):
+        """
+        Add a new layer to the metadata object from an astropy Table
+
+        :param string layer_name: the name associated to the layer
+        :param list table_data: an astropy-format Table
+        """
+        
+        layer_header = fits.Header()
+        layer_header.update({'NAME': layer_name})
+        
+        layer = [layer_header, table_data]
+
+        setattr(self, layer_name, layer)
+        
     def create_data_architecture_layer(self, metadata_directory, metadata_name):
         '''
         Create the data architecture layer, which contains the different directories paths, names etc.
@@ -236,7 +251,7 @@ class MetaData:
                           units]
         self.create_a_new_layer(layer_name, data_structure, data)
 
-    def create_star_catalog_layer(self,data=None,log=None):
+    def create_star_catalog_layer(self,data=None,log=None,catalog_source='Gaia'):
         """Function to create the layer in the reduction metadata file
         containing the star catalogue of objects detected within the reference
         image.
@@ -246,38 +261,81 @@ class MetaData:
         
         layer_name = 'star_catalog'
         
-        names = [ 'star_index', 
-                'x_pixel', 'y_pixel', 
-                'RA_J2000', 'DEC_J2000',
-                'ref_flux', 'ref_flux_err',
-                'ref_mag', 'ref_mag_err',
-                'J_mag', 'J_mag_err',
-                'H_mag', 'H_mag_err', 
-                'Ks_mag', 'Ks_mag_err',
-                'psf_star']
-        
-        formats = [ 'int',
-                   'float', 'float',
-                   'float', 'float',
-                   'float', 'float',
-                   'float', 'float',
-                   'float', 'float',
-                   'float', 'float',
-                   'float', 'float',
-                   'int'
-                   ]
-                   
-        units = [ None, 
-                 'pixel', 'pixel',
-                 'deg', 'deg',
-                 'DN', 'DN',
-                 'mag', 'mag',
-                 'mag', 'mag',
-                 'mag', 'mag',
-                 'mag', 'mag',
-                 None
-                 ]
-                 
+        if catalog_source == '2MASS':
+            names = [ 'star_index', 
+                    'x_pixel', 'y_pixel', 
+                    'RA_J2000', 'DEC_J2000',
+                    'ref_flux', 'ref_flux_err',
+                    'ref_mag', 'ref_mag_err',
+                    'J_mag', 'J_mag_err',
+                    'H_mag', 'H_mag_err', 
+                    'Ks_mag', 'Ks_mag_err','null',
+                    'psf_star']
+            
+            formats = [ 'int',
+                       'float', 'float',
+                       'float', 'float',
+                       'float', 'float',
+                       'float', 'float',
+                       'float', 'float',
+                       'float', 'float',
+                       'float', 'float','float',
+                       'int'
+                       ]
+                       
+            units = [ None, 
+                     'pixel', 'pixel',
+                     'deg', 'deg',
+                     'DN', 'DN',
+                     'mag', 'mag',
+                     'mag', 'mag',
+                     'mag', 'mag',
+                     'mag', 'mag',None,
+                     None
+                     ]
+            
+        else:
+            names = [ 'star_index', 
+                    'x_pixel', 'y_pixel', 
+                    'RA_J2000', 'DEC_J2000',
+                    'ref_flux', 'ref_flux_err',
+                    'ref_mag', 'ref_mag_err',
+                    'gaia_source_id',
+                    'ra', 'ra_error',
+                    'dec', 'dec_error',
+                    'phot_g_mean_flux', 'phot_g_mean_flux_error',
+                    'phot_bp_mean_flux','phot_bp_mean_flux_error',
+                    'phot_rp_mean_flux', 'phot_rp_mean_flux_error',
+                    'psf_star']
+            
+            formats = [ 'int',
+                       'float', 'float',
+                       'float', 'float',
+                       'float', 'float',
+                       'float', 'float',
+                       'int',
+                       'float', 'float',
+                       'float', 'float',
+                       'float', 'float',
+                       'float', 'float',
+                       'float', 'float',
+                       'int'
+                       ]
+                       
+            units = [ None, 
+                     'pixel', 'pixel',
+                     'deg', 'deg',
+                     'DN', 'DN',
+                     'mag', 'mag',
+                     '',
+                     'deg', 'deg',
+                     'deg', 'deg',
+                     "'electron'.s**-1", "'electron'.s**-1",
+                     "'electron'.s**-1", "'electron'.s**-1",
+                     "'electron'.s**-1", "'electron'.s**-1",
+                     None
+                     ]
+                     
         data_structure = [ names, 
                          formats, 
                          units]
@@ -287,6 +345,28 @@ class MetaData:
         if log != None:
             
             log.info('Output reference source catalogue to reduction metadata')
+
+    def create_software_layer(self,data,log=None):
+        """Function to create a layer in the reduction metadata file
+        detailing the software versions used in the reduction"""
+        
+        layer_name = 'software'
+        
+        names = [ 'stage3_version', 'stage6_version' ]
+        
+        formats = ['S50', 'S50']
+        
+        units = [None, None]
+        
+        data_structure = [ names, 
+                         formats, 
+                         units]
+        
+        self.create_a_new_layer(layer_name, data_structure, data)
+
+        if log != None:
+            
+            log.info('Output software version table to reduction metadata')
 
     def create_phot_calibration_layer(self,data,log=None):
         """Function to create the layer in the reduction metadata file
@@ -300,7 +380,7 @@ class MetaData:
         
         layer_name = 'phot_calib'
         
-        names = [ 'star_index', 'cal_ref_mag', 'cal_ref_mag_err',
+        names = [ 'star_index', 'cal_ref_mag', 'cal_ref_mag_error',
                  '_RAJ2000', '_DEJ2000',
                  'imag', 'e_imag', 'rmag', 'e_rmag', 'gmag', 'e_gmag',
                  'clean'
@@ -481,6 +561,7 @@ class MetaData:
         :param list new_row: the list of values which will be appended to the layer
 
         '''
+
         layer = getattr(self, key_layer)
         layer_keys = layer[1].keys()
 
@@ -608,12 +689,15 @@ class MetaData:
         :rtype: list
         '''
 
+        layer = self.reduction_status
+
         column_name = 'STAGE_'+str(stage_number)
         if rerun_all:
             for name in list_of_images:
-                self.update_a_cell_to_layer('reduction_status', 0,column_name,0)
 
-        layer = self.reduction_status
+                image_row = np.where(layer[1]['IMAGES'] == name)[0]
+                self.update_a_cell_to_layer('reduction_status', image_row,column_name,0)
+
 
         try:
 
@@ -627,9 +711,17 @@ class MetaData:
 
                 for name in list_of_images:
 
-                    image_row = np.where(layer[1]['IMAGES'] == name)[0][0]
+                    image_row = np.where(layer[1]['IMAGES'] == name)[0]
 
-                    if layer[1][image_row][column_name] != '1':
+                    if len(image_row) != 0:
+
+                        if layer[1][image_row[0]][column_name] != '1':
+                            logs.ifverbose(log, setup,
+                                           name + ' is a new image to process by stage number: ' + str(stage_number))
+                            new_images.append(name)
+
+                    else:
+
                         logs.ifverbose(log, setup,
                                        name + ' is a new image to process by stage number: ' + str(stage_number))
                         new_images.append(name)
@@ -640,6 +732,7 @@ class MetaData:
 
         if log != None:
             log.info('Total of ' + str(len(new_images)) + ' images need reduction')
+
 
         return new_images
 
@@ -679,8 +772,12 @@ class MetaData:
             column_name = 'STAGE_'+str(stage_number)
             for image in new_images:
 
-                index_image = np.where(layer[1]['IMAGES'] == image)[0][0]
-                self.update_a_cell_to_layer('reduction_status', index_image, column_name, status)
+                if image in layer[1]['IMAGES'] :
+                    index_image = np.where(layer[1]['IMAGES'] == image)[0][0]
+                    self.update_a_cell_to_layer('reduction_status', index_image, column_name, status)
+                else:
+
+                    self.add_row_to_layer('reduction_status',[image]+number_of_columns*[0])
 
         if log != None:
             log.info('Updated the reduction status layer')

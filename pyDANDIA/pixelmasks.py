@@ -4,6 +4,7 @@ import itertools
 
 def construct_a_master_mask(original_master_mask, list_of_masks,log=None):
     master_mask = original_master_mask
+    
     for index, mask in enumerate(list_of_masks[::-1]):
         master_mask += mask * 2 ** index
         if log!=None:
