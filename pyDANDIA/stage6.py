@@ -492,7 +492,7 @@ def photometry_on_the_difference_image(setup, reduction_metadata, log, star_cata
     'phot_scale_factor', 'phot_scale_factor_err', 'local_background', 'local_background_err', 'residual_x',
     'residual_y')
 
-    column_types = ('i8', 'i8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8')
+    column_types = ('f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8')
     photometric_table = Table(differential_photometry[0], names=column_names, dtype=column_types)
 
     # return table
