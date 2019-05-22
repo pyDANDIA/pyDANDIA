@@ -154,23 +154,19 @@ def run_stage2(setup):
 
     #relax criteria...
     if reference_ranking == []:
+        log.info('No meaningful automatic selection can be made. Assigning random reference. To be updated by hand')
         for stats_entry in reduction_metadata.images_stats[1]:
-            if stats_entry[9] == 1:
+            if stats_entry[9] >= 0:
                 image_filename = stats_entry[0]
                 row_idx = np.where(reduction_metadata.images_stats[1]['IM_NAME'] == image_filename)[0][0]
                 moon_status = 'dark'
-                # to be reactivated as soon as it is part of metadata
-                if 'MOONFKEY' in reduction_metadata.headers_summary[1].keys() and 'MOONDKEY' in reduction_metadata.headers_summary[1].keys():
-                    moon_status = moon_brightness_header(reduction_metadata.headers_summary[1],row_idx)
-    
-                fwhm_arcsec = (float(stats_entry['FWHM_X']) ** 2 + float(stats_entry['FWHM_Y'])**2)**0.5 * float(reduction_metadata.reduction_parameters[1]['PIX_SCALE']) 
+   
                 # extract data inventory row for image and calculate sorting key
-                if int(stats_entry['NSTARS'])>20. and fwhm_arcsec<3.:
-                    ranking_key = add_stage1_rank(reduction_metadata, stats_entry)
-                    reference_ranking.append([image_filename, ranking_key])
-                    entry = [image_filename, moon_status, ranking_key]
-                    reduction_metadata.add_row_to_layer(key_layer='reference_inventory',
-                                                        new_row=entry)
+                ranking_key = 99
+                reference_ranking.append([image_filename, ranking_key])
+                entry = [image_filename, moon_status, ranking_key]
+                reduction_metadata.add_row_to_layer(key_layer='reference_inventory',
+                                                    new_row=entry)
 
     # Save the updated layer to the metadata file
     reduction_metadata.save_a_layer_to_file(metadata_directory=setup.red_dir,
