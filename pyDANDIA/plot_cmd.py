@@ -13,13 +13,14 @@ from astropy import table
 from astropy.coordinates import SkyCoord
 from astropy import units
 from pyDANDIA import  photometry_classes
+from pyDANDIA import  phot_db
 
 def plot_cmd(params):
     """Function to plot a colour-magnitude diagram from a field phot_db"""
     
     conn = phot_db.get_connection(dsn=params['db_file_path'])
 
-    (photometry, filters, refimgs) = extract_reference_instrument_calibrated_photometry()
+    (photometry, filters, refimgs) = extract_reference_instrument_calibrated_photometry(conn)
     
     # Calculate colour data
     
@@ -31,7 +32,7 @@ def get_args():
     
     params = {}
     
-    if len(argv) == 1:
+    if len(argv) == 2:
         
         params['db_file_path'] = input('Please enter the path to the photometry database for the field: ')
         params['output_dir'] = input('Please enter the directory path for output: ')
@@ -43,16 +44,16 @@ def get_args():
     
     return params
     
-def extract_reference_instrument_calibrated_photometry():
+def extract_reference_instrument_calibrated_photometry(conn):
     """Function to extract from the phot_db the calibrated photometry for stars
     in the field from the data from the photometric reference instrument.
     By default this is defined to be lsc.doma.1m0a.fa15.
     """
     
-    ref_facility_code = phot_db.get_facility_code({'site': 'lsc', 
-                                                   'enclosure': 'doma', 
-                                                   'telescope': '1m0a', 
-                                                   'instrument': 'fa15'})
+    facility_code = phot_db.get_facility_code({'site': 'lsc', 
+                                               'enclosure': 'doma', 
+                                               'telescope': '1m0a', 
+                                               'instrument': 'fa15'})
                                                    
     query = 'SELECT facility_id, facility_code FROM facilities WHERE facility_code="'+facility_code+'"'
     
