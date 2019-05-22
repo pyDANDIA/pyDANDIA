@@ -483,7 +483,7 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
 
     #radius = half_psf + 1
 
-    positions = ref_star_catalog[:, [1, 2]]
+    positions = np.array(ref_star_catalog[:, [1, 2]]).astype(np.float)
     pixscale = reduction_metadata.reduction_parameters[1]['PIX_SCALE'].data[0]
     radius = np.max((reduction_metadata.images_stats[1]['FWHM_X'][image_id],reduction_metadata.images_stats[1]['FWHM_Y'][image_id]))
     radius *= 1.5852*2
@@ -500,8 +500,8 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
         list_image_id.append(0)
         list_star_id.append(ref_star_catalog[j, 0])
 
-        ref_flux = ref_star_catalog[j, 5]
-        error_ref_flux = ref_star_catalog[j, 6]
+        ref_flux = float(ref_star_catalog[j, 5])
+        error_ref_flux = float(ref_star_catalog[j, 6])
 
         list_ref_mag.append(ref_star_catalog[j, 5])
         list_ref_mag_error.append(ref_star_catalog[j, 6])
