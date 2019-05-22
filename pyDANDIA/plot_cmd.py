@@ -17,6 +17,8 @@ from pyDANDIA import  photometry_classes
 from pyDANDIA import  phot_db
 from pyDANDIA import  logs
 from pyDANDIA import  event_colour_analysis
+from pyDANDIA import  spectral_type_data
+from pyDANDIA import  red_clump_utilities
 
 def plot_cmd(params):
     """Function to plot a colour-magnitude diagram from a field phot_db"""
@@ -31,10 +33,14 @@ def plot_cmd(params):
 
     RC = localize_red_clump_db(photometry,stars,log)
     
+    RC = event_colour_analysis.measure_RC_offset(params,RC,log)
+    
     plot_colour_mag_diagram(params, photometry, stars, RC, 'r', 'i', 'i', log)
     plot_colour_mag_diagram(params, photometry, stars, RC, 'r', 'i', 'r', log)
     plot_colour_mag_diagram(params, photometry, stars, RC, 'g', 'r', 'g', log)
     plot_colour_mag_diagram(params, photometry, stars, RC, 'g', 'i', 'g', log)
+    
+    plot_colour_colour_diagram(params, photometry, RC, log)
     
     conn.close()
     
@@ -44,15 +50,19 @@ def get_args():
     
     params = {}
     
-    if len(argv) == 2:
+    if len(argv) < 5:
         
         params['db_file_path'] = input('Please enter the path to the photometry database for the field: ')
         params['red_dir'] = input('Please enter the directory path for output: ')
+        params['target_ra'] = input('Please enter the RA of the field centre [sexigesimal]: ')
+        params['target_dec'] = input('Please enter the Dec of the field centre [sexigesimal]: ')
         
     else:
         
         params['db_file_path'] = argv[1]
         params['red_dir'] = argv[2]
+        params['target_ra'] = argv[3]
+        params['target_dec'] = argv[4]
     
     return params
     
@@ -122,6 +132,7 @@ def calculate_colours(photometry,stars,log):
         col_index = list(set(blue_index).intersection(set(red_index)))
         
         col_data = np.zeros(len(red_phot))
+        col_data.fill(-99.999)
         
         col_data[col_index] = blue_phot[col_index] - red_phot[col_index]
         
@@ -172,7 +183,11 @@ def plot_colour_mag_diagram(params, photometry, stars, RC, blue_filter, red_filt
     
     plt.rcParams.update({'font.size': 18})
     
-    plt.scatter(photometry[col_key],photometry[yaxis_filter],
+    cdx = np.where(photometry[col_key] != -99.999)[0]
+    mdx = np.where(photometry[yaxis_filter] != 0.0)[0]
+    jdx = list(set(cdx).intersection(set(mdx)))
+    
+    plt.scatter(photometry[col_key][jdx],photometry[yaxis_filter][jdx],
                  c='#8c6931', marker='.', s=1, 
                  label='Stars within ROME field')
     
@@ -235,6 +250,98 @@ def plot_colour_mag_diagram(params, photometry, stars, RC, blue_filter, red_filt
     
     log.info('Colour-magnitude diagram output to '+plot_file)
 
+def plot_colour_colour_diagram(params,photometry,RC,log):
+    """Function to plot a colour-colour diagram, if sufficient data are
+    available within the given star catalog"""
+    
+    filters = { 'i': 'SDSS-i', 'r': 'SDSS-r', 'g': 'SDSS-g' }
+    
+    fig = plt.figure(1,(10,10))
+    
+    ax = plt.axes()
+    
+    grx = np.where(photometry['gr'] != -99.999)[0]
+    rix = np.where(photometry['ri'] != -99.999)[0]
+    jdx = list(set(grx).intersection(set(rix)))
+    
+    inst_gr = photometry['gr'][jdx] - RC.Egr
+    inst_ri = photometry['ri'][jdx] - RC.Eri
+    
+    ax.scatter(inst_gr, inst_ri, 
+               c='#8c6931', marker='.', s=1, 
+             label='Stars within ROME field')
+    
+    (spectral_type, luminosity_class, gr_colour, ri_colour) = spectral_type_data.get_spectral_class_data()
+    
+    plot_dwarfs = False
+    plot_giants = True
+    for i in range(0,len(spectral_type),1):
+        
+        spt = spectral_type[i]+luminosity_class[i]
+        
+        if luminosity_class[i] == 'V':
+            c = '#8d929b'
+        else:
+            c = '#8d929b'
+                    
+        if luminosity_class[i] == 'III' and plot_giants:
+            
+            plt.plot(gr_colour[i], ri_colour[i], marker='s', color=c, 
+                     markeredgecolor='k', alpha=0.5)
+
+            plt.annotate(spt, (gr_colour[i], ri_colour[i]-0.1), 
+                            color='k', size=10, rotation=-30.0, alpha=1.0)
+
+        if luminosity_class[i] == 'V' and plot_dwarfs:
+            
+            plt.plot(gr_colour[i], ri_colour[i], marker='s', color=c, 
+                     markeredgecolor='k', alpha=0.5)
+
+            plt.annotate(spt, (gr_colour[i], 
+                           ri_colour[i]+0.1), 
+                             color='k', size=10, 
+                             rotation=-30.0, alpha=1.0)
+
+    plt.xlabel('SDSS (g-r) [mag]')
+
+    plt.ylabel('SDSS (r-i) [mag]')
+    
+    plot_file = path.join(params['red_dir'],'colour_colour_diagram.pdf')
+    
+    plt.axis([-1.0,2.0,-1.0,1.0])
+    
+    plt.grid()
+    
+    xticks = np.arange(-1.0,2.0,0.1)
+    yticks = np.arange(-1.0,1.0,0.1)
+    
+    ax.set_xticks(xticks, minor=True)
+    ax.set_yticks(yticks, minor=True)
+
+    
+    box = ax.get_position()
+    ax.set_position([box.x0, box.y0 + box.height * -0.025,
+                 box.width, box.height * 0.95])
+
+    l = ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.2), ncol=2)
+
+    try:
+        l.legendHandles[2]._sizes = [50]
+        l.legendHandles[3]._sizes = [50]
+    except IndexError:
+        pass
+    
+    plt.rcParams.update({'legend.fontsize':18})
+    plt.rcParams.update({'font.size':18})
+    plt.rc('xtick', labelsize=18) 
+    plt.rc('ytick', labelsize=18)
+
+    plt.savefig(plot_file,bbox_inches='tight')
+
+    plt.close(1)
+    
+    log.info('Colour-colour diagram output to '+plot_file)
+    
 def localize_red_clump_db(photometry,stars,log):
     """Function to calculate the centroid of the Red Clump stars in a 
     colour-magnitude diagram"""
@@ -308,7 +415,6 @@ def localize_red_clump_db(photometry,stars,log):
     
     return RC
  
-   
 if __name__ == '__main__':
     
     params = get_args()
