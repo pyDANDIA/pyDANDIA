@@ -150,8 +150,8 @@ def mask_stars(setup,ref_image,ref_star_catalog, psf_mask, diagnostics=False):
 
     for j in range(0,len(ref_star_catalog),1):
         
-        xstar = int(ref_star_catalog[j,1])
-        ystar = int(ref_star_catalog[j,2])
+        xstar = int(float(ref_star_catalog[j,1]))
+        ystar = int(float(ref_star_catalog[j,2]))
         
         xmin = xstar-half_psf
         xmax = xstar+half_psf+1
