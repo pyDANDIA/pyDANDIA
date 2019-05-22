@@ -83,19 +83,23 @@ def run_stage3_db_ingest(setup, primary_ref=False):
         
     else:
         
-        starlist = fetch_field_starlist(conn,params,log)
-    
-        matched_stars = stage3_db_ingest.match_catalog_entries_with_starlist(conn,params,starlist,
-                                                                  reduction_metadata,
-                                                                  ref_id_list[0],
-                                                                  log)
+        starlist = fetch_field_starlist(conn,dataset_params,log)
+        
+        primary_refimg_id = phot_db.find_primary_reference_image_for_field(conn)
+        
+        matched_stars = match_catalog_entries_with_starlist(conn,dataset_params,
+                                                            starlist,
+                                                            reduction_metadata,
+                                                            primary_refimg_id,log)
         
         transform = calc_transform_to_primary_ref(setup,matched_stars,log)
         
-        matched_stars = match_all_entries_with_starlist(conn,params,starlist,reduction_metadata,
-                                    refimg_id,transform,log)
-        
-        commit_photometry_matching(conn, params, reduction_metadata, matched_stars, log)
+        matched_stars = match_all_entries_with_starlist(setup,conn,dataset_params,
+                                                        starlist,reduction_metadata,
+                                                        primary_refimg_id,transform,log,
+                                                        verbose=True)
+                                        
+        commit_photometry_matching(conn, dataset_params, reduction_metadata, matched_stars, log)
 
     conn.close()
     
@@ -606,14 +610,14 @@ def commit_photometry_matching(conn, params, reduction_metadata, matched_stars, 
         j_cat = matched_stars.cat1_index[i]     # Starlist index in DB
         j_new = matched_stars.cat2_index[i]     # Star detected in image
         
-        x = str(reduction_metadata.star_catalog[1]['x'][j_new][0])
-        y = str(reduction_metadata.star_catalog[1]['y'][j_new][0])
-        mag = str(reduction_metadata.star_catalog[1]['ref_mag'][j_new][0])
-        mag_err = str(reduction_metadata.star_catalog[1]['ref_mag_error'][j_new][0])
-        cal_mag = str(reduction_metadata.star_catalog[1]['cal_ref_mag'][j_new][0])
-        cal_mag_err = str(reduction_metadata.star_catalog[1]['cal_ref_mag_error'][j_new][0])
-        flux = str(reduction_metadata.star_catalog[1]['ref_flux'][j_new][0])
-        flux_err = str(reduction_metadata.star_catalog[1]['ref_flux_error'][j_new][0])
+        x = str(reduction_metadata.star_catalog[1]['x'][j_new])
+        y = str(reduction_metadata.star_catalog[1]['y'][j_new])
+        mag = str(reduction_metadata.star_catalog[1]['ref_mag'][j_new])
+        mag_err = str(reduction_metadata.star_catalog[1]['ref_mag_error'][j_new])
+        cal_mag = str(reduction_metadata.star_catalog[1]['cal_ref_mag'][j_new])
+        cal_mag_err = str(reduction_metadata.star_catalog[1]['cal_ref_mag_error'][j_new])
+        flux = str(reduction_metadata.star_catalog[1]['ref_flux'][j_new])
+        flux_err = str(reduction_metadata.star_catalog[1]['ref_flux_error'][j_new])
         
         entry = (str(int(j_cat)), str(refimage['refimg_id'][0]), str(image['img_id'][0]),
                    str(facility['facility_id'][0]), str(f['filter_id'][0]), str(code['code_id'][0]),
@@ -638,9 +642,7 @@ def commit_photometry_matching(conn, params, reduction_metadata, matched_stars, 
 
 def fetch_field_starlist(conn,params,log):
     
-    refimg_id = phot_db.find_reference_image_for_dataset(conn,params)[0]
-    
-    query = 'SELECT * FROM stars WHERE reference_image="'+str(refimg_id)+'"'
+    query = 'SELECT * FROM stars'
     starlist = phot_db.query_to_astropy_table(conn, query, args=())
     
     log.info('Selected '+str(len(starlist))+' stars known in this field')
@@ -654,14 +656,17 @@ def match_catalog_entries_with_starlist(conn,params,starlist,reduction_metadata,
     
     matched_stars = match_utils.StarMatchIndex()
     
-    idx = np.where(starlist['gaia_source_id'] != 'None')
+    idx = np.where(starlist['gaia_source_id'] != 'None')[0]
     jdx = np.where(reduction_metadata.star_catalog[1]['gaia_source_id'] != 'None')[0]
+    
+    log.info(str(len(idx))+' stars with Gaia identifications selected from the field starlist')
+    log.info(str(len(jdx))+' stars with Gaia identifications selected from new reference image catalog')
     
     for star in starlist[idx]:
                 
         kdx = np.where(reduction_metadata.star_catalog[1]['gaia_source_id'][jdx] == star['gaia_source_id'])
-        
-        if len(kdx) == 1:
+
+        if len(kdx[0]) == 1:
             
             query = 'SELECT star_id,x,y FROM phot WHERE reference_image="'+str(refimg_id)+'" AND star_id="'+str(star['star_id'])+'"'
             phot_data = phot_db.query_to_astropy_table(conn, query, args=())

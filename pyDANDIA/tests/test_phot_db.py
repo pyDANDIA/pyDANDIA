@@ -381,6 +381,9 @@ def setup_test_phot_db(log):
     meta.load_a_layer_from_file( setup.red_dir, 
                                 'pyDANDIA_metadata.fits', 
                                 'images_stats' )
+    meta.load_a_layer_from_file( setup.red_dir, 
+                                'pyDANDIA_metadata.fits', 
+                                'star_catalog' )
                                 
     ref_image_dir = meta.data_architecture[1]['REF_PATH'].data[0]
 
@@ -416,6 +419,8 @@ def setup_test_phot_db(log):
     stage3_db_ingest.commit_reference_image(conn, params, log)
     stage3_db_ingest.commit_reference_component(conn, params, log)
 
+    star_ids = stage3_db_ingest.commit_stars(conn, params, meta, log)
+    
     return conn, params, ref_image_name
     
 def test_cascade_delete_reference_image():
@@ -457,6 +462,21 @@ def test_find_reference_image_for_dataset():
     
     logs.close_log(log)
     conn.close()
+
+def test_find_primary_reference_image_for_field():
+    
+    log = logs.start_stage_log( TEST_DIR, 'test_phot_db' )
+    
+    (conn,params,ref_image_name) = setup_test_phot_db(log)
+    
+    primary_refimg_id = phot_db.find_primary_reference_image_for_field(conn)
+    
+    assert type(primary_refimg_id) == type(np.int64())
+    assert primary_refimg_id == 1
+    
+    logs.close_log(log)
+    
+    conn.close()
     
 if __name__ == '__main__':
     
@@ -471,5 +491,6 @@ if __name__ == '__main__':
     #test_check_before_commit()
     #test_find_previous_reference_image_for_dataset()
     #test_cascade_delete_reference_image()
-    test_find_reference_image_for_dataset()
+    #test_find_reference_image_for_dataset()
+    test_find_primary_reference_image_for_field()
     

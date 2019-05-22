@@ -583,6 +583,13 @@ def find_reference_image_for_dataset(conn,params):
         return None
     
     return ref_id
+
+def find_primary_reference_image_for_field(conn):
+    
+    query = 'SELECT reference_image FROM stars'
+    t = query_to_astropy_table(conn, query, args=())
+        
+    return t['reference_image'][0]
     
 def ingest_astropy_table(conn, db_table_name, table):
     """ingests an astropy table into db_table_name via conn.
