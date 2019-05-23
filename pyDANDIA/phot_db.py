@@ -233,13 +233,15 @@ class PhotometryPoints(TableDef):
     c_095_magnitude_err = 'REAL'
     c_100_calibrated_mag = 'REAL'
     c_105_calibrated_mag_err = 'REAL'
-    c_110_flux = 'DOUBLE PRECISION'
-    c_115_flux_err = 'DOUBLE PRECISION'
-    c_120_phot_scale_factor = 'REAL'
-    c_125_phot_scale_factor_err = 'REAL'
-    c_130_local_background = 'DOUBLE PRECISION'
-    c_135_local_background_err = 'DOUBLE PRECISION'
-    c_140_phot_type = 'TEXT'
+    c_110_flux = 'REAL'
+    c_115_flux_err = 'REAL'
+    c_120_calibrated_flux = 'REAL'
+    c_125_calibrated_flux_err = 'REAL'
+    c_130_phot_scale_factor = 'REAL'
+    c_135_phot_scale_factor_err = 'REAL'
+    c_140_local_background = 'REAL'
+    c_145_local_background_err = 'REAL'
+    c_150_phot_type = 'TEXT'
     
     pc_000_datesindex = (
         'CREATE INDEX IF NOT EXISTS phot_objs ON phot (star_id)')

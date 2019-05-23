@@ -109,7 +109,7 @@ def extract_reference_instrument_calibrated_photometry(conn,log):
         query = 'SELECT star_id, vphas_gmag, vphas_rmag, vphas_imag FROM stars'
         stars = phot_db.query_to_astropy_table(conn, query, args=())
     
-    log.info('Exracted photometry for '+str(len(stars))+' stars')
+    log.info('Extracted photometry for '+str(len(stars))+' stars')
     
     photometry['g'] = np.zeros(len(stars))
     photometry['r'] = np.zeros(len(stars))
