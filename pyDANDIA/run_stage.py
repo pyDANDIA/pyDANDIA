@@ -141,7 +141,7 @@ def get_args():
         params['red_dir'] = argv[2]
         params['field'] = argv[3]
     
-    if '-primary-ref' in argv:
+    if '-primary-ref' in argv or '-primary_ref' in argv:
         
         params['primary_ref'] = True
         

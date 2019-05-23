@@ -526,7 +526,7 @@ def commit_photometry(conn, params, reduction_metadata, star_ids, log):
                 'facility', 'filter', 'software', 
                 'x', 'y', 'hjd', 'magnitude', 'magnitude_err', 
                 'calibrated_mag', 'calibrated_mag_err',
-                'flux', 'flux_err', 
+                'flux', 'flux_err', 'calibrated_flux', 'calibrated_flux_err',
                 'phot_scale_factor', 'phot_scale_factor_err',
                 'local_background', 'local_background_err',
                 'phot_type']
@@ -547,11 +547,14 @@ def commit_photometry(conn, params, reduction_metadata, star_ids, log):
         cal_mag_err = str(reduction_metadata.star_catalog[1]['cal_ref_mag_error'][j])
         flux = str(reduction_metadata.star_catalog[1]['ref_flux'][j])
         flux_err = str(reduction_metadata.star_catalog[1]['ref_flux_error'][j])
+        cal_flux = str(reduction_metadata.star_catalog[1]['cal_ref_flux'][j])
+        cal_flux_err = str(reduction_metadata.star_catalog[1]['cal_ref_flux_error'][j])
         
         entry = (str(int(star_ids[j])), str(refimage['refimg_id'][0]), str(image['img_id'][0]),
                    str(facility['facility_id'][0]), str(f['filter_id'][0]), str(code['code_id'][0]),
                     x, y, str(params['hjd_ref']), 
-                    mag, mag_err, cal_mag, cal_mag_err, flux, flux_err,
+                    mag, mag_err, cal_mag, cal_mag_err, 
+                    flux, flux_err, cal_flux, cal_flux_err,
                     '0.0', '0.0',   # No phot scale factor for PSF fitting photometry
                     '0.0', '0.0',   # No background measurements propageted
                     'PSF_FITTING' )
@@ -596,6 +599,7 @@ def commit_photometry_matching(conn, params, reduction_metadata, matched_stars, 
                 'x', 'y', 'hjd', 'magnitude', 'magnitude_err', 
                 'calibrated_mag', 'calibrated_mag_err',
                 'flux', 'flux_err', 
+                'calibrated_flux', 'calibrated_flux_err',
                 'phot_scale_factor', 'phot_scale_factor_err',
                 'local_background', 'local_background_err',
                 'phot_type']
@@ -618,11 +622,14 @@ def commit_photometry_matching(conn, params, reduction_metadata, matched_stars, 
         cal_mag_err = str(reduction_metadata.star_catalog[1]['cal_ref_mag_error'][j_new])
         flux = str(reduction_metadata.star_catalog[1]['ref_flux'][j_new])
         flux_err = str(reduction_metadata.star_catalog[1]['ref_flux_error'][j_new])
+        cal_flux = str(reduction_metadata.star_catalog[1]['cal_ref_flux'][j_new])
+        cal_flux_err = str(reduction_metadata.star_catalog[1]['cal_ref_flux_error'][j_new])
         
         entry = (str(int(j_cat)), str(refimage['refimg_id'][0]), str(image['img_id'][0]),
                    str(facility['facility_id'][0]), str(f['filter_id'][0]), str(code['code_id'][0]),
                     x, y, str(params['hjd_ref']), 
-                    mag, mag_err, cal_mag, cal_mag_err, flux, flux_err,
+                    mag, mag_err, cal_mag, cal_mag_err, 
+                    flux, flux_err, cal_flux, cal_flux_err,
                     '0.0', '0.0',   # No phot scale factor for PSF fitting photometry
                     '0.0', '0.0',   # No background measurements propageted
                     'PSF_FITTING' )
