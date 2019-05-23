@@ -15,7 +15,7 @@ def get_spectral_class_data():
     Vizier table in file spectral_class.txt
     """
     
-    file_lines = open('/Users/rstreet/software/robonet_tools/colour_analysis/spectral_class.txt','r').readlines()
+    file_lines = open('spectral_class.txt','r').readlines()
     
     spectral_type = []
     luminosity_class = []
