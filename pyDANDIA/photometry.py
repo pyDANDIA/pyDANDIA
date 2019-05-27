@@ -502,6 +502,9 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
 
         ref_flux = float(ref_star_catalog[j, 5])
         error_ref_flux = float(ref_star_catalog[j, 6])
+        cal_ref_flux = float(ref_star_catalog[j, 5])
+        error_cal_ref_flux = float(ref_star_catalog[j, 6])
+
 
         list_ref_mag.append(ref_star_catalog[j, 5])
         list_ref_mag_error.append(ref_star_catalog[j, 6])

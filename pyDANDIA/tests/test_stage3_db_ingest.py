@@ -35,7 +35,7 @@ def test_configure_setup():
     for key in ['setup_g', 'setup_r', 'setup_i']:
         assert type(params[key]) == type(test_setup)
 
-def test_harvest_dataset_parameters():
+def test_harvest_stage3_parameters():
     
     setup = pipeline_setup.pipeline_setup({'red_dir': TEST_DIR})
     
@@ -56,7 +56,7 @@ def test_harvest_dataset_parameters():
                                           'pyDANDIA_metadata.fits', 
                                           'software' )
     
-    dataset_params = stage3_db_ingest.harvest_dataset_parameters(setup,reduction_metadata)
+    dataset_params = stage3_db_ingest.harvest_stage3_parameters(setup,reduction_metadata)
     
     assert type(dataset_params) == type({})
     assert len(dataset_params) > 1
@@ -592,7 +592,7 @@ def test_match_all_entries_with_starlist():
 if __name__ == '__main__':
     
     #test_configure_setup()
-    #test_harvest_dataset_parameters()
+    test_harvest_stage3_parameters()
     #test_commit_reference_image()
     #test_commit_reference_component()
     #test_read_combined_star_catalog()
@@ -604,4 +604,4 @@ if __name__ == '__main__':
     #test_commit_photometry_matching()
     #test_calc_transform_to_primary_ref()
     #test_match_all_entries_with_starlist()
-    test_run_stage3_db_ingest()
+    #test_run_stage3_db_ingest()

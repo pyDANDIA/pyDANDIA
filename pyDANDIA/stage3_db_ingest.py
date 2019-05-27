@@ -61,7 +61,7 @@ def run_stage3_db_ingest(setup, primary_ref=False):
                                           'pyDANDIA_metadata.fits', 
                                           'star_catalog' )
     
-    dataset_params = harvest_dataset_parameters(setup,reduction_metadata)
+    dataset_params = harvest_stage3_parameters(setup,reduction_metadata)
     
     phot_db.check_before_commit(conn, dataset_params, 'facilities', facility_keys, 'facility_code')
     phot_db.check_before_commit(conn, dataset_params, 'software', software_keys, 'version')
@@ -226,93 +226,101 @@ def archive_existing_db(setup,primary_ref,log):
             
             log.info('-> Archived old PHOT_DB to '+dest)
             
-def harvest_dataset_parameters(setup,reduction_metadata):
+def harvest_stage3_parameters(setup,reduction_metadata):
     """Function to harvest the parameters required for ingest of a single 
     dataset into the photometric database."""
-    
-    dataset_params = {}
     
     ref_path = reduction_metadata.data_architecture[1]['REF_PATH'][0]
     ref_filename = reduction_metadata.data_architecture[1]['REF_IMAGE'][0]
     
-    ref_hdr_image = fits.getheader(path.join(ref_path, ref_filename))
+    ref_image_path = path.join(ref_path, ref_filename)
     
-    # Facility
-    dataset_params['site'] = ref_hdr_image['SITEID']
-    dataset_params['enclosure'] = ref_hdr_image['ENCID']
-    dataset_params['telescope'] = ref_hdr_image['TELID']
-    dataset_params['instrument'] = ref_hdr_image['INSTRUME']
-    dataset_params['facility_code'] = phot_db.get_facility_code(dataset_params)
+    dataset_params = harvest_image_params(reduction_metadata, ref_image_path, ref_image_path)
     
     # Software
     dataset_params['version'] = reduction_metadata.software[1]['stage3_version'][0]
     dataset_params['stage'] = 'stage3'
     dataset_params['code_name'] = 'stage3.py'
     
+    return dataset_params
+    
+def harvest_image_params(reduction_metadata, image_path, ref_image_path):
+    
+    image_header = fits.getheader(image_path)
+    
+    image_params = {}
+
+    # Facility
+    image_params['site'] = image_header['SITEID']
+    image_params['enclosure'] = image_header['ENCID']
+    image_params['telescope'] = image_header['TELID']
+    image_params['instrument'] = image_header['INSTRUME']
+    image_params['facility_code'] = phot_db.get_facility_code(image_params)
+    
     # Image parameters for single-frame reference image
     # NOTE: Stacked reference images not yet supported
-    dataset_params['filename'] = ref_filename
+    image_params['filename'] = path.basename(image_path)
+    image_params['ref_filename'] = path.basename(ref_image_path)
 
-    idx = np.where(reduction_metadata.headers_summary[1]['IMAGES'] == dataset_params['filename'])
-    ref_hdr_meta = reduction_metadata.headers_summary[1][idx]
-    idx = np.where(reduction_metadata.images_stats[1]['IM_NAME'] == dataset_params['filename'])
-    ref_stats = reduction_metadata.images_stats[1][idx]
+    idx = np.where(reduction_metadata.headers_summary[1]['IMAGES'] == image_params['filename'])
+    hdr_meta = reduction_metadata.headers_summary[1][idx]
+    idx = np.where(reduction_metadata.images_stats[1]['IM_NAME'] == image_params['filename'])
+    image_stats = reduction_metadata.images_stats[1][idx]
     
-    dataset_params['field_id'] = ref_hdr_meta['OBJKEY'][0]
-    dataset_params['date_obs_utc'] = ref_hdr_meta['DATEKEY'][0]
-    t = time.Time(dataset_params['date_obs_utc'],format='isot', scale='utc')
-    dataset_params['date_obs_jd'] = t.jd
-    dataset_params['exposure_time'] = float(ref_hdr_meta['EXPKEY'][0])
-    dataset_params['RA'] = ref_hdr_image['RA']
-    dataset_params['Dec'] = ref_hdr_image['DEC']
-    dataset_params['filter_name'] = ref_hdr_image['FILTER']
-    dataset_params['fwhm'] = np.sqrt(ref_stats['FWHM_X'][0]*ref_stats['FWHM_X'][0] + 
-                                        ref_stats['FWHM_Y'][0]*ref_stats['FWHM_Y'][0])
-    dataset_params['fwhm_err'] = None
-    dataset_params['ellipticity'] = None
-    dataset_params['ellipticity_err'] = None
-    dataset_params['slope'] = None
-    dataset_params['slope_err'] = None
-    dataset_params['intercept'] = None
-    dataset_params['intercept_err'] = None
-    dataset_params['wcsfrcat'] = None
-    dataset_params['wcsimcat'] = None
-    dataset_params['wcsmatch'] = None
-    dataset_params['wcsnref'] = None
-    dataset_params['wcstol'] = None
-    dataset_params['wcsra'] = None
-    dataset_params['wcsdec'] = None
-    dataset_params['wequinox'] = None
-    dataset_params['wepoch'] = None
-    dataset_params['radecsys'] = None
-    dataset_params['ctype1'] = set_if_present(ref_hdr_image,'CTYPE1')
-    dataset_params['ctype2'] = set_if_present(ref_hdr_image,'CTYPE2')
-    dataset_params['cdelt1'] = set_if_present(ref_hdr_image,'CDELT1')
-    dataset_params['cdelt2'] = set_if_present(ref_hdr_image,'CDELT2')
-    dataset_params['crota1'] = set_if_present(ref_hdr_image,'CROTA1')
-    dataset_params['crota2'] = set_if_present(ref_hdr_image,'CROTA2')
-    dataset_params['secpix1'] = set_if_present(ref_hdr_image,'PIXSCALE')
-    dataset_params['secpix2'] = set_if_present(ref_hdr_image,'PIXSCALE')
-    dataset_params['wcssep'] = None
-    dataset_params['equinox'] = None
-    dataset_params['cd1_1'] = set_if_present(ref_hdr_image,'CD1_1')
-    dataset_params['cd1_2'] = set_if_present(ref_hdr_image,'CD1_2')
-    dataset_params['cd2_1'] = set_if_present(ref_hdr_image,'CD2_1')
-    dataset_params['cd2_2'] = set_if_present(ref_hdr_image,'CD2_2')
-    dataset_params['epoch'] = None
-    dataset_params['airmass'] = set_if_present(ref_hdr_image,'AIRMASS')
-    dataset_params['moon_phase'] = set_if_present(ref_hdr_image,'MOONFRAC')
-    dataset_params['moon_separation'] = set_if_present(ref_hdr_image,'MOONDIST')
-    dataset_params['delta_x'] = None
-    dataset_params['delta_y'] = None
+    image_params['field_id'] = hdr_meta['OBJKEY'][0]
+    image_params['date_obs_utc'] = hdr_meta['DATEKEY'][0]
+    t = time.Time(image_params['date_obs_utc'],format='isot', scale='utc')
+    image_params['date_obs_jd'] = t.jd
+    image_params['exposure_time'] = float(hdr_meta['EXPKEY'][0])
+    image_params['RA'] = image_header['RA']
+    image_params['Dec'] = image_header['DEC']
+    image_params['filter_name'] = image_header['FILTER']
+    image_params['fwhm'] = np.sqrt(image_stats['FWHM_X'][0]*image_stats['FWHM_X'][0] + 
+                                        image_stats['FWHM_Y'][0]*image_stats['FWHM_Y'][0])
+    image_params['fwhm_err'] = None
+    image_params['ellipticity'] = None
+    image_params['ellipticity_err'] = None
+    image_params['slope'] = None
+    image_params['slope_err'] = None
+    image_params['intercept'] = None
+    image_params['intercept_err'] = None
+    image_params['wcsfrcat'] = None
+    image_params['wcsimcat'] = None
+    image_params['wcsmatch'] = None
+    image_params['wcsnref'] = None
+    image_params['wcstol'] = None
+    image_params['wcsra'] = None
+    image_params['wcsdec'] = None
+    image_params['wequinox'] = None
+    image_params['wepoch'] = None
+    image_params['radecsys'] = None
+    image_params['ctype1'] = set_if_present(image_header,'CTYPE1')
+    image_params['ctype2'] = set_if_present(image_header,'CTYPE2')
+    image_params['cdelt1'] = set_if_present(image_header,'CDELT1')
+    image_params['cdelt2'] = set_if_present(image_header,'CDELT2')
+    image_params['crota1'] = set_if_present(image_header,'CROTA1')
+    image_params['crota2'] = set_if_present(image_header,'CROTA2')
+    image_params['secpix1'] = set_if_present(image_header,'PIXSCALE')
+    image_params['secpix2'] = set_if_present(image_header,'PIXSCALE')
+    image_params['wcssep'] = None
+    image_params['equinox'] = None
+    image_params['cd1_1'] = set_if_present(image_header,'CD1_1')
+    image_params['cd1_2'] = set_if_present(image_header,'CD1_2')
+    image_params['cd2_1'] = set_if_present(image_header,'CD2_1')
+    image_params['cd2_2'] = set_if_present(image_header,'CD2_2')
+    image_params['epoch'] = None
+    image_params['airmass'] = set_if_present(image_header,'AIRMASS')
+    image_params['moon_phase'] = set_if_present(image_header,'MOONFRAC')
+    image_params['moon_separation'] = set_if_present(image_header,'MOONDIST')
+    image_params['delta_x'] = None
+    image_params['delta_y'] = None
     
-    dataset_params['hjd_ref'] = time_utils.calc_hjd(dataset_params['date_obs_utc'],
-                                  dataset_params['RA'],dataset_params['Dec'],
-                                  dataset_params['exposure_time'])
+    image_params['hjd'] = time_utils.calc_hjd(image_params['date_obs_utc'],
+                                  image_params['RA'],image_params['Dec'],
+                                  image_params['exposure_time'])
     
+    return image_params
     
-    return dataset_params
-
 def set_if_present(header, key):
     
     if key in header.keys():
@@ -322,12 +330,12 @@ def set_if_present(header, key):
 
 def commit_reference_image(conn, params, log):
 
-    query = 'SELECT refimg_id,filename FROM reference_images WHERE filename ="'+params['filename']+'"'
+    query = 'SELECT refimg_id,filename FROM reference_images WHERE filename ="'+params['ref_filename']+'"'
     ref_image = phot_db.query_to_astropy_table(conn, query, args=())    
 
     if len(ref_image) != 0:
         
-        log.info('Reference image '+params['filename']+\
+        log.info('Reference image '+params['ref_filename']+\
                     ' is already in the phot_db as entry '+\
                         str(ref_image['refimg_id']))
                         
@@ -346,7 +354,7 @@ def commit_reference_image(conn, params, log):
         error_wrong_number_entries(code,params['version'])
         
         command = 'INSERT OR REPLACE INTO reference_images (facility,filter,software,filename) VALUES ('+\
-            str(facility['facility_id'][0])+','+str(f['filter_id'][0])+','+str(code['code_id'][0])+',"'+str(params['filename'])+'")'
+            str(facility['facility_id'][0])+','+str(f['filter_id'][0])+','+str(code['code_id'][0])+',"'+str(params['ref_filename'])+'")'
         
         cursor = conn.cursor()
         
@@ -354,7 +362,7 @@ def commit_reference_image(conn, params, log):
         
         conn.commit()
         
-        log.info('Submitted reference_image '+params['filename']+' to phot_db')
+        log.info('Submitted reference_image '+params['ref_filename']+' to phot_db')
     
 def error_wrong_number_entries(results_table,param_value):
     
@@ -373,7 +381,7 @@ def commit_reference_component(conn, params, log):
     image = phot_db.query_to_astropy_table(conn, query, args=())    
     error_wrong_number_entries(image,params['filename'])
     
-    query = 'SELECT refimg_id, filename FROM reference_images WHERE filename ="'+params['filename']+'"'
+    query = 'SELECT refimg_id, filename FROM reference_images WHERE filename ="'+params['ref_filename']+'"'
     refimage = phot_db.query_to_astropy_table(conn, query, args=())    
     error_wrong_number_entries(refimage,params['filename'])
     
@@ -404,9 +412,9 @@ def read_combined_star_catalog(params):
 def commit_stars(conn, params, reduction_metadata, log, 
                  search_for_match=False):
     
-    query = 'SELECT refimg_id, filename FROM reference_images WHERE filename ="'+params['filename']+'"'
+    query = 'SELECT refimg_id, filename FROM reference_images WHERE filename ="'+params['ref_filename']+'"'
     refimage = phot_db.query_to_astropy_table(conn, query, args=())    
-    error_wrong_number_entries(refimage,params['filename'])
+    error_wrong_number_entries(refimage,params['ref_filename'])
     
     tol = 1.0/3600.0
     
@@ -514,9 +522,9 @@ def commit_photometry(conn, params, reduction_metadata, star_ids, log):
     code = phot_db.query_to_astropy_table(conn, query, args=())
     error_wrong_number_entries(code,params['version'])
     
-    query = 'SELECT refimg_id, filename FROM reference_images WHERE filename ="'+params['filename']+'"'
+    query = 'SELECT refimg_id, filename FROM reference_images WHERE filename ="'+params['ref_filename']+'"'
     refimage = phot_db.query_to_astropy_table(conn, query, args=())    
-    error_wrong_number_entries(refimage,params['filename'])
+    error_wrong_number_entries(refimage,params['ref_filename'])
     
     query = 'SELECT img_id, filename FROM images WHERE filename ="'+params['filename']+'"'
     image = phot_db.query_to_astropy_table(conn, query, args=())    
@@ -552,7 +560,7 @@ def commit_photometry(conn, params, reduction_metadata, star_ids, log):
         
         entry = (str(int(star_ids[j])), str(refimage['refimg_id'][0]), str(image['img_id'][0]),
                    str(facility['facility_id'][0]), str(f['filter_id'][0]), str(code['code_id'][0]),
-                    x, y, str(params['hjd_ref']), 
+                    x, y, str(params['hjd']), 
                     mag, mag_err, cal_mag, cal_mag_err, 
                     flux, flux_err, cal_flux, cal_flux_err,
                     '0.0', '0.0',   # No phot scale factor for PSF fitting photometry
@@ -627,7 +635,7 @@ def commit_photometry_matching(conn, params, reduction_metadata, matched_stars, 
         
         entry = (str(int(j_cat)), str(refimage['refimg_id'][0]), str(image['img_id'][0]),
                    str(facility['facility_id'][0]), str(f['filter_id'][0]), str(code['code_id'][0]),
-                    x, y, str(params['hjd_ref']), 
+                    x, y, str(params['hjd']), 
                     mag, mag_err, cal_mag, cal_mag_err, 
                     flux, flux_err, cal_flux, cal_flux_err,
                     '0.0', '0.0',   # No phot scale factor for PSF fitting photometry
