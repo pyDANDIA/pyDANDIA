@@ -681,7 +681,7 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
 
             corr = np.corrcoef(reference_image.ravel(),shifted.ravel())[0,1]
 
-            print(iteration,len(pts_data[inliers]),corr_ini,corr)
+            #print(iteration,len(pts_data[inliers]),corr_ini,corr)
 
             iteration += 1
 
