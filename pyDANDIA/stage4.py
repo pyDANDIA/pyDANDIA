@@ -694,7 +694,7 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
 
         resampled_image_hdu = fits.PrimaryHDU(shifted)
         resampled_image_hdu.writeto(os.path.join(resampled_directory_path, new_image), overwrite=True)
-
+        data_image_hdu.close()
     master_mask_hdu = fits.PrimaryHDU(master_mask)
     master_mask_hdu.writeto(os.path.join(reference_image_directory, 'master_mask.fits'), overwrite=True)
 
