@@ -671,16 +671,18 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
 
                 model_final = tf.SimilarityTransform(translation=(-x_shift, -y_shift))
                 print('Using XY shifts')
+            try:
+                model_final.params = np.dot(original_matrix,model_final.params)
 
-            model_final.params = np.dot(original_matrix,model_final.params)
+                shifted = tf.warp(data_image, inverse_map=model_final.inverse, output_shape=data_image.shape, order=3,
+                                  mode='constant', cval=np.median(data_image), clip=False, preserve_range=False)
 
-            shifted = tf.warp(data_image, inverse_map=model_final.inverse, output_shape=data_image.shape, order=3,
-                              mode='constant', cval=np.median(data_image), clip=False, preserve_range=False)
+                shifted_mask = tf.warp(shifted_mask, inverse_map=model_final.inverse, preserve_range=True)
 
-            shifted_mask = tf.warp(shifted_mask, inverse_map=model_final.inverse, preserve_range=True)
-
-            corr = np.corrcoef(reference_image.ravel(),shifted.ravel())[0,1]
-
+                corr = np.corrcoef(reference_image.ravel(),shifted.ravel())[0,1]
+            except:
+                shifted_mask = np.zeros(np.shape(data_image))
+                print('Similarity Transform has failed to produce parameters')
             #print(iteration,len(pts_data[inliers]),corr_ini,corr)
 
             iteration += 1
