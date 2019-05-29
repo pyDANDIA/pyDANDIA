@@ -228,8 +228,8 @@ def open_reference(setup, ref_image_directory, ref_image_name, kernel_size, max_
     bkg_image = background_mesh_perc(ref_image[ref_extension].data)
     if external_weight is not None:
         try:
-            noise_image = external_weight + np.copy(ref_image[ref_extension].data) 
-	except:
+            noise_image = external_weight + np.copy(ref_image[ref_extension].data)
+        except:
 	    noise_image = np.zeros(np.shape(ref_image[ref_extension].data))
             print('format mismatch (noise model construction)')
     else:
