@@ -556,82 +556,90 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
             good_fit = True
         
         if good_fit == True:
+            
+            if ref_flux >= 10.0 and error_ref_flux > 0.0 and \
+            cal_ref_flux < 1e10 and error_cal_ref_flux > 0.0:
         
-            # logs.ifverbose(log, setup, ' -> Star ' + str(j) +
-            #              ' subtracted from the residuals')
-            
-             
-            
-            #weight1 = (0.5 + np.abs(data + 0.25) ** 0.5)
-            #weight2 = (-0.5 + np.abs(data + 0.25) ** 0.5)
-            #weight = (weight1 ** 2 + weight2 ** 2)
-            #poids = weight**0.5
-            
-            
-            
-            #intensities, cov = np.polyfit(psf_fit.ravel(), data.ravel(), 1, w=1/poids.ravel(), cov=True)
-            
-            #(flux,flux_err) = (intensities[0], cov[0][0] ** 0.5)
-            #(back, back_err) = (intensities[1], cov[1][1] ** 0.5)
-            
-            #flux = np.sum(flux*psf_image)
-            
-            #flux2 = np.sum(data.ravel())
-            
-            
-            
-            #SNR = flux2/len(data)**2
-            #flux = flux2/phot_scale_factor
-            #flux_err = flux/SNR
-            
-            
-            #residus = data - psf_fit * intensities[0]-back
-            
-            
-            #flux_err = (flux_err**2+np.mean(residus**2))**0.5
-            
-            
-            flux = phot_table[j][3]/phot_scale_factor
-            flux_err = phot_table[j][4]
-            
-            
-            flux_tot = ref_flux*ref_exposure_time - flux
-            flux_err_tot = (error_ref_flux ** 2*ref_exposure_time + flux_err**2/phot_scale_factor**2) ** 0.5
-            
-            cal_flux_tot = cal_ref_flux*ref_exposure_time - flux
-            cal_flux_err_tot = (error_cal_ref_flux ** 2*ref_exposure_time + flux_err**2/phot_scale_factor**2) ** 0.5
-            
-            list_delta_flux.append(flux)
-            list_delta_flux_error.append(flux_err)
-            
-            (mag, mag_err,ftmp,fetemp) = convert_flux_to_mag(flux_tot, flux_err_tot,ref_exposure_time)
-            (cal_mag, cal_mag_err,ftmp,fetemp) = convert_flux_to_mag(cal_flux_tot, cal_flux_err_tot, ref_exposure_time)
-            
-            list_flux.append(flux_tot)
-            list_flux_error.append(flux_err_tot)
-            list_cal_flux.append(cal_flux_tot)
-            list_cal_flux_error.append(cal_flux_err_tot)
-            
-            list_mag.append(mag)
-            list_mag_error.append(mag_err)
-            list_cal_mag.append(cal_mag)
-            list_cal_mag_error.append(cal_mag_err)
-            
-            list_phot_scale_factor.append(phot_scale_factor)
-            list_phot_scale_factor_error.append(error_phot_scale_factor)
-            #list_background.append(back)
-            #list_background_error.append(back_err)
-            
-            #list_align_x.append(xstar)
-            #list_align_y.append(ystar)
-            
-            list_background.append(0)
-            list_background_error.append(0)
-            
-            list_align_x.append(positions[j][0])
-            list_align_y.append(positions[j][1])
-            
-        else:
+                # logs.ifverbose(log, setup, ' -> Star ' + str(j) +
+                #              ' subtracted from the residuals')
+                
+                 
+                
+                #weight1 = (0.5 + np.abs(data + 0.25) ** 0.5)
+                #weight2 = (-0.5 + np.abs(data + 0.25) ** 0.5)
+                #weight = (weight1 ** 2 + weight2 ** 2)
+                #poids = weight**0.5
+                
+                
+                
+                #intensities, cov = np.polyfit(psf_fit.ravel(), data.ravel(), 1, w=1/poids.ravel(), cov=True)
+                
+                #(flux,flux_err) = (intensities[0], cov[0][0] ** 0.5)
+                #(back, back_err) = (intensities[1], cov[1][1] ** 0.5)
+                
+                #flux = np.sum(flux*psf_image)
+                
+                #flux2 = np.sum(data.ravel())
+                
+                
+                
+                #SNR = flux2/len(data)**2
+                #flux = flux2/phot_scale_factor
+                #flux_err = flux/SNR
+                
+                
+                #residus = data - psf_fit * intensities[0]-back
+                
+                
+                #flux_err = (flux_err**2+np.mean(residus**2))**0.5
+                
+                
+                flux = phot_table[j][3]/phot_scale_factor
+                flux_err = phot_table[j][4]
+                
+                flux_tot = ref_flux*ref_exposure_time - flux
+                flux_err_tot = (error_ref_flux ** 2*ref_exposure_time + flux_err**2/phot_scale_factor**2) ** 0.5
+                
+                cal_flux_tot = cal_ref_flux*ref_exposure_time - flux
+                cal_flux_err_tot = (error_cal_ref_flux ** 2*ref_exposure_time + flux_err**2/phot_scale_factor**2) ** 0.5
+                
+                list_delta_flux.append(flux)
+                list_delta_flux_error.append(flux_err)
+                
+                (mag, mag_err,ftmp,fetemp) = convert_flux_to_mag(flux_tot, flux_err_tot,ref_exposure_time)
+                (cal_mag, cal_mag_err,ftmp,fetemp) = convert_flux_to_mag(cal_flux_tot, cal_flux_err_tot, ref_exposure_time)
+                
+                list_flux.append(flux_tot)
+                list_flux_error.append(flux_err_tot)
+                list_cal_flux.append(cal_flux_tot)
+                list_cal_flux_error.append(cal_flux_err_tot)
+                
+                list_mag.append(mag)
+                list_mag_error.append(mag_err)
+                list_cal_mag.append(cal_mag)
+                list_cal_mag_error.append(cal_mag_err)
+                
+                list_phot_scale_factor.append(phot_scale_factor)
+                list_phot_scale_factor_error.append(error_phot_scale_factor)
+                #list_background.append(back)
+                #list_background_error.append(back_err)
+                
+                #list_align_x.append(xstar)
+                #list_align_y.append(ystar)
+                
+                list_background.append(0)
+                list_background_error.append(0)
+                
+                list_align_x.append(positions[j][0])
+                list_align_y.append(positions[j][1])
+                
+            else:
+                logs.ifverbose(log, setup, ' -> Star ' + str(j) +
+                           ' No photometry possible due to poor reference frame measurement')
+                
+                good_fit = False
+                
+        if good_fit == False:
         
             logs.ifverbose(log, setup, ' -> Star ' + str(j) +
                            ' No photometry possible from poor fit')

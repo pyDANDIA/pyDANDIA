@@ -65,6 +65,16 @@ def run_stage3_db_ingest(setup, primary_ref=False):
     
     phot_db.check_before_commit(conn, dataset_params, 'facilities', facility_keys, 'facility_code')
     phot_db.check_before_commit(conn, dataset_params, 'software', software_keys, 'version')
+    
+    query = 'SELECT facility_id FROM facilities WHERE facility_code ="'+dataset_params['facility_code']+'"'
+    dataset_params['facility'] = phot_db.query_to_astropy_table(conn, query, args=())['facility_id'][0]
+    
+    query = 'SELECT code_id FROM software WHERE version ="'+dataset_params['version']+'"'
+    dataset_params['software'] = phot_db.query_to_astropy_table(conn, query, args=())['code_id'][0]
+    
+    query = 'SELECT filter_id FROM filters WHERE filter_name ="'+dataset_params['filter_name']+'"'
+    dataset_params['filter'] = phot_db.query_to_astropy_table(conn, query, args=())['filter_id'][0]
+    
     phot_db.check_before_commit(conn, dataset_params, 'images', image_keys, 'filename')
     
     ref_id_list = phot_db.find_reference_image_for_dataset(conn,dataset_params)
@@ -116,20 +126,22 @@ def define_table_keys():
     facility_keys = ['facility_code', 'site', 'enclosure', 
                      'telescope', 'instrument']
     software_keys = ['code_name', 'stage', 'version']
-    image_keys =    ['filename', 'field_id',
+    image_keys =    ['facility', 'filter', 'field_id', 'filename',
                      'date_obs_utc','date_obs_jd','exposure_time',
                      'fwhm','fwhm_err',
                      'ellipticity','ellipticity_err',
                      'slope','slope_err','intercept','intercept_err',
                      'wcsfrcat','wcsimcat','wcsmatch','wcsnref','wcstol','wcsra',
                      'wcsdec','wequinox','wepoch','radecsys',
-                     'ctype1','ctype2','cdelt1','cdelt2','crota1','crota2',
+                     'ctype1','ctype2','crpix1', 'crpix2', 'crval1', 'crval2',
+                     'cdelt1','cdelt2','crota1','crota2',
+                     'cunit1', 'cunit2',
                      'secpix1','secpix2',
                      'wcssep','equinox',
                      'cd1_1','cd1_2','cd2_1','cd2_2','epoch',
                      'airmass','moon_phase','moon_separation',
                      'delta_x','delta_y']
-
+                     
     return facility_keys, software_keys, image_keys
     
 def configure_setup(log=None):
@@ -298,8 +310,14 @@ def harvest_image_params(reduction_metadata, image_path, ref_image_path):
     image_params['ctype2'] = set_if_present(image_header,'CTYPE2')
     image_params['cdelt1'] = set_if_present(image_header,'CDELT1')
     image_params['cdelt2'] = set_if_present(image_header,'CDELT2')
+    image_params['crpix1'] = set_if_present(image_header,'CRPIX1')
+    image_params['crpix2'] = set_if_present(image_header,'CRPIX2')
+    image_params['crval1'] = set_if_present(image_header,'CRVAL1')
+    image_params['crval2'] = set_if_present(image_header,'CRVAL2')
     image_params['crota1'] = set_if_present(image_header,'CROTA1')
     image_params['crota2'] = set_if_present(image_header,'CROTA2')
+    image_params['cunit1'] = set_if_present(image_header,'CUNIT1')
+    image_params['cunit2'] = set_if_present(image_header,'CUNIT2')
     image_params['secpix1'] = set_if_present(image_header,'PIXSCALE')
     image_params['secpix2'] = set_if_present(image_header,'PIXSCALE')
     image_params['wcssep'] = None
@@ -705,7 +723,7 @@ def match_catalog_entries_with_starlist(conn,params,starlist,reduction_metadata,
             matched_stars.add_match(p)
             
             if verbose:
-                log.info(matched_stars.summarize_last())
+                log.info(matched_stars.summarize_last(units='pixel'))
 
     return matched_stars
 
@@ -733,7 +751,12 @@ def match_all_entries_with_starlist(setup,conn,params,starlist,reduction_metadat
     
     matched_stars = match_utils.StarMatchIndex()
     
-    query = 'SELECT star_id,x,y FROM phot WHERE reference_image="'+str(refimg_id)+'" AND star_id IN '+str(tuple(starlist['star_id'].data))
+    query = 'SELECT code_id FROM software WHERE stage="stage3"'
+    software = phot_db.query_to_astropy_table(conn, query, args=())['code_id'][0]
+    
+    query = 'SELECT phot_id,star_id,x,y,image,filter,software FROM phot WHERE reference_image="'+str(refimg_id)+\
+                        '" AND star_id IN '+str(tuple(starlist['star_id'].data))+\
+                        ' AND software="'+str(software)+'"'
     phot_data = phot_db.query_to_astropy_table(conn, query, args=())
     
     refframe_coords = table.Table( [ table.Column(name='x', data=reduction_metadata.star_catalog[1]['x']),

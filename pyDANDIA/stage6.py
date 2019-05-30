@@ -65,6 +65,15 @@ def run_stage6(setup):
     db_phot.check_before_commit(conn, dataset_params, 'facilities', facility_keys, 'facility_code')
     db_phot.check_before_commit(conn, dataset_params, 'software', software_keys, 'version')
     
+    query = 'SELECT facility_id FROM facilities WHERE facility_code ="'+dataset_params['facility_code']+'"'
+    dataset_params['facility'] = db_phot.query_to_astropy_table(conn, query, args=())['facility_id'][0]
+    
+    query = 'SELECT code_id FROM software WHERE version ="'+dataset_params['version']+'"'
+    dataset_params['software'] = db_phot.query_to_astropy_table(conn, query, args=())['code_id'][0]
+    
+    query = 'SELECT filter_id FROM filters WHERE filter_name ="'+dataset_params['filter_name']+'"'
+    dataset_params['filter'] = db_phot.query_to_astropy_table(conn, query, args=())['filter_id'][0]
+    
     # Measure the offset between the reference image for this dataset relative
     # to the primary reference for this field
     (transform, matched_stars) = match_dataset_with_field_primary_reference(setup,conn,dataset_params,
@@ -186,6 +195,9 @@ def run_stage6(setup):
                                                                  os.path.join(setup.red_dir,'data',new_image), 
                                                                  dataset_params['ref_filename'])
             image_params['version'] = stage6_version
+            image_params['facility'] = dataset_params['facility']
+            image_params['filter'] = dataset_params['filter']
+            
             db_phot.check_before_commit(conn, image_params, 'images', image_keys, 'filename')
             log.info('Recorded image '+str(new_image)+' in DB')
             
@@ -575,7 +587,7 @@ def match_dataset_with_field_primary_reference(setup,conn,dataset_params,
     """
     
     starlist = stage3_db_ingest.fetch_field_starlist(conn,dataset_params,log)
-        
+    
     primary_refimg_id = db_phot.find_primary_reference_image_for_field(conn)
         
     matched_stars = stage3_db_ingest.match_catalog_entries_with_starlist(conn,dataset_params,
@@ -584,7 +596,7 @@ def match_dataset_with_field_primary_reference(setup,conn,dataset_params,
                                                         primary_refimg_id,log)
         
     transform = stage3_db_ingest.calc_transform_to_primary_ref(setup,matched_stars,log)
-        
+    
     matched_stars = stage3_db_ingest.match_all_entries_with_starlist(setup,conn,dataset_params,
                                                     starlist,reduction_metadata,
                                                     primary_refimg_id,transform,log,
@@ -635,8 +647,6 @@ def commit_image_photometry_matching(conn, params, reduction_metadata,
     
     n_stars = len(phot_table)
     
-    print(phot_table)
-    
     values = []
     for i in range(0,matched_stars.n_match,1):
         
@@ -668,7 +678,9 @@ def commit_image_photometry_matching(conn, params, reduction_metadata,
                     'PSF_FITTING' )
                 
         values.append(entry)
-        
+    
+    XXX Need to identify any existing datapoints XXX
+    
     command = 'INSERT OR REPLACE INTO phot('+','.join(key_list)+\
                 ') VALUES ('+wildcards+')'
     

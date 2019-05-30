@@ -331,7 +331,7 @@ def check_before_commit(conn, params, table_name, table_keys, search_key):
     
     values = []
     for key in table_keys:
-        values.append(params[key])
+        values.append(str(params[key]))
     
     if len(table_data) == 0 or params[search_key] not in table_data[search_key]:
             
@@ -340,7 +340,6 @@ def check_before_commit(conn, params, table_name, table_keys, search_key):
     if commit:
         command = 'INSERT OR REPLACE INTO '+table_name+' ('+\
                 ','.join(table_keys)+') VALUES ('+','.join(wildcards)+')'
-
         cursor.execute(command, values)
         
     conn.commit()

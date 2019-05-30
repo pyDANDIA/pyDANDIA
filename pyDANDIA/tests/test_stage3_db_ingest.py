@@ -97,18 +97,26 @@ def test_commit_reference_component():
     
     log = logs.start_stage_log( TEST_DIR, 'stage3_db_ingest_test' )
 
-    (facility_keys, software_keys, image_keys, params) = fetch_test_db_contents()
+    (facility_keys, software_keys, image_keys, params, star_catalog, cols) = fetch_test_db_contents()
     
     conn = phot_db.get_connection(dsn=db_file_path)
     
     phot_db.check_before_commit(conn, params, 'facilities', facility_keys, 'facility_code')
     phot_db.check_before_commit(conn, params, 'software', software_keys, 'version')
-    phot_db.check_before_commit(conn, params, 'images', image_keys, 'filename')
     
+    query = 'SELECT facility_id FROM facilities WHERE facility_code ="'+params['facility_code']+'"'
+    params['facility'] = phot_db.query_to_astropy_table(conn, query, args=())['facility_id'][0]
+    
+    query = 'SELECT filter_id,filter_name FROM filters WHERE filter_name ="'+params['filter_name']+'"'
+    result = phot_db.query_to_astropy_table(conn, query, args=())
+    params['filter'] = result['filter_id'][0]
+    
+    phot_db.check_before_commit(conn, params, 'images', image_keys, 'filename')
     
     query = 'SELECT img_id FROM images WHERE filename="'+\
             params['filename']+'"'
     image = phot_db.query_to_astropy_table(conn, query, args=())
+    print(image)
     
     stage3_db_ingest.commit_reference_image(conn, params, log)
     
@@ -117,7 +125,6 @@ def test_commit_reference_component():
     query = 'SELECT component_id,image,reference_image FROM reference_components WHERE image='+\
             str(image['img_id'][0])
     t = phot_db.query_to_astropy_table(conn, query, args=())
-    
     assert len(t) == 1
     
     conn.close()
@@ -145,20 +152,23 @@ def fetch_test_db_contents():
     facility_keys = ['facility_code', 'site', 'enclosure', 
                      'telescope', 'instrument']
     software_keys = ['code_name', 'stage', 'version']
-    image_keys =    ['filename', 'field_id',
+    image_keys =    ['facility', 'filter', 'field_id', 'filename',
                      'date_obs_utc','date_obs_jd','exposure_time',
                      'fwhm','fwhm_err',
                      'ellipticity','ellipticity_err',
                      'slope','slope_err','intercept','intercept_err',
                      'wcsfrcat','wcsimcat','wcsmatch','wcsnref','wcstol','wcsra',
                      'wcsdec','wequinox','wepoch','radecsys',
-                     'ctype1','ctype2','cdelt1','cdelt2','crota1','crota2',
+                     'ctype1','ctype2','crpix1', 'crpix2', 'crval1', 'crval2',
+                     'cdelt1','cdelt2','crota1','crota2',
+                     'cunit1', 'cunit2',
                      'secpix1','secpix2',
                      'wcssep','equinox',
                      'cd1_1','cd1_2','cd2_1','cd2_2','epoch',
                      'airmass','moon_phase','moon_separation',
                      'delta_x','delta_y']
     
+
     params = {'facility_code': 'lsc-doma-1m0a-fl15', 
               'site': 'lsc', 
               'enclosure': 'doma', 
@@ -168,6 +178,7 @@ def fetch_test_db_contents():
               'stage': 'stage3_test', 
               'version': 'stage3_test_v0.1',
               'filename': 'lsc1m005-fl15-20170418-0131-e91_cropped.fits', 
+              'ref_filename': 'lsc1m005-fl15-20170418-0131-e91_cropped.fits', 
               'field_id': 'ROME-FIELD-16',
               'filter_name': 'gp',
               'date_obs_utc': '2016-05-18T10:57:30',
@@ -184,8 +195,11 @@ def fetch_test_db_contents():
               'wcsnref':None,'wcstol':None,'wcsra':None,
               'wcsdec':None,'wequinox':None,'wepoch':None,'radecsys':None,
               'ctype1':None,'ctype2':None,
+              'crpix1':None,'crpix2':None,
+              'crval1':None,'crval2':None,
               'cdelt1':None,'cdelt2':None,
               'crota1':None,'crota2':None,
+              'cunit1':None,'cunit2':None,
               'secpix1':None,'secpix2':None,
               'wcssep':None,'equinox':None,
               'cd1_1':None,'cd1_2':None,'cd2_1':None,'cd2_2':None,'epoch':None,
@@ -592,9 +606,9 @@ def test_match_all_entries_with_starlist():
 if __name__ == '__main__':
     
     #test_configure_setup()
-    test_harvest_stage3_parameters()
+    #test_harvest_stage3_parameters()
     #test_commit_reference_image()
-    #test_commit_reference_component()
+    test_commit_reference_component()
     #test_read_combined_star_catalog()
     #test_commit_stars()
     #test_commit_photometry()
