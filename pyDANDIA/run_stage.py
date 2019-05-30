@@ -4,6 +4,8 @@ Created on Wed Oct 11 17:04:53 2017
 
 @author: rstreet
 """
+import numpy as np
+np.random.seed(1234567) #define seed for reproducible results.
 import matplotlib
 matplotlib.use('Agg')
 from os import getcwd, path, remove

@@ -671,17 +671,19 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
 
                 model_final = tf.SimilarityTransform(translation=(-x_shift, -y_shift))
                 print('Using XY shifts')
+            try:
+                model_final.params = np.dot(original_matrix,model_final.params)
 
-            model_final.params = np.dot(original_matrix,model_final.params)
+                shifted = tf.warp(data_image, inverse_map=model_final.inverse, output_shape=data_image.shape, order=3,
+                                  mode='constant', cval=np.median(data_image), clip=False, preserve_range=False)
 
-            shifted = tf.warp(data_image, inverse_map=model_final.inverse, output_shape=data_image.shape, order=3,
-                              mode='constant', cval=np.median(data_image), clip=False, preserve_range=False)
+                shifted_mask = tf.warp(shifted_mask, inverse_map=model_final.inverse, preserve_range=True)
 
-            shifted_mask = tf.warp(shifted_mask, inverse_map=model_final.inverse, preserve_range=True)
-
-            corr = np.corrcoef(reference_image.ravel(),shifted.ravel())[0,1]
-
-            print(iteration,len(pts_data[inliers]),corr_ini,corr)
+                corr = np.corrcoef(reference_image.ravel(),shifted.ravel())[0,1]
+            except:
+                shifted_mask = np.zeros(np.shape(data_image))
+                print('Similarity Transform has failed to produce parameters')
+            #print(iteration,len(pts_data[inliers]),corr_ini,corr)
 
             iteration += 1
 
@@ -694,7 +696,7 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
 
         resampled_image_hdu = fits.PrimaryHDU(shifted)
         resampled_image_hdu.writeto(os.path.join(resampled_directory_path, new_image), overwrite=True)
-
+        data_image_hdu.close()
     master_mask_hdu = fits.PrimaryHDU(master_mask)
     master_mask_hdu.writeto(os.path.join(reference_image_directory, 'master_mask.fits'), overwrite=True)
 
