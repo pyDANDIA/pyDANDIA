@@ -245,7 +245,9 @@ class PhotometryPoints(TableDef):
     
     pc_000_datesindex = (
         'CREATE INDEX IF NOT EXISTS phot_objs ON phot (star_id)')
-
+    
+    pc_001_photindex = (
+        'CREATE UNIQUE INDEX phot_entry ON phot(star_id, reference_image, image, facility, filter, software)')
 
 # This is what the classes are actually called in the database schema
 FILTERS_TD = Filters("filters")
@@ -263,7 +265,10 @@ def ensure_table(conn, table_def):
     """
     curs = conn.cursor()
     for stmt in table_def.iter_build_statements():
-        curs.execute(stmt)
+        try:
+            curs.execute(stmt)
+        except sqlite3.OperationalError:
+            pass
     curs.close()
 
 
@@ -668,4 +673,29 @@ def cascade_delete_reference_images(conn, refimg_id_list,log):
         command = 'DELETE FROM reference_images WHERE refimg_id="'+str(refimg_id)+'"'
         cursor.execute(command, ())
         conn.commit()
+
+def fetch_facilities(conn):
+    """Function to extract a list of facilities known to the phot_db"""
+    
+    query = 'SELECT facility_id, facility_code FROM facilities'
+    facilities = query_to_astropy_table(conn, query, args=())
+    
+    return facilities
+
+def fetch_filters(conn):
+    """Function to extract a list of filters known to the phot_db"""
+    
+    query = 'SELECT filter_id, filter_name FROM filters'
+    filters = query_to_astropy_table(conn, query, args=())
+    
+    return filters
+
+def get_stage_software_id(conn,stage_name):
+    """Function to extract the ID of the software version used for a specific 
+    stage of the pipeline"""
+    
+    query = 'SELECT code_id FROM software WHERE stage="'+stage_name+'"'
+    software = query_to_astropy_table(conn, query, args=())
+    
+    return software['code_id'][0]
     

@@ -177,12 +177,8 @@ def run_stage6(setup):
         date = []
         diffim_directory = os.path.join(reduction_metadata.data_architecture[1]['OUTPUT_DIRECTORY'].data[0], 'diffim')
 
-        #photometric_table = np.zeros((len(new_images), len(ref_star_catalog), 16))
-        #compt_db = 0
-
         for idx, new_image in enumerate(new_images[:]):
-            print(new_image)
-            #try:
+            log.info('Extracting parameters of image ' + new_image + ' for photometry')
             index_image = np.where(new_image == reduction_metadata.headers_summary[1]['IMAGES'].data)[0][0]
             image_header = reduction_metadata.headers_summary[1][index_image]
 
@@ -198,6 +194,7 @@ def run_stage6(setup):
             image_params['facility'] = dataset_params['facility']
             image_params['filter'] = dataset_params['filter']
             
+            db_phot.check_before_commit(conn, image_params, 'facilities', facility_keys, 'facility_code')
             db_phot.check_before_commit(conn, image_params, 'images', image_keys, 'filename')
             log.info('Recorded image '+str(new_image)+' in DB')
             
@@ -205,43 +202,18 @@ def run_stage6(setup):
             exposures_id.append(image_id)
 
             log.info('Starting difference photometry of ' + new_image)
-            #target_image,date = open_an_image(setup, images_directory, new_image, image_index=0, log=None)
             kernel_image, kernel_error, kernel_bkg = find_the_associated_kernel(setup, kernels_directory, new_image)
 
-            # difference_image = subtract_images(target_image, reference_image, kernel_image, kernel_size, kernel_bkg)
             difference_image = open_an_image(setup, diffim_directory, 'diff_' + new_image, 0, log=None)[0]
 
-
-            # save_control_stars_of_the_difference_image(setup, new_image, difference_image, star_coordinates)
-            #import pdb;
-            #pdb.set_trace()
             diff_table, control_zone, phot_table = photometry_on_the_difference_image(setup, reduction_metadata, log,
                                                                           ref_star_catalog, difference_image, psf_model,
                                                                           sky_model, kernel_image, kernel_error,
                                                                           ref_exposure_time,idx)
             psf_model.update_psf_parameters(psf_parameters)
 
-            #diff_table[compt_db, :, :] = diff_table
-            #diff_table = np.zeros(diff_table.shape)
-            #compt_db += 1
-            
             commit_image_photometry_matching(conn, image_params, reduction_metadata, matched_stars, phot_table, log)
             
-            exit()
-            
-           # except:
-
-                # save_control_zone_of_residuals(setup, new_image, control_zone)
-
-             #   compt_db += 1
-
-                # if compt_db >9:
-
-                #   ingest_photometric_table_in_db(setup, exposures_id, star_indexes, photometric_table)
-                #   photometric_table = np.zeros((10,len(ref_star_catalog),16))
-                #   exposures_id = []
-                #   compt_db = 0
-
         
         output_txt_files = False
         if output_txt_files:
@@ -263,13 +235,12 @@ def run_stage6(setup):
 
 
         reduction_metadata.update_reduction_metadata_reduction_status(new_images, stage_number=6, status=1, log=log)
+        reduction_metadata.software[1]['stage6_version'] = stage6_version
         reduction_metadata.save_updated_metadata(
             reduction_metadata.data_architecture[1]['OUTPUT_DIRECTORY'][0],
             reduction_metadata.data_architecture[1]['METADATA_NAME'][0],
             log=log)
 
-        print(reduction_metadata.software[1])
-                       
     conn.close()                         
     logs.close_log(log)
 
@@ -505,6 +476,7 @@ def photometry_on_the_difference_image(setup, reduction_metadata, log, star_cata
     :rtype: array_like
     '''
 
+    # PSF photometry function returns a list of lists
     (differential_photometry, control_zone) = photometry.run_psf_photometry_on_difference_image(setup, reduction_metadata, log,
                                                                                 star_catalog,
                                                                                 difference_image, psf_model, kernel,
@@ -527,7 +499,7 @@ def photometry_on_the_difference_image(setup, reduction_metadata, log, star_cata
                    Column(name='local_background_err', data=differential_photometry[14]),
                    Column(name='residual_x', data=differential_photometry[15]),
                    Column(name='residual_y', data=differential_photometry[16]) ]
-                      
+    
     photometric_table = Table(data=table_data)
     
     # return table
@@ -647,7 +619,8 @@ def commit_image_photometry_matching(conn, params, reduction_metadata,
     
     n_stars = len(phot_table)
     
-    values = []
+    entries = []
+    
     for i in range(0,matched_stars.n_match,1):
         
         j_cat = matched_stars.cat1_index[i]     # Starlist index in DB
@@ -676,19 +649,18 @@ def commit_image_photometry_matching(conn, params, reduction_metadata,
                     ps, ps_err,   # No phot scale factor for PSF fitting photometry
                     bkgd, bkgd_err,  # No background measurements propageted
                     'PSF_FITTING' )
-                
-        values.append(entry)
+        
+        entries.append(entry)
     
-    XXX Need to identify any existing datapoints XXX
-    
-    command = 'INSERT OR REPLACE INTO phot('+','.join(key_list)+\
+    if len(entries) > 0:
+        command = 'INSERT OR REPLACE INTO phot('+','.join(key_list)+\
                 ') VALUES ('+wildcards+')'
     
-    cursor = conn.cursor()
+        cursor = conn.cursor()
         
-    cursor.executemany(command,values)
+        cursor.executemany(command,entries)
     
-    conn.commit()
-    
+        conn.commit()
+ 
     log.info('Completed ingest of photometry for '+str(len(matched_stars.cat1_index))+' stars')
 

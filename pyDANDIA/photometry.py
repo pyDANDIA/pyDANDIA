@@ -596,53 +596,58 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
                 
                 flux = phot_table[j][3]/phot_scale_factor
                 flux_err = phot_table[j][4]
-                
+                                    
                 flux_tot = ref_flux*ref_exposure_time - flux
                 flux_err_tot = (error_ref_flux ** 2*ref_exposure_time + flux_err**2/phot_scale_factor**2) ** 0.5
+                    
+                if flux_tot > 0.0 and flux_err_tot > 0.0:
+                    
+                    cal_flux_tot = cal_ref_flux*ref_exposure_time - flux
+                    cal_flux_err_tot = (error_cal_ref_flux ** 2*ref_exposure_time + flux_err**2/phot_scale_factor**2) ** 0.5
+                    
+                    list_delta_flux.append(flux)
+                    list_delta_flux_error.append(flux_err)
+                    
+                    (mag, mag_err,flux_tot,flux_err_tot) = convert_flux_to_mag(flux_tot, flux_err_tot,ref_exposure_time)
+                    (cal_mag, cal_mag_err,cal_flux_tot,cal_flux_err_tot) = convert_flux_to_mag(cal_flux_tot, cal_flux_err_tot, ref_exposure_time)
+                    
+                    list_flux.append(flux_tot)
+                    list_flux_error.append(flux_err_tot)
+                    list_cal_flux.append(cal_flux_tot)
+                    list_cal_flux_error.append(cal_flux_err_tot)
+                    
+                    list_mag.append(mag)
+                    list_mag_error.append(mag_err)
+                    list_cal_mag.append(cal_mag)
+                    list_cal_mag_error.append(cal_mag_err)
+                    
+                    list_phot_scale_factor.append(phot_scale_factor)
+                    list_phot_scale_factor_error.append(error_phot_scale_factor)
+                    #list_background.append(back)
+                    #list_background_error.append(back_err)
+                    
+                    #list_align_x.append(xstar)
+                    #list_align_y.append(ystar)
+                    
+                    list_background.append(0)
+                    list_background_error.append(0)
+                    
+                    list_align_x.append(positions[j][0])
+                    list_align_y.append(positions[j][1])
                 
-                cal_flux_tot = cal_ref_flux*ref_exposure_time - flux
-                cal_flux_err_tot = (error_cal_ref_flux ** 2*ref_exposure_time + flux_err**2/phot_scale_factor**2) ** 0.5
-                
-                list_delta_flux.append(flux)
-                list_delta_flux_error.append(flux_err)
-                
-                (mag, mag_err,ftmp,fetemp) = convert_flux_to_mag(flux_tot, flux_err_tot,ref_exposure_time)
-                (cal_mag, cal_mag_err,ftmp,fetemp) = convert_flux_to_mag(cal_flux_tot, cal_flux_err_tot, ref_exposure_time)
-                
-                list_flux.append(flux_tot)
-                list_flux_error.append(flux_err_tot)
-                list_cal_flux.append(cal_flux_tot)
-                list_cal_flux_error.append(cal_flux_err_tot)
-                
-                list_mag.append(mag)
-                list_mag_error.append(mag_err)
-                list_cal_mag.append(cal_mag)
-                list_cal_mag_error.append(cal_mag_err)
-                
-                list_phot_scale_factor.append(phot_scale_factor)
-                list_phot_scale_factor_error.append(error_phot_scale_factor)
-                #list_background.append(back)
-                #list_background_error.append(back_err)
-                
-                #list_align_x.append(xstar)
-                #list_align_y.append(ystar)
-                
-                list_background.append(0)
-                list_background_error.append(0)
-                
-                list_align_x.append(positions[j][0])
-                list_align_y.append(positions[j][1])
-                
+                else:
+                    good_fit = False
+                    
             else:
-                logs.ifverbose(log, setup, ' -> Star ' + str(j) +
-                           ' No photometry possible due to poor reference frame measurement')
+                #logs.ifverbose(log, setup, ' -> Star ' + str(j) +
+                #           ' No photometry possible due to poor reference frame measurement')
                 
                 good_fit = False
                 
         if good_fit == False:
         
-            logs.ifverbose(log, setup, ' -> Star ' + str(j) +
-                           ' No photometry possible from poor fit')
+            #logs.ifverbose(log, setup, ' -> Star ' + str(j) +
+            #               ' No photometry possible from poor fit')
             
             list_delta_flux.append(-9999.99)
             list_delta_flux_error.append(-9999.99)
