@@ -168,8 +168,8 @@ def run_stage6(setup):
         date = []
         diffim_directory = os.path.join(reduction_metadata.data_architecture[1]['OUTPUT_DIRECTORY'].data[0], 'diffim')
 
-        photometric_table = np.zeros((len(new_images), len(ref_star_catalog), 16))
-        compt_db = 0
+        #photometric_table = np.zeros((len(new_images), len(ref_star_catalog), 16))
+        #compt_db = 0
 
         for idx, new_image in enumerate(new_images[:]):
             print(new_image)
@@ -209,10 +209,10 @@ def run_stage6(setup):
                                                                           ref_exposure_time,idx)
             psf_model.update_psf_parameters(psf_parameters)
 
-            diff_table[compt_db, :, :] = diff_table
-            diff_table = np.zeros(diff_table.shape)
-            compt_db += 1
-
+            #diff_table[compt_db, :, :] = diff_table
+            #diff_table = np.zeros(diff_table.shape)
+            #compt_db += 1
+            
             commit_image_photometry_matching(conn, image_params, reduction_metadata, matched_stars, phot_table, log)
             
             exit()
@@ -498,15 +498,26 @@ def photometry_on_the_difference_image(setup, reduction_metadata, log, star_cata
                                                                                 difference_image, psf_model, kernel,
                                                                                 kernel_error, ref_exposure_time,image_id)
 
-    column_names = (
-    'exposure_id', 'star_id', 'reference_mag', 'reference_mag_err', 'reference_flux', 'reference_flux_err', 'diff_flux',
-    'diff_flux_err', 'magnitude', 'magnitude_err',
-    'phot_scale_factor', 'phot_scale_factor_err', 'local_background', 'local_background_err', 'residual_x',
-    'residual_y')
-
-    column_types = ('f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8')
-    photometric_table = Table(differential_photometry[0], names=column_names, dtype=column_types)
-
+    table_data = [ Column(name='star_id', data=differential_photometry[0]),
+                   Column(name='diff_flux', data=differential_photometry[1]),
+                   Column(name='diff_flux_err', data=differential_photometry[2]),
+                   Column(name='magnitude', data=differential_photometry[3]),
+                   Column(name='magnitude_err', data=differential_photometry[4]),
+                   Column(name='cal_magnitude', data=differential_photometry[5]),
+                   Column(name='cal_magnitude_err', data=differential_photometry[6]),
+                   Column(name='flux', data=differential_photometry[7]),
+                   Column(name='flux_err', data=differential_photometry[8]),
+                   Column(name='cal_flux', data=differential_photometry[9]),
+                   Column(name='cal_flux_err', data=differential_photometry[10]),
+                   Column(name='phot_scale_factor', data=differential_photometry[11]),
+                   Column(name='phot_scale_factor_err', data=differential_photometry[12]),
+                   Column(name='local_background', data=differential_photometry[13]),
+                   Column(name='local_background_err', data=differential_photometry[14]),
+                   Column(name='residual_x', data=differential_photometry[15]),
+                   Column(name='residual_y', data=differential_photometry[16]) ]
+                      
+    photometric_table = Table(data=table_data)
+    
     # return table
     return differential_photometry, control_zone, photometric_table
 
@@ -599,6 +610,17 @@ def commit_image_photometry_matching(conn, params, reduction_metadata,
     query = 'SELECT img_id, filename FROM images WHERE filename ="'+params['filename']+'"'
     image = db_phot.query_to_astropy_table(conn, query, args=())  
     
+    column_names = (
+    'star_id', 
+    'diff_flux', 'diff_flux_err', 
+    'magnitude', 'magnitude_err',
+    'cal_magnitude', 'cal_magnitude_err',
+    'flux', 'flux_err',
+    'cal_flux', 'cal_flux_err',
+    'phot_scale_factor', 'phot_scale_factor_err', 
+    'local_background', 'local_background_err', 
+    'residual_x', 'residual_y')
+    
     key_list = ['star_id', 'reference_image', 'image', 
                 'facility', 'filter', 'software', 
                 'x', 'y', 'hjd', 'magnitude', 'magnitude_err', 
@@ -614,7 +636,6 @@ def commit_image_photometry_matching(conn, params, reduction_metadata,
     n_stars = len(phot_table)
     
     print(phot_table)
-    exit()
     
     values = []
     for i in range(0,matched_stars.n_match,1):
@@ -622,8 +643,8 @@ def commit_image_photometry_matching(conn, params, reduction_metadata,
         j_cat = matched_stars.cat1_index[i]     # Starlist index in DB
         j_new = matched_stars.cat2_index[i]     # Star detected in image
         
-        x = str(reduction_metadata.star_catalog[1]['x'][j_new])
-        y = str(reduction_metadata.star_catalog[1]['y'][j_new])
+        x = str(phot_table['residual_x'][j_new])
+        y = str(phot_table['residual_y'][j_new])
         mag = str(phot_table['magnitude'][j_new])
         mag_err = str(phot_table['magnitude_err'][j_new])
         cal_mag = str(phot_table['cal_magnitude'][j_new])
@@ -632,14 +653,18 @@ def commit_image_photometry_matching(conn, params, reduction_metadata,
         flux_err = str(phot_table['flux_err'][j_new])
         cal_flux = str(phot_table['cal_flux'][j_new])
         cal_flux_err = str(phot_table['cal_flux_err'][j_new])
+        ps = str(phot_table['phot_scale_factor'][j_new])
+        ps_err = str(phot_table['phot_scale_factor_err'][j_new])
+        bkgd = str(phot_table['local_background'][j_new])
+        bkgd_err = str(phot_table['local_background_err'][j_new])
         
         entry = (str(int(j_cat)), str(refimage['refimg_id'][0]), str(image['img_id'][0]),
                    str(facility['facility_id'][0]), str(f['filter_id'][0]), str(code['code_id'][0]),
                     x, y, str(params['hjd']), 
                     mag, mag_err, cal_mag, cal_mag_err, 
                     flux, flux_err, cal_flux, cal_flux_err,
-                    '0.0', '0.0',   # No phot scale factor for PSF fitting photometry
-                    '0.0', '0.0',   # No background measurements propageted
+                    ps, ps_err,   # No phot scale factor for PSF fitting photometry
+                    bkgd, bkgd_err,  # No background measurements propageted
                     'PSF_FITTING' )
                 
         values.append(entry)
