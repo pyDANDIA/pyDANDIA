@@ -209,7 +209,7 @@ def open_reference(setup, ref_image_directory, ref_image_name, kernel_size, max_
         ref_image = fits.HDUList(fits.PrimaryHDU(ref_image1[ref_extension].data[subset[0]:subset[1],subset[2]:subset[3]]))
     
 	#increase kernel size by 1.5 and define circular mask
-    kernel_size_plus = int(kernel_size) + int(kernel_size)
+    kernel_size_plus = int(kernel_size) + 3
     mask_kernel = np.ones(kernel_size_plus * kernel_size_plus, dtype=float)
     mask_kernel = mask_kernel.reshape((kernel_size_plus, kernel_size_plus))
     xyc = int(kernel_size_plus / 2)
