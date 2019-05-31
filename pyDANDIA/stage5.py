@@ -86,7 +86,7 @@ def run_stage5(setup):
     sigma_max = fwhm_max/(2.*(2.*np.log(2.))**0.5)
     # Factor 4 corresponds to the radius of 2*FWHM the old pipeline
     # Find kernel_sizes for multiple pre-calculated umatrices
-    kernel_percentile = [25., 50.] #assumes ker_rad = 2 * FWHM, check config!
+    kernel_percentile = [20., 40.] #assumes ker_rad = 2 * FWHM, check config!
     kernel_size_array = []
     for percentile in kernel_percentile:
         kernel_size_tmp = int(4.*float(reduction_metadata.reduction_parameters[1]['KER_RAD'][0]) * np.percentile(fwhms,percentile))
@@ -94,8 +94,8 @@ def run_stage5(setup):
             kernel_size_tmp -= 1
         kernel_size_array.append(kernel_size_tmp)
     shifts  = np.array(shifts)
-    # requires images to be sufficiently aligned and adds a safety margin of 100 -> mv to config.json
-    maxshift = int(np.max(shifts)) + 100
+    # requires images to be sufficiently aligned and adds a safety margin of 10 -> mv to config.json
+    maxshift = int(np.max(shifts)) + 10
     # find the images that need to be processed
     all_images = reduction_metadata.find_all_images(setup, reduction_metadata,
                                                     os.path.join(setup.red_dir, 'data'), log=log)
