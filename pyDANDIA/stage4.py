@@ -617,6 +617,7 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
 
         iteration = 0
         corr_ini = np.corrcoef(reference_image.ravel(), shifted.ravel())[0, 1]
+        
         while iteration <3:
 
 
@@ -661,7 +662,7 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
                # pts_data[:, 0] += y_shift
                # pts_data[:, 1] += x_shift
 
-                model_robust, inliers = ransac((pts_data[:, :2], pts_reference2[:, :2]), tf.ProjectiveTransform, min_samples=min(500,int(0.1*len(pts_data))), residual_threshold=10.0,max_trials=100)
+                model_robust, inliers = ransac((pts_data[:2500, :2], pts_reference2[:2500, :2]), tf.ProjectiveTransform, min_samples=min(50,int(0.1*len(pts_data))), residual_threshold=10.0,max_trials=100)
 
                 model_final = model_robust
 

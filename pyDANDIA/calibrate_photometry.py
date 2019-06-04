@@ -11,11 +11,13 @@ from pyDANDIA import logs
 from pyDANDIA import metadata
 from pyDANDIA import catalog_utils
 from pyDANDIA import photometry
+from pyDANDIA import vizier_tools
+
 from astropy.coordinates import SkyCoord
 from astropy.coordinates import matching
 import astropy.units as u
 from astropy.table import Table
-import vizier_tools
+
 import numpy as np
 from scipy import optimize
 import matplotlib.pyplot as plt
