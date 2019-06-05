@@ -108,6 +108,7 @@ def run_stage6(setup):
         else:
 
             ref_star_catalog = starlist[key].data
+    log.info('Established ref_star_catalog array')
     
     psf_model = fits.open(reduction_metadata.data_architecture[1]['REF_PATH'].data[0] + '/psf_model.fits')
 
@@ -118,19 +119,25 @@ def run_stage6(setup):
                       psf_model[0].header['X_CENTER'],
                       psf_model[0].header['GAMMA'],
                       psf_model[0].header['ALPHA']]
-
+    
+    log.info('Established PSF parameters')
+    
     sky_model = sky_background.model_sky_background(setup,
                                                     reduction_metadata, log, ref_star_catalog)
-
+    log.info('Built sky model')
+    
     psf_model = psf.get_psf_object(psf_type)
     psf_model.update_psf_parameters(psf_parameters)
-
+    log.info('Built PSF model')
+    
     ind = ((starlist['x'] - 150) ** 2 < 1) & ((starlist['y'] - 150) ** 2 < 1)
 
     time = []
     exposures_id = []
     photometric_table = []
-
+    
+    log.info('Starting photometry of difference images')
+    
     if len(new_images) > 0:
 
         # find the reference image

@@ -35,7 +35,7 @@ def model_sky_background(setup,reduction_metadata,log,ref_star_catalog):
     psf_mask = build_psf_mask(setup,psf_size,diagnostics=True)
     
     star_masked_image = mask_stars(setup,ref_image,ref_star_catalog, psf_mask, 
-                           diagnostics=True)
+                           diagnostics=False)
     
     sat_masked_image = mask_saturated_pixels(setup,ref_image,sat_value,log)
     
