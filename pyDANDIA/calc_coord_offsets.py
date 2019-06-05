@@ -265,6 +265,11 @@ def calc_pixel_transform(setup, ref_catalog, catalog2, log):
     cat_array[:,0] = catalog2['x'].data
     cat_array[:,1] = catalog2['y'].data
     
+    max_size = 2500
+    if len(ref_array) > max_size:
+        ref_array = ref_array[:max_size,:]
+        cat_array = cat_array[:max_size,:]
+        
     (model, inliers) = ransac((ref_array, cat_array), AffineTransform, min_samples=3,
                                residual_threshold=2, max_trials=100)
     
