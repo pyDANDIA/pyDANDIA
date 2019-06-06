@@ -269,7 +269,7 @@ def starfind(setup, path_to_image, reduction_metadata, plot_it=False,
             fit_errors = cov.diagonal()**0.5
             #print fit_params
             model = biv.psf_model(yy, xx, fit_params)
-            if np.isnan(fit_params[3]) == False or np.isnan(fit_params[4]) == False:
+            if np.isnan(fit_params[3]) == True or np.isnan(fit_params[4]) == True:
                 fwhm_x_arr.append(0.0)
                 fwhm_y_arr.append(0.0)
             else:

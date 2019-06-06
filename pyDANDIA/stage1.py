@@ -99,7 +99,6 @@ def run_stage1(setup, rerun_all=None):
     for im in full_path_to_images:
         (status, report, params) = starfind.starfind(setup, im, reduction_metadata,
                                                      plot_it=False, log=log)
-
         # The name of the image
 
         imname = im.split('/')[-1]
