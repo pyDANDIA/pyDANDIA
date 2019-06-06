@@ -491,11 +491,12 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
     radius *= 1.5852*2
     apertures = CircularAperture(positions, r=radius)
     error = calc_total_error(difference_image, np.std(difference_image.ravel()), 1)
-    phot_table = aperture_photometry(difference_image, apertures, method='subpixel',
+    try:
+        phot_table = aperture_photometry(difference_image, apertures, method='subpixel',
                                      error=error)
-
-    #import pdb;
-    #pdb.set_trace()
+    except ValueError:
+        import pdb;
+        pdb.set_trace()
     log.info('Performing difference image photometry for '+str(len(ref_star_catalog))+' stars')
     
     for j in range(0, len(ref_star_catalog), 1):
