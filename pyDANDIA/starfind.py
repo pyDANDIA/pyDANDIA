@@ -294,34 +294,41 @@ def starfind(setup, path_to_image, reduction_metadata, plot_it=False,
                 plt.colorbar()
                 plt.savefig(path.join(setup.red_dir,'starfind_model.png'))
         except:
+            
+            for key, value in params.items():
+                
+                if np.isnan(value):
+                    params[key] = 0.0
+                
             if log != None:
                 log.info("Could not fit source: %s." %str(i))
         
         i = i + 1
     
     # Estimate the median values for the parameters over the stars identified
-    params['sky'] = np.median(sky_arr)
-    params['fwhm_y'] = np.median(fwhm_y_arr)
-    params['fwhm_x'] = np.median(fwhm_x_arr)
-    params['corr_xy'] = np.median(corr_xy_arr)
-    params['nstars'] = nstars
-    params['sat_frac'] = sat_frac
+    if len(fwhm_x_arr) > 0:
+        params['sky'] = np.median(sky_arr)
+        params['fwhm_y'] = np.median(fwhm_y_arr)
+        params['fwhm_x'] = np.median(fwhm_x_arr)
+        params['corr_xy'] = np.median(corr_xy_arr)
+        params['nstars'] = nstars
+        params['sat_frac'] = sat_frac
 
-    try:
-        if xmax>200 and ymax>200:            
-            psf_emp, psf_error_emp = empirical_psf_simple.empirical_psf_median(np.copy(scidata)[:200,:200], 20, saturation)
-        else:
-            psf_emp, psf_error_emp = empirical_psf_simple.empirical_psf_median(np.copy(scidata), 20, saturation)
-        #imgname = os.path.basename(path_to_image)
-        #hduout=fits.PrimaryHDU(psf_emp)
-        #hduout.writeto('psf_'+imgname,overwrite = True)
-        symmetry_metric = empirical_psf_simple.symmetry_check(psf_emp)
-        params['symmetry'] = symmetry_metric
-    except Exception as e:
-      
-        if log != None:
-            report = ('Could not extract the symmetry based on the PSF ')
-            log.info(report)    
+        try:
+            if xmax>200 and ymax>200:            
+                psf_emp, psf_error_emp = empirical_psf_simple.empirical_psf_median(np.copy(scidata)[:200,:200], 20, saturation)
+            else:
+                psf_emp, psf_error_emp = empirical_psf_simple.empirical_psf_median(np.copy(scidata), 20, saturation)
+            #imgname = os.path.basename(path_to_image)
+            #hduout=fits.PrimaryHDU(psf_emp)
+            #hduout.writeto('psf_'+imgname,overwrite = True)
+            symmetry_metric = empirical_psf_simple.symmetry_check(psf_emp)
+            params['symmetry'] = symmetry_metric
+        except Exception as e:
+          
+            if log != None:
+                report = ('Could not extract the symmetry based on the PSF ')
+                log.info(report)    
 
     if log != None:
         log.info('Measured median values:')
