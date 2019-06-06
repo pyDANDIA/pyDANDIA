@@ -456,7 +456,7 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
             if np.isnan(reduction_metadata.images_stats[1]['FWHM_X'][image_id]) == 0.0 \
              or np.isnan(reduction_metadata.images_stats[1]['FWHM_X'][image_id]) == 0.0:
                  
-            use_image = False
+                 use_image = False
         
         return use_image
 
