@@ -19,6 +19,7 @@ import numpy as np
 
 from astropy.io import fits
 from astropy.table import Table
+from astropy.stats import sigma_clipped_stats
 from shutil import copyfile
 
 from pyDANDIA import  config_utils
@@ -28,7 +29,8 @@ from pyDANDIA import  pixelmasks
 from pyDANDIA import  logs
 from pyDANDIA import  empirical_psf_simple
 
-def run_stage2(setup):
+
+def run_stage2(setup, empirical_ranking=False):
     """Main driver function to run stage 2: reference selection.
 
     This stage is processing the metadata file, looks for the output of
@@ -153,16 +155,23 @@ def run_stage2(setup):
                                                         new_row=entry)
 
     #relax criteria...
-    if reference_ranking == []:
-        log.info('No meaningful automatic selection can be made. Assigning random reference. To be updated by hand')
+    if reference_ranking == [] or empirical_ranking:
+        log.info('No meaningful automatic selection can be made. Assigning empirical reference.')
         for stats_entry in reduction_metadata.images_stats[1]:
             if stats_entry[9] >= 0:
                 image_filename = stats_entry[0]
                 row_idx = np.where(reduction_metadata.images_stats[1]['IM_NAME'] == image_filename)[0][0]
                 moon_status = 'dark'
-   
+          
                 # extract data inventory row for image and calculate sorting key
-                ranking_key = 99
+                fwhm_value = (float(stats_entry['FWHM_X']) ** 2 + float(stats_entry['FWHM_Y'])**2)**0.5
+                data_directory_path = os.path.join(setup.red_dir, 'data')
+                hl_data = fits.open(os.path.join(data_directory_path,image_filename))
+                data = hl_data[0].data
+                mean, median, std = sigma_clipped_stats(data, sigma=3.0)
+                fraction_3sig = float(len(np.where(data>3.*std+median)[1]))/data.size
+                hl_data.close()
+                ranking_key = 1/(1/(fraction_3sig**2) +fwhm_value**2)
                 reference_ranking.append([image_filename, ranking_key])
                 entry = [image_filename, moon_status, ranking_key]
                 reduction_metadata.add_row_to_layer(key_layer='reference_inventory',
