@@ -693,7 +693,7 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
         
         log.info('Invalid FWHM data for image - no photometry can be produced')
         
-        list_star_id = ref_star_catalog[:, 0].to_list()
+        list_star_id = ref_star_catalog[:, 0].tolist()
         list_delta_flux = [-9999.99]*len(ref_star_catalog)
         list_delta_flux_error = [-9999.99]*len(ref_star_catalog)
         list_flux = [-9999.99]*len(ref_star_catalog)
