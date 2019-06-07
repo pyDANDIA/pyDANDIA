@@ -58,7 +58,7 @@ def run_stage_stand_alone():
 
     elif params['stage'] == 'stage2':
         
-        (status, report) = stage2.run_stage2(setup, empirical_ranking=params['empirical_ref'])
+        (status, report) = stage2.run_stage2(setup, empirical_ranking=params['empirical_ref'], n_stack = int(params['stack_ref']))
     
     elif params['stage'] == 'reference_astrometry':
         
@@ -161,7 +161,12 @@ def get_args():
         
         params['empirical_ref'] = False
     
+    if '-stack_ref' in argv or '-stack-ref' in argv:
 
+        params['stack_ref'] = 10
+   
+    else:
+        params['stack_ref'] = 1
 
     if '-v' in argv:
         

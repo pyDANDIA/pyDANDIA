@@ -17,12 +17,15 @@ import os
 import sys
 import numpy as np
 
+from scipy.ndimage.interpolation import shift
+
 from astropy.io import fits
 from astropy.table import Table
 from astropy.stats import sigma_clipped_stats
 from shutil import copyfile
 
 from pyDANDIA import  config_utils
+from pyDANDIA import  convolution
 
 from pyDANDIA import  metadata
 from pyDANDIA import  pixelmasks
@@ -30,7 +33,7 @@ from pyDANDIA import  logs
 from pyDANDIA import  empirical_psf_simple
 
 
-def run_stage2(setup, empirical_ranking=False):
+def run_stage2(setup, empirical_ranking=False, n_stack = 1):
     """Main driver function to run stage 2: reference selection.
 
     This stage is processing the metadata file, looks for the output of
@@ -182,7 +185,7 @@ def run_stage2(setup, empirical_ranking=False):
                                             metadata_name='pyDANDIA_metadata.fits',
                                             key_layer='reference_inventory')
 
-    if reference_ranking != []:
+    if reference_ranking != [] and n_stack == 1:
         best_image = sorted(reference_ranking, key=itemgetter(1))[-1]
         ref_directory_path = os.path.join(setup.red_dir, 'ref')
         if not os.path.exists(ref_directory_path):
@@ -226,9 +229,64 @@ def run_stage2(setup, empirical_ranking=False):
         log.info('Updating metadata with info on new images...')
         logs.close_log(log)
 
+        return status, report  
+
+    if reference_ranking != [] and n_stack > 1 :
+
+        best_image = sorted(reference_ranking, key=itemgetter(1))[-1]
+        n_min_stack  = min(len(reference_ranking), n_stack+1)
+        best_images = sorted(reference_ranking, key=itemgetter(1))[-n_min_stack]
+        print(best_image, best_images)
+        ref_hdu = fits.open(os.path.join(reduction_metadata.data_architecture[1]['IMAGES_PATH'][0],best_image))
+        coadd = np.copy(ref_hdu[0].data)
+        shift_mask = np.ones(np.shape(coadd))
+        ref_directory_path = os.path.join(setup.red_dir, 'ref')
+        if not os.path.exists(ref_directory_path):
+            os.mkdir(ref_directory_path)
+
+        for image in best_images:
+            data_hdu = fits.open(os.path.join(reduction_metadata.data_architecture[1]['IMAGES_PATH'][0],image))
+            xs,ys =  find_shift(ref_hdu.data, data_hdu.data)
+            shifted = shift(data_hdu[0].data, (ys,xs), cval=0.)
+            coadd = coadd + shifted
+            shift_mask[shifted==0] = 0
+            data_hdu.close()
+
+        coadd[shift_mask==0] = 0
+        ref_hdu[0].data = coadd
+        ref_hdu.writeto(os.path.join(ref_directory_path,'ref.fits'),overwrite = True)
+        ref_hdu.close()
+        
+        if not 'REF_PATH' in reduction_metadata.data_architecture[1].keys():
+            reduction_metadata.add_column_to_layer('data_architecture',
+                                               'REF_PATH', [ref_directory_path],
+                                                new_column_format=None,
+                                                new_column_unit=None)
+        else:
+            reduction_metadata.update_a_cell_to_layer('data_architecture', 0,'REF_PATH', ref_directory_path)
+
+        if  not 'REF_IMAGE' in reduction_metadata.data_architecture[1].keys():
+            reduction_metadata.add_column_to_layer('data_architecture',
+                                               'REF_IMAGE', ['ref.fits'],
+                                                new_column_format=None,
+                                               new_column_unit=None)      
+        else:
+            reduction_metadata.update_a_cell_to_layer('data_architecture', 0,'REF_IMAGE', 'ref.fits')
+        # Update the REDUCTION_STATUS table in metadata for stage 2
+       
+        reduction_metadata.update_reduction_metadata_reduction_status(all_images,
+                                                          stage_number=1, status=1, log=log)
+        reduction_metadata.save_updated_metadata(metadata_directory=setup.red_dir,
+                                                 metadata_name='pyDANDIA_metadata.fits')     
+
+        status = 'OK'
+        report = 'Completed successfully'
+        log.info('Updating metadata with info on new images...')
+        logs.close_log(log)
+
         return status, report
 
-    else:
+    if reference_ranking == []:
         status = 'FAILED'
         report = 'No suitable image found.'
 
@@ -237,6 +295,22 @@ def run_stage2(setup, empirical_ranking=False):
 
         return status, report
 
+
+
+def find_shift(reference_image, target_image):
+    """
+    Using a reference image and a target image
+    determine the x and y offset
+    :param list header: images
+    """
+    reference_shape = reference_image.shape
+    x_center = int(reference_shape[0] / 2)
+    y_center = int(reference_shape[1] / 2)
+    correlation = convolve_image_with_a_psf(np.matrix(reference_image),np.matrix(target_image), correlate=1)
+    x_shift, y_shift = np.unravel_index(np.argmax(correlation), correlation.shape)
+    good_shift_y = y_shift - y_center
+    good_shift_x = x_shift - x_center
+    return good_shift_y, good_shift_x      
 
 def moon_brightness_header(header,row_idx):
     """
