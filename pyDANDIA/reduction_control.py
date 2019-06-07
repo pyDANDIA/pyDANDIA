@@ -19,6 +19,7 @@ import stage4
 #import stage6
 import logs
 import subprocess
+import pipeline_setup
 
 def reduction_control():
     """Main driver function for the pyDANDIA pipelined reduction of an 
@@ -60,6 +61,12 @@ def reduction_control():
 #    log.info('Completed stage 6 with status '+repr(status)+': '+report)
     
     logs.close_log(log)
+
+def run_data_preparation(reduction_setup,data_dir):
+    """Function to run in sequence stages 0 - 2 for a single dataset"""
+
+    
+    
 
 def execute_stage(run_stage_func, stage_name, setup, status, log):
     """Function to execute a stage and verify whether it completed successfully
