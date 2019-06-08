@@ -464,7 +464,7 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
                  
                  use_image = False
                  
-                 log.info'(Image not photometered because of zeroed FWHM measurements')
+                 log.info('Image not photometered because of zeroed FWHM measurements')
                  
         return use_image
 
