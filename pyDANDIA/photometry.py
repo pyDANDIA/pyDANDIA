@@ -443,21 +443,29 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
     # plt.imshow(np.log10(difference_image))
     # plt.show()
 
-    def check_fwhm(reduction_metadata, image_id):
+    def check_fwhm(reduction_metadata, image_id, log):
         
         use_image = True
         
+        log.info('FWHM x,y for image '+str(image_id)+' = '+\
+                repr(reduction_metadata.images_stats[1]['FWHM_X'][image_id])+', '+\
+                repr(reduction_metadata.images_stats[1]['FWHM_Y'][image_id]))
+                
         if np.isnan(reduction_metadata.images_stats[1]['FWHM_X'][image_id]) == True \
              or np.isnan(reduction_metadata.images_stats[1]['FWHM_X'][image_id]) == True:
             
             use_image = False
+            
+            log.info('Image not photometered because of NaN FWHM measurements')
             
         if use_image:
             if np.isnan(reduction_metadata.images_stats[1]['FWHM_X'][image_id]) == 0.0 \
              or np.isnan(reduction_metadata.images_stats[1]['FWHM_X'][image_id]) == 0.0:
                  
                  use_image = False
-        
+                 
+                 log.info'(Image not photometered because of zeroed FWHM measurements')
+                 
         return use_image
 
     psf_size = reduction_metadata.reduction_parameters[1]['PSF_SIZE'][0]
@@ -503,7 +511,7 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
 
     positions = np.array(ref_star_catalog[:, [1, 2]]).astype(np.float)
     pixscale = reduction_metadata.reduction_parameters[1]['PIX_SCALE'].data[0]
-    use_image = check_fwhm(reduction_metadata, image_id)
+    use_image = check_fwhm(reduction_metadata, image_id, log)
     
     if use_image:
         radius = np.max((reduction_metadata.images_stats[1]['FWHM_X'][image_id],reduction_metadata.images_stats[1]['FWHM_Y'][image_id]))
