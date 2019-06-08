@@ -360,11 +360,16 @@ def subtract_with_constant_kernel(new_images, reference_image_name, reference_im
             quality_metrics.append([new_image, pscale, pscale_err, median_sky, variance_per_pixel, ngood, kurtosis_quality, skew_quality])
             difference_image_hdu = fits.PrimaryHDU(difference_image,header=new_header)
             difference_image_hdu.writeto(os.path.join(diffim_directory_path,'diff_'+new_image),overwrite = True)
+        
         except Exception as e:
+
+            quality_metrics.append([new_image, -1.0, -1.0, -1.0, -1.0, 0, -1.0, -1.0])
+
             if log is not None:
                 logs.ifverbose(log, setup,'kernel matrix computation or shift failed:' + new_image + '. skipping! '+str(e))
             else:
                 print(str(e))
+                
     return quality_metrics
 
 
