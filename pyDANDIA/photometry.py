@@ -459,8 +459,8 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
             log.info('Image not photometered because of NaN FWHM measurements')
             
         if use_image:
-            if np.isnan(reduction_metadata.images_stats[1]['FWHM_X'][image_id]) == 0.0 \
-             or np.isnan(reduction_metadata.images_stats[1]['FWHM_X'][image_id]) == 0.0:
+            if reduction_metadata.images_stats[1]['FWHM_X'][image_id] == 0.0 \
+             or reduction_metadata.images_stats[1]['FWHM_X'][image_id] == 0.0:
                  
                  use_image = False
                  
