@@ -142,7 +142,7 @@ def run_stage5(setup):
         return status, report, reduction_metadata
  
     quality_metrics = subtract_with_constant_kernel(new_images, reference_image_name, reference_image_directory, reduction_metadata, setup, data_image_directory, kernel_size_array, max_adu, ref_stats, maxshift, kernel_directory_path, diffim_directory_path, log = log)
-
+    
     data = np.copy(quality_metrics)
     if ('PSCALE' in reduction_metadata.images_stats[1].keys()):
         for idx in range(len(quality_metrics)):
@@ -360,7 +360,8 @@ def subtract_with_constant_kernel(new_images, reference_image_name, reference_im
             quality_metrics.append([new_image, pscale, pscale_err, median_sky, variance_per_pixel, ngood, kurtosis_quality, skew_quality])
             difference_image_hdu = fits.PrimaryHDU(difference_image,header=new_header)
             difference_image_hdu.writeto(os.path.join(diffim_directory_path,'diff_'+new_image),overwrite = True)
-        
+            print(quality_metrics[-1])
+            
         except Exception as e:
 
             quality_metrics.append([new_image, -1.0, -1.0, -1.0, -1.0, 0, -1.0, -1.0])
