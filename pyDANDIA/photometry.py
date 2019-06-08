@@ -711,9 +711,6 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
         list_align_x = [-9999.99]*len(ref_star_catalog)
         list_align_y = [-9999.99]*len(ref_star_catalog)
         
-        print(list_star_id)
-        print(len(list_star_id))
-        print(len(list_delta_flux))
 
     difference_image_photometry = [list_star_id, 
                                        list_delta_flux, list_delta_flux_error, 

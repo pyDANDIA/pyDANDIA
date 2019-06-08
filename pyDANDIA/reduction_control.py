@@ -42,30 +42,29 @@ def reduction_control():
     
     log.info('Pipeline setup: '+setup.summary()+'\n')
     
-    (status,report,meta_data) = stage0.run_stage0(setup)
-    log.info('Completed stage 0 with status '+repr(status)+': '+report)
-    
-    if setup.red_mode == 'new_reference':
-        status = execute_stage(stage1.run_stage1, 'stage 1', setup, status, log)
+    if setup.red_mode == 'data_preparation':
         
-        status = execute_stage(stage2.run_stage2, 'stage 2', setup, status, log)
+        run_data_preparation(setup,log)
         
-        status = execute_stage(stage3.run_stage3, 'stage 3', setup, status, log)
-    
     else:
         log.info('ERROR: unrecognised reduction mode ('+setup.red_mode+') selected')
         
-# Code deactivated until stage 6 is fully integrated with pipeline   
-#    status = parallelize_stages345(setup, status, log)
-#    (status, report) = stage6.run_stage6(setup)
-#    log.info('Completed stage 6 with status '+repr(status)+': '+report)
-    
     logs.close_log(log)
 
-def run_data_preparation(reduction_setup,data_dir):
+def run_data_preparation(setup,log=None):
     """Function to run in sequence stages 0 - 2 for a single dataset"""
 
+    if log!=None:
+        log.info('Pipeline setup: '+setup.summary()+'\n')
     
+    (status,report,meta_data) = stage0.run_stage0(setup)
+    
+    if log!=None:
+        log.info('Completed stage 0 with status '+repr(status)+': '+report)
+    
+    status = execute_stage(stage1.run_stage1, 'stage 1', setup, status, log)
+        
+    status = execute_stage(stage2.run_stage2, 'stage 2', setup, status, log)
     
 
 def execute_stage(run_stage_func, stage_name, setup, status, log):
@@ -205,7 +204,7 @@ def get_args():
         print(helptext)
         exit()
     
-    reduction_modes = ['new_reference']
+    reduction_modes = ['data_preparation']
     
     params = {}
     

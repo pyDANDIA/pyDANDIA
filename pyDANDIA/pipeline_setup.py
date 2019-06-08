@@ -35,6 +35,19 @@ class PipelineSetup:
                 'Verbosity level: '+str(self.verbosity)
         return output
 
+    def duplicate(self):
+        
+        new_setup = PipelineSetup()
+        
+        key_list = ['red_dir', 'base_dir', 'log_dir', 
+                    'field', 'phot_db_path', 'pipeline_config_dir', 
+                    'software_dir', 'verbosity', 'red_mode']
+                    
+        for key in key_list:
+            setattr( new_setup, key, getattr(self,key) )
+        
+        return new_setup
+        
 def pipeline_setup(params):
     """Function to acquire the necessary commandline arguments to run
     pyDANDIA in pipeline mode."""
