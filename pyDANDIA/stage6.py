@@ -213,7 +213,7 @@ def run_stage6(setup):
 
             difference_image = open_an_image(setup, diffim_directory, 'diff_' + new_image, 0, log=None)[0]
             
-            if difference_image != None:
+            if len(difference_image) > 1:
                 diff_table, control_zone, phot_table = photometry_on_the_difference_image(setup, reduction_metadata, log,
                                                                           ref_star_catalog, difference_image, psf_model,
                                                                           sky_model, kernel_image, kernel_error,
@@ -299,6 +299,7 @@ def open_an_image(setup, image_directory, image_name,
         image_data = fits.open(os.path.join(image_directory_path, image_name),
                                mmap=True)
         image_data = image_data[image_index]
+        
         try:
             date = image_data.header['MJD-OBS']
 	    #exptime = image_data.header['EXPTIME']
@@ -312,7 +313,7 @@ def open_an_image(setup, image_directory, image_name,
     except:
         logs.ifverbose(log, setup, image_name + ' open : not OK!')
 
-        return None, 0
+        return np.zeros([1]), 0
 
 
 def save_control_zone_of_residuals(setup, image_name, control_zone):
