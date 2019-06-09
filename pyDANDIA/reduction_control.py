@@ -13,13 +13,13 @@ import pipeline_setup
 import stage0
 import stage1
 import stage2
+import reference_astrometry
 import stage3
 import stage4
-#import stage5  # missing uncertainties module
-#import stage6
+import stage5
+import stage6
 import logs
 import subprocess
-import pipeline_setup
 
 def reduction_control():
     """Main driver function for the pyDANDIA pipelined reduction of an 
@@ -46,6 +46,14 @@ def reduction_control():
         
         run_data_preparation(setup,log)
         
+    elif setup.red_mode == 'reference_analysis':
+        
+        run_reference_image_analysis(setup,log)
+        
+    elif setup.red_mode == 'image_analysis':
+        
+        run_image_analysis(setup,log)
+        
     else:
         log.info('ERROR: unrecognised reduction mode ('+setup.red_mode+') selected')
         
@@ -66,7 +74,33 @@ def run_data_preparation(setup,log=None):
         
     status = execute_stage(stage2.run_stage2, 'stage 2', setup, status, log)
     
+def run_reference_image_analysis(setup,log):
+    """Function to run the pipeline stages which perform the analysis of a
+    reference image in sequence."""
+    
+    log.info('Pipeline setup: '+setup.summary()+'\n')
+    
+    status = 'OK'
+    
+    status = execute_stage(reference_astrometry.run_reference_astrometry, 
+                           'reference astrometry', setup, status, log)
+    
+    status = execute_stage(stage3.run_stage3, 'stage 3', setup, status, log)
 
+def run_image_analysis(setup,log):
+    """Function to run the sequence of stages which perform the image 
+    subtraction and photometry for a dataset"""
+    
+    log.info('Pipeline setup: '+setup.summary()+'\n')
+    
+    status = 'OK'
+    
+    status = execute_stage(stage4.run_stage4, 'stage 4', setup, status, log)
+    
+    status = execute_stage(stage5.run_stage5, 'stage 5', setup, status, log)
+
+    status = execute_stage(stage6.run_stage6, 'stage 6', setup, status, log)
+    
 def execute_stage(run_stage_func, stage_name, setup, status, log):
     """Function to execute a stage and verify whether it completed successfully
     before continuing.
@@ -204,19 +238,23 @@ def get_args():
         print(helptext)
         exit()
     
-    reduction_modes = ['data_preparation']
+    reduction_modes = ['data_preparation', 
+                       'reference_analysis', 
+                       'image_analysis']
     
     params = {}
     
     if len(argv) == 1:
         
-        params['red_dir'] = raw_input('Please enter the path to the datasets reduction directory: ')
-        params['mode'] = raw_input('Please enter the reduction mode ['+','.join(reduction_modes)+']: ')
+        params['red_dir'] = input('Please enter the path to the datasets reduction directory: ')
+        params['field'] = input('Please enter the field name: ')
+        params['mode'] = input('Please enter the reduction mode, one of {'+','.join(reduction_modes)+'}: ')
     
     else:
         
         params['red_dir'] = argv[1]
-        params['mode'] = argv[2]
+        params['field'] = argv[2]
+        params['mode'] = argv[3]
     
     if '-v' in argv:
         
@@ -230,6 +268,7 @@ def get_args():
     params['pipeline_config_dir'] = path.join(params['red_dir'],'..','config')
     params['base_dir'] = path.join(params['red_dir'],'..')
     params['software_dir'] = getcwd()
+    params['phot_db_path'] = path.join(params['red_dir'],'..',params['field']+'_phot.db')
     
     setup = pipeline_setup.pipeline_setup(params)
     setup.red_mode = params['mode']

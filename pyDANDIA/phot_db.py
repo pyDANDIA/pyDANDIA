@@ -594,6 +594,9 @@ def find_primary_reference_image_for_field(conn):
     
     query = 'SELECT reference_image FROM stars'
     t = query_to_astropy_table(conn, query, args=())
+    
+    if len(t) == 0:
+        raise ValueError('No primary reference dataset available for this field in the photometric database.  Stage3_db_ingest needs to be run with the -primary_ref flag set first.')
         
     return t['reference_image'][0]
     

@@ -198,7 +198,7 @@ def run_reference_astrometry(setup):
     
     logs.close_log(log)
     
-    return 0, 'OK'
+    return 'OK', 'Reference astrometry complete'
     
 def detect_objects_in_reference_image(setup, reduction_metadata, meta_pars, 
                                       image_wcs, log):
