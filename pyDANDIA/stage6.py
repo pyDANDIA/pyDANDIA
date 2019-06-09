@@ -212,14 +212,15 @@ def run_stage6(setup):
             kernel_image, kernel_error, kernel_bkg = find_the_associated_kernel(setup, kernels_directory, new_image)
 
             difference_image = open_an_image(setup, diffim_directory, 'diff_' + new_image, 0, log=None)[0]
-
-            diff_table, control_zone, phot_table = photometry_on_the_difference_image(setup, reduction_metadata, log,
+            
+            if difference_image != None:
+                diff_table, control_zone, phot_table = photometry_on_the_difference_image(setup, reduction_metadata, log,
                                                                           ref_star_catalog, difference_image, psf_model,
                                                                           sky_model, kernel_image, kernel_error,
                                                                           ref_exposure_time,idx)
-            psf_model.update_psf_parameters(psf_parameters)
+                psf_model.update_psf_parameters(psf_parameters)
 
-            commit_image_photometry_matching(conn, image_params, reduction_metadata, matched_stars, phot_table, log)
+                commit_image_photometry_matching(conn, image_params, reduction_metadata, matched_stars, phot_table, log)
             
         
         output_txt_files = False
@@ -311,7 +312,7 @@ def open_an_image(setup, image_directory, image_name,
     except:
         logs.ifverbose(log, setup, image_name + ' open : not OK!')
 
-        return None
+        return None, 0
 
 
 def save_control_zone_of_residuals(setup, image_name, control_zone):

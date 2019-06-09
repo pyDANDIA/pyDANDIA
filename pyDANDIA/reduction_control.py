@@ -44,7 +44,11 @@ def reduction_control():
     
     if setup.red_mode == 'data_preparation':
         
-        run_data_preparation(setup,log)
+        run_data_preparation(setup,log,select_ref=True)
+        
+    elif setup.red_mode == 'added_data_preparation':
+        
+        run_data_preparation(setup,log,select_ref=False)
         
     elif setup.red_mode == 'reference_analysis':
         
@@ -59,7 +63,7 @@ def reduction_control():
         
     logs.close_log(log)
 
-def run_data_preparation(setup,log=None):
+def run_data_preparation(setup,log=None,select_ref=False):
     """Function to run in sequence stages 0 - 2 for a single dataset"""
 
     if log!=None:
@@ -71,8 +75,9 @@ def run_data_preparation(setup,log=None):
         log.info('Completed stage 0 with status '+repr(status)+': '+report)
     
     status = execute_stage(stage1.run_stage1, 'stage 1', setup, status, log)
-        
-    status = execute_stage(stage2.run_stage2, 'stage 2', setup, status, log)
+    
+    if select_ref:
+        status = execute_stage(stage2.run_stage2, 'stage 2', setup, status, log)
     
 def run_reference_image_analysis(setup,log):
     """Function to run the pipeline stages which perform the analysis of a
@@ -238,7 +243,8 @@ def get_args():
         print(helptext)
         exit()
     
-    reduction_modes = ['data_preparation', 
+    reduction_modes = ['data_preparation',
+                       'added_data_preparation',
                        'reference_analysis', 
                        'image_analysis']
     
