@@ -101,8 +101,11 @@ def extract_reference_instrument_calibrated_photometry(conn,log):
         
         query = 'SELECT refimg_id FROM reference_images WHERE facility="'+str(facility_id)+'" AND filter="'+str(filters[f])+'"'
         t = phot_db.query_to_astropy_table(conn, query, args=())
-        refimgs[f] = t['refimg_id'][0]
-        
+        if len(t) > 0:
+            refimgs[f] = t['refimg_id'][0]
+        else:
+            raise IOError('No reference image data in DB for facility '+str(facility_code)+'.')
+            
         query = 'SELECT star_id, calibrated_mag, calibrated_mag_err FROM phot WHERE reference_image="'+str(refimgs[f])+'"'
         photometry['phot_table_'+f] = phot_db.query_to_astropy_table(conn, query, args=())
         
