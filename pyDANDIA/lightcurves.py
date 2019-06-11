@@ -21,7 +21,7 @@ def extract_star_lightcurves_on_position(params):
     
     facilities = phot_db.fetch_facilities(conn)
     filters = phot_db.fetch_filters(conn)
-    code_id = get_stage_software_id(conn,'stage6')
+    code_id = phot_db.get_stage_software_id(conn,'stage6')
     
     c = SkyCoord(params['ra'], params['dec'], frame='icrs', unit=(units.hourangle, units.deg))
     
