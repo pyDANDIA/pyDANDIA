@@ -26,6 +26,8 @@ from shutil import copyfile
 
 from pyDANDIA import  config_utils
 from pyDANDIA import  convolution
+from pyDANDIA import stage0
+from pyDANDIA import stage1
 
 from pyDANDIA import  metadata
 from pyDANDIA import  pixelmasks
@@ -229,15 +231,14 @@ def run_stage2(setup, empirical_ranking=False, n_stack = 1):
         log.info('Updating metadata with info on new images...')
         logs.close_log(log)
 
+
         return status, report  
 
     if reference_ranking != [] and n_stack > 1 :
-
         best_image = sorted(reference_ranking, key=itemgetter(1))[-1]
         n_min_stack  = min(len(reference_ranking), n_stack+1)
-        best_images = sorted(reference_ranking, key=itemgetter(1))[-n_min_stack]
-        print(best_image, best_images)
-        ref_hdu = fits.open(os.path.join(reduction_metadata.data_architecture[1]['IMAGES_PATH'][0],best_image))
+        best_images = sorted(reference_ranking, key=itemgetter(1))[:-n_min_stack]
+        ref_hdu = fits.open(os.path.join(reduction_metadata.data_architecture[1]['IMAGES_PATH'][0],best_image[0]))
         coadd = np.copy(ref_hdu[0].data)
         shift_mask = np.ones(np.shape(coadd))
         ref_directory_path = os.path.join(setup.red_dir, 'ref')
@@ -245,17 +246,29 @@ def run_stage2(setup, empirical_ranking=False, n_stack = 1):
             os.mkdir(ref_directory_path)
 
         for image in best_images:
-            data_hdu = fits.open(os.path.join(reduction_metadata.data_architecture[1]['IMAGES_PATH'][0],image))
-            xs,ys =  find_shift(ref_hdu.data, data_hdu.data)
+            print(image[0])
+            data_hdu = fits.open(os.path.join(reduction_metadata.data_architecture[1]['IMAGES_PATH'][0],image[0]))
+            xs,ys =  find_shift(ref_hdu[0].data, data_hdu[0].data)
             shifted = shift(data_hdu[0].data, (ys,xs), cval=0.)
             coadd = coadd + shifted
-            shift_mask[shifted==0] = 0
+            shift_mask[shifted==0] = 0.
             data_hdu.close()
 
-        coadd[shift_mask==0] = 0
+        coadd[shift_mask==0] = np.median(coadd)
         ref_hdu[0].data = coadd
+        try:
+            ref_hdu[1].data[shift_mask==0] = 1
+        except:
+            log.info('no mask in extension 1')
+        try:
+            ref_hdu[2].data[shift_mask==0] = 1
+        except:
+            log.info('no mask in extension 2')
+
+        ref_hdu.writeto(os.path.join(reduction_metadata.data_architecture[1]['IMAGES_PATH'][0],'ref.fits'),overwrite = True)
         ref_hdu.writeto(os.path.join(ref_directory_path,'ref.fits'),overwrite = True)
         ref_hdu.close()
+        
         
         if not 'REF_PATH' in reduction_metadata.data_architecture[1].keys():
             reduction_metadata.add_column_to_layer('data_architecture',
@@ -273,16 +286,26 @@ def run_stage2(setup, empirical_ranking=False, n_stack = 1):
         else:
             reduction_metadata.update_a_cell_to_layer('data_architecture', 0,'REF_IMAGE', 'ref.fits')
         # Update the REDUCTION_STATUS table in metadata for stage 2
+
        
         reduction_metadata.update_reduction_metadata_reduction_status(all_images,
                                                           stage_number=1, status=1, log=log)
         reduction_metadata.save_updated_metadata(metadata_directory=setup.red_dir,
                                                  metadata_name='pyDANDIA_metadata.fits')     
 
+        #tbd: update status of the coadded image
+        
+
         status = 'OK'
         report = 'Completed successfully'
         log.info('Updating metadata with info on new images...')
         logs.close_log(log)
+
+        
+        (status_s0, report_s0, reduction_metadata_s0) = stage0.run_stage0(setup)
+        print(status_s0, report_s0)
+        (status_s1, report_s1) = stage1.run_stage1(setup)
+        print(status_s1, report_s1)
 
         return status, report
 
@@ -306,7 +329,7 @@ def find_shift(reference_image, target_image):
     reference_shape = reference_image.shape
     x_center = int(reference_shape[0] / 2)
     y_center = int(reference_shape[1] / 2)
-    correlation = convolve_image_with_a_psf(np.matrix(reference_image),np.matrix(target_image), correlate=1)
+    correlation = convolution.convolve_image_with_a_psf(np.matrix(reference_image),np.matrix(target_image), correlate=1)
     x_shift, y_shift = np.unravel_index(np.argmax(correlation), correlation.shape)
     good_shift_y = y_shift - y_center
     good_shift_x = x_shift - x_center
