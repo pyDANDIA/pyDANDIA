@@ -92,6 +92,8 @@ def run_stage5(setup):
         kernel_size_tmp = int(4.*float(reduction_metadata.reduction_parameters[1]['KER_RAD'][0]) * np.percentile(fwhms,percentile))
         if kernel_size_tmp % 2 == 0:
             kernel_size_tmp -= 1
+        if kernel_size_tmp < 1:
+            kernel_size_tmp = 1
         kernel_size_array.append(kernel_size_tmp)
     shifts  = np.array(shifts)
     # requires images to be sufficiently aligned and adds a safety margin of 10 -> mv to config.json
