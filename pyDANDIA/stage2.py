@@ -244,18 +244,20 @@ def run_stage2(setup, empirical_ranking=False, n_stack = 1):
         ref_directory_path = os.path.join(setup.red_dir, 'ref')
         if not os.path.exists(ref_directory_path):
             os.mkdir(ref_directory_path)
-
+        accepted = 0
         for image in best_images:
-            print(image[0])
             data_hdu = fits.open(os.path.join(reduction_metadata.data_architecture[1]['IMAGES_PATH'][0],image[0]))
             xs,ys =  find_shift(ref_hdu[0].data, data_hdu[0].data)
             shifted = shift(data_hdu[0].data, (ys,xs), cval=0.)
-            coadd = coadd + shifted
-            shift_mask[shifted==0] = 0.
+            #limit shift to 30
+            if xs**2+ys**2<900.:
+                coadd = coadd + shifted
+                shift_mask[shifted==0] = 0.
+                accepted += 1
             data_hdu.close()
 
-        coadd[shift_mask==0] = np.median(coadd)
-        ref_hdu[0].data = coadd
+        coadd[shift_mask==0] = 0.0
+        ref_hdu[0].data = coadd/float(accepted)
         try:
             ref_hdu[1].data[shift_mask==0] = 1
         except:
