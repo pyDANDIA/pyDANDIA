@@ -588,6 +588,8 @@ def match_dataset_with_field_primary_reference(setup,conn,dataset_params,
 def commit_image_photometry_matching(conn, params, reduction_metadata, 
                                      matched_stars, phot_table, log):
     
+    log.info('Starting database ingest')
+    
     query = 'SELECT facility_id, facility_code FROM facilities WHERE facility_code="'+params['facility_code']+'"'
     facility = db_phot.query_to_astropy_table(conn, query, args=())
     
@@ -602,6 +604,8 @@ def commit_image_photometry_matching(conn, params, reduction_metadata,
     
     query = 'SELECT img_id, filename FROM images WHERE filename ="'+params['filename']+'"'
     image = db_phot.query_to_astropy_table(conn, query, args=())  
+    
+    log.info('Extracted dataset identifiers from database')
     
     column_names = (
     'star_id', 
@@ -629,6 +633,8 @@ def commit_image_photometry_matching(conn, params, reduction_metadata,
     n_stars = len(phot_table)
     
     entries = []
+    
+    log.info('Building database entries array')
     
     for i in range(0,matched_stars.n_match,1):
         
@@ -662,6 +668,9 @@ def commit_image_photometry_matching(conn, params, reduction_metadata,
         entries.append(entry)
     
     if len(entries) > 0:
+    
+        log.info('Ingesting data to phot_db')
+        
         command = 'INSERT OR REPLACE INTO phot('+','.join(key_list)+\
                 ') VALUES ('+wildcards+')'
     
@@ -670,6 +679,10 @@ def commit_image_photometry_matching(conn, params, reduction_metadata,
         cursor.executemany(command,entries)
     
         conn.commit()
- 
+        
+    else:
+        
+        log.info('No photometry to be ingested')
+        
     log.info('Completed ingest of photometry for '+str(len(matched_stars.cat1_index))+' stars')
 

@@ -282,9 +282,11 @@ def ensure_tables(conn, *table_defs):
 def get_connection(dsn=database_file_path):
 
     conn = sqlite3.connect(dsn,
-        detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES)
+        detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES,
+        isolation_level=None)
 
     conn.execute("PRAGMA foreign_keys=ON")
+    conn.execute('pragma journal_mode=wal')
     
     ensure_tables(conn, 
                   FILTERS_TD,

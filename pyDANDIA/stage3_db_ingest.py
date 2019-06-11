@@ -450,6 +450,8 @@ def commit_stars(conn, params, reduction_metadata, log,
                  
     star_ids = np.zeros(n_stars)
     
+    log.info('Starting commit of '+str(n_stars)+' stars')
+    
     for j in range(0,n_stars,1):
         
         idx = reduction_metadata.star_catalog[1]['index'][j]
@@ -519,14 +521,18 @@ def commit_stars(conn, params, reduction_metadata, log,
             else:
                 idx = 0
                 
-            log.info('Commited catalog star at RA, Dec '+str(ra)+','+str(dec)+\
-                     ' to the phot_db as star_id='+str(results['star_id'][idx]))
+            #log.info('Commited catalog star at RA, Dec '+str(ra)+','+str(dec)+\
+            #         ' to the phot_db as star_id='+str(results['star_id'][idx]))
             
             star_ids[j] = int(results['star_id'][idx])
+    
+    log.info('Completed the ingest of '+str(n_stars)+' to the photometric database')
     
     return star_ids
 
 def commit_photometry(conn, params, reduction_metadata, star_ids, log):
+    
+    log.info('Extracting dataset descriptors for ingest of photometry')
     
     query = 'SELECT facility_id, facility_code FROM facilities WHERE facility_code="'+params['facility_code']+'"'
     facility = phot_db.query_to_astropy_table(conn, query, args=())
@@ -560,6 +566,8 @@ def commit_photometry(conn, params, reduction_metadata, star_ids, log):
     wildcards = ','.join(['?']*len(key_list))
     
     n_stars = len(reduction_metadata.star_catalog[1])
+    
+    log.info('Starting ingest of photometry data for '+str(n_stars)+' stars')
     
     values = []
     for j in range(0,n_stars,1):
@@ -600,6 +608,8 @@ def commit_photometry(conn, params, reduction_metadata, star_ids, log):
 
 def commit_photometry_matching(conn, params, reduction_metadata, matched_stars, log):
     
+    log.info('Extracting dataset descriptors for ingest of matching photometry')
+    
     query = 'SELECT facility_id, facility_code FROM facilities WHERE facility_code="'+params['facility_code']+'"'
     facility = phot_db.query_to_astropy_table(conn, query, args=())
     error_wrong_number_entries(facility,params['facility_code'])
@@ -633,6 +643,8 @@ def commit_photometry_matching(conn, params, reduction_metadata, matched_stars, 
     wildcards = ','.join(['?']*len(key_list))
     
     n_stars = len(reduction_metadata.star_catalog[1])
+    
+    log.info('Starting ingest of photometry data for '+str(n_stars)+' stars')
     
     values = []
     for i in range(0,matched_stars.n_match,1):
