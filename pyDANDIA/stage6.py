@@ -59,6 +59,7 @@ def run_stage6(setup):
     
     # Setup the DB connection and record dataset and software parameters
     conn = db_phot.get_connection(dsn=setup.phot_db_path)
+    conn.execute('pragma synchronous=OFF')
     
     (facility_keys, software_keys, image_keys) = stage3_db_ingest.define_table_keys()
     
@@ -581,7 +582,7 @@ def match_dataset_with_field_primary_reference(setup,conn,dataset_params,
     matched_stars = stage3_db_ingest.match_all_entries_with_starlist(setup,conn,dataset_params,
                                                     starlist,reduction_metadata,
                                                     primary_refimg_id,transform,log,
-                                                    verbose=True)
+                                                    verbose=False)
                                                     
     return transform, matched_stars
 
