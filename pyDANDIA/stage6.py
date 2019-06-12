@@ -185,8 +185,10 @@ def run_stage6(setup):
         date = []
         diffim_directory = os.path.join(reduction_metadata.data_architecture[1]['OUTPUT_DIRECTORY'].data[0], 'diffim')
 
+        n_images = len(new_images)
+        
         for idx, new_image in enumerate(new_images[:]):
-            log.info('Extracting parameters of image ' + new_image + ' for photometry')
+            log.info('Extracting parameters of image ' + new_image + ' for photometry ('+str(idx)+' of '+str(n_images)+')')
             index_image = np.where(new_image == reduction_metadata.headers_summary[1]['IMAGES'].data)[0][0]
             image_header = reduction_metadata.headers_summary[1][index_image]
 
