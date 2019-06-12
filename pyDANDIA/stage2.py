@@ -237,7 +237,7 @@ def run_stage2(setup, empirical_ranking=False, n_stack = 1):
     if reference_ranking != [] and n_stack > 1 :
         best_image = sorted(reference_ranking, key=itemgetter(1))[-1]
         n_min_stack  = min(len(reference_ranking), n_stack+1)
-        best_images = sorted(reference_ranking, key=itemgetter(1))[:-n_min_stack]
+        best_images = sorted(reference_ranking, key=itemgetter(1))[-n_min_stack:]
         ref_hdu = fits.open(os.path.join(reduction_metadata.data_architecture[1]['IMAGES_PATH'][0],best_image[0]))
         coadd = np.copy(ref_hdu[0].data)
         shift_mask = np.ones(np.shape(coadd))
