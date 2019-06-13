@@ -82,7 +82,7 @@ def starfind(setup, path_to_image, reduction_metadata, plot_it=False,
         log.info('Starting starfind')
     
 
-    params = { 'sky': 0.0, 'fwhm_y': 0.0, 'fwhm_x': 0.0, 'corr_xy':0.0, 'nstars':0, 'sat_frac':0.0, 'symmetry' : 1. }
+    params = { 'sky': 0.0, 'sigma_y': 0.0, 'sigma_x': 0.0, 'corr_xy':0.0, 'nstars':0, 'sat_frac':0.0, 'symmetry' : 1. }
     
 
     t0 = time.time()
@@ -241,8 +241,8 @@ def starfind(setup, path_to_image, reduction_metadata, plot_it=False,
     
     # Fit a model to identified sources and estimate PSF shape parameters
     sky_arr = []
-    fwhm_x_arr = []
-    fwhm_y_arr = []
+    sigma_x_arr = []
+    sigma_y_arr = []
     corr_xy_arr = []
     
     i = 0
@@ -270,11 +270,11 @@ def starfind(setup, path_to_image, reduction_metadata, plot_it=False,
             #print fit_params
             model = biv.psf_model(yy, xx, fit_params)
             if np.isnan(fit_params[3]) == True or np.isnan(fit_params[4]) == True:
-                fwhm_x_arr.append(0.0)
-                fwhm_y_arr.append(0.0)
+                sigma_x_arr.append(0.0)
+                sigma_y_arr.append(0.0)
             else:
-                fwhm_y_arr.append(fit_params[3])
-                fwhm_x_arr.append(fit_params[4])
+                sigma_y_arr.append(fit_params[3])
+                sigma_x_arr.append(fit_params[4])
             corr_xy_arr.append(fit_params[5])
             sky_arr.append(fit_params[6])
             
@@ -306,10 +306,10 @@ def starfind(setup, path_to_image, reduction_metadata, plot_it=False,
         i = i + 1
     
     # Estimate the median values for the parameters over the stars identified
-    if len(fwhm_x_arr) > 0:
+    if len(sigma_x_arr) > 0:
         params['sky'] = np.median(sky_arr)
-        params['fwhm_y'] = np.median(fwhm_y_arr)
-        params['fwhm_x'] = np.median(fwhm_x_arr)
+        params['sigma_y'] = np.median(sigma_y_arr)
+        params['sigma_x'] = np.median(sigma_x_arr)
         params['corr_xy'] = np.median(corr_xy_arr)
         params['nstars'] = nstars
         params['sat_frac'] = sat_frac
@@ -333,8 +333,8 @@ def starfind(setup, path_to_image, reduction_metadata, plot_it=False,
     if log != None:
         log.info('Measured median values:')
         log.info('Sky background = '+str(params['sky']))
-        log.info('FWHM X = '+str(params['fwhm_x']))
-        log.info('FWHM Y = '+str(params['fwhm_y']))
+        log.info('FWHM X = '+str(params['sigma_x']))
+        log.info('FWHM Y = '+str(params['sigma_y']))
         log.info('Corr XY = '+str(params['corr_xy']))
         log.info('Nstars = '+str(params['nstars']))
         log.info('Saturation fraction = '+str(params['sat_frac']))

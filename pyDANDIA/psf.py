@@ -726,6 +726,11 @@ class Image(object):
 
         return [np.array(intensities), np.array(y_centers), np.array(x_centers)]
 
+def calc_fwhm_from_psf_sigma(sigma_x,sigma_y):
+    
+    fwhm = np.sqrt(sigma_x*sigma_x + sigma_y*sigma_y) * 2.355
+    
+    return fwhm
 
 def fit_background(data, Y_data, X_data, mask, background_model='Constant'):
     if background_model == 'Constant':

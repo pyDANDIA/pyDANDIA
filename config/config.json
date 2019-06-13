@@ -125,11 +125,11 @@
 	"format":"float",
 	"unit":"adu"
     }, 
-    "max_fwhm_arcsec": {
-        "comment": "max_fwhm_arcsec - DOUBLE - Largest acceptable value of the stellar FWHM (arcsec : Default value = 2.0).", 
+    "max_sigma_pixels": {
+        "comment": "max_sigma_pixels - DOUBLE - Largest acceptable value of the stellar sigma (pixels : Default value = 2.0).", 
         "value": 2.0,
 	"format":"float",
-	"unit":"arcsec"
+	"unit":"pixels"
     }, 
     "min_ell": {
         "comment": "min_ell - DOUBLE - Smallest acceptable value of the PSF ellipticity for an image to be used in the combined reference image. This parameter should be non-negative and less than or equal to 1.0 (Default value = 0.8).", 
