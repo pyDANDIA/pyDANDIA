@@ -104,8 +104,6 @@ def run_image_analysis(setup,log):
     
     status = execute_stage(stage5.run_stage5, 'stage 5', setup, status, log)
 
-    status = execute_stage(stage6.run_stage6, 'stage 6', setup, status, log)
-    
 def execute_stage(run_stage_func, stage_name, setup, status, log):
     """Function to execute a stage and verify whether it completed successfully
     before continuing.
