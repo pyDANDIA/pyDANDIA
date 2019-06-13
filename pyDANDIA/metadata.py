@@ -867,6 +867,19 @@ class MetaData:
             
         return exp_time
     
+    def calc_psf_radii(self):
+    
+        idx = np.where(self.images_stats[1]['IM_NAME'].data == self.data_architecture[1]['REF_IMAGE'][0])
+    
+        fwhm_ref = self.images_stats[1]['FWHM'].data[idx[0][0]]
+        
+        psf_factors = self.psf_dimensions[1]['psf_factor'].data
+        
+        psf_radii = psf_factors * fwhm_ref * 0.6731
+        
+        self.psf_dimensions[1]['psf_radius'] = psf_radii
+        
+        
 ###
 def set_pars(self, par_dict):
     for key, value in par_dict.items():
