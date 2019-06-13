@@ -9,6 +9,7 @@ from astropy.io import fits
 from astropy.table import Table
 from astropy.table import Column
 from astropy.utils.exceptions import AstropyWarning
+from astropy import units as u
 
 import numpy as np
 import collections
@@ -186,6 +187,29 @@ class MetaData:
 
         self.create_a_new_layer(name, data_structure, data)
 
+    def create_psf_dimensions_layer(self, data):
+        """Method to create the psf_dimensions table layer in the Metadata, 
+        based on the information in the config.json file
+        
+        :param array_like: the data needed to fill the astropy.table with 
+                            columns index, psf_factor, psf_radius
+                            where psf_factor and psf_radius should have
+                            astropy.units of 'pixels'
+        """
+        
+        layer_header = fits.Header()
+        layer_header.update({'NAME': 'psf_dimensions'})
+        
+        table_data = [ Column(name='index', data=data[:,0], unit=None, dtype='int'),
+                       Column(name='psf_factor', data=data[:,1], unit=u.pix, dtype='float'),
+                       Column(name='psf_radius', data=data[:,2], unit=u.pix, dtype='float') ]
+        
+        layer_table = Table(table_data)
+        
+        layer = [layer_header, layer_table]
+
+        setattr(self, 'psf_dimensions', layer)
+        
     def create_headers_summary_layer(self, names, formats, units=None, data=None):
         '''
         Create the headers_summary layer, which contains the information 

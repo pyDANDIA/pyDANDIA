@@ -12,6 +12,7 @@
 import numpy as np
 import os
 from astropy.io import fits
+import astropy.units as u
 import sys
 
 from pyDANDIA import config_utils
@@ -172,10 +173,16 @@ def read_the_config_file(config_directory, config_file_name='config.json',
     :rtype: dictionnary
     '''
 
+    if os.path.isdir(config_directory) == False:
+        raise IOError('Cannot find pipeline configuration directory '+config_directory)
+        
     config_file_path = os.path.join(config_directory, config_file_name)
-
+    
+    if os.path.isfile(config_file_path) == False:
+        raise IOError('Cannot find the configuration file '+config_file_path)
+    
     pipeline_configuration = config_utils.read_config(config_file_path)
-
+        
     if log != None:
         log.info('Read pipeline configuration from ' + config_file_path)
 
@@ -454,14 +461,16 @@ def update_reduction_metadata_with_config_file(reduction_metadata,
     data = []
     for key in keys:
 
-        try:
-            data.append([key, config_dictionnary[key]['value'], config_dictionnary[key]['format'],
-                         config_dictionnary[key]['unit']])
-
-        except:
-            if log != None:
-                log.info('Error in config file on key' + key)
-            sys.exit(1)
+        if key != 'psf_factors':
+            
+            try:
+                data.append([key, config_dictionnary[key]['value'], config_dictionnary[key]['format'],
+                             config_dictionnary[key]['unit']])
+    
+            except:
+                if log != None:
+                    log.info('Error in config file on key' + key)
+                sys.exit(1)
 
     data = np.array(data)
     names = [i.upper() for i in data[:, 0]]
@@ -477,6 +486,17 @@ def update_reduction_metadata_with_config_file(reduction_metadata,
     else:
         reduction_metadata.create_reduction_parameters_layer(names, formats, units, data[:, 1])
 
+
+    data = []
+
+    for i in range(0,len(config_dictionnary['psf_factors']['value']),1):
+        
+        data.append([str(i+1), 
+                     config_dictionnary['psf_factors']['value'][i],
+                     0.0])
+
+    reduction_metadata.create_psf_dimensions_layer(np.array(data))
+    
     if log != None:
         log.info('Updated metadata with pipeline configuration parameters')
 
