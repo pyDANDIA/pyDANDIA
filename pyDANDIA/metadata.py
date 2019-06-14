@@ -419,8 +419,8 @@ class MetaData:
         layer_header = fits.Header()
         layer_header.update({'NAME': 'phot_calib'})
         
-        table_data = [ Column(name='a0', data=data[0], unit=u.mag, dtype='float'),
-                       Column(name='a1', data=data[1], unit=None, dtype='float') ]
+        table_data = [ Column(name='a0', data=np.array([data[0]]), unit=u.mag, dtype='float'),
+                       Column(name='a1', data=np.array([data[1]]), unit=None, dtype='float') ]
         
         layer_table = Table(table_data)
         

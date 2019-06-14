@@ -748,12 +748,15 @@ def output_to_metadata(setup, params, star_catalog, phot_fit, reduction_metadata
 
     log.info('Updating star_catalog table')
     
-    reduction_metadata.create_phot_calibration_layer(phot_fit)
-    
     reduction_metadata.save_a_layer_to_file(setup.red_dir, 
                                             params['metadata'],
                                             'star_catalog', log=log)
 
+    reduction_metadata.create_phot_calibration_layer(phot_fit)
+    
+    reduction_metadata.save_a_layer_to_file(setup.red_dir, 
+                                            params['metadata'],
+                                            'phot_calib', log=log)
     
 def run_calibration():
     """Function to run this stage independently of the pipeline infrastructure"""
