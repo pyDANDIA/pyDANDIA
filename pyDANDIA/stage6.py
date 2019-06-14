@@ -224,7 +224,9 @@ def run_stage6(setup):
                 psf_model.update_psf_parameters(psf_parameters)
 
                 commit_image_photometry_matching(conn, image_params, reduction_metadata, matched_stars, phot_table, log)
-            
+                
+            else:
+                log.info('No difference image available, so no photometry performed.')
         
         output_txt_files = False
         if output_txt_files:
@@ -309,12 +311,12 @@ def open_an_image(setup, image_directory, image_name,
         except:
             date = 0
 	    #exptime = 1
-        logs.ifverbose(log, setup, image_name + ' open : OK')
+        log.info(log, setup, image_name + ' open : OK')
 
         return image_data.data, date
 
     except:
-        logs.ifverbose(log, setup, image_name + ' open : not OK!')
+        log.info('Warning: '+image_name + ' open : not OK!')
 
         return np.zeros([1]), 0
 

@@ -464,7 +464,16 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
                  use_image = False
                  
                  log.info('Image not photometered because of zeroed FWHM measurements')
+        
+        if use_image:
+            pixscale = reduction_metadata.reduction_parameters[1]['PIX_SCALE'][0]
+            
+            if reduction_metadata.images_stats[1]['FWHM'][image_id] > 8.0/pixscale:
                  
+                 use_image = False
+                 
+                 log.info('Image not photometered because of zeroed FWHM measurements')
+        
         return use_image
 
     psf_diameter = reduction_metadata.psf_dimensions[1]['psf_radius'][0]*2.0
