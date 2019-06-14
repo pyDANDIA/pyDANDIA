@@ -219,9 +219,10 @@ def get_args():
     Main driver program to run pyDANDIA in pipeline mode for a single dataset. 
     
     Command and options:
-    > python reduction_control.py red_dir_path mode [-v N ]
+    > python reduction_control.py red_dir_path phot_db_path mode [-v N ]
     
     where red_dir_path is the path to a dataset's reduction directory
+          phot_db_path is the path to a photometry database
           mode is the mode of reduction required
     
     Reduction mode options are:
@@ -251,13 +252,13 @@ def get_args():
     if len(argv) == 1:
         
         params['red_dir'] = input('Please enter the path to the datasets reduction directory: ')
-        params['field'] = input('Please enter the field name: ')
+        params['db_file_path'] = input('Please enter the field name: ')
         params['mode'] = input('Please enter the reduction mode, one of {'+','.join(reduction_modes)+'}: ')
     
     else:
         
         params['red_dir'] = argv[1]
-        params['field'] = argv[2]
+        params['db_file_path'] = argv[2]
         params['mode'] = argv[3]
     
     if '-v' in argv:
@@ -272,7 +273,6 @@ def get_args():
     params['pipeline_config_dir'] = path.join(params['red_dir'],'..','config')
     params['base_dir'] = path.join(params['red_dir'],'..')
     params['software_dir'] = getcwd()
-    params['phot_db_path'] = path.join(params['red_dir'],'..',params['field']+'_phot.db')
     
     setup = pipeline_setup.pipeline_setup(params)
     setup.red_mode = params['mode']

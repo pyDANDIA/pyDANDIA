@@ -53,7 +53,7 @@ def calibrate_photometry_catalog(setup, cl_params=None):
     
     star_catalog = apply_phot_calib(star_catalog,fit,log)
     
-    output_to_metadata(setup, params, star_catalog, reduction_metadata, log)
+    output_to_metadata(setup, params, fit, star_catalog, reduction_metadata, log)
     
     logs.close_log(log)
     
@@ -84,7 +84,7 @@ def calibrate_photometry(setup, reduction_metadata, log):
     
     star_catalog = apply_phot_calib(star_catalog,fit,log)
     
-    output_to_metadata(setup, params, star_catalog, reduction_metadata, log)
+    output_to_metadata(setup, params, star_catalog, fit, reduction_metadata, log)
     
     return reduction_metadata
     
@@ -733,7 +733,7 @@ def apply_phot_calib(star_catalog,fit_params,log):
     
     return star_catalog
 
-def output_to_metadata(setup, params, star_catalog, reduction_metadata, log):
+def output_to_metadata(setup, params, star_catalog, phot_fit, reduction_metadata, log):
     """Function to output the star catalog to the reduction metadata. 
     Creates a phot_catalog extension if none exists, or overwrites an 
     existing one"""
@@ -747,11 +747,14 @@ def output_to_metadata(setup, params, star_catalog, reduction_metadata, log):
     reduction_metadata.star_catalog[1]['cal_ref_flux_error'] = star_catalog['cal_ref_flux_err'][:]
 
     log.info('Updating star_catalog table')
-        
+    
+    reduction_metadata.create_phot_calibration_layer(phot_fit)
+    
     reduction_metadata.save_a_layer_to_file(setup.red_dir, 
                                             params['metadata'],
                                             'star_catalog', log=log)
 
+    
 def run_calibration():
     """Function to run this stage independently of the pipeline infrastructure"""
     

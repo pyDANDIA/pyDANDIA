@@ -406,7 +406,7 @@ class MetaData:
             
             log.info('Output software version table to reduction metadata')
 
-    def create_phot_calibration_layer(self,data,log=None):
+    def create_phot_calibration_layer(self,data):
         """Function to create the layer in the reduction metadata file
         containing the star catalogue of objects detected within the reference
         image.
@@ -416,36 +416,18 @@ class MetaData:
         :param array_like data: the data need to fill the astropy.table
         """
         
-        layer_name = 'phot_calib'
+        layer_header = fits.Header()
+        layer_header.update({'NAME': 'phot_calib'})
         
-        names = [ 'star_index', 'cal_ref_mag', 'cal_ref_mag_error',
-                 '_RAJ2000', '_DEJ2000',
-                 'imag', 'e_imag', 'rmag', 'e_rmag', 'gmag', 'e_gmag',
-                 'clean'
-                 ]
+        table_data = [ Column(name='a0', data=data[0], unit=u.mag, dtype='float'),
+                       Column(name='a1', data=data[1], unit=None, dtype='float') ]
         
-        formats = [ 'int', 'float', 'float',
-                   'float', 'float',
-                   'float', 'float','float', 'float','float', 'float',
-                   'int'
-                   ]
-                   
-        units = [ None, 'mag', 'mag',
-                 'deg', 'deg',
-                 'mag', 'mag', 'mag', 'mag', 'mag', 'mag',
-                 None
-                 ]
-                 
-        data_structure = [ names, 
-                         formats, 
-                         units]
+        layer_table = Table(table_data)
         
-        self.create_a_new_layer(layer_name, data_structure, data)
+        layer = [layer_header, layer_table]
 
-        if log != None:
-            
-            log.info('Output calibrated photometry to reduction metadata')
-
+        setattr(self, 'phot_calib', layer)
+        
     def load_a_layer_from_file(self, metadata_directory, metadata_name, key_layer):
         '''
         Load into the metadata object the layer from the metadata file.

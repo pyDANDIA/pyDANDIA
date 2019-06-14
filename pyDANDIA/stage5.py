@@ -68,16 +68,14 @@ def run_stage5(setup):
             shifts.append(float(stats_entry['SHIFT_X']))
         if np.isfinite(float(stats_entry['SHIFT_Y'])):
             shifts.append(float(stats_entry['SHIFT_Y']))
-        if float(stats_entry['FWHM_X'])> fwhm_max:
-            fwhm_max = stats_entry['FWHM_X']
-        if float(stats_entry['FWHM_Y'])> fwhm_max:
-            fwhm_max = stats_entry['FWHM_Y']
+        if float(stats_entry['FWHM'])> fwhm_max:
+            fwhm_max = stats_entry['FWHM']
         if abs(float(stats_entry['SHIFT_X']))> shift_max:
             shift_max = abs(float(stats_entry['SHIFT_X']))
         if abs(float(stats_entry['SHIFT_Y']))> shift_max:
             shift_max = abs(float(stats_entry['SHIFT_Y']))
 
-        fwhms.append((float(stats_entry['FWHM_Y'])**2+float(stats_entry['FWHM_Y'])**2)**0.5)
+        fwhms.append(stats_entry['FWHM'])
     fwhms = np.array(fwhms)
     mask = np.isnan(fwhms)
     fwhms[mask] = 99
@@ -124,11 +122,12 @@ def run_stage5(setup):
         reference_image_directory = str(reduction_metadata.data_architecture[1]['REF_PATH'][0])
         max_adu = float(reduction_metadata.reduction_parameters[1]['MAXVAL'][0])
         ref_row_index = np.where(reduction_metadata.images_stats[1]['IM_NAME'] == str(reduction_metadata.data_architecture[1]['REF_IMAGE'][0]))[0][0]
-        ref_fwhm_x = reduction_metadata.images_stats[1][ref_row_index]['FWHM_X'] 
-        ref_fwhm_y = reduction_metadata.images_stats[1][ref_row_index]['FWHM_Y'] 
-        ref_sigma_x = ref_fwhm_x/(2.*(2.*np.log(2.))**0.5)
-        ref_sigma_y = ref_fwhm_y/(2.*(2.*np.log(2.))**0.5)    
-        ref_stats = [ref_fwhm_x, ref_fwhm_y, ref_sigma_x, ref_sigma_y]
+        ref_sigma_x = reduction_metadata.images_stats[1][ref_row_index]['SIGMA_X'] 
+        ref_sigma_y = reduction_metadata.images_stats[1][ref_row_index]['SIGMA_Y'] 
+        ref_fwhm = reduction_metadata.images_stats[1][ref_row_index]['FWHM'] 
+        #ref_sigma_x = ref_fwhm_x/(2.*(2.*np.log(2.))**0.5)
+        #ref_sigma_y = ref_fwhm_y/(2.*(2.*np.log(2.))**0.5)    
+        ref_stats = [ref_fwhm, ref_fwhm, ref_sigma_x, ref_sigma_y]
         logs.ifverbose(log, setup,'Using reference image:' + reference_image_name)
     except Exception as e:
         log.ifverbose(log, setup,'Reference/Images ! Abort stage5'+str(e))
@@ -225,14 +224,16 @@ def round_unc(val, err):
     unc_round = round(err, digs)
     return "{0} +/- {1}".format(val_round, unc_round)
 
-def smoothing_2sharp_images(reduction_metadata, ref_fwhm_x, ref_fwhm_y, ref_sigma_x, ref_sigma_y, row_index):
+def smoothing_2sharp_images(reduction_metadata, ref_fwhm, ref_sigma_x, ref_sigma_y, row_index):
     smoothing = 0.
     smoothing_y = 0.
-    if reduction_metadata.images_stats[1][row_index]['FWHM_X']<ref_fwhm_x:
-        sigma_x = reduction_metadata.images_stats[1][row_index]['FWHM_X']/(2.*(2.*np.log(2.))**0.5)
+    if reduction_metadata.images_stats[1][row_index]['FWHM']<ref_fwhm:
+        #sigma_x = reduction_metadata.images_stats[1][row_index]['SIGMA_X']/(2.*(2.*np.log(2.))**0.5)
+        sigma_x = reduction_metadata.images_stats[1][row_index]['SIGMA_X']
         smoothing = (ref_sigma_x**2-sigma_x**2)**0.5       
-    if reduction_metadata.images_stats[1][row_index]['FWHM_Y']<ref_fwhm_y:
-        sigma_y = reduction_metadata.images_stats[1][row_index]['FWHM_Y']/(2.*(2.*np.log(2.))**0.5)
+    if reduction_metadata.images_stats[1][row_index]['FWHM']<ref_fwhm:
+        #sigma_y = reduction_metadata.images_stats[1][row_index]['FWHM_Y']/(2.*(2.*np.log(2.))**0.5)
+        sigma_y = reduction_metadata.images_stats[1][row_index]['SIGMA_Y']
         smoothing_y = (ref_sigma_y**2-sigma_y**2)**0.5
     if smoothing_y>smoothing:
         smoothing = smoothing_y
@@ -297,9 +298,10 @@ def subtract_with_constant_kernel(new_images, reference_image_name, reference_im
         row_index = np.where(reduction_metadata.images_stats[1]['IM_NAME'] == new_image)[0][0]
         ref_fwhm_x, ref_fwhm_y, ref_sigma_x, ref_sigma_y = ref_stats
         x_shift, y_shift = -reduction_metadata.images_stats[1][row_index]['SHIFT_X'],-reduction_metadata.images_stats[1][row_index]['SHIFT_Y'] 
-        x_fwhm, y_fwhm = -reduction_metadata.images_stats[1][row_index]['FWHM_X'],-reduction_metadata.images_stats[1][row_index]['FWHM_Y'] 
+        x_fwhm, y_fwhm = -reduction_metadata.images_stats[1][row_index]['FWHM'],-reduction_metadata.images_stats[1][row_index]['FWHM'] 
+        fwhm = -reduction_metadata.images_stats[1][row_index]['FWHM']
         try:
-            fwhm_val = int(grow_kernel*(float(x_fwhm)**2+float(y_fwhm)**2)**0.5)
+            fwhm_val = int(grow_kernel*(float(fwhm)))
         except:
             fwhm_val = 999
         umatrix_index = int(np.digitize(fwhm_val,np.array(kernel_size_array)))
@@ -309,7 +311,7 @@ def subtract_with_constant_kernel(new_images, reference_image_name, reference_im
         reference_image, bright_reference_mask, reference_image_unmasked, noise_image = reference_images[umatrix_index]
         x_shift,y_shift = 0,0
         #if the reference is not as sharp as a data image -> smooth the data
-        smoothing = smoothing_2sharp_images(reduction_metadata, ref_fwhm_x, ref_fwhm_y, ref_sigma_x, ref_sigma_y, row_index)
+        smoothing = smoothing_2sharp_images(reduction_metadata, ref_fwhm, ref_fwhm, ref_sigma_x, ref_sigma_y, row_index)
 
         try:
             data_image, data_image_unmasked = open_data_image(setup, data_image_directory, new_image, bright_reference_mask, kernel_size, max_adu, xshift = x_shift, yshift = y_shift, sigma_smooth = smoothing, central_crop = maxshift)

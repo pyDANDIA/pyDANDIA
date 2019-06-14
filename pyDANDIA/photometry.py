@@ -18,6 +18,7 @@ from astropy.io import fits
 from pyDANDIA import starfind
 from pyDANDIA import psf
 from pyDANDIA import convolution
+from pyDANDIA import calibrate_photometry
 from scipy.odr import *
 import scipy.optimize as so
 import scipy.ndimage as sndi
@@ -475,6 +476,9 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
 
     Y_data, X_data = np.indices((size_stamp, size_stamp))
 
+    fit_params = [reduction_metadata.phot_calib[1]['a0'][0], 
+                  reduction_metadata.phot_calib[1]['a1'][0]]
+                  
     list_star_id = []
     
     list_radius = []
@@ -585,8 +589,7 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
             
             if good_fit == True:
                 
-                if ref_flux >= 10.0 and error_ref_flux > 0.0 and \
-                cal_ref_flux < 1e10 and error_cal_ref_flux > 0.0:
+                if ref_flux >= 10.0 and error_ref_flux > 0.0:
             
                     # logs.ifverbose(log, setup, ' -> Star ' + str(j) +
                     #              ' subtracted from the residuals')
@@ -630,21 +633,22 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
                         
                     if flux_tot > 0.0 and flux_err_tot > 0.0:
                         
-                        cal_flux_tot = cal_ref_flux*ref_exposure_time - flux
-                        cal_flux_err_tot = (error_cal_ref_flux ** 2*ref_exposure_time + flux_err**2/phot_scale_factor**2) ** 0.5
-                        
                         list_delta_flux.append(flux)
                         list_delta_flux_error.append(flux_err)
                         
-                        (mag, mag_err,flux_tot,flux_err_tot) = convert_flux_to_mag(flux_tot, flux_err_tot,ref_exposure_time)
-                        (cal_mag, cal_mag_err,cal_flux_tot,cal_flux_err_tot) = convert_flux_to_mag(cal_flux_tot, cal_flux_err_tot, ref_exposure_time)
+                        (mag, mag_err, flux_tot, flux_err_tot) = convert_flux_to_mag(flux_tot, flux_err_tot, ref_exposure_time)
+                        
+                        cal_mag = calibrate_photometry.phot_func(fit_params,mag)
+                        cal_mag_err = mag_err
+                        
+                        (cal_flux, cal_flux_err) = convert_mag_to_flux(cal_mag, cal_mag_err)
                         
                         list_radius.append(radius)
                         
                         list_flux.append(flux_tot)
                         list_flux_error.append(flux_err_tot)
-                        list_cal_flux.append(cal_flux_tot)
-                        list_cal_flux_error.append(cal_flux_err_tot)
+                        list_cal_flux.append(cal_flux)
+                        list_cal_flux_error.append(cal_flux_err)
                         
                         list_mag.append(mag)
                         list_mag_error.append(mag_err)
