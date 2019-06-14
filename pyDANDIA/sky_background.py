@@ -27,12 +27,12 @@ def model_sky_background(setup,reduction_metadata,log,ref_star_catalog):
 
     ref_image = fits.getdata(str(reduction_metadata.data_architecture[1]['REF_PATH'][0]) +'/'+ str(reduction_metadata.data_architecture[1]['REF_IMAGE'][0]))
     
-    psf_size = reduction_metadata.reduction_parameters[1]['PSF_SIZE'][0]
+    psf_diameter = reduction_metadata.psf_dimensions[1]['psf_radius'][0]*2.0
     
     sat_value = reduction_metadata.reduction_parameters[1]['MAXVAL'][0]
     sat_value = 120000.0
     
-    psf_mask = build_psf_mask(setup,psf_size,diagnostics=True)
+    psf_mask = build_psf_mask(setup,psf_diameter,diagnostics=True)
     
     star_masked_image = mask_stars(setup,ref_image,ref_star_catalog, psf_mask, 
                            diagnostics=False)
@@ -87,12 +87,12 @@ def model_sky_background(setup,reduction_metadata,log,ref_star_catalog):
     
     return sky_model
     
-def build_psf_mask(setup,psf_size,diagnostics=False):
+def build_psf_mask(setup,psf_diameter,diagnostics=False):
     """Function to construct a mask for the PSF of a single star, which
     is a 2D image array with 1.0 at all pixel locations within the PSF and 
     zero everywhere outside it."""
     
-    half_psf = int(psf_size)
+    half_psf = int(psf_diameter/2.0)
     half_psf2 = half_psf*half_psf
 
     pxmax = 2*half_psf + 1
@@ -137,9 +137,9 @@ def mask_stars(setup,ref_image,ref_star_catalog, psf_mask, diagnostics=False):
     a value of 0.0 in every pixel that falls within the PSF of a star, and
     a value of 1.0 everywhere else."""
 
-    psf_size = psf_mask.shape[0]
+    psf_diameter = psf_mask.shape[0]
     
-    half_psf = int(psf_size/2.0)
+    half_psf = int(psf_diameter/2.0)
     
     pxmin = 0
     pxmax = psf_mask.shape[0]

@@ -510,7 +510,8 @@ def photometry_on_the_difference_image(setup, reduction_metadata, log, star_cata
                    Column(name='local_background', data=differential_photometry[13]),
                    Column(name='local_background_err', data=differential_photometry[14]),
                    Column(name='residual_x', data=differential_photometry[15]),
-                   Column(name='residual_y', data=differential_photometry[16]) ]
+                   Column(name='residual_y', data=differential_photometry[16]),
+                   Column(name='radius', data=differential_photometry[17]) ]
     
     photometric_table = Table(data=table_data)
     
@@ -610,20 +611,9 @@ def commit_image_photometry_matching(conn, params, reduction_metadata,
     
     log.info('Extracted dataset identifiers from database')
     
-    column_names = (
-    'star_id', 
-    'diff_flux', 'diff_flux_err', 
-    'magnitude', 'magnitude_err',
-    'cal_magnitude', 'cal_magnitude_err',
-    'flux', 'flux_err',
-    'cal_flux', 'cal_flux_err',
-    'phot_scale_factor', 'phot_scale_factor_err', 
-    'local_background', 'local_background_err', 
-    'residual_x', 'residual_y')
-    
     key_list = ['star_id', 'reference_image', 'image', 
                 'facility', 'filter', 'software', 
-                'x', 'y', 'hjd', 'magnitude', 'magnitude_err', 
+                'x', 'y', 'hjd', 'radius', 'magnitude', 'magnitude_err', 
                 'calibrated_mag', 'calibrated_mag_err',
                 'flux', 'flux_err', 
                 'calibrated_flux', 'calibrated_flux_err',
@@ -646,6 +636,7 @@ def commit_image_photometry_matching(conn, params, reduction_metadata,
         
         x = str(phot_table['residual_x'][j_new])
         y = str(phot_table['residual_y'][j_new])
+        radius = str(phot_table['radius'][j_new])
         mag = str(phot_table['magnitude'][j_new])
         mag_err = str(phot_table['magnitude_err'][j_new])
         cal_mag = str(phot_table['cal_magnitude'][j_new])
@@ -661,7 +652,7 @@ def commit_image_photometry_matching(conn, params, reduction_metadata,
         
         entry = (str(int(j_cat)), str(refimage['refimg_id'][0]), str(image['img_id'][0]),
                    str(facility['facility_id'][0]), str(f['filter_id'][0]), str(code['code_id'][0]),
-                    x, y, str(params['hjd']), 
+                    x, y, str(params['hjd']), radius, 
                     mag, mag_err, cal_mag, cal_mag_err, 
                     flux, flux_err, cal_flux, cal_flux_err,
                     ps, ps_err,   # No phot scale factor for PSF fitting photometry

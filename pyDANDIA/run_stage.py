@@ -104,7 +104,7 @@ def get_args():
     helptext = """              RUN STAGE STAND ALONE
             
             Call sequence is:
-            > python run_stage.py [stage] [path to reduction directory] [dataset] [-v]
+            > python run_stage.py [stage] [path to reduction directory] [path to phot_db] [-v]
             
             where stage is the name of the stage or code to be run, one of:
                 stage0, stage1, stage2, stage3, stage4, stage5, 
@@ -135,13 +135,13 @@ def get_args():
         
         params['stage'] = input('Please enter the name of the stage or code you wish to run: ')
         params['red_dir'] = input('Please enter the path to the reduction directory: ')
-        params['field'] = input('Please enter the name of the field being reduced: ')
+        params['db_file_path'] = input('Please enter the path to the photometric database: ')
     
     else:
         
         params['stage'] = argv[1]
         params['red_dir'] = argv[2]
-        params['field'] = argv[3]
+        params['db_file_path'] = argv[3]
     
 
 
@@ -176,6 +176,9 @@ def get_args():
             
             params['verbosity'] = int(argv[idx+1])
     
+    if str(params['db_file_path']).split('.')[-1] != 'db':
+        raise ValueError(params['db_file_path']+' does not end in .db.  Is this a database file path?')
+        
     return params
 
     

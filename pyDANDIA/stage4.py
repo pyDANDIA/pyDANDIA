@@ -513,11 +513,11 @@ def extract_catalog(reduction_metadata, data_image, row_index):
 
     mean_data, median_data, std_data = sigma_clipped_stats(
         data_image, sigma=3.0, maxiters=5)
-    data_fwhm_x = reduction_metadata.images_stats[1][row_index]['FWHM_X']
-    data_fwhm_y = reduction_metadata.images_stats[1][row_index]['FWHM_Y']
-    data_fwhm = (data_fwhm_x ** 2 + data_fwhm_y ** 2) ** 0.5
-    daofind2 = DAOStarFinder(fwhm=max(data_fwhm_x, data_fwhm_y),
-                             ratio=min(data_fwhm_x, data_fwhm_y) / max(data_fwhm_x, data_fwhm_y),
+    data_fwhm = reduction_metadata.images_stats[1][row_index]['FWHM']
+    data_sigma_x = reduction_metadata.images_stats[1][row_index]['SIGMA_X']
+    data_sigma_y = reduction_metadata.images_stats[1][row_index]['SIGMA_Y']
+    daofind2 = DAOStarFinder(fwhm=data_fwhm,
+                             ratio=min(data_sigma_x, data_sigma_y) / max(data_sigma_x, data_sigma_y),
                              threshold=3. * std_data, exclude_border=True)
 
     data_sources = daofind2.find_stars(data_image - median_data)

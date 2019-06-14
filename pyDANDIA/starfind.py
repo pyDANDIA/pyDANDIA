@@ -373,7 +373,7 @@ def build_star_finder(reduction_metadata, image_path, log):
     
     image_idx = reduction_metadata.images_stats[1]['IM_NAME'].tolist().index(os.path.basename(image_path))
     
-    fwhm = reduction_metadata.images_stats[1]['FWHM_X'][image_idx]
+    fwhm = reduction_metadata.images_stats[1]['FWHM'][image_idx]
     sky_bkgd = reduction_metadata.images_stats[1]['SKY'][image_idx]
     
     sky_bkgd_sig = np.sqrt(sky_bkgd)

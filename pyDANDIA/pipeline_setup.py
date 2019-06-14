@@ -91,8 +91,12 @@ def pipeline_setup(params):
             elif key == 'field':
                 
                 setup.field = str(setup.red_dir).split('_')[0]
-                
-    if setup.red_dir != None and setup.field != None:
+    
+    if 'db_file_path' in params.keys():
+        
+        setup.phot_db_path = params['db_file_path']
+        
+    elif setup.red_dir != None and setup.field != None:
     
         setup.phot_db_path = path.join(params['red_dir'],'..', 
                                        setup.field+'_phot.db')

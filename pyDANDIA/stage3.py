@@ -54,6 +54,9 @@ def run_stage3(setup):
     reduction_metadata.load_a_layer_from_file( setup.red_dir, 
                                               'pyDANDIA_metadata.fits', 
                                               'star_catalog' )
+    reduction_metadata.load_a_layer_from_file( setup.red_dir, 
+                                              'pyDANDIA_metadata.fits', 
+                                              'psf_dimensions' )
     
     sane = check_metadata(reduction_metadata,log)
     
@@ -80,13 +83,13 @@ def run_stage3(setup):
                                         log,ref_star_catalog,
                                         diagnostics=False)
         
-        psf_size = round( (meta_pars['ref_fwhm'] * 2.0), 0 )
-        log.info('Calculated size of PSF = '+str(psf_size)+'pix')
+        psf_diameter = reduction_metadata.psf_dimensions[1]['psf_radius'][0]*2.0
+        log.info('Calculated diameter of PSF = '+str(psf_diameter)+'pix')
         
         (psf_model,psf_status) = psf.build_psf(setup, reduction_metadata, 
                                             log, scidata, 
                                             ref_star_catalog, sky_model,
-                                            psf_size,
+                                            psf_diameter,
                                             diagnostics=True)
         
         if use_naylor_phot:
@@ -98,7 +101,7 @@ def run_stage3(setup):
                                              psf_model,
                                              sky_model,
                                              ref_flux,
-                                             psf_size=psf_size,
+                                             psf_diameter=psf_diameter,
                                              centroiding=False)
         else:
             ref_star_catalog = photometry.run_psf_photometry(setup, 
@@ -108,7 +111,7 @@ def run_stage3(setup):
                                              meta_pars['ref_image_path'],
                                              psf_model,
                                              sky_model,
-                                             psf_size=psf_size,
+                                             psf_diameter=psf_diameter,
                                              centroiding=False, 
                                              diagnostics=False)
         
@@ -225,11 +228,7 @@ def extract_parameters_stage3(reduction_metadata,log):
     
         meta_pars['ref_sky_bkgd'] = reduction_metadata.images_stats[1]['SKY'].data[idx[0][0]]
         
-        fwhmx = reduction_metadata.images_stats[1]['FWHM_X'].data[idx[0][0]]
-        fwhmy = reduction_metadata.images_stats[1]['FWHM_Y'].data[idx[0][0]]
-        pixscale = reduction_metadata.reduction_parameters[1]['PIX_SCALE'][0]
-        
-        meta_pars['ref_fwhm'] = np.sqrt( fwhmx*fwhmx + fwhmy*fwhmy ) / pixscale
+        meta_pars['ref_fwhm'] = reduction_metadata.images_stats[1]['FWHM'].data[idx[0][0]]
         
         meta_pars['bandpass'] = str(reduction_metadata.headers_summary[1]['FILTKEY'].data[idx[0]][0]).replace('p','')
         

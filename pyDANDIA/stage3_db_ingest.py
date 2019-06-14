@@ -56,6 +56,9 @@ def run_stage3_db_ingest(setup, primary_ref=False):
                                           'images_stats' )
     reduction_metadata.load_a_layer_from_file( setup.red_dir, 
                                           'pyDANDIA_metadata.fits', 
+                                          'psf_dimensions' )
+    reduction_metadata.load_a_layer_from_file( setup.red_dir, 
+                                          'pyDANDIA_metadata.fits', 
                                           'software' )
     reduction_metadata.load_a_layer_from_file( setup.red_dir, 
                                           'pyDANDIA_metadata.fits', 
@@ -249,6 +252,8 @@ def harvest_stage3_parameters(setup,reduction_metadata):
     
     dataset_params = harvest_image_params(reduction_metadata, ref_image_path, ref_image_path)
     
+    dataset_params['psf_radius'] = reduction_metadata.psf_dimensions[1]['psf_radius'][0]
+    
     # Software
     dataset_params['version'] = reduction_metadata.software[1]['stage3_version'][0]
     dataset_params['stage'] = 'stage3'
@@ -287,8 +292,7 @@ def harvest_image_params(reduction_metadata, image_path, ref_image_path):
     image_params['RA'] = image_header['RA']
     image_params['Dec'] = image_header['DEC']
     image_params['filter_name'] = image_header['FILTER']
-    image_params['fwhm'] = np.sqrt(image_stats['FWHM_X'][0]*image_stats['FWHM_X'][0] + 
-                                        image_stats['FWHM_Y'][0]*image_stats['FWHM_Y'][0])
+    image_params['fwhm'] = image_stats['FWHM'][0]
     image_params['fwhm_err'] = None
     image_params['ellipticity'] = None
     image_params['ellipticity_err'] = None
@@ -556,7 +560,7 @@ def commit_photometry(conn, params, reduction_metadata, star_ids, log):
     
     key_list = ['star_id', 'reference_image', 'image', 
                 'facility', 'filter', 'software', 
-                'x', 'y', 'hjd', 'magnitude', 'magnitude_err', 
+                'x', 'y', 'hjd', 'radius', 'magnitude', 'magnitude_err', 
                 'calibrated_mag', 'calibrated_mag_err',
                 'flux', 'flux_err', 'calibrated_flux', 'calibrated_flux_err',
                 'phot_scale_factor', 'phot_scale_factor_err',
@@ -587,6 +591,7 @@ def commit_photometry(conn, params, reduction_metadata, star_ids, log):
         entry = (str(int(star_ids[j])), str(refimage['refimg_id'][0]), str(image['img_id'][0]),
                    str(facility['facility_id'][0]), str(f['filter_id'][0]), str(code['code_id'][0]),
                     x, y, str(params['hjd']), 
+                    params['psf_radius'],
                     mag, mag_err, cal_mag, cal_mag_err, 
                     flux, flux_err, cal_flux, cal_flux_err,
                     '0.0', '0.0',   # No phot scale factor for PSF fitting photometry

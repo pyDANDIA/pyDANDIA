@@ -30,7 +30,7 @@ def linear_func(p, x):
 
 def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
                        image_path,psf_model,sky_model,
-                       centroiding=True, diagnostics=True, psf_size=None):
+                       centroiding=True, diagnostics=True, psf_diameter=None):
     """Function to perform PSF fitting photometry on all stars for a single
     image.
     
@@ -53,20 +53,20 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
     log.info('Starting photometry of ' + os.path.basename(image_path))
 
     data = fits.getdata(image_path)
-    if psf_size == None:
-        psf_size = reduction_metadata.reduction_parameters[1]['PSF_SIZE'][0]
+    if psf_diameter == None:
+        psf_diameter = (reduction_metadata.psf_dimensions[1]['psf_radius'][0]*2.0)
 
-    half_psf = int(float(psf_size)/2.0)
+    half_psf = int(float(psf_diameter)/2.0)
     
     exp_time = reduction_metadata.extract_exptime(os.path.basename(image_path))
     
     gain = reduction_metadata.get_gain()
     
     logs.ifverbose(log,setup,'Applying '+psf_model.psf_type()+\
-                    ' PSF of diameter='+str(psf_size))
+                    ' PSF of diameter='+str(psf_diameter))
     logs.ifverbose(log,setup,'Scaling fluxes by exposure time '+str(exp_time)+'s')
     
-    Y_data, X_data = np.indices((int(psf_size),int(psf_size)))
+    Y_data, X_data = np.indices((int(psf_diameter),int(psf_diameter)))
     
     Y_image, X_image = np.indices(data.shape)
     
@@ -84,7 +84,7 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
         X_grid = X_data + (int(xstar) - half_psf)
         Y_grid = Y_data + (int(ystar) - half_psf)
         
-        corners = psf.calc_stamp_corners(xstar, ystar, psf_size, psf_size, 
+        corners = psf.calc_stamp_corners(xstar, ystar, psf_diameter, psf_diameter, 
                                          data.shape[1], data.shape[0],
                                          over_edge=True)
         
@@ -102,7 +102,7 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
         
         (fitted_model,good_fit) = psf.fit_star_existing_model(setup, data_section, 
                                                sec_xstar, sec_ystar, 
-                                               psf_size, psf_model, 
+                                               psf_diameter, psf_model, 
                                                sky_section, 
                                                centroiding=centroiding,
                                                diagnostics=False)
@@ -128,8 +128,8 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
             sub_psf_model = psf.get_psf_object('Moffat2D')
             
             pars = fitted_model.get_parameters()
-            pars[1] = (psf_size/2.0) + (sec_ystar-int(sec_ystar))
-            pars[2] = (psf_size/2.0) + (sec_xstar-int(sec_xstar))
+            pars[1] = (psf_diameter/2.0) + (sec_ystar-int(sec_ystar))
+            pars[2] = (psf_diameter/2.0) + (sec_xstar-int(sec_xstar))
             
             pars[1] = sec_ystar
             pars[2] = sec_xstar
@@ -137,7 +137,7 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
             sub_psf_model.update_psf_parameters(pars)
             
             sub_corners = psf.calc_stamp_corners(sec_xstar, sec_ystar, 
-                                                 psf_size, psf_size, 
+                                                 psf_diameter, psf_diameter, 
                                                  data_section.shape[1], 
                                                  data_section.shape[0],
                                                  over_edge=True)
@@ -195,7 +195,7 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
 
 def run_psf_photometry_naylor(setup,reduction_metadata,log,ref_star_catalog,
                        image_path,psf_model,sky_model,ref_flux,
-                       centroiding=True,diagnostics=True, psf_size=None):
+                       centroiding=True,diagnostics=True, psf_diameter=None):
     """Function to perform PSF fitting photometry on all stars for a single
     image.
     
@@ -221,20 +221,21 @@ def run_psf_photometry_naylor(setup,reduction_metadata,log,ref_star_catalog,
     log.info('Starting photometry of ' + os.path.basename(image_path))
 
     data = fits.getdata(image_path)
-    if psf_size == None:
-        psf_size = reduction_metadata.reduction_parameters[1]['PSF_SIZE'][0]
+    
+    if psf_diameter == None:
+        psf_diameter = (reduction_metadata.psf_dimensions[1]['psf_radius'][0]*2.0)
 
-    half_psf = int(float(psf_size)/2.0)
+    half_psf = int(float(psf_diameter)/2.0)
     
     exp_time = reduction_metadata.extract_exptime(os.path.basename(image_path))
     
     gain = reduction_metadata.get_gain()
     
     logs.ifverbose(log,setup,'Applying '+psf_model.psf_type()+\
-                    ' PSF of diameter='+str(psf_size))
+                    ' PSF of diameter='+str(psf_diameter))
     logs.ifverbose(log,setup,'Scaling fluxes by exposure time '+str(exp_time)+'s')
     
-    Y_data, X_data = np.indices((int(psf_size),int(psf_size)))
+    Y_data, X_data = np.indices((int(psf_diameter),int(psf_diameter)))
     
     Y_image, X_image = np.indices(data.shape)
     
@@ -248,7 +249,7 @@ def run_psf_photometry_naylor(setup,reduction_metadata,log,ref_star_catalog,
         logs.ifverbose(log,setup,' -> Star '+str(j)+' at position ('+\
         str(xstar)+', '+str(ystar)+')')
                 
-        corners = psf.calc_stamp_corners(xstar, ystar, psf_size, psf_size, 
+        corners = psf.calc_stamp_corners(xstar, ystar, psf_diameter, psf_diameter, 
                                     data.shape[1], data.shape[0],
                                     over_edge=True)
         
@@ -258,7 +259,7 @@ def run_psf_photometry_naylor(setup,reduction_metadata,log,ref_star_catalog,
         logs.ifverbose(log,setup,' -> Corners of PSF stamp '+repr(corners)+\
                         ', dimensions dx='+str(dx)+', dy='+str(dy))
             
-        if dx >= psf_size-1 and dy >= psf_size-1:
+        if dx >= psf_diameter-1 and dy >= psf_diameter-1:
             Y_grid, X_grid = np.indices((int(dy),int(dx)))
             
             xstar_psf = xstar - corners[0]
@@ -291,7 +292,7 @@ def run_psf_photometry_naylor(setup,reduction_metadata,log,ref_star_catalog,
             'mag='+str(mag)+' +/- '+str(mag_err)+' mag')
         
         else:
-            logs.ifverbose(log, setup,' -> Star stamp smaller than PSF diameter, '+str(psf_size))
+            logs.ifverbose(log, setup,' -> Star stamp smaller than PSF diameter, '+str(psf_diameter))
             
     plot_ref_mag_errors(setup, ref_star_catalog)
 
@@ -447,20 +448,17 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
         
         use_image = True
         
-        log.info('FWHM x,y for image '+str(image_id)+' = '+\
-                repr(reduction_metadata.images_stats[1]['FWHM_X'][image_id])+', '+\
-                repr(reduction_metadata.images_stats[1]['FWHM_Y'][image_id]))
+        log.info('FWHM for image '+str(image_id)+' = '+\
+                repr(reduction_metadata.images_stats[1]['FWHM'][image_id]))
                 
-        if np.isnan(reduction_metadata.images_stats[1]['FWHM_X'][image_id]) == True \
-             or np.isnan(reduction_metadata.images_stats[1]['FWHM_X'][image_id]) == True:
+        if np.isnan(reduction_metadata.images_stats[1]['FWHM'][image_id]) == True:
             
             use_image = False
             
             log.info('Image not photometered because of NaN FWHM measurements')
             
         if use_image:
-            if reduction_metadata.images_stats[1]['FWHM_X'][image_id] == 0.0 \
-             or reduction_metadata.images_stats[1]['FWHM_X'][image_id] == 0.0:
+            if reduction_metadata.images_stats[1]['FWHM'][image_id] == 0.0:
                  
                  use_image = False
                  
@@ -468,8 +466,8 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
                  
         return use_image
 
-    psf_size = reduction_metadata.reduction_parameters[1]['PSF_SIZE'][0]
-    half_psf = int(psf_size)
+    psf_diameter = reduction_metadata.psf_dimensions[1]['psf_radius'][0]*2.0
+    half_psf = int(psf_diameter)
 
     size_stamp = int(2 * half_psf) + 1
     if size_stamp % 2 == 0:
@@ -478,7 +476,9 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
     Y_data, X_data = np.indices((size_stamp, size_stamp))
 
     list_star_id = []
-
+    
+    list_radius = []
+    
     list_delta_flux = []
     list_delta_flux_error = []
     
@@ -514,8 +514,7 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
     use_image = check_fwhm(reduction_metadata, image_id, log)
     
     if use_image:
-        radius = np.max((reduction_metadata.images_stats[1]['FWHM_X'][image_id],reduction_metadata.images_stats[1]['FWHM_Y'][image_id]))
-        radius *= 1.5852*2
+        radius = psf_diameter/2.0
         apertures = CircularAperture(positions, r=radius)
         error = calc_total_error(difference_image, np.std(difference_image.ravel()), 1)
         try:
@@ -640,6 +639,8 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
                         (mag, mag_err,flux_tot,flux_err_tot) = convert_flux_to_mag(flux_tot, flux_err_tot,ref_exposure_time)
                         (cal_mag, cal_mag_err,cal_flux_tot,cal_flux_err_tot) = convert_flux_to_mag(cal_flux_tot, cal_flux_err_tot, ref_exposure_time)
                         
+                        list_radius.append(radius)
+                        
                         list_flux.append(flux_tot)
                         list_flux_error.append(flux_err_tot)
                         list_cal_flux.append(cal_flux_tot)
@@ -678,6 +679,7 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
                 #logs.ifverbose(log, setup, ' -> Star ' + str(j) +
                 #               ' No photometry possible from poor fit')
                 
+                list_radius.append(-9999.99)
                 list_delta_flux.append(-9999.99)
                 list_delta_flux_error.append(-9999.99)
                 list_flux.append(-9999.99)
@@ -702,6 +704,7 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
         log.info('Invalid FWHM data for image - no photometry can be produced')
         
         list_star_id = ref_star_catalog[:, 0].tolist()
+        list_radius = [-9999.99]*len(ref_star_catalog)
         list_delta_flux = [-9999.99]*len(ref_star_catalog)
         list_delta_flux_error = [-9999.99]*len(ref_star_catalog)
         list_flux = [-9999.99]*len(ref_star_catalog)
@@ -728,7 +731,8 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
                                        list_cal_flux, list_cal_flux_error,
                                        list_phot_scale_factor, list_phot_scale_factor_error, 
                                        list_background, list_background_error, 
-                                       list_align_x, list_align_y]
+                                       list_align_x, list_align_y,
+                                       list_radius]
     log.info('Completed photometry on difference image')
 
     # return  difference_image_photometry, control_zone

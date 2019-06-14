@@ -1158,7 +1158,7 @@ def build_psf(setup, reduction_metadata, log, image, ref_star_catalog,
     log.info('Building a PSF model based on the reference image')
 
     # Cut large stamps around selected PSF stars
-    psf_diameter = reduction_metadata.reduction_parameters[1]['PSF_SIZE'][0]
+    psf_diameter = reduction_metadata.psf_dimensions[1]['psf_radius'][0]*2.0
 
     psf_model_type = 'Moffat2D'
 
@@ -1521,11 +1521,11 @@ def fit_psf_model(setup,log,psf_model_type,psf_diameter,sky_model_type,stamp_ima
     return fitted_model
 
 
-def generate_psf_image(psf_model_type, psf_model_pars, stamp_dims, psf_size):
+def generate_psf_image(psf_model_type, psf_model_pars, stamp_dims, psf_diameter):
     new_psf_model_pars = []
     new_psf_model_pars = [x for x in psf_model_pars]
 
-    if stamp_dims[0] != psf_size:
+    if stamp_dims[0] != psf_diameter:
         (ix, iy) = get_psf_centre_indices(psf_model_type)
 
         x_centre = stamp_dims[1] / 2.0
@@ -1833,7 +1833,7 @@ def output_stamp_image(image, file_path, comps_list=None):
     plt.close(1)
 
 
-def find_psf_companion_stars(setup, psf_idx, psf_x, psf_y, psf_size,
+def find_psf_companion_stars(setup, psf_idx, psf_x, psf_y, psf_diameter,
                              ref_star_catalog, log, stamp_dims,
                              diagnostics=False):
     """Function to identify stars in close proximity to a selected PSF star, 
@@ -1847,7 +1847,7 @@ def find_psf_companion_stars(setup, psf_idx, psf_x, psf_y, psf_size,
     :param int psf_idx: Index of PSF star in the data array (NOT the PSF star number)
     :param float psf_x: x-pixel position of the PSF star in the full frame image
     :param float psf_y: y-pixel position of the PSF star in the full frame image
-    :param float psf_size: diameter of the stellar PSF
+    :param float psf_diameter: diameter of the stellar PSF
     :param array ref_star_catalog: positions and magnitudes of stars in the 
                                 reference image
     :param logging object log: an open logging file
@@ -1860,7 +1860,7 @@ def find_psf_companion_stars(setup, psf_idx, psf_x, psf_y, psf_size,
                                 the ref_star_catalog
     """
 
-    psf_radius = int(float(psf_size / 2.0))
+    psf_radius = int(float(psf_diameter / 2.0))
     dx_psf_box = int(float(stamp_dims[1]) / 2.0) + psf_radius
     dy_psf_box = int(float(stamp_dims[0]) / 2.0) + psf_radius
     x_psf_box = psf_x - dx_psf_box + psf_radius
@@ -1874,7 +1874,7 @@ def find_psf_companion_stars(setup, psf_idx, psf_x, psf_y, psf_size,
                        str(psf_idx + 1) + ' located at (' + str(psf_x) + ', ' + str(psf_y) + ')')
         logs.ifverbose(log, setup, 'PSF box: ' + \
                        'xmin=' + str(x_psf_box) + ', ymin=' + str(y_psf_box) + \
-                       ' stamp dims=' + repr(stamp_dims) + ', PSF diameter=' + str(psf_size))
+                       ' stamp dims=' + repr(stamp_dims) + ', PSF diameter=' + str(psf_diameter))
 
     comps_list = []
 
