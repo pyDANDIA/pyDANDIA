@@ -296,10 +296,10 @@ def resampled_median_stack(setup, reduction_metadata, new_images, log):
         row_index = np.where(reduction_metadata.images_stats[1]['IM_NAME'] == new_image)[0][0]
 
         if image_sum == []:
-            image_sum = open_an_image(setup, data_image_directory, new_image).data
+            image_sum = open_an_image(setup, data_image_directory, new_image, log).data
             
         else:
-            image_sum = image_sum + open_an_image(setup, data_image_directory, new_image).data
+            image_sum = image_sum + open_an_image(setup, data_image_directory, new_image, log).data
     
     stack_median_image = image_sum/float(len(new_images))
     

@@ -91,7 +91,7 @@ def run_stage0(setup):
     else:
 
         open_image = open_an_image(setup, reduction_metadata.data_architecture[1]['IMAGES_PATH'][0],
-                                   new_images[0], image_index=0, log=log)
+                                   new_images[0], log,  image_index=0)
 
         update_reduction_metadata_stamps(setup, reduction_metadata, open_image,
                                          stamp_size=None,
@@ -116,10 +116,10 @@ def run_stage0(setup):
 
         for new_image in new_images:
             open_image = open_an_image(setup, reduction_metadata.data_architecture[1]['IMAGES_PATH'][0],
-                                       new_image, image_index=0, log=log)
+                                       new_image, log, image_index=0)
             
             image_bpm = open_an_image(setup, reduction_metadata.data_architecture[1]['BPM_PATH'][0],
-                                           new_image, image_index=2, log=log)
+                                           new_image, log, image_index=2)
         
             # Occasionally, the LCO BANZAI pipeline fails to produce an image
             # catalogue for an image.  If this happens, there will only be 2 
@@ -128,7 +128,7 @@ def run_stage0(setup):
             if image_bpm == None:
                 
                 image_bpm = open_an_image(setup, reduction_metadata.data_architecture[1]['BPM_PATH'][0],
-                                           new_image, image_index=1, log=log)
+                                           new_image, log, image_index=1)
             
             bpm = bad_pixel_mask.construct_the_pixel_mask(setup, reduction_metadata, 
                                                   open_image, image_bpm, [1,3], log,
@@ -210,7 +210,7 @@ def find_the_inst_config_file_name(setup, reduction_metadata, image_name, inst_c
     potential_cameras_names = [i.split('_')[-1][:-5] for i in inst_config_files]
 
     open_image = open_an_image(setup, reduction_metadata.data_architecture[1]['IMAGES_PATH'][0],
-                               image_name, image_index=image_index, log=log)
+                               image_name, log, image_index=image_index)
 
     potential_inst_names = open_image.header.values()
 
@@ -350,8 +350,8 @@ def set_bad_pixel_mask_directory(setup, reduction_metadata,
                                 bpm_directory_path)
 
 
-def open_an_image(setup, image_directory, image_name,
-                  image_index=0, log=None):
+def open_an_image(setup, image_directory, image_name, log,
+                  image_index=0):
     '''
     Simply open an image using astropy.io.fits
 
@@ -547,7 +547,7 @@ def update_reduction_metadata_headers_summary_with_new_images(setup,
         layer = reduction_metadata.headers_summary[1]
 
         open_image = open_an_image(setup, reduction_metadata.data_architecture[1]['IMAGES_PATH'][0],
-                                   image_name, log=log)
+                                   image_name, log)
 
         header_infos = parse_the_image_header(reduction_metadata, open_image)
 

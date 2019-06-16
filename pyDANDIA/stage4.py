@@ -96,8 +96,7 @@ def run_stage4(setup):
 
         # find the reference image
         try:
-            reference_image = open_an_image(setup, reference_image_directory, reference_image_name, image_index=0,
-                                            log=None)
+            reference_image = open_an_image(setup, reference_image_directory, reference_image_name, log, image_index=0)
             logs.ifverbose(log, setup,
                            'I found the reference frame:' + reference_image_name)
         except KeyError:
@@ -112,7 +111,7 @@ def run_stage4(setup):
         data = []
         images_directory = reduction_metadata.data_architecture[1]['IMAGES_PATH'].data[0]
         for new_image in new_images:
-            target_image = open_an_image(setup, images_directory, new_image, image_index=0, log=None)
+            target_image = open_an_image(setup, images_directory, new_image, log, image_index=0)
 
             try:
                 x_new_center, y_new_center, x_shift, y_shift = find_x_y_shifts_from_the_reference_image(setup,
@@ -190,8 +189,7 @@ def run_stage4(setup):
     return status, report
 
 
-def open_an_image(setup, image_directory, image_name,
-                  image_index=0, log=None):
+def open_an_image(setup, image_directory, image_name, log, image_index=0):
     '''
     Simply open an image using astropy.io.fits
 

@@ -145,8 +145,7 @@ def run_stage6(setup):
         try:
             reference_image_name = reduction_metadata.data_architecture[1]['REF_IMAGE'].data[0]
             reference_image_directory = reduction_metadata.data_architecture[1]['REF_PATH'].data[0]
-            reference_image, date = open_an_image(setup, reference_image_directory, reference_image_name, image_index=0,
-                                                  log=log)
+            reference_image, date = open_an_image(setup, reference_image_directory, reference_image_name, log, image_index=0)
 
             ref_image_name = reduction_metadata.data_architecture[1]['REF_IMAGE'].data[0]
             index_reference = np.where(ref_image_name == reduction_metadata.headers_summary[1]['IMAGES'].data)[0][0]
@@ -214,7 +213,7 @@ def run_stage6(setup):
             log.info('Starting difference photometry of ' + new_image)
             kernel_image, kernel_error, kernel_bkg = find_the_associated_kernel(setup, kernels_directory, new_image)
 
-            difference_image = open_an_image(setup, diffim_directory, 'diff_' + new_image, 0, log=None)[0]
+            difference_image = open_an_image(setup, diffim_directory, 'diff_' + new_image, log, 0)[0]
             
             if len(difference_image) > 1:
                 diff_table, control_zone, phot_table = photometry_on_the_difference_image(setup, reduction_metadata, log,
@@ -279,8 +278,7 @@ def background_subtract(setup, image, max_adu):
     return image - sky_model_image
 
 
-def open_an_image(setup, image_directory, image_name,
-                  image_index=0, log=None):
+def open_an_image(setup, image_directory, image_name, log, image_index=0):
     '''
     Simply open an image using astropy.io.fits
 
@@ -400,8 +398,8 @@ def image_substraction2(setup, diffim_directory, image_name, log=None):
     # import pdb; pdb.set_trace()
     diffim = 'diff_' + image_name
 
-    diffim, date = open_an_image(setup, diffim_directory, diffim,
-                                 image_index=0, log=None)
+    diffim, date = open_an_image(setup, diffim_directory, diffim, log,
+                                 image_index=0)
 
     return diffim
 
@@ -421,7 +419,7 @@ def image_substraction(setup, reduction_metadata, reference_image_data, kernel_d
     :rtype: array_like
     '''
 
-    image_data, date = open_an_image(setup, './data/', image_name, image_index=0, log=None)
+    image_data, date = open_an_image(setup, './data/', image_name, log, image_index=0)
     row_index = np.where(reduction_metadata.images_stats[1]['IM_NAME'] == image_name)[0][0]
 
     kernel_size = kernel_data.shape[0]
@@ -467,10 +465,10 @@ def find_the_associated_kernel(setup, kernels_directory, image_name):
 
     kernel = fits.open(os.path.join(kernels_directory, kernel_name))
     kernel_error = fits.open(os.path.join(kernels_directory, kernel_err))
-    # kernel,date = open_an_image(setup, kernels_directory, kernel_name,
-    #                       image_index=0, log=None)
-    # kernel_error,date = open_an_image(setup, kernels_directory, kernel_err,
-    #                       image_index=0, log=None)
+    # kernel,date = open_an_image(setup, kernels_directory, kernel_name, log,
+    #                       image_index=0)
+    # kernel_error,date = open_an_image(setup, kernels_directory, kernel_err, log,
+    #                       image_index=0)
     bkgd = +kernel[0].header['KERBKG']
 
     kernel = kernel[0].data
