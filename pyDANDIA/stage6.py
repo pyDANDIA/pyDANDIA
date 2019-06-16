@@ -309,7 +309,7 @@ def open_an_image(setup, image_directory, image_name, log, image_index=0):
         except:
             date = 0
 	    #exptime = 1
-        log.info(log, setup, image_name + ' open : OK')
+        log.info(image_name + ' open : OK')
 
         return image_data.data, date
 
