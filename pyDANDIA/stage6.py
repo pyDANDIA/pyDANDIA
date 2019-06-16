@@ -146,7 +146,7 @@ def run_stage6(setup):
             reference_image_name = reduction_metadata.data_architecture[1]['REF_IMAGE'].data[0]
             reference_image_directory = reduction_metadata.data_architecture[1]['REF_PATH'].data[0]
             reference_image, date = open_an_image(setup, reference_image_directory, reference_image_name, image_index=0,
-                                                  log=None)
+                                                  log=log)
 
             ref_image_name = reduction_metadata.data_architecture[1]['REF_IMAGE'].data[0]
             index_reference = np.where(ref_image_name == reduction_metadata.headers_summary[1]['IMAGES'].data)[0][0]
