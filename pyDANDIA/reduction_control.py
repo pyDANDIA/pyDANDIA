@@ -7,6 +7,7 @@ Created on Mon Oct  9 11:01:19 2017
 from os import getcwd, path, remove
 from sys import argv, exit
 from sys import path as systempath
+import copy
 cwd = getcwd()
 systempath.append(path.join(cwd,'../'))
 import pipeline_setup
@@ -36,7 +37,7 @@ def reduction_control():
 
     reduction_version = 'reduction_control v0.3'
 
-    setup = get_args()
+    (setup,params) = get_args()
     
     log = logs.start_pipeline_log(setup.red_dir, 'reduction_control',
                                   version=reduction_version)
@@ -62,6 +63,10 @@ def reduction_control():
     elif setup.red_mode == 'stage3_db_ingest':
         
         run_stage3_db_ingest(setup,log,params)
+        
+    elif setup.red_mode == 'stage6':
+        
+        run_stage6_db_ingest(setup,log,params)
         
     else:
         log.info('ERROR: unrecognised reduction mode ('+setup.red_mode+') selected')
@@ -119,29 +124,59 @@ def run_stage3_db_ingest(setup,log,params):
     ...
     """
     
-    if path.isfile(params['data_file']) == False:
-        raise IOError('Cannot find list of datasets')
-        
-    flines = open(params['data_file']).readlines()
+    datasets = parse_dataset_list(params['data_file'])
     
-    data_list = {}
-    for line in flines:
-        entries = line.replace('\n','').split()
-        data_list[entries[0]] = entries[1]
-    
-    for dataset,ref_flag in data_list.items:
+    for dataset,ref_flag in datasets.items():
         
+        dparams = copy.copy(params)
+        dparams['red_dir'] = dataset
+        
+        dsetup = pipeline_setup.pipeline_setup(dparams)
+
         if 'primary_ref' in ref_flag or 'primary-ref' in ref_flag:
             log.info('Ingesting '+path.basename(dataset)+' as the primary reference dataset')
             
-            status = stage3_db_ingest.run_stage3_db_ingest(setup, primary_ref=True)
+            (status,report) = stage3_db_ingest.run_stage3_db_ingest(dsetup, primary_ref=True)
 
         else:
 
             log.info('Ingesting '+path.basename(dataset))
             
-            status = stage3_db_ingest.run_stage3_db_ingest(setup, primary_ref=False)
+            (status,report) = stage3_db_ingest.run_stage3_db_ingest(setup, primary_ref=False)
+
+def parse_dataset_list(file_path):
+    
+    if path.isfile(file_path) == False:
+        raise IOError('Cannot find list of datasets')
         
+    flines = open(file_path).readlines()
+    
+    datasets = {}
+    for line in flines:
+        entries = line.replace('\n','').split()
+        datasets[entries[0]] = entries[1]
+    
+    return datasets
+    
+def run_stage6_db_ingest(setup,log,params):
+    """Function to run stage6 including the DB ingest for a set of datasets read from a file
+    File format is one dataset per line plus a column indicating whether or
+    not a given dataset is the primary reference, i.e.:
+    /path/to/data/red/dir  primary_ref
+    /path/to/data/red/dir  not_ref
+    /path/to/data/red/dir  not_ref
+    ...
+    """
+    
+    datasets = parse_dataset_list(params['data_file'])
+    
+    for dataset,ref_flag in datasets.items():
+        
+        log.info('Ingesting '+path.basename(dataset))
+            
+        (status,report) = stage6.run_stage6(setup)
+        
+
 def execute_stage(run_stage_func, stage_name, setup, status, log):
     """Function to execute a stage and verify whether it completed successfully
     before continuing.
@@ -284,7 +319,8 @@ def get_args():
                        'added_data_preparation',
                        'reference_analysis', 
                        'image_analysis',
-                       ']
+                       'stage3_db_ingest',
+                       'stage6']
     
     params = {}
     
@@ -319,7 +355,7 @@ def get_args():
     setup = pipeline_setup.pipeline_setup(params)
     setup.red_mode = params['mode']
     
-    return setup
+    return setup, params
     
     
     
