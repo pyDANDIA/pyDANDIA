@@ -39,50 +39,50 @@ def reduction_control():
 
     (setup,params) = get_args()
     
-    log = logs.start_pipeline_log(setup.red_dir, 'reduction_control',
+    red_log = logs.start_pipeline_log(setup.red_dir, 'reduction_control',
                                   version=reduction_version)
     
-    log.info('Pipeline setup: '+setup.summary()+'\n')
+    red_log.info('Pipeline setup: '+setup.summary()+'\n')
     
     if setup.red_mode == 'data_preparation':
         
-        run_data_preparation(setup,log,select_ref=True)
+        run_data_preparation(setup,red_log,select_ref=True)
         
     elif setup.red_mode == 'added_data_preparation':
         
-        run_data_preparation(setup,log,select_ref=False)
+        run_data_preparation(setup,red_log,select_ref=False)
         
     elif setup.red_mode == 'reference_analysis':
         
-        run_reference_image_analysis(setup,log)
+        run_reference_image_analysis(setup,red_log)
         
     elif setup.red_mode == 'image_analysis':
         
-        run_image_analysis(setup,log)
+        run_image_analysis(setup,red_log)
         
     elif setup.red_mode == 'stage3_db_ingest':
         
-        run_stage3_db_ingest(setup,log,params)
+        run_stage3_db_ingest(setup,red_log,params)
         
     elif setup.red_mode == 'stage6':
         
-        run_stage6_db_ingest(setup,log,params)
+        run_stage6_db_ingest(setup,red_log,params)
         
     else:
-        log.info('ERROR: unrecognised reduction mode ('+setup.red_mode+') selected')
+        red_log.info('ERROR: unrecognised reduction mode ('+setup.red_mode+') selected')
         
-    logs.close_log(log)
+    logs.close_log(red_log)
 
 def run_data_preparation(setup,log=None,select_ref=False):
     """Function to run in sequence stages 0 - 2 for a single dataset"""
 
     if log!=None:
-        log.info('Pipeline setup: '+setup.summary()+'\n')
+        red_log.info('Pipeline setup: '+setup.summary()+'\n')
     
     (status,report,meta_data) = stage0.run_stage0(setup)
     
     if log!=None:
-        log.info('Completed stage 0 with status '+repr(status)+': '+report)
+        red_log.info('Completed stage 0 with status '+repr(status)+': '+report)
     
     status = execute_stage(stage1.run_stage1, 'stage 1', setup, status, log)
     
@@ -93,7 +93,7 @@ def run_reference_image_analysis(setup,log):
     """Function to run the pipeline stages which perform the analysis of a
     reference image in sequence."""
     
-    log.info('Pipeline setup: '+setup.summary()+'\n')
+    red_log.info('Pipeline setup: '+setup.summary()+'\n')
     
     status = 'OK'
     
@@ -106,15 +106,15 @@ def run_image_analysis(setup,log):
     """Function to run the sequence of stages which perform the image 
     subtraction and photometry for a dataset"""
     
-    log.info('Pipeline setup: '+setup.summary()+'\n')
+    red_log.info('Pipeline setup: '+setup.summary()+'\n')
     
     status = 'OK'
     
-    status = execute_stage(stage4.run_stage4, 'stage 4', setup, status, log)
+    status = execute_stage(stage4.run_stage4, 'stage 4', setup, status, red_log)
     
-    status = execute_stage(stage5.run_stage5, 'stage 5', setup, status, log)
+    status = execute_stage(stage5.run_stage5, 'stage 5', setup, status, red_log)
 
-def run_stage3_db_ingest(setup,log,params):
+def run_stage3_db_ingest(setup,red_log,params):
     """Function to run stage3_db_ingest for a set of datasets read from a file
     File format is one dataset per line plus a column indicating whether or
     not a given dataset is the primary reference, i.e.:
@@ -130,20 +130,25 @@ def run_stage3_db_ingest(setup,log,params):
         
         dparams = copy.copy(params)
         dparams['red_dir'] = dataset
+        dparams['log_dir'] = path.join(dparams['red_dir'],'..','logs')
+        dparams['base_dir'] = path.join(dparams['red_dir'],'..')
         
         dsetup = pipeline_setup.pipeline_setup(dparams)
-
+        
         if 'primary_ref' in ref_flag or 'primary-ref' in ref_flag:
-            log.info('Ingesting '+path.basename(dataset)+' as the primary reference dataset')
+            red_log.info('Ingesting '+path.basename(dataset)+' as the primary reference dataset')
             
             (status,report) = stage3_db_ingest.run_stage3_db_ingest(dsetup, primary_ref=True)
 
         else:
 
-            log.info('Ingesting '+path.basename(dataset))
+            red_log.info('Ingesting '+path.basename(dataset))
             
-            (status,report) = stage3_db_ingest.run_stage3_db_ingest(setup, primary_ref=False)
-
+            (status,report) = stage3_db_ingest.run_stage3_db_ingest(dsetup, primary_ref=False)
+        
+        red_log.info('Completed stage3_db_ingest for '+path.basename(dataset)+' with status '+repr(status))
+        red_log.info(repr(report))
+        
 def parse_dataset_list(file_path):
     
     if path.isfile(file_path) == False:
@@ -158,7 +163,7 @@ def parse_dataset_list(file_path):
     
     return datasets
     
-def run_stage6_db_ingest(setup,log,params):
+def run_stage6_db_ingest(setup,red_log,params):
     """Function to run stage6 including the DB ingest for a set of datasets read from a file
     File format is one dataset per line plus a column indicating whether or
     not a given dataset is the primary reference, i.e.:
@@ -172,12 +177,19 @@ def run_stage6_db_ingest(setup,log,params):
     
     for dataset,ref_flag in datasets.items():
         
-        log.info('Ingesting '+path.basename(dataset))
+        dparams = copy.copy(params)
+        dparams['red_dir'] = dataset
+        dparams['log_dir'] = path.join(dparams['red_dir'],'..','logs')
+        dparams['base_dir'] = path.join(dparams['red_dir'],'..')
+        
+        dsetup = pipeline_setup.pipeline_setup(dparams)
+        
+        red_log.info('Ingesting '+path.basename(dataset))
             
-        (status,report) = stage6.run_stage6(setup)
+        (status,report) = stage6.run_stage6(dsetup)
         
 
-def execute_stage(run_stage_func, stage_name, setup, status, log):
+def execute_stage(run_stage_func, stage_name, setup, status, red_log):
     """Function to execute a stage and verify whether it completed successfully
     before continuing.
     
@@ -206,20 +218,20 @@ def execute_stage(run_stage_func, stage_name, setup, status, log):
             
             (status, report) = run_stage_func(setup)
             
-        log.info('Completed '+stage_name+' with status '+\
+        red_log.info('Completed '+stage_name+' with status '+\
                     repr(status)+': '+report)
         
     if 'OK' not in status:
         
-        log.info('ERROR halting reduction due to previous errors')
+        red_log.info('ERROR halting reduction due to previous errors')
         
-        logs.close_log(log)
+        logs.close_log(red_log)
         
         exit()
         
     return status
 
-def parallelize_stages345(setup, status, log):
+def parallelize_stages345(setup, status, red_log):
     """Function to execute stages 4 & 5 in parallel with stage 3.
     
     Inputs:
@@ -231,32 +243,32 @@ def parallelize_stages345(setup, status, log):
         :param string status: Status of execution of the most recent stage
     """
     
-    log.info('Executing stage 3 in parallel with stages 4 & 5')
+    red_log.info('Executing stage 3 in parallel with stages 4 & 5')
     
-    process3 = trigger_stage_subprocess('stage3',setup,log,wait=False)
+    process3 = trigger_stage_subprocess('stage3',setup,re_log,wait=False)
     
-    process4 = trigger_stage_subprocess('stage4',setup,log,wait=True)
-    process5 = trigger_stage_subprocess('stage5',setup,log,wait=True)
+    process4 = trigger_stage_subprocess('stage4',setup,red_log,wait=True)
+    process5 = trigger_stage_subprocess('stage5',setup,red_log,wait=True)
     
-    log.info('Completed stages 4 and 5; now waiting for stage 3')
+    red_log.info('Completed stages 4 and 5; now waiting for stage 3')
     
     (outs, errs) = process3.communicate()
 
     if errs == None:
         
         process3.wait()
-        log.info('Completed stage 3')
+        red_log.info('Completed stage 3')
 
     else:
 
-        log.info('ERROR: Problem encountered in stage 3:')
-        log.info(errs)
+        red_log.info('ERROR: Problem encountered in stage 3:')
+        red_log.info(errs)
         
-    log.info('Completed parallel stages')
+    red_log.info('Completed parallel stages')
     
     return 'OK'
     
-def trigger_stage_subprocess(stage_code,setup,log,wait=True):
+def trigger_stage_subprocess(stage_code,setup,red_log,wait=True):
     """Function to run a stage as a separate subprocess
     
     Inputs:
@@ -270,15 +282,15 @@ def trigger_stage_subprocess(stage_code,setup,log,wait=True):
     
     p = subprocess.Popen(args, stdout=subprocess.PIPE)
     
-    log.info('Started '+stage_code+', PID='+str(p.pid))
+    red_log.info('Started '+stage_code+', PID='+str(p.pid))
     
     if wait:
         
-        log.info('Waiting for '+stage_code+' to finish')
+        red_log.info('Waiting for '+stage_code+' to finish')
         
         p.wait()
     
-        log.info('Completed '+stage_code)
+        red_log.info('Completed '+stage_code)
         
     return p
     
