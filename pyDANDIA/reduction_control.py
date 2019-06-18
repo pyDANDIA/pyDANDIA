@@ -15,6 +15,7 @@ import stage1
 import stage2
 import reference_astrometry
 import stage3
+import stage3_db_ingest
 import stage4
 import stage5
 import stage6
@@ -57,6 +58,10 @@ def reduction_control():
     elif setup.red_mode == 'image_analysis':
         
         run_image_analysis(setup,log)
+        
+    elif setup.red_mode == 'stage3_db_ingest':
+        
+        run_stage3_db_ingest(setup,log,params)
         
     else:
         log.info('ERROR: unrecognised reduction mode ('+setup.red_mode+') selected')
@@ -104,6 +109,39 @@ def run_image_analysis(setup,log):
     
     status = execute_stage(stage5.run_stage5, 'stage 5', setup, status, log)
 
+def run_stage3_db_ingest(setup,log,params):
+    """Function to run stage3_db_ingest for a set of datasets read from a file
+    File format is one dataset per line plus a column indicating whether or
+    not a given dataset is the primary reference, i.e.:
+    /path/to/data/red/dir  primary_ref
+    /path/to/data/red/dir  not_ref
+    /path/to/data/red/dir  not_ref
+    ...
+    """
+    
+    if path.isfile(params['data_file']) == False:
+        raise IOError('Cannot find list of datasets')
+        
+    flines = open(params['data_file']).readlines()
+    
+    data_list = {}
+    for line in flines:
+        entries = line.replace('\n','').split()
+        data_list[entries[0]] = entries[1]
+    
+    for dataset,ref_flag in data_list.items:
+        
+        if 'primary_ref' in ref_flag or 'primary-ref' in ref_flag:
+            log.info('Ingesting '+path.basename(dataset)+' as the primary reference dataset')
+            
+            status = stage3_db_ingest.run_stage3_db_ingest(setup, primary_ref=True)
+
+        else:
+
+            log.info('Ingesting '+path.basename(dataset))
+            
+            status = stage3_db_ingest.run_stage3_db_ingest(setup, primary_ref=False)
+        
 def execute_stage(run_stage_func, stage_name, setup, status, log):
     """Function to execute a stage and verify whether it completed successfully
     before continuing.
@@ -245,7 +283,8 @@ def get_args():
     reduction_modes = ['data_preparation',
                        'added_data_preparation',
                        'reference_analysis', 
-                       'image_analysis']
+                       'image_analysis',
+                       ']
     
     params = {}
     
@@ -268,6 +307,9 @@ def get_args():
         if len(argv) >= idx + 1:
             
             params['verbosity'] = int(argv[idx+1])
+    
+    if 'stage3_db_ingest' in params['mode']:
+        params['data_file'] = input('Please enter the path to the file listing the datasets: ')
         
     params['log_dir'] = path.join(params['red_dir'],'..','logs')
     params['pipeline_config_dir'] = path.join(params['red_dir'],'..','config')
