@@ -73,23 +73,23 @@ def reduction_control():
         
     logs.close_log(red_log)
 
-def run_data_preparation(setup,log=None,select_ref=False):
+def run_data_preparation(setup,red_log=None,select_ref=False):
     """Function to run in sequence stages 0 - 2 for a single dataset"""
 
-    if log!=None:
+    if red_log!=None:
         red_log.info('Pipeline setup: '+setup.summary()+'\n')
     
     (status,report,meta_data) = stage0.run_stage0(setup)
     
-    if log!=None:
+    if red_log!=None:
         red_log.info('Completed stage 0 with status '+repr(status)+': '+report)
     
-    status = execute_stage(stage1.run_stage1, 'stage 1', setup, status, log)
+    status = execute_stage(stage1.run_stage1, 'stage 1', setup, status, red_log)
     
     if select_ref:
-        status = execute_stage(stage2.run_stage2, 'stage 2', setup, status, log)
+        status = execute_stage(stage2.run_stage2, 'stage 2', setup, status, red_log)
     
-def run_reference_image_analysis(setup,log):
+def run_reference_image_analysis(setup,red_log):
     """Function to run the pipeline stages which perform the analysis of a
     reference image in sequence."""
     
@@ -98,11 +98,11 @@ def run_reference_image_analysis(setup,log):
     status = 'OK'
     
     status = execute_stage(reference_astrometry.run_reference_astrometry, 
-                           'reference astrometry', setup, status, log)
+                           'reference astrometry', setup, status, red_log)
     
-    status = execute_stage(stage3.run_stage3, 'stage 3', setup, status, log)
+    status = execute_stage(stage3.run_stage3, 'stage 3', setup, status, red_log)
 
-def run_image_analysis(setup,log):
+def run_image_analysis(setup,red_log):
     """Function to run the sequence of stages which perform the image 
     subtraction and photometry for a dataset"""
     
@@ -356,7 +356,7 @@ def get_args():
             
             params['verbosity'] = int(argv[idx+1])
     
-    if 'stage3_db_ingest' in params['mode']:
+    if 'stage3_db_ingest' in params['mode'] or 'stage6' in params['mode']:
         params['data_file'] = input('Please enter the path to the file listing the datasets: ')
         
     params['log_dir'] = path.join(params['red_dir'],'..','logs')

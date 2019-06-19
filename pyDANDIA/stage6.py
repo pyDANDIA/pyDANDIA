@@ -606,6 +606,9 @@ def commit_image_photometry_matching(conn, params, reduction_metadata,
     query = 'SELECT refimg_id, filename FROM reference_images WHERE filename ="'+params['ref_filename']+'"'
     refimage = db_phot.query_to_astropy_table(conn, query, args=())  
     
+    if len(refimage) == 0:
+        raise ValueError('No Stage 3 results for this reference image available in photometry DB.  Stage3_db_ingest needs to be run for this dataset first.')
+        
     query = 'SELECT img_id, filename FROM images WHERE filename ="'+params['filename']+'"'
     image = db_phot.query_to_astropy_table(conn, query, args=())  
     
