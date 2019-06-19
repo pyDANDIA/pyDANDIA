@@ -39,8 +39,8 @@ class TriColourDataset:
                         
             t = Table()
             t['im_name'] = m.images_stats[1]['IM_NAME']
-            t['fwhm_x'] = m.images_stats[1]['FWHM_X']
-            t['fwhm_y'] = m.images_stats[1]['FWHM_Y']
+            t['fwhm_x'] = m.images_stats[1]['SIGMA_X']
+            t['fwhm_y'] = m.images_stats[1]['SIGMA_Y']
             t['sky'] = m.images_stats[1]['SKY']
             
             setattr(self, d+'_stats', t)
@@ -129,7 +129,7 @@ class TriColourDataset:
         
         if txt_output:
             output = open(path.join(self.outdir, 'image_trios.txt'),'w')
-            output.write('# Image name   Filter  FWHM_X   FWHM_Y   SKY   QC\n')
+            output.write('# Image name   Filter  SIGMA_X   SIGMA_Y   SKY   QC\n')
         
         t = Table()
         
