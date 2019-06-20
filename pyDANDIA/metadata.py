@@ -525,7 +525,6 @@ class MetaData:
 
         except IOError:
             if log != None:
-                log.info()
                 log.info('ERROR: Cannot output metadata to file ' + \
                          path.join(metadata_directory, metadata_name))
 
