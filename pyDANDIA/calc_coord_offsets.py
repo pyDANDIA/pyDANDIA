@@ -13,7 +13,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
 from astropy.visualization import ZScaleInterval, ImageNormalize
-matplotlib.use('TkAgg')
+matplotlib.use('Agg')
 from skimage.measure import ransac
 from skimage.transform import AffineTransform
 
