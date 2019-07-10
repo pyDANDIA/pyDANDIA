@@ -84,7 +84,7 @@ def calibrate_photometry(setup, reduction_metadata, log):
     
     star_catalog = apply_phot_calib(star_catalog,fit,log)
     
-    output_to_metadata(setup, params, star_catalog, fit, reduction_metadata, log)
+    output_to_metadata(setup, params, fit, star_catalog, reduction_metadata, log)
     
     return reduction_metadata
     
@@ -104,9 +104,9 @@ def get_args():
         params['metadata'] = sys.argv[2]
         params['log_dir'] = sys.argv[3]
         
-        if len(sys.argv) > 6:
+        if len(sys.argv) > 4:
             
-            for a in sys.argv[6:]:
+            for a in sys.argv[4:]:
                 (key,value) = a.split('=')
                 
                 params[key] = value
@@ -537,7 +537,7 @@ def set_calibration_limits(params,log):
     
     log.info('Set calibration limits: ')
     for key in ['det_mags_max', 'det_mags_min', 'cat_merr_max']:
-        
+
         if key in params.keys() and params[key] != None:
             
             set_params[key] = params[key]
@@ -733,7 +733,7 @@ def apply_phot_calib(star_catalog,fit_params,log):
     
     return star_catalog
 
-def output_to_metadata(setup, params, star_catalog, phot_fit, reduction_metadata, log):
+def output_to_metadata(setup, params, phot_fit, star_catalog, reduction_metadata, log):
     """Function to output the star catalog to the reduction metadata. 
     Creates a phot_catalog extension if none exists, or overwrites an 
     existing one"""

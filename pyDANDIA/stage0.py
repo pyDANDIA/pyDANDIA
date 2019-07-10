@@ -63,6 +63,7 @@ def run_stage0(setup):
     inst_config_file_name = find_the_inst_config_file_name(setup, reduction_metadata, image_name,
                                                            setup.pipeline_config_dir,
                                                            image_index=0, log=None)
+    print(inst_config_file_name)
     
     if inst_config_file_name == None:
         
@@ -82,9 +83,10 @@ def run_stage0(setup):
     new_images = reduction_metadata.find_images_need_to_be_process(setup, all_images,
                                                                    stage_number=0, rerun_all=None, log=log)
     # create new rows on reduction status for new images
-
+    print(new_images)
     reduction_metadata.update_reduction_metadata_reduction_status(new_images, stage_number=0, status=0, log=log)
-
+    print('Got here')
+    
     # construct the stamps if needed
     if reduction_metadata.stamps[1]:
         pass
@@ -117,10 +119,12 @@ def run_stage0(setup):
         for new_image in new_images:
             open_image = open_an_image(setup, reduction_metadata.data_architecture[1]['IMAGES_PATH'][0],
                                        new_image, log, image_index=0)
+            print(open_image)
             
             image_bpm = open_an_image(setup, reduction_metadata.data_architecture[1]['BPM_PATH'][0],
                                            new_image, log, image_index=2)
-        
+            print(image_bpm)
+            
             # Occasionally, the LCO BANZAI pipeline fails to produce an image
             # catalogue for an image.  If this happens, there will only be 2 
             # extensions to the FITS image HDU, the PrimaryHDU (main image data)
@@ -134,7 +138,7 @@ def run_stage0(setup):
                                                   open_image, image_bpm, [1,3], log,
                                                   low_level=0,
                                                   instrument_bpm=instrument_bpm)
-                                               
+            print(bpm)
             save_the_pixel_mask_in_image(reduction_metadata, new_image, bpm)
             logs.ifverbose(log, setup, ' -> ' + new_image)
 
@@ -214,6 +218,8 @@ def find_the_inst_config_file_name(setup, reduction_metadata, image_name, inst_c
 
     potential_inst_names = open_image.header.values()
 
+    inst_config_file_name = None
+    
     for name in potential_inst_names:
 
         if name in potential_cameras_names:
@@ -221,6 +227,9 @@ def find_the_inst_config_file_name(setup, reduction_metadata, image_name, inst_c
             inst_config_file_name = 'inst_config_' + good_camera_name + '.json'
             return inst_config_file_name
 
+    if inst_config_file_name == None:
+        raise ValueError('No instrument configuration found for the instrument IDs in the image header data')
+        
     return None
 
 
