@@ -567,6 +567,12 @@ def model_phot_transform2(params,star_catalog,vphas_cat,match_index,fit,
     
     config = set_calibration_limits(params,log)
     
+    k = np.where(cat_merrs <= config['cat_merr_max'])[0]
+    cat_mags = cat_mags[k]
+    cat_merrs = cat_merrs[k]
+    det_mags = det_mags[k]
+    det_mag_errs = det_mag_errs[k]
+    
     xibin = 0.5
     xbin1 = config['det_mags_max']
     xbin2 = xbin1 - xibin
@@ -586,7 +592,10 @@ def model_phot_transform2(params,star_catalog,vphas_cat,match_index,fit,
     xcenters = (xedges[:-1] + xedges[1:]) / 2
     ycenters = (yedges[:-1] + yedges[1:]) / 2
     
-    k = np.where(xcenters[idx[0]] < config['det_mags_max'])
+    k1 = np.where(xcenters[idx[0]] < config['det_mags_max'])[0]
+    k2 = np.where(xcenters[idx[0]] >= config['det_mags_min'])[0]
+    k = list(set(k1).intersection(set(k2)))
+
     xbins = xcenters[idx[0][k]]
     ybins = []
     for x in idx[0][k]:
