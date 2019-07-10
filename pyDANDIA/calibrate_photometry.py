@@ -649,6 +649,8 @@ def model_phot_transform2(params,star_catalog,vphas_cat,match_index,fit,
         
         plt.axis([xmax,xmin,ymax,ymin])
         
+        plt.grid()
+        
         plt.savefig(plot_file)
     
         plt.close(3)
