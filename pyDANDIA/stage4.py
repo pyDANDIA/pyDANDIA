@@ -690,7 +690,7 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
 
         master_mask += shifted_mask
 
-        if mask_extension > -1:
+        if mask_extension > -1 and model_final != None:
             shifted_mask = tf.warp(shifted_mask, inverse_map=model_final.inverse, preserve_range=True)
 
         resampled_image_hdu = fits.PrimaryHDU(shifted)
