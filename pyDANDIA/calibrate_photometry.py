@@ -78,8 +78,9 @@ def calibrate_photometry(setup, reduction_metadata, log):
     
     match_index = match_stars_by_position(star_catalog,vphas_cat,log)
     
-    catalog_file = os.path.join(params['red_dir'],'vphas_catalog.fits')
-    catalog_utils.output_vphas_catalog_file(catalog_file,vphas_cat,match_index=match_index)
+    #catalog_file = os.path.join(params['red_dir'],'vphas_catalog.fits')
+    #catalog_utils.output_vphas_catalog_file(catalog_file,vphas_cat,match_index=match_index)
+    
     fit = calc_phot_calib(params,star_catalog,vphas_cat,match_index,log)
     
     star_catalog = apply_phot_calib(star_catalog,fit,log)
@@ -364,8 +365,11 @@ def match_stars_by_position(star_catalog,vphas_cat,log):
     
     match_index = np.array(list(zip(ddx[det_index],vdx[cat_index])))
     
-    log.info('Matched '+str(len(match_index)))
-    
+    if len(match_index) > 0:
+        log.info('Matched '+str(len(match_index)))
+    else:
+        raise ValueError('Could not match any catalog stars')
+        
     return match_index
 
 def calc_phot_calib(params,star_catalog,vphas_cat,match_index,log):

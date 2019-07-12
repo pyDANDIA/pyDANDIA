@@ -122,7 +122,6 @@ def run_stage3(setup):
                                                 'pyDANDIA_metadata.fits',
                                                 'star_catalog', log=log)
         
-        
         reduction_metadata = calibrate_photometry.calibrate_photometry(setup, reduction_metadata, log)
         
         reduction_metadata.create_software_layer(np.array([VERSION,'NONE']),
