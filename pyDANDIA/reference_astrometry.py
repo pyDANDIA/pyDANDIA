@@ -167,14 +167,14 @@ def run_reference_astrometry(setup):
                                                                 verbose=True)
         
         matched_stars_gaia = wcs.match_stars_world_coords(detected_sources,gaia_sources,log,
-                                                          radius=0.1, ra_centre=image_wcs.wcs.crval[0],
+                                                          radius=0.5, ra_centre=image_wcs.wcs.crval[0],
                                                           dec_centre=image_wcs.wcs.crval[1],
                                                           verbose=False)
         
         matched_stars_vphas = wcs.match_stars_world_coords(detected_sources,vphas_sources,log,
-                                                          radius=0.1, ra_centre=image_wcs.wcs.crval[0],
+                                                          radius=0.5, ra_centre=image_wcs.wcs.crval[0],
                                                           dec_centre=image_wcs.wcs.crval[1],
-                                                          verbose=False, max_radius=0.5)
+                                                          verbose=False)
                                                  
         ref_source_catalog = wcs.build_ref_source_catalog(detected_sources,\
                                                         gaia_sources, vphas_sources,\

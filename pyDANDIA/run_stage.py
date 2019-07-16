@@ -25,6 +25,7 @@ from pyDANDIA import stage4
 from pyDANDIA import stage5
 #from pyDANDIA.db import astropy_interface
 from pyDANDIA import stage6
+from pyDANDIA import stage7
 from pyDANDIA import starfind
 from pyDANDIA import logs
 
@@ -88,6 +89,11 @@ def run_stage_stand_alone():
     elif params['stage'] == 'stage6':
         
         (status, report) = stage6.run_stage6(setup)
+        
+    elif params['stage'] == 'stage7':
+        
+        (status, report) = stage7.run_stage7(setup)
+        
     else:
         
         print('ERROR: Unsupported stage name given')
@@ -107,7 +113,7 @@ def get_args():
             > python run_stage.py [stage] [path to reduction directory] [path to phot_db] [-v]
             
             where stage is the name of the stage or code to be run, one of:
-                stage0, stage1, stage2, stage3, stage4, stage5, 
+                stage0, stage1, stage2, stage3, stage4, stage5, stage6, stage7,
                 starfind, stage3_db_ingest, reference_astrometry
             
             and the path to the reduction directory is given to the dataset

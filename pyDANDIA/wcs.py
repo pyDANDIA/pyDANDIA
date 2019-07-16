@@ -565,7 +565,7 @@ def calc_world_coordinates_astropy(setup,image_wcs,detected_sources,log,
     
 def match_stars_world_coords(detected_sources,catalog_sources,log,
                              radius=None, ra_centre=None, dec_centre=None,
-                             verbose=False):
+                             verbose=False, max_radius=None):
     """Function to match stars between the objects detected in an image
     and those extracted from a catalog, using image world postions."""
     
@@ -588,15 +588,40 @@ def match_stars_world_coords(detected_sources,catalog_sources,log,
     
     if radius != None:
         
-        centre = coordinates.SkyCoord(ra_centre, dec_centre,
+        if max_radius == None:
+        
+            centre = coordinates.SkyCoord(ra_centre, dec_centre,
                                       frame='icrs', unit=(units.deg, units.deg))
                                       
-        separations = centre.separation(cat_sources)
+            separations = centre.separation(cat_sources)
     
-        jdx = np.where(abs(separations.deg) <= radius)[0]
+            jdx = np.where(abs(separations.deg) <= radius)[0]
         
-        log.info('Selected '+str(len(jdx))+' catalog stars centred around '+\
-                 str(ra_centre)+', '+str(dec_centre))
+            log.info('Selected '+str(len(jdx))+' catalog stars centred around '+\
+                 str(ra_centre)+', '+str(dec_centre)+' within radius '+str(radius)+'deg')
+        
+        else:
+            
+            nstars = 0
+            
+            while nstars < 1000 and radius < max_radius:
+                centre = coordinates.SkyCoord(ra_centre, dec_centre,
+                                      frame='icrs', unit=(units.deg, units.deg))
+                                      
+                separations = centre.separation(cat_sources)
+    
+                jdx = np.where(abs(separations.deg) <= radius)[0]
+                
+                nstars = len(jdx)
+                
+                log.info('Selected '+str(nstars)+' catalog stars centred around '+\
+                 str(ra_centre)+', '+str(dec_centre)+' within radius '+str(radius)+'deg')
+                 
+                if nstars == 0 and radius < max_radius:
+                    radius = min(radius * 1.1, max_radius)
+                    
+                    log.info(' -> Insufficient stars selected, so increased search radius to '+str(radius)+'deg')
+                    
     else:
         
         jdx = np.arange(0,len(cat_sources),1)

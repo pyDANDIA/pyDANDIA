@@ -22,7 +22,7 @@ import numpy as np
 from scipy import optimize
 import matplotlib.pyplot as plt
 
-VERSION = 'calibrate_photometry_0.1'
+VERSION = 'calibrate_photometry_0.2'
 
 def calibrate_photometry_catalog(setup, cl_params=None):
     """Function to calculate the photometric transform between the instrumental
@@ -32,28 +32,9 @@ def calibrate_photometry_catalog(setup, cl_params=None):
     
     log = logs.start_stage_log( setup.red_dir, 'phot_calib', version=VERSION )
     
-    (reduction_metadata, params, star_catalog) = fetch_metadata(setup,params,log)
+    (reduction_metadata, params) = fetch_metadata(setup,params,log)
     
-    star_catalog = select_good_detected_stars(star_catalog,params,log)
-    
-    vphas_cat = fetch_catalog_sources_from_metadata(reduction_metadata,log)
-    
-    if len(vphas_cat) == 0:
-        vphas_cat = fetch_catalog_sources_within_image(params,log)
-        
-    vphas_cat = select_calibration_stars(vphas_cat,params,log)
-    
-    catalog_file = os.path.join(params['red_dir'],'vphas_catalog.fits')
-        
-    match_index = match_stars_by_position(star_catalog,vphas_cat,log)
-    
-    catalog_utils.output_vphas_catalog_file(catalog_file,vphas_cat,match_index=match_index)
-    
-    fit = calc_phot_calib(params,star_catalog,vphas_cat,match_index,log)
-    
-    star_catalog = apply_phot_calib(star_catalog,fit,log)
-    
-    output_to_metadata(setup, params, fit, star_catalog, reduction_metadata, log)
+    reduction_metadata = calibrate_photometry(setup, reduction_metadata, log)
     
     logs.close_log(log)
     
@@ -69,19 +50,12 @@ def calibrate_photometry(setup, reduction_metadata, log):
     params = assign_parameters(setup,None)
     
     (reduction_metadata, params, star_catalog) = extract_params_from_metadata(reduction_metadata, params, log)
+            
+    star_catalog = select_calibration_stars(star_catalog,params,log)
     
-    vphas_cat = fetch_catalog_sources_from_metadata(reduction_metadata,log)
-    
-    star_catalog = select_good_detected_stars(star_catalog,params,log)
-    
-    vphas_cat = select_calibration_stars(vphas_cat,params,log)
-    
-    match_index = match_stars_by_position(star_catalog,vphas_cat,log)
-    
-    #catalog_file = os.path.join(params['red_dir'],'vphas_catalog.fits')
-    #catalog_utils.output_vphas_catalog_file(catalog_file,vphas_cat,match_index=match_index)
-    
-    fit = calc_phot_calib(params,star_catalog,vphas_cat,match_index,log)
+    match_index = extract_matched_stars_index(star_catalog,log)
+
+    fit = calc_phot_calib(params,star_catalog,match_index,log)
     
     star_catalog = apply_phot_calib(star_catalog,fit,log)
     
@@ -168,10 +142,8 @@ def fetch_metadata(setup,params,log):
                                               'phot_calib' )
     except KeyError:
         pass
-
-    (reduction_metadata, params, star_catalog) = extract_params_from_metadata(reduction_metadata, params, log)
     
-    return reduction_metadata, params, star_catalog
+    return reduction_metadata, params
     
 def extract_params_from_metadata(reduction_metadata, params, log):
     
@@ -202,7 +174,16 @@ def extract_params_from_metadata(reduction_metadata, params, log):
     star_catalog['mag_err'] = reduction_metadata.star_catalog[1]['ref_mag_error']
     star_catalog['gaia_ra'] = reduction_metadata.star_catalog[1]['ra']
     star_catalog['gaia_dec'] = reduction_metadata.star_catalog[1]['dec']
-    star_catalog['clean'] = np.zeros(len(reduction_metadata.star_catalog[1]['clean']))
+    star_catalog['vphas_source_id'] = reduction_metadata.star_catalog[1]['vphas_source_id']
+    star_catalog['vphas_ra'] = reduction_metadata.star_catalog[1]['vphas_ra']
+    star_catalog['vphas_dec'] = reduction_metadata.star_catalog[1]['vphas_dec']
+    star_catalog['gmag'] = reduction_metadata.star_catalog[1]['gmag']
+    star_catalog['e_gmag'] = reduction_metadata.star_catalog[1]['gmag_error']
+    star_catalog['rmag'] = reduction_metadata.star_catalog[1]['rmag']
+    star_catalog['e_rmag'] = reduction_metadata.star_catalog[1]['rmag_error']
+    star_catalog['imag'] = reduction_metadata.star_catalog[1]['imag']
+    star_catalog['e_imag'] = reduction_metadata.star_catalog[1]['imag_error']
+    star_catalog['clean'] = reduction_metadata.star_catalog[1]['clean']
     star_catalog['cal_ref_mag'] = np.zeros(len(reduction_metadata.star_catalog[1]['cal_ref_mag']))
     star_catalog['cal_ref_mag_err'] = np.zeros(len(reduction_metadata.star_catalog[1]['cal_ref_mag_error']))
     star_catalog['cal_ref_flux'] = np.zeros(len(reduction_metadata.star_catalog[1]['cal_ref_flux']))
@@ -214,7 +195,8 @@ def extract_params_from_metadata(reduction_metadata, params, log):
     
 def fetch_catalog_sources_within_image(params,log):
     """Function to extract the objects from the VPHAS+ catalogue within the
-    field of view of the reference image, based on the metadata information."""
+    field of view of the reference image, based on the metadata information.
+    NOW DEPRECIATED"""
     
     params['radius'] = (np.sqrt(params['fov'])/2.0)*60.0
     
@@ -232,40 +214,62 @@ def fetch_catalog_sources_within_image(params,log):
         
     return vphas_cat    
 
-def fetch_catalog_sources_from_metadata(reduction_metadata,log):
+def select_calibration_stars(star_catalog,params,log):
+    """Function to identify and flag stars suitable for the photometric
+    calibration.  Based on code by Y. Tsapras."""
     
-    vphas_cat = Table()
+    # VPHAS catalog selection limits
+    limit_mag = 17.5
+    if params['filter'] == 'gp': limit_mag = 22.0
+    if params['filter'] == 'rp': limit_mag = 18.0
     
-    vidx = np.where(reduction_metadata.star_catalog[1]['vphas_ra'] > 0.0)
+    log.info('Using limiting mag '+str(limit_mag)+\
+                    ' for catalog selection for filter '+params['filter'])
     
-    if len(vidx) > 0:
-        vphas_cat['source_id'] = reduction_metadata.star_catalog[1]['vphas_source_id'][vidx]
-        vphas_cat['_RAJ2000'] = reduction_metadata.star_catalog[1]['vphas_ra'][vidx]
-        vphas_cat['_DEJ2000'] = reduction_metadata.star_catalog[1]['vphas_dec'][vidx]
-        vphas_cat['gmag'] = reduction_metadata.star_catalog[1]['gmag'][vidx]
-        vphas_cat['e_gmag'] = reduction_metadata.star_catalog[1]['gmag_error'][vidx]
-        vphas_cat['rmag'] = reduction_metadata.star_catalog[1]['rmag'][vidx]
-        vphas_cat['e_rmag'] = reduction_metadata.star_catalog[1]['rmag_error'][vidx]
-        vphas_cat['imag'] = reduction_metadata.star_catalog[1]['imag'][vidx]
-        vphas_cat['e_imag'] = reduction_metadata.star_catalog[1]['imag_error'][vidx]
-        vphas_cat['clean'] = reduction_metadata.star_catalog[1]['clean'][vidx]
+    # First selecting stars with suitable VPHAS+ catalogue information
+    idx = []
+    for f in ['g','r','i']:
+        
+        col = 'e_'+f+'mag'
+        cmag = f+'mag'
+        
+        med = np.median(star_catalog[col][np.where(star_catalog[col]>0)])
+
+        max_err = 2.0 * med
+
+        log.info('Median photometric uncertainty ('+f+'-band) of catalog stars: '+str(med))
+        log.info('Excluding catalog stars ('+f+'-band) with uncertainty > '+str(max_err))
+        
+        idx1 = np.where(star_catalog[col] <= max_err)
+        idx2 = np.where(star_catalog[col] > 0)
+        idx3 = np.where(star_catalog[cmag] < limit_mag)
+        
+        jdx = (set(idx1[0]).intersection(set(idx2[0]))).intersection(set(idx3[0]))
+        
+        if len(idx) == 0:
+            idx = list(idx) + list(jdx)
+        else:
+            idx = list(set(idx).intersection(jdx))
     
-    log.info('VPHAS+ provided '+str(len(vphas_cat))+' entries')
+    star_catalog['clean'][list(idx)] = 1
     
-    return vphas_cat
+    log.info('Selected '+str(len(idx))+\
+            ' stars with VPHAS+ data suitable for use in photometric calibration')
     
-def select_good_detected_stars(star_catalog,params,log):
-    """Function to identify and flag stars detected in the reference image
-    for which the photometry is poor."""
-    
+    # Now selecting stars with good quality photometry from the ROME data and
+    # Gaia positional data:
+    idx0 = np.where(star_catalog['clean'] == 1.0)[0].tolist()
     idx1 = np.where(star_catalog['mag'] > 10.0)[0].tolist()
     idx2 = np.where(star_catalog['mag_err'] > 0.0)[0].tolist()
     idx3 = np.where(star_catalog['gaia_ra'] != 0.0)[0].tolist()
-    idx = set(idx1).intersection(set(idx2))
+    idx = set(idx0).intersection(set(idx1))
+    idx = idx.intersection(set(idx2))
     idx = idx.intersection(set(idx3))
 
-    log.info('Found '+str(len(list(idx)))+' detected stars with good photometry')
+    log.info('Of these, identified '+str(len(list(idx)))+' detected stars with good photometry')
     
+    # Now selecting stars close to the nominal target coordinates.  
+    # These default to the centre of the field if not otherwise given.
     stars = SkyCoord(star_catalog['RA'], star_catalog['DEC'], unit="deg")
     
     separations = params['target'].separation(stars)
@@ -287,60 +291,9 @@ def select_good_detected_stars(star_catalog,params,log):
     
     return star_catalog
     
-def select_calibration_stars(vphas_cat,params,log):
-    """Function to remove the entries from the VPHAS catalog with poor 
-    photometry. 
-    Based on code by Y. Tsapras.
-    
-    Returns the same vphas_cat Table, but uses the clean Column to indicate
-    selected stars with 1 and deselected stars with 0. 
-    """
-    
-    cerr = params['cat_err_col']
-    cmag = params['cat_mag_col']
-    
-    limit_mag = 17.5
-    if params['filter'] == 'gp': limit_mag = 22.0
-    if params['filter'] == 'rp': limit_mag = 18.0
-        
-    log.info('Using limiting mag '+str(limit_mag)+\
-                    ' for catalog selection for filter '+params['filter'])
-            
-    vphas_cat['clean'] = 0
-    
-    idx = []
-    for f in ['g','r','i']:
-        
-        col = 'e_'+f+'mag'
-
-        med = np.median(vphas_cat[col][np.where(vphas_cat[col]>0)])
-
-        max_err = 2.0 * med
-
-        log.info('Median photometric uncertainty ('+f+'-band) of catalog stars: '+str(med))
-        log.info('Excluding catalog stars ('+f+'-band) with uncertainty > '+str(max_err))
-                    
-        idx1 = np.where(vphas_cat[col] <= max_err)
-        idx2 = np.where(vphas_cat[col] > 0)
-        idx3 = np.where(vphas_cat[cmag] < limit_mag)
-        
-        jdx = (set(idx1[0]).intersection(set(idx2[0]))).intersection(set(idx3[0]))
-        
-        if len(idx) == 0:
-            idx = list(idx) + list(jdx)
-        else:
-            idx = list(set(idx).intersection(jdx))
-    
-    vphas_cat['clean'][list(idx)] = 1
-    
-    log.info('Selected '+str(len(idx))+\
-            ' stars suitable for use in photometric calibration')
-    
-    return vphas_cat
-
-def match_stars_by_position(star_catalog,vphas_cat,log):
+def match_stars_by_position(star_catalog,log):
     """Function to cross-match stars by position.
-    
+    DEPRECIATED
     Returns:
         :param dict match_index: { Index in vphas_cat: index in star_cat }
     """
@@ -372,7 +325,31 @@ def match_stars_by_position(star_catalog,vphas_cat,log):
         
     return match_index
 
-def calc_phot_calib(params,star_catalog,vphas_cat,match_index,log):
+def extract_matched_stars_index(star_catalog,log):
+    """Function to extracted a match_stars index dictionary of stars
+    cross-matched by position.
+
+    Returns:
+        :param array match_index: [[Index in vphas, index in detected_stars]]
+    """
+    
+    match_index = {}
+    
+    ddx = np.where(star_catalog['clean'] == 1.0)[0]
+    
+    match_index = np.zeros(len(ddx,2))
+    
+    match_index[:,0] = ddx
+    match_index[:,1] = ddx
+    
+    if len(match_index) > 0:
+        log.info('Matched '+str(len(match_index)))
+    else:
+        raise ValueError('Could not match any catalog stars')
+        
+    return match_index
+    
+def calc_phot_calib(params,star_catalog,match_index,log):
     """Function to plot the photometric calibration"""
 
     cmag = params['cat_mag_col']
@@ -380,17 +357,17 @@ def calc_phot_calib(params,star_catalog,vphas_cat,match_index,log):
     
     fit = [0.0, 0.0]
     
-    fit = model_phot_transform2(params,star_catalog,vphas_cat,
+    fit = model_phot_transform2(params,star_catalog,
                                    match_index,fit,log)
                                    
     for i in range(0,1,1):
 
-        fit = model_phot_transform2(params,star_catalog,vphas_cat,
+        fit = model_phot_transform2(params,star_catalog,
                                    match_index,fit,log, diagnostics=True)
         
         log.info('Fit result ['+str(i)+']: '+repr(fit))
 
-        match_index = exclude_outliers(vphas_cat,star_catalog,params,
+        match_index = exclude_outliers(star_catalog,params,
                                         match_index,fit,log)
     
     log.info('Final fitted photometric calibration: '+repr(fit))
@@ -399,7 +376,9 @@ def calc_phot_calib(params,star_catalog,vphas_cat,match_index,log):
     
 def model_phot_transform(params,star_catalog,vphas_cat,match_index,fit,
                          log, diagnostics=True):
-    """Function to make an initial guess at the fit parameters"""
+    """Function to make an initial guess at the fit parameters
+    WARNING: Not upgraded for the integration of the VPHAS+ with the star_catalog
+    """
     
     
     log.info('Fit initial parameters: '+repr(fit))
@@ -554,7 +533,7 @@ def set_calibration_limits(params,log):
     
     return set_params
     
-def model_phot_transform2(params,star_catalog,vphas_cat,match_index,fit,
+def model_phot_transform2(params,star_catalog,match_index,fit,
                          log, diagnostics=True):
     """Function to make an initial guess at the fit parameters"""
     
@@ -564,8 +543,8 @@ def model_phot_transform2(params,star_catalog,vphas_cat,match_index,fit,
     cmag = params['cat_mag_col']
     cerr = params['cat_err_col']
     
-    cat_mags = vphas_cat[cmag][match_index[:,1]]
-    cat_merrs = vphas_cat[cerr][match_index[:,1]]
+    cat_mags = star_catalog[cmag][match_index[:,1]]
+    cat_merrs = star_catalog[cerr][match_index[:,1]]
     det_mags = star_catalog['mag'][match_index[:,0]]
     det_mag_errs = star_catalog['mag_err'][match_index[:,0]]
     
@@ -692,11 +671,11 @@ def calc_transform(pinit, x, y):
     
     return pfit
 
-def exclude_outliers(vphas_cat,star_catalog,params,match_index,fit,log):
+def exclude_outliers(star_catalog,params,match_index,fit,log):
     
     cmag = params['cat_mag_col']
     
-    pred_mags = phot_func(fit, (vphas_cat[cmag][match_index[:,1]]) )
+    pred_mags = phot_func(fit, (star_catalog[cmag][match_index[:,1]]) )
     
     residuals = star_catalog['mag'][match_index[:,0]] - pred_mags
     
