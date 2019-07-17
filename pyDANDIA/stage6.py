@@ -46,7 +46,7 @@ def run_stage6(setup):
 
     """
 
-    stage6_version = 'stage6 v0.1'
+    stage6_version = 'stage6 v0.2'
 
     log = logs.start_stage_log(setup.red_dir, 'stage6', version=stage6_version)
     log.info('Setup:\n' + setup.summary() + '\n')

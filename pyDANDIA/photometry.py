@@ -7,6 +7,8 @@ Created on Wed Oct 18 15:42:26 2017
 import os
 import sys
 import numpy as np
+from astropy.stats import SigmaClip
+from photutils import StdBackgroundRMS
 from photutils import aperture_photometry
 from photutils import CircularAperture
 from photutils.utils import calc_total_error
@@ -475,7 +477,10 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
                  log.info('Image not photometered because of zeroed FWHM measurements')
         
         return use_image
-
+    
+    def null_background(x,axis=None):
+        return 0
+        
     psf_diameter = reduction_metadata.psf_dimensions[1]['psf_radius'][0]*2.0
     half_psf = int(psf_diameter)
 
@@ -527,9 +532,16 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
     use_image = check_fwhm(reduction_metadata, image_id, log)
     
     if use_image:
+        
         radius = psf_diameter/2.0
         apertures = CircularAperture(positions, r=radius)
-        error = calc_total_error(difference_image, np.std(difference_image.ravel()), 1)
+        
+        sigma_clip = SigmaClip(sigma=3.,cenfunc=null_background)
+        bkgrms = StdBackgroundRMS(sigma_clip)
+        bkgrms_value1 = bkgrms.calc_background_rms(difference_image)
+        error = calc_total_error(difference_image, bkgrms_value1, 1)
+        #error = calc_total_error(difference_image, np.std(difference_image.ravel()), 1)
+
         try:
             phot_table = aperture_photometry(difference_image, apertures, method='subpixel',
                                          error=error)
@@ -636,7 +648,7 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
                     
                     flux = phot_table[j][3]/phot_scale_factor
                     flux_err = phot_table[j][4]
-                                        
+                    
                     flux_tot = ref_flux*ref_exposure_time - flux
                     flux_err_tot = (error_ref_flux ** 2*ref_exposure_time + flux_err**2/phot_scale_factor**2) ** 0.5
                         

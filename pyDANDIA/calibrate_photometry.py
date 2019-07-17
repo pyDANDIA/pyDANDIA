@@ -252,30 +252,20 @@ def select_calibration_stars(star_catalog,params,log):
         else:
             idx = list(set(idx).intersection(jdx))
     
-    print(idx)
     star_catalog['clean'][idx] = 1.0
-    
-    print(star_catalog['clean'])
     
     log.info('Selected '+str(len(idx))+\
             ' stars with VPHAS+ data suitable for use in photometric calibration')
     
     # Now selecting stars with good quality photometry from the ROME data and
     # Gaia positional data:
-    print(len(np.where(star_catalog['clean'] == 1.0)[0]))
     idx0 = np.where(star_catalog['clean'] == 1.0)[0].tolist()
     idx1 = np.where(star_catalog['mag'] > 10.0)[0].tolist()
     idx2 = np.where(star_catalog['mag_err'] > 0.0)[0].tolist()
     idx3 = np.where(star_catalog['gaia_ra'] != 0.0)[0].tolist()
-    print(len(idx0))
-    print(len(idx1))
-    print(len(idx2))
-    print(len(idx3))
     idx = set(idx0).intersection(set(idx1))
     idx = idx.intersection(set(idx2))
-    idx = list(idx.intersection(set(idx3)))
-    print(len(idx))
-    exit()
+    idx = idx.intersection(set(idx3))
     
     log.info('Of these, identified '+str(len(list(idx)))+' detected stars with good photometry')
     
@@ -291,14 +281,17 @@ def select_calibration_stars(star_catalog,params,log):
     
     kdx = list(idx.intersection(set(jdx[0])))
     
-    if len(jdx[0]) < 100:
+    if len(jdx[0]) < 100 or len(kdx) < 100:
         kdx = list(idx)
         
         log.info('WARNING: Could not selected on position; too few detected stars with good photometry around target location')
         
+        kdx = list(idx)
+    
+    star_catalog['clean'] = np.zeros(len(star_catalog['clean']))
     star_catalog['clean'][kdx] = 1.0
 
-    log.info('Identified '+str(len(kdx))+' detected stars with good photometry')
+    log.info('Selected '+str(len(kdx))+' stars with good detected and catalog photometry')
     
     return star_catalog
     
@@ -350,11 +343,16 @@ def extract_matched_stars_index(star_catalog,log):
     
     if len(ddx) == 0:
         raise ValueError('Insufficient matched stars to continue photometric calibration')
+    else:
+        log.info('Using '+str(len(ddx))+' in photometric calibration')
         
-    match_index = np.zeros(len(ddx,2))
+    match_index = np.zeros([len(ddx),2])
     
-    match_index[:,0] = ddx
-    match_index[:,1] = ddx
+    print(ddx)
+    
+    match_index[:,0] = ddx.astype('int')
+    match_index[:,1] = ddx.astype('int')
+    print(match_index)
     
     if len(match_index) > 0:
         log.info('Matched '+str(len(match_index)))

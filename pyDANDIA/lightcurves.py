@@ -41,7 +41,6 @@ def extract_star_lightcurves_on_position(params):
                     
         phot_table = phot_db.query_to_astropy_table(conn, query, args=())
         
-        
         datasets = identify_unique_datasets(phot_table,facilities,filters)
         
         for setname,setlist in datasets.items():
@@ -115,4 +114,4 @@ if __name__ == '__main__':
         params['output_dir'] = argv[4]
     
     message = extract_star_lightcurves_on_position(params)
-    
+    print(message)

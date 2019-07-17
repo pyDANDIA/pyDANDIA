@@ -702,6 +702,6 @@ def get_stage_software_id(conn,stage_name):
     
     query = 'SELECT code_id FROM software WHERE stage="'+stage_name+'"'
     software = query_to_astropy_table(conn, query, args=())
-    
-    return software['code_id'][0]
+
+    return software['code_id'][-1]
     
