@@ -13,6 +13,7 @@ from astropy.table import Column
 from pyDANDIA import metadata
 from pyDANDIA import logs
 from pyDANDIA import phot_db
+from pyDANDIA import photometry
 
 
 VERSION = 'pyDANDIA_stage7_v0.1'
@@ -37,8 +38,17 @@ def run_stage7(setup):
                                                               primary_ref['refimg_id_'+f],
                                                               log)
         
-            datasets = list_datasets_in_filter(conn,primary_ref,f,log)
+            ref_image_list = list_reference_images_in_filter(conn,primary_ref,f,log)
         
+            for ref_image in ref_image_list:
+                
+                ref_phot = extract_photometry_for_reference_image(conn,primary_ref,f,
+                                                              ref_image['refimg_id'],
+                                                              log)
+                (delta_mag, delta_mag_err) = calc_magnitude_offset(primary_phot, ref_phot,log)
+                
+                apply_magnitude_offset(conn, ref_phot, refimg_id, delta_mag, delta_mag_err, log)
+                
         else:
             
             log.info('No primary photometry available in filter '+f)
@@ -94,7 +104,7 @@ def extract_photometry_for_reference_image(conn,primary_ref,f,refimg_id,log):
     """Function to extract from the DB the photometry for the primary 
     reference dataset in the given filter"""
     
-    query = 'SELECT phot_id, hjd, calibrated_mag, calibrated_mag_err, calibrated_flux, calibrated_flux_err FROM phot WHERE reference_image="'+str(refimg_id)+\
+    query = 'SELECT phot_id, star_id, hjd, calibrated_mag, calibrated_mag_err, calibrated_flux, calibrated_flux_err FROM phot WHERE reference_image="'+str(refimg_id)+\
                 '" AND software="'+str(primary_ref['software_id'])+\
                 '" AND filter="'+str(primary_ref[f])+\
                 '" AND facility="'+str(primary_ref['facility_id'])+'"'
@@ -104,7 +114,7 @@ def extract_photometry_for_reference_image(conn,primary_ref,f,refimg_id,log):
     
     return primary_phot
 
-def list_datasets_in_filter(conn,primary_ref,f,log):
+def list_reference_images_in_filter(conn,primary_ref,f,log):
     """Function to identify all available datasets in the given 
     filter for this field, not including the primary reference dataset.
     
@@ -116,8 +126,61 @@ def list_datasets_in_filter(conn,primary_ref,f,log):
             '" AND software="'+str(primary_ref['software_id'])+\
             '" AND facility!="'+str(primary_ref['facility_id'])+'"'
     
-    datasets = phot_db.query_to_astropy_table(conn, query, args=())
-    print(datasets)
+    ref_image_list = phot_db.query_to_astropy_table(conn, query, args=())
+    print(ref_image_list)
     
-    return datasets
+    return ref_image_list
+
+def calc_magnitude_offset(primary_phot, ref_phot, log):
+    """Function to calculate the weighted average magnitude offset between the
+    measured magnitudes of stars in the reference image of a dataset relative 
+    to the primary reference dataset in that passband."""
+
+    numer = 0.0
+    denom = 0.0    
+    for star in primary_phot['star_id']:
+        
+        mag_pri_ref = primary_phot['calibrated_mag'][star]
+        merr_pri_ref = primary_phot['calibrated_mag_err'][star]
+        mag_ref = ref_phot['calibrated_mag'][star]
+        merr_ref = ref_phot['calibrated_mag_err'][star]
+        
+        sigma = np.sqrt(merr_pri_ref*merr_pri_ref + merr_ref*merr_ref)
+        
+        numer += (mag_pri_ref - mag_ref) / (sigma*sigma)
+        denom += (1/sigma*sigma)
     
+    delta_mag = numer / denom
+    delta_mag_err = 1.0 / denom
+    
+    return delta_mag, delta_mag_err
+
+def apply_magnitude_offset(conn, ref_phot, refimg_id, delta_mag, delta_mag_err, log):
+    """Function to apply the calculated magnitude offset to ALL photometry
+    calculated relative to the reference image in the database."""
+    
+    query = 'SELECT phot_id, star_id, hjd, calibrated_mag, calibrated_mag_err, calibrated_flux, calibrated_flux_err FROM phot WHERE reference_image="'+str(refimg_id)+'"'
+    phot_data = phot_db.query_to_astropy_table(conn, query, args=())
+    
+    values = []
+    for dp in phot_data:
+        
+        dp['calibrated_mag'] += delta_mag
+        dp['calibrated_mag_err'] = np.sqrt(dp['calibrated_mag_err']*dp['calibrated_mag_err'] + delta_mag_err*delta_mag_err)
+        
+        (cal_flux, cal_flux_error) = photometry.convert_mag_to_flux(dp['calibrated_mag_err'],
+                                                                    dp['calibrated_mag_err'])
+        dp['calibrated_flux'] = cal_flux
+        dp['calibrated_flux_err'] = cal_flux_error
+    
+        values.append( ( str(dp['phot_id']), str(dp['star_id']), str(dp['hjd']), 
+                        str(dp['calibrated_mag']), str(dp['calibrated_mag_err']),
+                        str(dp['calibrated_flux']), str(dp['calibrated_flux_err']) ) )
+                        
+    command = 'INSERT OR REPLACE INTO phot (phot_id, star_id, hjd, calibrated_mag, calibrated_mag_err, calibrated_flux, calibrated_flux_err) VALUES (?,?,?,?,?,?,?)'
+    
+    cursor = conn.cursor()
+        
+    cursor.executemany(command, values)
+    
+    conn.commit()

@@ -247,7 +247,8 @@ def phot_catalog_objects_in_reference_image(setup, header, fov, image_wcs, log):
     
     ra = image_wcs.wcs.crval[0]
     dec = image_wcs.wcs.crval[1]
-    radius = (np.sqrt(fov)/2.0)*60.0
+    diagonal = np.sqrt(header['NAXIS1']*header['NAXIS1'] + header['NAXIS2']*header['NAXIS2'])
+    radius = diagonal*header['PIXSCALE']/60.0/2.0
     
     log.info('VPHAS+ catalog search parameters: ')
     log.info('RA = '+str(ra)+', Dec = '+str(dec))

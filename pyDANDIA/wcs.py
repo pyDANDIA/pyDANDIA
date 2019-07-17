@@ -132,7 +132,8 @@ def fetch_catalog_sources_for_field(setup,field,header,image_wcs,log,
         
         log.info('Querying ViZier for '+catalog_name+' sources within the field of view...')
     
-        radius = header['NAXIS1']*header['PIXSCALE']/60.0/2.0
+        diagonal = np.sqrt(header['NAXIS1']*header['NAXIS1'] + header['NAXIS2']*header['NAXIS2'])
+        radius = diagonal*header['PIXSCALE']/60.0/2.0
         
         ra = image_wcs.wcs.crval[0]
         dec = image_wcs.wcs.crval[1]

@@ -183,7 +183,8 @@ def extract_params_from_metadata(reduction_metadata, params, log):
     star_catalog['e_rmag'] = reduction_metadata.star_catalog[1]['rmag_error']
     star_catalog['imag'] = reduction_metadata.star_catalog[1]['imag']
     star_catalog['e_imag'] = reduction_metadata.star_catalog[1]['imag_error']
-    star_catalog['clean'] = reduction_metadata.star_catalog[1]['clean']
+    #star_catalog['clean'] = reduction_metadata.star_catalog[1]['clean']
+    star_catalog['clean'] = np.zeros(len(reduction_metadata.star_catalog[1]['cal_ref_mag']))
     star_catalog['cal_ref_mag'] = np.zeros(len(reduction_metadata.star_catalog[1]['cal_ref_mag']))
     star_catalog['cal_ref_mag_err'] = np.zeros(len(reduction_metadata.star_catalog[1]['cal_ref_mag_error']))
     star_catalog['cal_ref_flux'] = np.zeros(len(reduction_metadata.star_catalog[1]['cal_ref_flux']))
@@ -251,21 +252,31 @@ def select_calibration_stars(star_catalog,params,log):
         else:
             idx = list(set(idx).intersection(jdx))
     
-    star_catalog['clean'][list(idx)] = 1
+    print(idx)
+    star_catalog['clean'][idx] = 1.0
+    
+    print(star_catalog['clean'])
     
     log.info('Selected '+str(len(idx))+\
             ' stars with VPHAS+ data suitable for use in photometric calibration')
     
     # Now selecting stars with good quality photometry from the ROME data and
     # Gaia positional data:
+    print(len(np.where(star_catalog['clean'] == 1.0)[0]))
     idx0 = np.where(star_catalog['clean'] == 1.0)[0].tolist()
     idx1 = np.where(star_catalog['mag'] > 10.0)[0].tolist()
     idx2 = np.where(star_catalog['mag_err'] > 0.0)[0].tolist()
     idx3 = np.where(star_catalog['gaia_ra'] != 0.0)[0].tolist()
+    print(len(idx0))
+    print(len(idx1))
+    print(len(idx2))
+    print(len(idx3))
     idx = set(idx0).intersection(set(idx1))
     idx = idx.intersection(set(idx2))
-    idx = idx.intersection(set(idx3))
-
+    idx = list(idx.intersection(set(idx3)))
+    print(len(idx))
+    exit()
+    
     log.info('Of these, identified '+str(len(list(idx)))+' detected stars with good photometry')
     
     # Now selecting stars close to the nominal target coordinates.  
@@ -337,6 +348,9 @@ def extract_matched_stars_index(star_catalog,log):
     
     ddx = np.where(star_catalog['clean'] == 1.0)[0]
     
+    if len(ddx) == 0:
+        raise ValueError('Insufficient matched stars to continue photometric calibration')
+        
     match_index = np.zeros(len(ddx,2))
     
     match_index[:,0] = ddx
