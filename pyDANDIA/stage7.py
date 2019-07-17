@@ -144,8 +144,9 @@ def calc_magnitude_offset(primary_phot, ref_phot, log):
 
     log.info('Computing the magnitude offset between the primary and reference photometry')
     print(primary_phot)
+    exit()
     numer = 0.0
-    denom = 0.0    
+    denom = 0.0
     for j,star in enumerate(primary_phot['star_id']):
         print(primary_phot[j])
         mag_pri_ref = primary_phot['calibrated_mag'][j]

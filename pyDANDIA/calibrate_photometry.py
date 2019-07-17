@@ -55,11 +55,12 @@ def calibrate_photometry(setup, reduction_metadata, log):
     
     match_index = extract_matched_stars_index(star_catalog,log)
 
-    fit = calc_phot_calib(params,star_catalog,match_index,log)
+    if len(match_index) > 0:
+        fit = calc_phot_calib(params,star_catalog,match_index,log)
     
-    star_catalog = apply_phot_calib(star_catalog,fit,log)
+        star_catalog = apply_phot_calib(star_catalog,fit,log)
     
-    output_to_metadata(setup, params, fit, star_catalog, reduction_metadata, log)
+        output_to_metadata(setup, params, fit, star_catalog, reduction_metadata, log)
     
     return reduction_metadata
     
@@ -342,17 +343,17 @@ def extract_matched_stars_index(star_catalog,log):
     ddx = np.where(star_catalog['clean'] == 1.0)[0]
     
     if len(ddx) == 0:
-        raise ValueError('Insufficient matched stars to continue photometric calibration')
+        log.info('Insufficient matched stars to continue photometric calibration')
+        match_index = np.zeros([0,2], dtype=int)
+        return match_index
+        
     else:
         log.info('Using '+str(len(ddx))+' in photometric calibration')
         
-    match_index = np.zeros([len(ddx),2])
+    match_index = np.zeros([len(ddx),2], dtype=int)
     
-    print(ddx)
-    
-    match_index[:,0] = ddx.astype('int')
-    match_index[:,1] = ddx.astype('int')
-    print(match_index)
+    match_index[:,0] = ddx.astype(int)
+    match_index[:,1] = ddx.astype(int)
     
     if len(match_index) > 0:
         log.info('Matched '+str(len(match_index)))
@@ -621,13 +622,13 @@ def model_phot_transform2(params,star_catalog,match_index,fit,
         plt_errs = False
         if plt_errs:
             plt.errorbar(star_catalog['mag'][match_index[:,0]],
-                     vphas_cat[cmag][match_index[:,1]], 
+                     star_catalog[cmag][match_index[:,1]], 
                      xerr=star_catalog['mag_err'][match_index[:,0]],
-                     yerr=vphas_cat[cerr][match_index[:,1]],
+                     yerr=star_catalog[cerr][match_index[:,1]],
                      color='m', fmt='none')
         else:
             plt.plot(star_catalog['mag'][match_index[:,0]],
-                     vphas_cat[cmag][match_index[:,1]],'m.', markersize=1)
+                     star_catalog[cmag][match_index[:,1]],'m.', markersize=1)
         
         plt.plot(xbins,ybins,'g+',markersize=4)
 
