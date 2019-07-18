@@ -24,7 +24,7 @@ from pyDANDIA import  catalog_utils
 from pyDANDIA import  calibrate_photometry
 
 
-VERSION = 'pyDANDIA_stage3_v0.4'
+VERSION = 'pyDANDIA_stage3_v0.5'
 
 def run_stage3(setup):
     """Driver function for pyDANDIA Stage 3: 
