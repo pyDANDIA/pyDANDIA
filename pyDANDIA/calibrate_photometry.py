@@ -22,7 +22,7 @@ import numpy as np
 from scipy import optimize
 import matplotlib.pyplot as plt
 
-VERSION = 'calibrate_photometry_0.2'
+VERSION = 'calibrate_photometry_0.3'
 
 def calibrate_photometry_catalog(setup, cl_params=None):
     """Function to calculate the photometric transform between the instrumental
@@ -34,7 +34,7 @@ def calibrate_photometry_catalog(setup, cl_params=None):
     
     (reduction_metadata, params) = fetch_metadata(setup,params,log)
     
-    reduction_metadata = calibrate_photometry(setup, reduction_metadata, log)
+    reduction_metadata = calibrate_photometry(setup, reduction_metadata, log, cl_params=params)
     
     logs.close_log(log)
     
@@ -43,11 +43,11 @@ def calibrate_photometry_catalog(setup, cl_params=None):
     
     return status, report
 
-def calibrate_photometry(setup, reduction_metadata, log):
+def calibrate_photometry(setup, reduction_metadata, log, cl_params=None):
     """Function to perform a photometric calibration where the cross-matching
     with the VPHAS catalog has already been performed"""
     
-    params = assign_parameters(setup,None)
+    params = assign_parameters(setup,cl_params)
     
     (reduction_metadata, params, star_catalog) = extract_params_from_metadata(reduction_metadata, params, log)
             
@@ -100,7 +100,8 @@ def get_args():
             params[key] = float(params[key])
         else:
             params[key] = None
-            
+    
+    
     return params
 
 def assign_parameters(setup,cl_params):
@@ -533,11 +534,14 @@ def set_calibration_limits(params,log):
     
     log.info('Set calibration limits: ')
     for key in ['det_mags_max', 'det_mags_min', 'cat_merr_max']:
-
-        if key in params.keys() and params[key] != None:
+        
+        if key in params.keys():
             
-            set_params[key] = params[key]
-            
+            if params[key] != None:
+                set_params[key] = params[key]
+            else:
+                set_params[key] = def_params[key]
+                
         else:
             
             set_params[key] = def_params[key]
