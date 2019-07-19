@@ -33,6 +33,35 @@ class StarMatchIndex:
             setattr(self,key,l)
                 
         self.n_match += 1
+    
+    def remove_match(self,entry_index):
+        
+        def pop_entry(attribute,index):
+            
+            l = getattr(self,attribute)
+            
+            try:
+                tmp = l.pop(index)
+            except IndexError:
+                pass
+            
+            setattr(self,attribute,l)
+            
+        pop_entry('cat1_index',entry_index)
+        pop_entry('cat1_ra',entry_index)
+        pop_entry('cat1_dec',entry_index)
+        pop_entry('cat1_x',entry_index)
+        pop_entry('cat1_y',entry_index)
+        
+        pop_entry('cat2_index',entry_index)
+        pop_entry('cat2_ra',entry_index)
+        pop_entry('cat2_dec',entry_index)
+        pop_entry('cat2_x',entry_index)
+        pop_entry('cat2_y',entry_index)
+        
+        pop_entry('separation',entry_index)
+        
+        self.n_match -= 1
         
     def summary(self,units='deg'):
         

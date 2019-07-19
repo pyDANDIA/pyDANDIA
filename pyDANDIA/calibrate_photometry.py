@@ -215,13 +215,16 @@ def fetch_catalog_sources_within_image(params,log):
         
     log.info('VPHAS+ search returned '+str(len(vphas_cat))+' entries')
         
-    return vphas_cat    
+    return vphas_cat
 
 def select_calibration_stars(star_catalog,params,log):
     """Function to identify and flag stars suitable for the photometric
     calibration.  Based on code by Y. Tsapras."""
     
     # VPHAS catalog selection limits
+    jdx = np.where(star_catalog['vphas_source_id'] != 'None')
+    log.info('VPHAS+ data available for '+str(len(jdx[0]))+' stars in total')
+    
     limit_mag = 17.5
     if params['filter'] == 'gp': limit_mag = 22.0
     if params['filter'] == 'rp': limit_mag = 18.0
@@ -273,23 +276,35 @@ def select_calibration_stars(star_catalog,params,log):
     
     # Now selecting stars close to the nominal target coordinates.  
     # These default to the centre of the field if not otherwise given.
-    stars = SkyCoord(star_catalog['RA'], star_catalog['DEC'], unit="deg")
+    # THIS CODE DEATIVATED FOR NOW, SINCE NOT IN DEFAULT USE BUT MAYBE
+    # USEFUL IN FUTURE
+    select_on_position = False
+    if select_on_position:
+
+        tol = 3.0*u.arcmin
+
+        log.info('Selecting stars with '+repr(tol)+' of designated position '+\
+                repr(params['target']))
+                
+        stars = SkyCoord(star_catalog['RA'], star_catalog['DEC'], unit="deg")
+
+        separations = params['target'].separation(stars)
     
-    separations = params['target'].separation(stars)
+        jdx = np.where(separations < tol)
     
-    jdx = np.where(separations < 3.0*u.arcmin)
+        log.info('Found '+str(len(list(jdx[0])))+' detected stars around target location')
     
-    log.info('Found '+str(len(list(jdx[0])))+' detected stars around target location')
-    
-    kdx = list(idx.intersection(set(jdx[0])))
-    
-    if len(jdx[0]) < 100 or len(kdx) < 100:
+        kdx = list(idx.intersection(set(jdx[0])))
+        
+        if len(jdx[0]) < 100 or len(kdx) < 100:
+            kdx = list(idx)
+            
+            log.info('WARNING: Could not selected on position; too few detected stars with good photometry around target location')
+            
+    else:
+        
         kdx = list(idx)
         
-        log.info('WARNING: Could not selected on position; too few detected stars with good photometry around target location')
-        
-        kdx = list(idx)
-    
     star_catalog['clean'] = np.zeros(len(star_catalog['clean']))
     star_catalog['clean'][kdx] = 1.0
 

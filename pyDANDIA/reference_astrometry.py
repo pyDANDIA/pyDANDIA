@@ -166,12 +166,12 @@ def run_reference_astrometry(setup):
                                                                 transform, coords='radec',
                                                                 verbose=True)
         
-        matched_stars_gaia = wcs.match_stars_world_coords(detected_sources,gaia_sources,log,
+        matched_stars_gaia = wcs.match_stars_world_coords(detected_sources,gaia_sources,log,'Gaia',
                                                           radius=0.5, ra_centre=image_wcs.wcs.crval[0],
                                                           dec_centre=image_wcs.wcs.crval[1],
                                                           verbose=False)
         
-        matched_stars_vphas = wcs.match_stars_world_coords(detected_sources,vphas_sources,log,
+        matched_stars_vphas = wcs.match_stars_world_coords(detected_sources,vphas_sources,log,'VPHAS+',
                                                           radius=0.5, ra_centre=image_wcs.wcs.crval[0],
                                                           dec_centre=image_wcs.wcs.crval[1],
                                                           verbose=False)

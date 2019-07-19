@@ -280,6 +280,50 @@ def calc_pixel_transform(setup, ref_catalog, catalog2, log):
     log.info('Transform matrix '+repr(model.params))
     
     return model
+
+def identify_inlying_matched_stars(match_index, log):
+    """Function to use the RANSAC method to identify correct matches between
+    catalogue and detected stars and exclude duplicates.  
+    Works in world coordinates. """
+    
+    array1 = np.zeros((match_index.n_match,2))
+    array1[:,0] = match_index.cat1_ra
+    array1[:,1] = match_index.cat1_dec
+    
+    array2 = np.zeros((match_index.n_match,2))
+    array2[:,0] = match_index.cat2_ra
+    array2[:,1] = match_index.cat2_dec
+    
+    (model, inliers) = ransac((array1, array2), AffineTransform, min_samples=3,
+                               residual_threshold=2, max_trials=100)
+    
+    i = np.where(inliers == True)
+    j = np.where(inliers == False)
+    
+    debug_output = True
+    if debug_output:
+        print('N True: ',len(i[0]),' false: ',len(j[0]),' N match=',match_index.n_match)
+    
+        check = {}
+        for j,jj in enumerate(match_index.cat1_index):
+            
+            if jj not in check.keys():
+                print(str(match_index.cat1_index[j])+\
+                    ' ('+str(match_index.cat1_ra[j])+','+str(match_index.cat1_dec[j])+'), '+\
+                    ' ('+str(round(match_index.cat1_x[j],3))+','+str(round(match_index.cat1_y[j],3))+') = '+\
+                    str(match_index.cat2_index[j])+\
+                    ' ('+str(match_index.cat2_ra[j])+','+str(match_index.cat2_dec[j])+')')
+                    
+            else:
+                print('DUPLICATE:')
+                print(str(match_index.cat1_index[j])+\
+                    ' ('+str(match_index.cat1_ra[j])+','+str(match_index.cat1_dec[j])+'), '+\
+                    ' ('+str(round(match_index.cat1_x[j],3))+','+str(round(match_index.cat1_y[j],3))+') = '+\
+                    str(match_index.cat2_index[j])+\
+                    ' ('+str(match_index.cat2_ra[j])+','+str(match_index.cat2_dec[j])+')')
+            check[jj] = match_index.cat2_index[j]
+            
+        exit()
     
 def calc_world_transform(setup, detected_stars, catalog_stars, log):
     

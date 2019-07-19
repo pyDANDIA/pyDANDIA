@@ -91,7 +91,7 @@ def reference_astrometry(setup,log,image_path,detected_objects,
         plot_overlaid_sources(path.join(setup.red_dir,'ref'),
                           detected_sources,gaia_sources, interactive=False)
     
-    matched_stars = match_stars_world_coords(detected_sources,gaia_sources,log,
+    matched_stars = match_stars_world_coords(detected_sources,gaia_sources,log,'Gaia',
                                              verbose=True)
     
     analyze_coord_residuals(matched_stars,detected_sources,gaia_sources,
@@ -564,13 +564,13 @@ def calc_world_coordinates_astropy(setup,image_wcs,detected_sources,log,
     
     return detected_sources
     
-def match_stars_world_coords(detected_sources,catalog_sources,log,
+def match_stars_world_coords(detected_sources,catalog_sources,log,catalog_name,
                              radius=None, ra_centre=None, dec_centre=None,
                              verbose=False, max_radius=None):
     """Function to match stars between the objects detected in an image
     and those extracted from a catalog, using image world postions."""
-    
-    log.info('Matching detected and catalog sources via their world coordinates')
+        
+    log.info('Matching detected and '+catalog_name+' catalog sources via their world coordinates')
     
     tol = 1.0/3600.0
     dra = 30.0/3600.0
@@ -585,7 +585,6 @@ def match_stars_world_coords(detected_sources,catalog_sources,log,
                                        catalog_sources['dec'], 
                                        frame='icrs', 
                                        unit=(units.deg, units.deg))
-    
     
     if radius != None:
         
@@ -633,6 +632,8 @@ def match_stars_world_coords(detected_sources,catalog_sources,log,
     
     jincr = int(float(len(catalog_sources))*0.01)
     
+    nm = 0
+    
     for j in jdx:
         
         c = coordinates.SkyCoord(catalog_sources['ra'][j], 
@@ -651,32 +652,61 @@ def match_stars_world_coords(detected_sources,catalog_sources,log,
             
             (idx, d2d, d3d) = c.match_to_catalog_sky(det_sources[kdx])
             i = int(idx)
-            
+
             if d2d.value < tol:
                 
-                p = {'cat1_index': kdx[i],
-                     'cat1_ra': detected_sources['ra'][kdx[i]],
-                     'cat1_dec': detected_sources['dec'][kdx[i]],
-                     'cat1_x': detected_sources['x'][kdx[i]],
-                     'cat1_y': detected_sources['y'][kdx[i]],
-                     'cat2_index': j, 
-                     'cat2_ra': catalog_sources['ra'][j], 
-                     'cat2_dec': catalog_sources['dec'][j], \
-                     'separation': d2d.value[0]}
+                add_star = True
                 
-                matched_stars.add_match(p)
+                # Check for any pre-existing matches to this detected objects, 
+                # and replace the entry if the current catalog star is a 
+                # better match.
+                if kdx[i] in matched_stars.cat1_index:
                 
-                if verbose:
-                    log.info(matched_stars.summarize_last())
+                    kk = matched_stars.cat1_index.index(kdx[i])
+                    
+                    if d2d.value[0] < matched_stars.separation[kk]:
+                    
+                        matched_stars.remove_match(kk)    
+                    
+                        nm -= 1
+                        
+                        add_star = True
+                        
+                    else:
+                        
+                        add_star = False
                 
-                if j%jincr == 0:
-                    percentage = round((float(j)/float(len(catalog_sources)))*100.0,0)
-                    log.info(' -> Completed cross-match of '+str(percentage)+\
-                                '% ('+str(j)+' of catalog stars out of '+\
-                                str(len(catalog_sources))+')')
-
+                if add_star:
+                    
+                    p = {'cat1_index': kdx[i],
+                         'cat1_ra': detected_sources['ra'][kdx[i]],
+                         'cat1_dec': detected_sources['dec'][kdx[i]],
+                         'cat1_x': detected_sources['x'][kdx[i]],
+                         'cat1_y': detected_sources['y'][kdx[i]],
+                         'cat2_index': j, 
+                         'cat2_ra': catalog_sources['ra'][j], 
+                         'cat2_dec': catalog_sources['dec'][j], 
+                         'separation': d2d.value[0]}
+                    
+                    matched_stars.add_match(p)
+                    nm += 1
+                    
+                    if verbose:
+                        log.info(matched_stars.summarize_last())
+                    
+            if j%jincr == 0:
+                percentage = round((float(j)/float(len(catalog_sources)))*100.0,0)
+                log.info(' -> Completed cross-match of '+str(percentage)+\
+                            '% ('+str(j)+' of catalog stars out of '+\
+                            str(len(catalog_sources))+')')
+                                        
     log.info(' -> Matched '+str(matched_stars.n_match)+' stars')
-
+    log.info(' -> Sanity check matched star count: '+str(nm))
+    
+    check_sanity = False
+    if check_sanity:
+        calc_coord_offsets.identify_inlying_matched_stars(matched_stars, log)
+    
     log.info('Completed star match in world coordinates')
     
     return matched_stars
@@ -1097,7 +1127,7 @@ def build_ref_source_catalog(detected_sources,gaia_sources,vphas_sources,\
     
         if str(cat_entry) == '--' or np.isnan(cat_entry) == True:
             cat_entry = -9999.999
-            
+
         return cat_entry
     
     def validate_entry_string(cat_entry):
@@ -1138,7 +1168,7 @@ def build_ref_source_catalog(detected_sources,gaia_sources,vphas_sources,\
         data[idx1,9] = validate_entry(gaia_sources['phot_rp_mean_flux_error'][idx2])
     
     for j in range(0,len(matched_stars_vphas.cat1_index),1):
-        
+
         jdx1 = int(matched_stars_vphas.cat1_index[j])
         jdx2 = int(matched_stars_vphas.cat2_index[j])
         
@@ -1154,7 +1184,7 @@ def build_ref_source_catalog(detected_sources,gaia_sources,vphas_sources,\
         data[jdx1,16] = validate_entry(vphas_sources['imag'][jdx2])
         data[jdx1,17] = validate_entry(vphas_sources['imag_error'][jdx2])
         data[jdx1,18] = validate_entry(vphas_sources['clean'][jdx2])
-    
+        
     table_data = [ table.Column(name='index', data=detected_sources['index'].data),
                       table.Column(name='x', data=detected_sources['x'].data),
                       table.Column(name='y', data=detected_sources['y'].data),
