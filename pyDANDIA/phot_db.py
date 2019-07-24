@@ -83,7 +83,12 @@ class Facilities(TableDef):
     c_030_enclosure = 'TEXT'
     c_040_telescope = 'TEXT'
     c_050_instrument = 'TEXT'
-
+    c_060_diameter_m = 'REAL'
+    c_070_altitude_m = 'REAL'
+    c_080_gain_eadu = 'REAL'
+    c_090_readnoise_e = 'REAL'
+    c_100_saturation_e = 'REAL'
+    
 class Software(TableDef):
     """Photometry database table describing the software used to produce
     the data products.

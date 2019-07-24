@@ -1198,6 +1198,8 @@ def build_ref_source_catalog(detected_sources,gaia_sources,vphas_sources,\
                       table.Column(name='cal_ref_mag_error', data=np.zeros(len(detected_sources))),
                       table.Column(name='cal_ref_flux', data=np.zeros(len(detected_sources))),
                       table.Column(name='cal_ref_flux_error', data=np.zeros(len(detected_sources))),
+                      table.Column(name='sky_background', data=np.zeros(len(detected_sources))),
+                      table.Column(name='sky_background_error', data=np.zeros(len(detected_sources))),
                       table.Column(name='gaia_source_id', data=np.array(gaia_source_ids)),
                       table.Column(name='gaia_ra', data=data[:,0]),
                       table.Column(name='gaia_ra_error', data=data[:,1]),

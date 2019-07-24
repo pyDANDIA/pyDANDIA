@@ -127,7 +127,8 @@ def run_stage3_db_ingest(setup, primary_ref=False):
 def define_table_keys():
     
     facility_keys = ['facility_code', 'site', 'enclosure', 
-                     'telescope', 'instrument']
+                     'telescope', 'instrument', 'diameter_m',
+                     'altitude_m', 'gain_eadu', 'readnoise_e', 'saturation_e' ]
     software_keys = ['code_name', 'stage', 'version']
     image_keys =    ['facility', 'filter', 'field_id', 'filename',
                      'date_obs_utc','date_obs_jd','exposure_time',
@@ -283,6 +284,12 @@ def harvest_image_params(reduction_metadata, image_path, ref_image_path):
     hdr_meta = reduction_metadata.headers_summary[1][idx]
     idx = np.where(reduction_metadata.images_stats[1]['IM_NAME'] == image_params['filename'])
     image_stats = reduction_metadata.images_stats[1][idx]
+    
+    image_params['diameter_m'] = float(image_header['TELID'].replace('a','').replace('m','.'))
+    image_params['altitude_m'] = image_header['HEIGHT']
+    image_params['gain_eadu'] = image_header['GAIN']
+    image_params['readnoise_e'] = image_header['RDNOISE'] * image_params['gain_eadu']
+    image_params['saturation_e'] = image_header['SATURATE'] * image_params['gain_eadu']
     
     image_params['field_id'] = hdr_meta['OBJKEY'][0]
     image_params['date_obs_utc'] = hdr_meta['DATEKEY'][0]
@@ -587,6 +594,8 @@ def commit_photometry(conn, params, reduction_metadata, star_ids, log):
         flux_err = str(reduction_metadata.star_catalog[1]['ref_flux_error'][j])
         cal_flux = str(reduction_metadata.star_catalog[1]['cal_ref_flux'][j])
         cal_flux_err = str(reduction_metadata.star_catalog[1]['cal_ref_flux_error'][j])
+        sky = str(reduction_metadata.star_catalog[1]['sky_background'][j])
+        sky_err = str(reduction_metadata.star_catalog[1]['sky_background_error'][j])
         
         entry = (str(int(star_ids[j])), str(refimage['refimg_id'][0]), str(image['img_id'][0]),
                    str(facility['facility_id'][0]), str(f['filter_id'][0]), str(code['code_id'][0]),
@@ -595,7 +604,7 @@ def commit_photometry(conn, params, reduction_metadata, star_ids, log):
                     mag, mag_err, cal_mag, cal_mag_err, 
                     flux, flux_err, cal_flux, cal_flux_err,
                     '0.0', '0.0',   # No phot scale factor for PSF fitting photometry
-                    '0.0', '0.0',   # No background measurements propageted
+                    sky, sky_err,   # No background measurements propageted
                     'PSF_FITTING' )
                     
         values.append(entry)
@@ -667,6 +676,8 @@ def commit_photometry_matching(conn, params, reduction_metadata, matched_stars, 
         flux_err = str(reduction_metadata.star_catalog[1]['ref_flux_error'][j_new])
         cal_flux = str(reduction_metadata.star_catalog[1]['cal_ref_flux'][j_new])
         cal_flux_err = str(reduction_metadata.star_catalog[1]['cal_ref_flux_error'][j_new])
+        sky = str(reduction_metadata.star_catalog[1]['sky_background'][j_new])
+        sky_err = str(reduction_metadata.star_catalog[1]['sky_background_error'][j_new])
         
         entry = (str(int(j_cat)), str(refimage['refimg_id'][0]), str(image['img_id'][0]),
                    str(facility['facility_id'][0]), str(f['filter_id'][0]), str(code['code_id'][0]),
@@ -674,7 +685,7 @@ def commit_photometry_matching(conn, params, reduction_metadata, matched_stars, 
                     mag, mag_err, cal_mag, cal_mag_err, 
                     flux, flux_err, cal_flux, cal_flux_err,
                     '0.0', '0.0',   # No phot scale factor for PSF fitting photometry
-                    '0.0', '0.0',   # No background measurements propageted
+                    sky, sky_err,   # No background measurements propageted
                     'PSF_FITTING' )
                 
         values.append(entry)

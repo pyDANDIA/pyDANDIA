@@ -185,14 +185,11 @@ def run_reference_astrometry(setup):
         log.info('Built reference image source catalogue of '+\
                  str(len(ref_source_catalog))+' objects')
         
-        catalog_file = os.path.join(setup.red_dir,'ref', 'star_catalog.fits')
-        catalog_utils.output_ref_catalog_file(catalog_file, ref_source_catalog)
-        
         reduction_metadata.create_a_new_layer_from_table('star_catalog',ref_source_catalog)
         reduction_metadata.save_a_layer_to_file(setup.red_dir, 
                                                 'pyDANDIA_metadata.fits',
                                                 'star_catalog', log=log)
-                                                
+                            
         log.info('-> Output reference source FITS catalogue')
         log.info('Completed astrometry of reference image')
     

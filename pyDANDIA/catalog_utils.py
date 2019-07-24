@@ -110,7 +110,7 @@ def load_ref_star_catalog_from_metadata(reduction_metadata):
     idx x  y  ra  dec  ref_flux  ref_flux_err ref_mag ref_mag_err   cal_ref_mag   cal_ref_mag_error
     """
     
-    ref_star_catalog = np.zeros((len(reduction_metadata.star_catalog[1]),12))
+    ref_star_catalog = np.zeros((len(reduction_metadata.star_catalog[1]),14))
     
     ref_star_catalog[:,0] = reduction_metadata.star_catalog[1]['index'].data
     ref_star_catalog[:,1] = reduction_metadata.star_catalog[1]['x'].data
@@ -124,6 +124,8 @@ def load_ref_star_catalog_from_metadata(reduction_metadata):
     ref_star_catalog[:,9] = reduction_metadata.star_catalog[1]['cal_ref_mag'].data
     ref_star_catalog[:,10] = reduction_metadata.star_catalog[1]['cal_ref_mag_error'].data
     ref_star_catalog[:,11] = reduction_metadata.star_catalog[1]['psf_star'].data
+    ref_star_catalog[:,12] = reduction_metadata.star_catalog[1]['sky_background'].data
+    ref_star_catalog[:,13] = reduction_metadata.star_catalog[1]['sky_background_error'].data
     
     return ref_star_catalog
 

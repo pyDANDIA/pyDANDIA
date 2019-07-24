@@ -536,7 +536,13 @@ class ConstantBackground(BackgroundModel):
             params.append(getattr(self.background_parameters, par))
 
         return params
-
+    
+    def get_local_background(self,x,y):
+        """Method returns the value of the sky background in counts at
+        position x,y"""
+        
+        return self.background_parameters.constant
+        
 class GradientBackground(BackgroundModel):
 
     def background_type(self):
@@ -590,7 +596,16 @@ class GradientBackground(BackgroundModel):
             params.append(getattr(self, par))
 
         return params
-
+        
+        def get_local_background(self,x,y):
+            """Method returns the value of the sky background in counts at
+            position x,y"""
+            
+            bkgd = self.background_parameters.a0 + \
+                    ( self.background_parameters.a1 * x ) + \
+                    + ( self.background_parameters.a2 * y )
+                    
+            return bkgd
 
 class QuadraticBackground(BackgroundModel):
 

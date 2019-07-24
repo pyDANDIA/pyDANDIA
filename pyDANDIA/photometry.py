@@ -163,6 +163,8 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
             ref_star_catalog[j,6] = flux_err_scaled
             ref_star_catalog[j,7] = mag
             ref_star_catalog[j,8] = mag_err
+            ref_star_catalog[j,12] = sky_model.get_local_background(xstar, ystar)
+            ref_star_catalog[j,13] = np.sqrt(sky_model.varience)
             
             if diagnostics:
                 logs.ifverbose(log,setup,' -> Star '+str(j)+
@@ -427,7 +429,7 @@ def quick_polyfit(params,data,weight,psf_fit):
 
 
 
-def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_star_catalog,
+def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_star_catalog, sky_model,
                                            difference_image, psf_model, kernel, kernel_error, ref_exposure_time,image_id):
     """Function to perform PSF fitting photometry on all stars for a single difference image.
     
@@ -555,6 +557,8 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
             
             list_star_id.append(ref_star_catalog[j, 0])
              
+            xstar = ref_star_catalog[j, 1]
+            ystar = ref_star_catalog[j, 2]
             ref_flux = float(ref_star_catalog[j, 5])
             error_ref_flux = float(ref_star_catalog[j, 6])
             cal_ref_flux = float(ref_star_catalog[j, 11])
@@ -563,9 +567,6 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
             use_psf_photometry = False
             if use_psf_photometry:
             
-                xstar = ref_star_catalog[j, 1]
-                ystar = ref_star_catalog[j, 2]
-                
                 X_grid = X_data + (int(np.round(xstar)) - half_psf)
                 Y_grid = Y_data + (int(np.round(ystar)) - half_psf)
                 
@@ -684,8 +685,8 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
                         #list_align_x.append(xstar)
                         #list_align_y.append(ystar)
                         
-                        list_background.append(0)
-                        list_background_error.append(0)
+                        list_background.append(sky_model.get_local_background(xstar, ystar))
+                        list_background_error.append(bkgrms_value1)
                         
                         list_align_x.append(positions[j][0])
                         list_align_y.append(positions[j][1])

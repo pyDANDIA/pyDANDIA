@@ -405,5 +405,7 @@ def store_photometry_in_metadata(reduction_metadata, ref_star_catalog):
     reduction_metadata.star_catalog[1]['cal_ref_mag'] = ref_star_catalog[:,9]
     reduction_metadata.star_catalog[1]['cal_ref_mag_error'] = ref_star_catalog[:,10]
     reduction_metadata.star_catalog[1]['psf_star'] = ref_star_catalog[:,11]
+    reduction_metadata.star_catalog[1]['sky_background'] = ref_star_catalog[:,12]
+    reduction_metadata.star_catalog[1]['sky_background_error'] = ref_star_catalog[:,13]
     
     return reduction_metadata

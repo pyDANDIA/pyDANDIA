@@ -490,7 +490,7 @@ def photometry_on_the_difference_image(setup, reduction_metadata, log, star_cata
 
     # PSF photometry function returns a list of lists
     (differential_photometry, control_zone) = photometry.run_psf_photometry_on_difference_image(setup, reduction_metadata, log,
-                                                                                star_catalog,
+                                                                                star_catalog, sky_model,
                                                                                 difference_image, psf_model, kernel,
                                                                                 kernel_error, ref_exposure_time,image_id)
 
@@ -660,7 +660,7 @@ def commit_image_photometry_matching(conn, params, reduction_metadata,
                     flux, flux_err, cal_flux, cal_flux_err,
                     ps, ps_err,   # No phot scale factor for PSF fitting photometry
                     bkgd, bkgd_err,  # No background measurements propageted
-                    'PSF_FITTING' )
+                    'DIA' )
         
         entries.append(entry)
     
