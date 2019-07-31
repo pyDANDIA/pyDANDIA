@@ -709,4 +709,11 @@ def get_stage_software_id(conn,stage_name):
     software = query_to_astropy_table(conn, query, args=())
 
     return software['code_id'][-1]
+
+def fetch_stars_table(conn):
+    """Function to extract the stars table for a given field"""
     
+    query = 'SELECT * FROM stars'
+    stars = query_to_astropy_table(conn, query, args=())
+    
+    return stars

@@ -8,8 +8,7 @@ import numpy as np
 import os
 import sys
 from astropy.io import fits
-from astropy.table import Table
-from astropy.table import Column
+from astropy.table import Table, Column, vstack
 from pyDANDIA import metadata
 from pyDANDIA import logs
 from pyDANDIA import phot_db
@@ -31,10 +30,13 @@ def run_stage7(setup):
 
     primary_ref = identify_primary_reference_datasets(conn, log)
     
+    stars_table = phot_db.fetch_stars_table(conn)
+    log.info(' -> Extracted starlist of '+str(len(stars_table))+' objects')
+    
     for f in ['ip', 'rp', 'gp']:
         
         if 'refimg_id_'+f in primary_ref.keys():
-            primary_phot = extract_photometry_for_reference_image(conn,primary_ref,f,
+            primary_phot = extract_photometry_for_reference_image(conn,primary_ref,stars_table,f,
                                                               primary_ref['refimg_id_'+f],
                                                               log)
         
@@ -42,7 +44,7 @@ def run_stage7(setup):
             
             for ref_image in ref_image_list:
                 
-                ref_phot = extract_photometry_for_reference_image(conn,primary_ref,f,
+                ref_phot = extract_photometry_for_reference_image(conn,primary_ref,stars_table,f,
                                                               ref_image['refimg_id'],
                                                               log)
                        
@@ -101,18 +103,28 @@ def identify_primary_reference_datasets(conn, log):
         
     return primary_ref
 
-def extract_photometry_for_reference_image(conn,primary_ref,f,refimg_id,log):
+def extract_photometry_for_reference_image(conn,primary_ref,stars_table,f,refimg_id,log):
     """Function to extract from the DB the photometry for a specific 
     reference image in the given filter"""
     
     log.info('Extracting photometry for stars in reference image '+str(refimg_id))
     
-    query = 'SELECT phot_id, star_id, hjd, calibrated_mag, calibrated_mag_err, calibrated_flux, calibrated_flux_err FROM phot WHERE reference_image="'+str(refimg_id)+\
+    ref_phot = None
+    
+    for j,s in enumerate(stars_table):
+        query = 'SELECT phot_id, star_id, hjd, calibrated_mag, calibrated_mag_err, calibrated_flux, calibrated_flux_err FROM phot WHERE reference_image="'+str(refimg_id)+\
+                '" AND image="'+str(refimg_id)+\
+                '" AND star_id="'+str(s['star_id'])+\
                 '" AND software="'+str(primary_ref['software_id'])+\
                 '" AND filter="'+str(primary_ref[f])+\
                 '" AND facility="'+str(primary_ref['facility_id'])+'"'
-    ref_phot = phot_db.query_to_astropy_table(conn, query, args=())
-    
+        star_phot = phot_db.query_to_astropy_table(conn, query, args=())
+                
+        if ref_phot == None and len(star_phot) > 0:
+            ref_phot = star_phot
+        elif ref_phot != None and len(star_phot) > 0:
+            ref_phot = vstack([ref_phot, star_phot])
+        
     log.info(' -> Extracted photometry for '+str(len(ref_phot))+' stars for reference image '+str(refimg_id)+' and filter '+f)
     
     return ref_phot
@@ -134,6 +146,7 @@ def list_reference_images_in_filter(conn,primary_ref,f,log):
     ref_image_list = phot_db.query_to_astropy_table(conn, query, args=())
     
     log.info(repr(ref_image_list))
+    print(ref_image_list)
     
     return ref_image_list
 
