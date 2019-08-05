@@ -339,7 +339,7 @@ def get_args():
     if len(argv) == 1:
         
         params['red_dir'] = input('Please enter the path to the datasets reduction directory: ')
-        params['db_file_path'] = input('Please enter the field name: ')
+        params['db_file_path'] = input('Please enter the path to the photometric database: ')
         params['mode'] = input('Please enter the reduction mode, one of {'+','.join(reduction_modes)+'}: ')
     
     else:
