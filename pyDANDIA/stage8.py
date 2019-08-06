@@ -30,7 +30,7 @@ def run_stage8():
     
     # Setup the DB connection and record dataset and software parameters
     conn = phot_db.get_connection(dsn=params['phot_db_path'])
-
+    
     primary_ref = identify_primary_reference_datasets(conn, log)
     
     stars_table = phot_db.fetch_stars_table(conn)
@@ -50,18 +50,33 @@ def run_stage8():
             
             ref_image_list = list_reference_images_in_filter(conn,primary_ref,f,log)
             
-            for ref_image in ref_image_list:
+            for dataset_red_dir,red_f in params['datasets'].items():
                 
-                ref_phot = extract_photometry_for_reference_image(conn,primary_ref,cal_stars,f,
-                                                              ref_image['refimg_id'],
-                                                              ref_image['facility'],
-                                                              log)
-                
-                (delta_mag, delta_mag_err) = calc_magnitude_offset(params, primary_phot, ref_phot, log)
-                
-                #apply_magnitude_offset(conn, ref_phot, ref_image['refimg_id'], 
-                #                       delta_mag, delta_mag_err, log)
-                
+                if red_f == f:
+                    
+                    reduction_metadata = metadata.MetaData()
+                    reduction_metadata.load_a_layer_from_file( dataset_red_dir, 
+                                                  'pyDANDIA_metadata.fits', 
+                                                  'data_architecture' )
+                    try:
+                        reduction_metadata.load_a_layer_from_file( dataset_red_dir, 
+                                                  'pyDANDIA_metadata.fits', 
+                                                  'detrending_parameters' )
+                        
+                    except KeyError:
+                        pass
+                    
+                    ref_image = identify_ref_image(reduction_metadata)
+                    
+                    ref_phot = extract_photometry_for_reference_image(conn,primary_ref,cal_stars,f,
+                                                                  ref_image['refimg_id'],
+                                                                  ref_image['facility'],
+                                                                  log)
+                    
+                    (delta_mag, delta_mag_err) = calc_magnitude_offset(params, primary_phot, ref_phot, log)
+                    
+                    output_to_metadata(dataset_red_dir, reference_metadata, delta_mag, delta_mag_err)
+                    
         else:
             
             log.info('No primary photometry available in filter '+f)
@@ -110,6 +125,19 @@ def parse_config_file(config_file):
             params[entries[0]] = entries[1]
     
     return params
+
+def identify_ref_image(reduction_metadata):
+    """Function to identify the reference image used for a given dataset"""
+    
+    ref_image = reduction_metadata.data_architecture[1]['REF_IMAGE'][0]
+    
+    query = 'SELECT * FROM images WHERE filename="'+str(ref_image)+'"'
+    image = phot_db.query_to_astropy_table(conn, query, args=())
+    
+    query = 'SELECT * FROM reference_components WHERE image="'+str(image.img_id)+'"'
+    ref_comp = phot_db.query_to_astropy_table(conn, query, args=())
+    
+    return ref_comp.reference_image
     
 def identify_primary_reference_datasets(conn, log):
     """Function to extract the parameters of the primary reference dataset and
@@ -316,7 +344,41 @@ def apply_magnitude_offset(conn, ref_phot, refimg_id, delta_mag, delta_mag_err, 
     
     conn.commit()
 
-
+def output_to_metadata(dataset_red_dir,reference_metadata, delta_mag, delta_mag_err):
+    """Function to update any pre-existing detrending_parameters table with the
+    calculated co-efficients, or to create a table if none exists"""
+    
+    if 'detrending_parameters' in dir(reference_metadata):
+        
+        nentries = len(reduction_metadata.detrending_parameters[1])
+        
+        idx = np.where(reduction_metadata.detrending_parameters[1]['coefficient_name'] == 'delta_mag')
+        
+        if len(idx) == 0:
+            reduction_metadata.detrending_parameters[1]['coefficient_name'][nentries+1] = 'delta_mag'
+            reduction_metadata.detrending_parameters[1]['coefficient_value'][nentries+1] = delta_mag
+            reduction_metadata.detrending_parameters[1]['detrending'][nentries+1] = 'reference_offset'
+        
+        idx = np.where(reduction_metadata.detrending_parameters[1]['coefficient_name'] == 'delta_mag_err')
+        
+        if len(idx) == 0:
+            reduction_metadata.detrending_parameters[1]['coefficient_name'][nentries+2] = 'delta_mag_err'
+            reduction_metadata.detrending_parameters[1]['coefficient_value'][nentries+2] = delta_mag_err
+            reduction_metadata.detrending_parameters[1]['detrending'][nentries+2] = 'reference_offset'
+        
+    else:
+        table_data = [ table.Column(name='coefficient_name', data=['delta_mag', 'delta_mag_err']),
+                       table.Column(name='coefficient_value', data=[delta_mag, delta_mag_err]),
+                       table.Column(name='detrending', data=['reference_offset','reference_offset']) ]
+        
+        detrend_table = table.Table(data=table_data)
+        
+        reduction_metadata.create_a_new_layer_from_table('detrending_parameters',detrend_table)
+        
+    reduction_metadata.save_a_layer_to_file(dataset_red_dir, 
+                                                'pyDANDIA_metadata.fits',
+                                                'detrending_parameters')
+    
 if __name__ == '__main__':
     
     run_stage8()
