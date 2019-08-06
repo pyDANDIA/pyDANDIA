@@ -123,10 +123,6 @@ def run_stage6(setup):
     
     log.info('Established PSF parameters')
     
-    sky_model = sky_background.model_sky_background(setup,
-                                                    reduction_metadata, log, ref_star_catalog)
-    log.info('Built sky model')
-    
     psf_model = psf.get_psf_object(psf_type)
     psf_model.update_psf_parameters(psf_parameters)
     log.info('Built PSF model')
@@ -212,7 +208,13 @@ def run_stage6(setup):
 
             log.info('Starting difference photometry of ' + new_image)
             kernel_image, kernel_error, kernel_bkg = find_the_associated_kernel(setup, kernels_directory, new_image)
-
+            
+            sky_model = sky_background.model_sky_background(setup,
+                                                            reduction_metadata, 
+                                                            log, ref_star_catalog,
+                                                            image_path=os.path.join(setup.red_dir,'data',new_image))
+            log.info('Built sky model')
+    
             difference_image = open_an_image(setup, diffim_directory, 'diff_' + new_image, log, 0)[0]
             
             if len(difference_image) > 1:

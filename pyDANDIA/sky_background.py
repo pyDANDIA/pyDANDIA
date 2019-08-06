@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 from astropy.io import fits
 from astropy import visualization
 
-def model_sky_background(setup,reduction_metadata,log,ref_star_catalog):
+def model_sky_background(setup,reduction_metadata,log,ref_star_catalog,image_path=None):
     """Function to model the sky background of a real image by masking out
     the positions of the known stars in order to fit a better model to the 
     background
@@ -25,8 +25,11 @@ def model_sky_background(setup,reduction_metadata,log,ref_star_catalog):
     background model.
     """
 
-    ref_image = fits.getdata(str(reduction_metadata.data_architecture[1]['REF_PATH'][0]) +'/'+ str(reduction_metadata.data_architecture[1]['REF_IMAGE'][0]))
-    
+    if image_path == None:
+        ref_image = fits.getdata(str(reduction_metadata.data_architecture[1]['REF_PATH'][0]) +'/'+ str(reduction_metadata.data_architecture[1]['REF_IMAGE'][0]))
+    else:
+        ref_image = fits.getdata(image_path)
+        
     psf_diameter = reduction_metadata.psf_dimensions[1]['psf_radius'][0]*2.0
     
     sat_value = reduction_metadata.reduction_parameters[1]['MAXVAL'][0]

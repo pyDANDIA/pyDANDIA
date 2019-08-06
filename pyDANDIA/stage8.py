@@ -66,16 +66,17 @@ def run_stage8():
                     except KeyError:
                         pass
                     
-                    ref_image = identify_ref_image(reduction_metadata)
+                    ref_image = identify_ref_image(reduction_metadata, conn, log)
                     
-                    ref_phot = extract_photometry_for_reference_image(conn,primary_ref,cal_stars,f,
+                    if ref_image != None:
+                        ref_phot = extract_photometry_for_reference_image(conn,primary_ref,cal_stars,f,
                                                                   ref_image['refimg_id'],
                                                                   ref_image['facility'],
                                                                   log)
                     
-                    (delta_mag, delta_mag_err) = calc_magnitude_offset(params, primary_phot, ref_phot, log)
+                        (delta_mag, delta_mag_err) = calc_magnitude_offset(params, primary_phot, ref_phot, log)
                     
-                    output_to_metadata(dataset_red_dir, reference_metadata, delta_mag, delta_mag_err)
+                        output_to_metadata(dataset_red_dir, reference_metadata, delta_mag, delta_mag_err)
                     
         else:
             
@@ -126,7 +127,7 @@ def parse_config_file(config_file):
     
     return params
 
-def identify_ref_image(reduction_metadata):
+def identify_ref_image(reduction_metadata, conn, log):
     """Function to identify the reference image used for a given dataset"""
     
     ref_image = reduction_metadata.data_architecture[1]['REF_IMAGE'][0]
@@ -134,11 +135,20 @@ def identify_ref_image(reduction_metadata):
     query = 'SELECT * FROM images WHERE filename="'+str(ref_image)+'"'
     image = phot_db.query_to_astropy_table(conn, query, args=())
     
-    query = 'SELECT * FROM reference_components WHERE image="'+str(image.img_id)+'"'
-    ref_comp = phot_db.query_to_astropy_table(conn, query, args=())
-    
-    return ref_comp.reference_image
-    
+    if len(image) > 0:
+        query = 'SELECT * FROM reference_components WHERE image="'+str(image['img_id'])+'"'
+        ref_comp = phot_db.query_to_astropy_table(conn, query, args=())
+        
+        log.info('Identified reference image '+ref_image+' as '+str(ref_comp.reference_image))
+        
+        return ref_comp.reference_image
+        
+    else:
+        
+        log.info('Could not find reference image '+ref_image+' in the phot_db')
+        
+        return None
+        
 def identify_primary_reference_datasets(conn, log):
     """Function to extract the parameters of the primary reference dataset and
     instrument for all wavelengths for the current field."""
