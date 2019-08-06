@@ -14,20 +14,22 @@ from pyDANDIA import logs
 from pyDANDIA import phot_db
 from pyDANDIA import photometry
 import numpy as np
+import matplotlib.pyplot as plt
 
 
-VERSION = 'pyDANDIA_stage7_v0.1'
+VERSION = 'pyDANDIA_stage8_v0.1'
 
-def run_stage7(setup):
-    """Driver function for pyDANDIA Stage 7: 
+def run_stage8():
+    """Driver function for pyDANDIA Stage 8: 
     Merging datasets from multiple telescopes and sites.
     """
     
-    log = logs.start_stage_log(setup.red_dir, 'stage7', version=VERSION)
-    log.info('Setup:\n' + setup.summary() + '\n')
+    params = get_args()
+    
+    log = logs.start_stage_log(params['red_dir'], 'stage8', version=VERSION)
     
     # Setup the DB connection and record dataset and software parameters
-    conn = phot_db.get_connection(dsn=setup.phot_db_path)
+    conn = phot_db.get_connection(dsn=params['phot_db_path'])
 
     primary_ref = identify_primary_reference_datasets(conn, log)
     
@@ -38,7 +40,7 @@ def run_stage7(setup):
                                                primary_ref['refimg_id_ip'], 
                                                 sample_size=20000)
     
-    for f in ['ip', 'rp', 'gp']:
+    for f in params['filter_list']:
         
         if 'refimg_id_'+f in primary_ref.keys():
             primary_phot = extract_photometry_for_reference_image(conn,primary_ref,cal_stars,f,
@@ -55,9 +57,10 @@ def run_stage7(setup):
                                                               ref_image['facility'],
                                                               log)
                 
-                (delta_mag, delta_mag_err) = calc_magnitude_offset(primary_phot, ref_phot, log)
+                (delta_mag, delta_mag_err) = calc_magnitude_offset(params, primary_phot, ref_phot, log)
                 
-                apply_magnitude_offset(conn, ref_phot, refimg_id, delta_mag, delta_mag_err, log)
+                #apply_magnitude_offset(conn, ref_phot, ref_image['refimg_id'], 
+                #                       delta_mag, delta_mag_err, log)
                 
         else:
             
@@ -71,6 +74,43 @@ def run_stage7(setup):
 
     return status, report
 
+def get_args():
+    """Function to harvest the required commandline parameters"""
+    
+    if len(sys.argv) > 1:
+        config_file = sys.argv[1]
+        
+    else:
+        config_file = input('Please enter the path to the configuration file: ')
+    
+    params = parse_config_file(config_file)
+    
+    return params
+
+def parse_config_file(config_file):
+    """Function to read the configuration file for this software"""
+    
+    if os.path.isfile(config_file) == False:
+        raise IOError('Cannot find configuration file '+config_file)
+        
+    file_lines = open(config_file,'r').readlines()
+    
+    params = {'datasets': {}, 'filter_list': []}
+    
+    for line in file_lines:
+        entries = line.replace('\n','').split()
+        
+        if 'dataset' in entries[0]:
+            params['datasets'][entries[1]] = entries[2]
+            
+            if entries[2] not in params['filter_list']:
+                params['filter_list'].append(entries[2])
+                
+        else:
+            params[entries[0]] = entries[1]
+    
+    return params
+    
 def identify_primary_reference_datasets(conn, log):
     """Function to extract the parameters of the primary reference dataset and
     instrument for all wavelengths for the current field."""
@@ -198,7 +238,7 @@ def list_reference_images_in_filter(conn,primary_ref,f,log):
     
     return ref_image_list
 
-def calc_magnitude_offset(primary_phot, ref_phot, log):
+def calc_magnitude_offset(setup, primary_phot, ref_phot, log):
     """Function to calculate the weighted average magnitude offset between the
     measured magnitudes of stars in the reference image of a dataset relative 
     to the primary reference dataset in that passband."""
@@ -207,6 +247,7 @@ def calc_magnitude_offset(primary_phot, ref_phot, log):
     
     numer = 0.0
     denom = 0.0
+    deltas = []
     for j,star in enumerate(primary_phot['star_id']):
         mag_pri_ref = primary_phot['calibrated_mag'][j]
         merr_pri_ref = primary_phot['calibrated_mag_err'][j]
@@ -220,23 +261,27 @@ def calc_magnitude_offset(primary_phot, ref_phot, log):
             if merr_ref != np.nan and merr_ref > 0.0:
                 sigma = np.sqrt(merr_pri_ref*merr_pri_ref + merr_ref*merr_ref)
                 
-                numer += (mag_pri_ref - mag_ref) / (sigma*sigma)
-                denom += (1/sigma*sigma)
+                #numer += (mag_pri_ref - mag_ref) / (sigma*sigma)
+                #denom += (1/sigma*sigma)
                 
-                print('Sigma:',sigma)
-                print((mag_pri_ref - mag_ref), (sigma*sigma))
-                print(numer, denom)
+                deltas.append( (mag_pri_ref - mag_ref) )
+                numer += (mag_pri_ref - mag_ref)
+                denom += 1.0
                 
-                if np.isnan(numer):
-                    print(mag_ref, merr_ref)
-                    print(map_pri_ref, merr_pri_ref)
-                    exit()
                     
     delta_mag = numer / denom
     delta_mag_err = 1.0 / denom
     
     log.info(' -> Delta_mag = '+str(delta_mag)+', delta_mag_err = '+str(delta_mag_err))
     
+    fig = plt.figure(1,(10,10))
+    plt.hist(deltas, 100)
+    plt.xlabel('$\\Delta$mag')
+    plt.xlabel('Frequency')
+    plt.grid()
+    plt.savefig(path.join(setup.red_dir,'delta_mag_offsets.png'))
+    plt.close(1)
+        
     return delta_mag, delta_mag_err
 
 def apply_magnitude_offset(conn, ref_phot, refimg_id, delta_mag, delta_mag_err, log):
@@ -270,4 +315,9 @@ def apply_magnitude_offset(conn, ref_phot, refimg_id, delta_mag, delta_mag_err, 
     cursor.executemany(command, values)
     
     conn.commit()
+
+
+if __name__ == '__main__':
+    
+    run_stage8()
     

@@ -226,7 +226,12 @@ def calc_magnitude_offset(primary_phot, ref_phot, log):
                 print('Sigma:',sigma)
                 print((mag_pri_ref - mag_ref), (sigma*sigma))
                 print(numer, denom)
-            
+                
+                if np.isnan(numer):
+                    print(mag_ref, merr_ref)
+                    print(map_pri_ref, merr_pri_ref)
+                    exit()
+                    
     delta_mag = numer / denom
     delta_mag_err = 1.0 / denom
     
