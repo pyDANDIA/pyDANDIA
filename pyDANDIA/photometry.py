@@ -555,6 +555,8 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
         
         for j in range(0, len(ref_star_catalog), 1):
             
+            good_fit = True
+            
             list_star_id.append(ref_star_catalog[j, 0])
              
             xstar = ref_star_catalog[j, 1]
@@ -563,9 +565,12 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
             error_ref_flux = float(ref_star_catalog[j, 6])
             cal_ref_flux = float(ref_star_catalog[j, 11])
             error_cal_ref_flux = float(ref_star_catalog[j, 12])
-        
+            
+            if ref_flux <= 0.0 or error_ref_flux <= 0.0:
+                good_fit = False
+                
             use_psf_photometry = False
-            if use_psf_photometry:
+            if use_psf_photometry and good_fit:
             
                 X_grid = X_data + (int(np.round(xstar)) - half_psf)
                 Y_grid = Y_data + (int(np.round(ystar)) - half_psf)
