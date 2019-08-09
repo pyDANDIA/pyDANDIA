@@ -70,13 +70,13 @@ def run_stage8():
                     
                     if ref_image != None:
                         ref_phot = extract_photometry_for_reference_image(conn,primary_ref,cal_stars,f,
-                                                                  ref_image['refimg_id'],
-                                                                  ref_image['facility'],
+                                                                  ref_image['refimg_id'][0],
+                                                                  ref_image['facility'][0],
                                                                   log)
                     
-                        (delta_mag, delta_mag_err) = calc_magnitude_offset(params, primary_phot, ref_phot, log)
+                        (delta_mag, delta_mag_err) = calc_magnitude_offset(params, primary_phot, ref_phot, ref_image, log)
                     
-                        output_to_metadata(dataset_red_dir, reference_metadata, delta_mag, delta_mag_err)
+                        output_to_metadata(dataset_red_dir, reduction_metadata, delta_mag, delta_mag_err)
                     
         else:
             
@@ -136,13 +136,22 @@ def identify_ref_image(reduction_metadata, conn, log):
     image = phot_db.query_to_astropy_table(conn, query, args=())
     
     if len(image) > 0:
-        query = 'SELECT * FROM reference_components WHERE image="'+str(image['img_id'])+'"'
+        query = 'SELECT * FROM reference_components WHERE image="'+str(image['img_id'][0])+'"'
         ref_comp = phot_db.query_to_astropy_table(conn, query, args=())
+
+        if len(ref_comp) > 0:
+            
+            query = 'SELECT * FROM reference_images WHERE refimg_id="'+str(ref_comp['reference_image'][0])+'"'
+            ref_image_obj = phot_db.query_to_astropy_table(conn, query, args=())
+
+            log.info('Identified reference image '+ref_image+' as '+str(ref_image_obj['refimg_id'][0]))
         
-        log.info('Identified reference image '+ref_image+' as '+str(ref_comp.reference_image))
-        
-        return ref_comp.reference_image
-        
+            return ref_image_obj
+            
+        else:
+            
+            return None
+            
     else:
         
         log.info('Could not find reference image '+ref_image+' in the phot_db')
@@ -276,12 +285,14 @@ def list_reference_images_in_filter(conn,primary_ref,f,log):
     
     return ref_image_list
 
-def calc_magnitude_offset(setup, primary_phot, ref_phot, log):
+def calc_magnitude_offset(params, primary_phot, ref_phot, ref_image, log):
     """Function to calculate the weighted average magnitude offset between the
     measured magnitudes of stars in the reference image of a dataset relative 
     to the primary reference dataset in that passband."""
 
-    log.info('Computing the magnitude offset between the primary and reference photometry')
+    log.info('Computing the magnitude offset between the primary and reference photometry of image '+repr(ref_image))
+    
+    iter = 0
     
     numer = 0.0
     denom = 0.0
@@ -306,20 +317,49 @@ def calc_magnitude_offset(setup, primary_phot, ref_phot, log):
                 numer += (mag_pri_ref - mag_ref)
                 denom += 1.0
                 
-                    
-    delta_mag = numer / denom
+    deltas = np.array(deltas)
+    
+    delta_mag_mean = numer / denom
+    delta_mag_median = np.median(deltas)
     delta_mag_err = 1.0 / denom
     
-    log.info(' -> Delta_mag = '+str(delta_mag)+', delta_mag_err = '+str(delta_mag_err))
+    delta_mag = delta_mag_median
     
+    log.info('Iteration '+str(iter)+' -> Delta_mag (mean) = '+str(delta_mag_mean)+\
+                ', delta_mag (median) = '+str(delta_mag_median)+\
+                ', delta_mag_err = '+str(delta_mag_err))
+    
+    switch = True
+    if switch:
+        while iter < 3:
+    
+            bin_width = (deltas.max() - deltas.min()) / 100.0
+            
+            log.info('Applying bin_width='+str(bin_width))
+            log.info('Selection thresholds: '+str(delta_mag-5.0*bin_width)+\
+                    ' to '+str((delta_mag+5.0*bin_width)))
+                    
+            idx1 = np.where(deltas >= (delta_mag-5.0*bin_width))[0]
+            idx2 = np.where(deltas <= (delta_mag+5.0*bin_width))[0]
+            idx = list(set(idx1).intersection(set(idx2)))
+            
+            delta_mag = np.median(deltas[idx])
+            
+            iter += 1
+            log.info('Iteration '+str(iter)+' -> Delta_mag (mean) = '+str(delta_mag_mean)+\
+                    ', delta_mag (median) = '+str(delta_mag)+\
+                    ', delta_mag_err = '+str(delta_mag_err)+', calculating with '+str(len(deltas))+' entries')
+
     fig = plt.figure(1,(10,10))
     plt.hist(deltas, 100)
     plt.xlabel('$\\Delta$mag')
-    plt.xlabel('Frequency')
+    plt.ylabel('Frequency')
+    (xmin,xmax,ymin,ymax) = plt.axis()
+    plt.plot([delta_mag, delta_mag],[ymin,ymax],'r-')
     plt.grid()
-    plt.savefig(path.join(setup.red_dir,'delta_mag_offsets.png'))
+    plt.savefig(os.path.join(params['red_dir'],'delta_mag_offsets_'+str(ref_image['refimg_id'][0])+'.png'))
     plt.close(1)
-        
+    
     return delta_mag, delta_mag_err
 
 def apply_magnitude_offset(conn, ref_phot, refimg_id, delta_mag, delta_mag_err, log):
@@ -354,11 +394,11 @@ def apply_magnitude_offset(conn, ref_phot, refimg_id, delta_mag, delta_mag_err, 
     
     conn.commit()
 
-def output_to_metadata(dataset_red_dir,reference_metadata, delta_mag, delta_mag_err):
+def output_to_metadata(dataset_red_dir,reduction_metadata, delta_mag, delta_mag_err):
     """Function to update any pre-existing detrending_parameters table with the
     calculated co-efficients, or to create a table if none exists"""
     
-    if 'detrending_parameters' in dir(reference_metadata):
+    if 'detrending_parameters' in dir(reduction_metadata):
         
         nentries = len(reduction_metadata.detrending_parameters[1])
         
@@ -377,11 +417,11 @@ def output_to_metadata(dataset_red_dir,reference_metadata, delta_mag, delta_mag_
             reduction_metadata.detrending_parameters[1]['detrending'][nentries+2] = 'reference_offset'
         
     else:
-        table_data = [ table.Column(name='coefficient_name', data=['delta_mag', 'delta_mag_err']),
-                       table.Column(name='coefficient_value', data=[delta_mag, delta_mag_err]),
-                       table.Column(name='detrending', data=['reference_offset','reference_offset']) ]
+        table_data = [ Column(name='coefficient_name', data=['delta_mag', 'delta_mag_err']),
+                       Column(name='coefficient_value', data=[delta_mag, delta_mag_err]),
+                       Column(name='detrending', data=['reference_offset','reference_offset']) ]
         
-        detrend_table = table.Table(data=table_data)
+        detrend_table = Table(data=table_data)
         
         reduction_metadata.create_a_new_layer_from_table('detrending_parameters',detrend_table)
         
