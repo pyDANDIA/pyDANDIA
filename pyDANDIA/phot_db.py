@@ -707,8 +707,11 @@ def get_stage_software_id(conn,stage_name):
     
     query = 'SELECT code_id FROM software WHERE stage="'+stage_name+'"'
     software = query_to_astropy_table(conn, query, args=())
-
-    return software['code_id'][-1]
+    
+    if len(software) > 0:
+        return software['code_id'][-1]
+    else:
+        raise ValueError('Could not find a software entry in the phot_db consistent with '+stage_name)
 
 def fetch_stars_table(conn):
     """Function to extract the stars table for a given field"""
