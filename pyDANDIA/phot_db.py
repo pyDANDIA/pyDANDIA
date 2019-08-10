@@ -255,6 +255,96 @@ class PhotometryPoints(TableDef):
     pc_001_photindex = (
         'CREATE UNIQUE INDEX phot_entry ON phot(star_id, reference_image, image, facility, filter, software)')
 
+class DetrendingParameters(TableDef):
+    """Photometry database table describing the detrending parameters applied"""
+    
+    c_000_detrend_id = 'INTEGER PRIMARY KEY'
+    c_010_facility = 'INTEGER REFERENCES facilities(facility_id)'
+    c_020_filter = 'INTEGER REFERENCES filters(filter_id)'
+    c_030_coefficient_name = 'TEXT'
+    c_040_coefficient_value = 'REAL'
+    c_050_detrending = 'TEXT'
+
+class StarColours(TableDef):
+    """Photometry database table describing the parameters computed for each
+    star using data of multiple wavelengths"""
+    
+    c_000_star_col_id = 'INTEGER PRIMARY KEY'
+    c_010_star_id = 'INTEGER REFERENCES stars(star_id)'
+    c_020_facility = 'INTEGER REFERENCES facilities(facility_id)'
+    c_030_cal_mag_corr_g = 'REAL'
+    c_030_cal_mag_corr_g_err = 'REAL'
+    c_030_cal_mag_corr_r = 'REAL'
+    c_030_cal_mag_corr_r_err = 'REAL'
+    c_030_cal_mag_corr_i = 'REAL'
+    c_030_cal_mag_corr_i_err = 'REAL'
+    c_030_gi = 'REAL'
+    c_030_gi_err = 'REAL'
+    c_030_gr = 'REAL'
+    c_030_gr_err = 'REAL'
+    c_030_ri = 'REAL'
+    c_030_ri_err = 'REAL'
+    
+class StarVariability(TableDef):
+    """Photometry database table describing the parameters computed on a 
+    per star, facility and filter basis"""
+    
+    c_000_star_var_id = 'INTEGER PRIMARY KEY'
+    c_010_star_id = 'INTEGER REFERENCES stars(star_id)'
+    c_020_facility = 'INTEGER REFERENCES facilities(facility_id)'
+    c_030_filter = 'INTEGER REFERENCES filters(filter_id)'
+    c_040_rms = 'REAL'
+    c_050_shannon_entropy = 'REAL'
+    c_060_con = 'REAL'
+    c_070_con2 = 'REAL'
+    c_080_kurtosis = 'REAL'
+    c_090_skewness = 'REAL'
+    c_100_vonNeumannRatio = 'REAL'
+    c_110_stetsonJ = 'REAL'
+    c_120_stetsonK = 'REAL'
+    c_130_stetsonL = 'REAL'
+    c_140_median_buffer_range = 'REAL'
+    c_150_median_buffer_range2 = 'REAL'
+    c_160_std_over_mean = 'REAL'
+    c_170_amplitude = 'REAL'
+    c_180_median_distance = 'REAL'
+    c_190_above1 = 'REAL'
+    c_200_above3 = 'REAL'
+    c_210_above5 = 'REAL'
+    c_220_below1 = 'REAL'
+    c_230_below3 = 'REAL'
+    c_240_below5 = 'REAL'
+    c_250_medianAbsDev = 'REAL'
+    c_260_root_mean_squared = 'REAL'
+    c_270_meanMag = 'REAL'
+    c_280_integrate = 'REAL'
+    c_290_remove_allbad = 'REAL'
+    c_300_peak_detection = 'REAL'
+    c_310_abs_energy = 'REAL'
+    c_320_abs_sum_changes = 'REAL'
+    c_330_auto_corr = 'REAL'
+    c_340_c3 = 'REAL'
+    c_350_complexity = 'REAL'
+    c_360_count_above = 'REAL'
+    c_370_count_below = 'REAL'
+    c_380_first_loc_max = 'REAL'
+    c_390_first_loc_min = 'REAL'
+    c_400_check_for_duplicate = 'REAL'
+    c_410_check_for_max_duplicate = 'REAL'
+    c_420_check_for_min_duplicate = 'REAL'
+    c_430_check_max_last_loc = 'REAL'
+    c_440_check_min_last_loc = 'REAL'
+    c_450_longest_strike_above = 'REAL'
+    c_460_longest_strike_below = 'REAL'
+    c_470_mean_change = 'REAL'
+    c_480_mean_abs_change = 'REAL'
+    c_490_mean_second_derivative = 'REAL'
+    c_500_ratio_recurring_points = 'REAL'
+    c_510_sample_entropy = 'REAL'
+    c_520_sum_values = 'REAL'
+    c_530_time_reversal_asymmetry = 'REAL'
+    c_540_normalize = 'REAL'
+    
 # This is what the classes are actually called in the database schema
 FILTERS_TD = Filters("filters")
 FACILITIES_TD = Facilities("facilities")
@@ -264,7 +354,9 @@ REFERENCE_COMPONENTS_TD = ReferenceComponents("reference_components")
 IMAGES_TD = Images("images")
 STARS_TD = Stars("stars")
 PHOTOMETRY_TD = PhotometryPoints("phot")
-
+DETREND_TD = DetrendingParameters("detrend")
+STARCOLOURS_TD = StarColours("star_colours")
+STARVARIABILITY_TD = StarVariability("star_var")
 
 def ensure_table(conn, table_def):
     """makes sure the TableDef instance table_def exists on the database.
@@ -284,7 +376,15 @@ def ensure_tables(conn, *table_defs):
     for table_def in table_defs:
         ensure_table(conn, table_def)
 
-
+def ensure_extra_table(conn,table_name):
+    
+    if table_name == 'DetrendingParameters':
+        ensure_table(conn,DETREND_TD)
+    elif table_name == 'StarColours':
+        ensure_table(conn,STARCOLOURS_TD)
+    elif table_name == 'StarVariability':
+        ensure_table(conn,STARVARIABILITY_TD)
+    
 def get_connection(dsn=database_file_path):
 
     conn = sqlite3.connect(dsn,

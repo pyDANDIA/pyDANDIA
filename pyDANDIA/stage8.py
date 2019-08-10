@@ -30,6 +30,7 @@ def run_stage8():
     
     # Setup the DB connection and record dataset and software parameters
     conn = phot_db.get_connection(dsn=params['phot_db_path'])
+    phot_db.ensure_extra_table(conn,'DetrendingParameters')
     
     primary_ref = identify_primary_reference_datasets(conn, log)
     
@@ -78,6 +79,8 @@ def run_stage8():
                     
                         output_to_metadata(dataset_red_dir, reduction_metadata, delta_mag, delta_mag_err)
                     
+                        output_to_photdb(conn, ref_image['facility'][0], red_f, delta_mag, delta_mag_err)
+                        
         else:
             
             log.info('No primary photometry available in filter '+f)
@@ -385,7 +388,7 @@ def apply_magnitude_offset(conn, ref_phot, refimg_id, delta_mag, delta_mag_err, 
         values.append( ( str(dp['phot_id']), str(dp['star_id']), str(dp['hjd']), 
                         str(dp['calibrated_mag']), str(dp['calibrated_mag_err']),
                         str(dp['calibrated_flux']), str(dp['calibrated_flux_err']) ) )
-                        
+        
     command = 'INSERT OR REPLACE INTO phot (phot_id, star_id, hjd, calibrated_mag, calibrated_mag_err, calibrated_flux, calibrated_flux_err) VALUES (?,?,?,?,?,?,?)'
     
     cursor = conn.cursor()
@@ -428,6 +431,25 @@ def output_to_metadata(dataset_red_dir,reduction_metadata, delta_mag, delta_mag_
     reduction_metadata.save_a_layer_to_file(dataset_red_dir, 
                                                 'pyDANDIA_metadata.fits',
                                                 'detrending_parameters')
+
+def output_to_photdb(conn, facility_id, filter_name, delta_mag, delta_mag_err):
+    
+    query = 'SELECT filter_id, filter_name FROM filters WHERE filter_name="'+filter_name+'"'
+    t = phot_db.query_to_astropy_table(conn, query, args=())
+    filter_id = t['filter_id'][0]
+    
+    entries = [ ( str(facility_id), str(filter_id), \
+                  'delta_mag', str(delta_mag), 'reference_offset' ),
+                ( str(facility_id), str(filter_id), \
+                  'delta_mag_err', str(delta_mag_err), 'reference_offset' ) ]
+    
+    command = 'INSERT OR REPLACE INTO detrend (facility, filter, coefficient_name, coefficient_value, detrending) VALUES (?,?,?,?,?)'
+    
+    cursor = conn.cursor()
+        
+    cursor.executemany(command, entries)
+    
+    conn.commit()
     
 if __name__ == '__main__':
     

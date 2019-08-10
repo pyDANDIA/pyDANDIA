@@ -477,6 +477,29 @@ def test_find_primary_reference_image_for_field():
     logs.close_log(log)
     
     conn.close()
+
+def test_add_table_to_existing_db():
+
+    if os.path.isfile(db_file_path):
+        os.remove(db_file_path)
+        
+    conn = phot_db.get_connection(dsn=db_file_path)
+    
+    (names, tuples) = generate_test_catalog()
+    
+    phot_db.feed_to_table_many(conn, 'Stars', names, tuples)
+
+    query = 'SELECT star_id,ra,dec FROM stars'
+    t = phot_db.query_to_astropy_table(conn, query, args=())
+    
+    assert len(t) == len(tuples)
+    conn.close()
+    
+    conn = phot_db.get_connection(dsn=db_file_path)
+    
+    phot_db.ensure_extra_table(conn,'DetrendingParameters')
+    
+    conn.close()
     
 if __name__ == '__main__':
     
@@ -492,5 +515,5 @@ if __name__ == '__main__':
     #test_find_previous_reference_image_for_dataset()
     #test_cascade_delete_reference_image()
     #test_find_reference_image_for_dataset()
-    test_find_primary_reference_image_for_field()
-    
+    #test_find_primary_reference_image_for_field()
+    test_add_table_to_existing_db()
