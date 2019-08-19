@@ -346,7 +346,7 @@ def subtract_with_constant_kernel(new_images, reference_image_name, reference_im
             
             log.info('Loading pre-existing u-matrix')
             
-            umatrices, kernel_sizes, max_adu_restored = np.load(os.path.join(kernel_directory_path,'unweighted_u_matrix.npy'))
+            umatrices, kernel_sizes, max_adu_restored = np.load(os.path.join(kernel_directory_path,'unweighted_u_matrix.npy'),allow_pickle=True)
             
             if (kernel_sizes != kernel_size_array) or (max_adu_restored != max_adu):
                 #calculate and store unweighted umatrices
@@ -484,7 +484,7 @@ def subtract_large_format_image(new_images, reference_image_name, reference_imag
             pool.terminate()
             np.save(os.path.join(kernel_directory_path,'unweighted_u_matrix_subimages.npy'), [umatrix_stamps, kernel_size, max_adu, maxshift])
         else:
-            umatrix_stamps, kernel_size, max_adu, maxshift = np.load(os.path.join(kernel_directory_path,'unweighted_u_matrix_subimages.npy'))
+            umatrix_stamps, kernel_size, max_adu, maxshift = np.load(os.path.join(kernel_directory_path,'unweighted_u_matrix_subimages.npy'),allow_pickle=True)
    
     #iterate over all images and subimages
     for new_image in new_images:

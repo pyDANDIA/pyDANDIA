@@ -216,8 +216,15 @@ def extract_bright_central_stars(setup, detected_sources, catalog_sources,
                                                 det_catalog_file,colour='yellow')
     catalog_utils.output_ds9_overlay_from_table(bright_central_catalog_stars,
                                                 cat_catalog_file,colour='magenta')
-    
-    return bright_central_detected_stars, bright_central_catalog_stars
+    #print(radius)
+
+    if (len(bright_central_detected_stars)==0) | (len(bright_central_catalog_stars)==0):
+
+        return extract_bright_central_stars(setup, detected_sources, catalog_sources, image_wcs, log, 2*radius)
+
+    else:
+
+        return bright_central_detected_stars, bright_central_catalog_stars
     
 def extract_central_region_from_catalogs(detected_sources, gaia_sources, log):
     """Function to extract the positions of stars in the central region of an

@@ -72,10 +72,10 @@ def run_reference_astrometry(setup):
         # Calculates initial x,y from image WCS, initializes (x,y) -> (x1,y1)
         gaia_sources = catalog_objects_in_reference_image(setup, header, 
                                                           image_wcs, log)
-        
+
         vphas_sources = phot_catalog_objects_in_reference_image(setup, header, fov,
                                                                 image_wcs, log)
-        
+
         (bright_central_detected_stars, bright_central_gaia_stars) = wcs.extract_bright_central_stars(setup,detected_sources, 
                         gaia_sources, image_wcs, log, radius=0.05)
         
@@ -199,7 +199,7 @@ def run_reference_astrometry(setup):
     
 def detect_objects_in_reference_image(setup, reduction_metadata, meta_pars, 
                                       image_wcs, log):
-    
+
     scidata = fits.getdata(meta_pars['ref_image_path'])
     
     detected_objects = starfind.detect_sources(setup, reduction_metadata,

@@ -113,7 +113,7 @@ def calc_offset_pixels(setup, detected_stars, catalog_stars,log,
     offset between two sets of world coordinates.
     Re-implementation of the the approach used in RoboCut, written by E. Bachelet.
     """
-    
+
     nstars = len(detected_stars)
     nxbins = int(detected_stars['x'].max() - detected_stars['x'].min())
     nybins = int(detected_stars['y'].max() - detected_stars['y'].min())
