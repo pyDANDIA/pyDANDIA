@@ -200,11 +200,14 @@ def calculate_colours(photometry,stars,log):
     idx = np.where(stars['vphas_imag'] != 0.0)[0]
 
     photometry['gr_cat'] = calc_colour_data(gdx, rdx,
-                                         stars['vphas_gmag'], stars['vphas_rmag'])
+                                         stars['vphas_gmag'], stars['vphas_gmag_error'],
+                                         stars['vphas_rmag'], stars['vphas_rmag_error'])
     photometry['gi_cat'] = calc_colour_data(gdx, idx,
-                                         stars['vphas_gmag'], stars['vphas_imag'])
+                                         stars['vphas_gmag'], stars['vphas_gmag_error'],
+                                         stars['vphas_imag'], stars['vphas_imag_error'])
     photometry['ri_cat'] = calc_colour_data(rdx, idx,
-                                         stars['vphas_rmag'], stars['vphas_imag'])
+                                         stars['vphas_rmag'], stars['vphas_rmag_error'],
+                                         stars['vphas_imag'], stars['vphas_imag_error'])
 
     log.info('Calculated VPHAS catalog colours for all stars identified within field')
 

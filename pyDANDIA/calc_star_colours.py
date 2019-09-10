@@ -35,7 +35,7 @@ def compute_star_colours():
 
     photometry = plot_cmd.calculate_colours(photometry,stars,log)
 
-    output_colours_to_photdb(conn, photometry)
+    output_colours_to_photdb(conn, primary_facility, stars, photometry)
 
     conn.close()
 
@@ -74,13 +74,13 @@ def output_colours_to_photdb(conn, primary_facility, stars, photometry):
 
     for j,star in enumerate(stars):
 
-        entries.append( ( str(star['star_id']), str(facility['facility_id']), \
-                        str(photometry[j]['g']), str(photometry[j]['gerr']), \
-                        str(photometry[j]['r']), str(photometry[j]['rerr']), \
-                        str(photometry[j]['i']), str(photometry[j]['ierr']), \
-                        str(photometry[j]['gi']), str(photometry[j]['gi_err']), \
-                        str(photometry[j]['gr']), str(photometry[j]['gr_err']), \
-                        str(photometry[j]['ri']), str(photometry[j]['ri_err']), \
+        entries.append( ( str(star['star_id']), str(primary_facility['facility_id'][0]), \
+                        str(photometry['g'][j]), str(photometry['gerr'][j]), \
+                        str(photometry['r'][j]), str(photometry['rerr'][j]), \
+                        str(photometry['i'][j]), str(photometry['ierr'][j]), \
+                        str(photometry['gi'][j]), str(photometry['gi_err'][j]), \
+                        str(photometry['gr'][j]), str(photometry['gr_err'][j]), \
+                        str(photometry['ri'][j]), str(photometry['ri_err'][j]), \
                         ) )
 
         print(entries[-1])
