@@ -35,9 +35,7 @@ def compute_star_colours():
 
     photometry = plot_cmd.calculate_colours(photometry,stars,log)
 
-    print(photometry)
-
-    #output_colours_to_photdb(conn, photometry)
+    output_colours_to_photdb(conn, photometry)
 
     conn.close()
 
@@ -85,11 +83,13 @@ def output_colours_to_photdb(conn, primary_facility, stars, photometry):
                         str(photometry[j]['ri']), str(photometry[j]['ri_err']), \
                         ) )
 
-    cursor = conn.cursor()
+        print(entries[-1])
 
-    cursor.executemany(command, entries)
+    #cursor = conn.cursor()
 
-    conn.commit()
+    #cursor.executemany(command, entries)
+
+    #conn.commit()
 
 if __name__ == '__main__':
 

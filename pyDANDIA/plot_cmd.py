@@ -109,7 +109,9 @@ def extract_reference_instrument_calibrated_photometry(conn,log):
     photometry = {'phot_table_g': [], 'phot_table_r': [], 'phot_table_i': []}
 
     log.info('-> Extracting photometry for stars')
-    for star in stars:
+
+
+    for j,star in enumerate(stars):
         for f,fid in filters.items():
             query = 'SELECT star_id, calibrated_mag, calibrated_mag_err FROM phot WHERE star_id="'+str(star['star_id'])+\
                             '" AND facility="'+str(facility_id)+\
@@ -124,6 +126,9 @@ def extract_reference_instrument_calibrated_photometry(conn,log):
                 photometry['phot_table_'+f].append([data['star_id'][0], data['calibrated_mag'][0], data['calibrated_mag_err'][0]])
             else:
                 photometry['phot_table_'+f].append([star['star_id'],0.0,0.0])
+
+        if j%1000.0 == 0.0:
+            print('--> Completed '+str(j)+' stars out of '+str(len(stars)))
 
     for f,fid in filters.items():
         table_data = np.array(photometry['phot_table_'+f])
@@ -157,27 +162,36 @@ def extract_reference_instrument_calibrated_photometry(conn,log):
 
 def calculate_colours(photometry,stars,log):
 
-    def calc_colour_data(blue_index, red_index, blue_phot, red_phot):
+    def calc_colour_data(blue_index, red_index, blue_phot, blue_phot_err,
+                                                red_phot, red_phot_err):
 
         col_index = list(set(blue_index).intersection(set(red_index)))
 
         col_data = np.zeros(len(red_phot))
         col_data.fill(-99.999)
+        col_data_err = np.zeros(len(red_phot))
+        col_data_err.fill(-99.999)
 
         col_data[col_index] = blue_phot[col_index] - red_phot[col_index]
 
-        return col_data
+        col_data_err[col_index] = np.sqrt( (blue_phot_err[col_index]*blue_phot_err[col_index])  + \
+                                            (red_phot_err[col_index]*red_phot_err[col_index]) )
+
+        return col_data, col_data_err
 
     gdx = np.where(photometry['g'] != 0.0)[0]
     rdx = np.where(photometry['r'] != 0.0)[0]
     idx = np.where(photometry['i'] != 0.0)[0]
 
-    photometry['gr'] = calc_colour_data(gdx, rdx,
-                                         photometry['g'], photometry['r'])
-    photometry['gi'] = calc_colour_data(gdx, idx,
-                                         photometry['g'], photometry['i'])
-    photometry['ri'] = calc_colour_data(rdx, idx,
-                                         photometry['r'], photometry['i'])
+    (photometry['gr'],photometry['gr_err']) = calc_colour_data(gdx, rdx,
+                                         photometry['g'], photometry['gerr'],
+                                         photometry['r'], photometry['rerr'])
+    (photometry['gi'],photometry['gi_err']) = calc_colour_data(gdx, idx,
+                                         photometry['g'], photometry['gerr'],
+                                         photometry['i'], photometry['ierr'])
+    (photometry['ri'],photometry['ri_err']) = calc_colour_data(rdx, idx,
+                                         photometry['r'], photometry['rerr'],
+                                         photometry['i'], photometry['ierr'])
 
     log.info('Calculated colour data for stars detected in ROME data')
 
