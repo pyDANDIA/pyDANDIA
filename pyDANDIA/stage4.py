@@ -8,7 +8,9 @@
 #      numpy 1.8+
 #      astropy 1.0+
 ######################################################################
+import matplotlib
 
+matplotlib.use('tkagg')
 import numpy as np
 import os
 from astropy.io import fits
@@ -45,7 +47,30 @@ from skimage.feature import register_translation
 
 from skimage.feature import (ORB, match_descriptors,
                              plot_matches)
+import itertools
+class PolyTF_4(tf.PolynomialTransform):
+    def estimate(*data):
+        return tf.PolynomialTransform.estimate(*data, order=4)
 
+def polyfit2d(x, y, z, order=3,errors=None):
+    import math
+
+    ncols = int(math.factorial(order+2)/(math.factorial(order)*2))
+    G = np.zeros((x.size, ncols))
+
+    k = 0
+    for j in range(order+1):
+        for i in range(j+1):
+            G[:,k] = x**(j-i) * y**i
+            k+=1 
+
+    if errors is not None:
+        G *= 1/errors[:,np.newaxis]
+        Z = z*1/errors  
+    else:
+        Z=z
+    m, _, _, _ = np.linalg.lstsq(G, Z)
+    return m
 
 def run_stage4(setup):
     """Main driver function to run stage 4: image alignement.
@@ -67,6 +92,7 @@ def run_stage4(setup):
     reduction_metadata.load_all_metadata(setup.red_dir, 'pyDANDIA_metadata.fits')
 
     # find the images needed to treat
+
     all_images = reduction_metadata.find_all_images(setup, reduction_metadata,
                                                     os.path.join(setup.red_dir, 'data'), log=log)
 
@@ -110,6 +136,7 @@ def run_stage4(setup):
 
         data = []
         images_directory = reduction_metadata.data_architecture[1]['IMAGES_PATH'].data[0]
+        import pdb; pdb.set_trace()
         for new_image in new_images:
             target_image = open_an_image(setup, images_directory, new_image, log, image_index=0)
 
@@ -136,12 +163,12 @@ def run_stage4(setup):
 
         if ('SHIFT_X' in reduction_metadata.images_stats[1].keys()) and (
                 'SHIFT_Y' in reduction_metadata.images_stats[1].keys()):
-
+           
             for index in range(len(data)):
                 target_image = data[index][0]
                 x_shift = data[index][1]
                 y_shift = data[index][2]
-                row_index = np.where(reduction_metadata.images_stats[1]['IM_NAME'].data == new_image)[0][0]
+                row_index = np.where(reduction_metadata.images_stats[1]['IM_NAME'].data == target_image)[0][0]
                 reduction_metadata.update_a_cell_to_layer('images_stats', row_index, 'SHIFT_X', x_shift)
                 reduction_metadata.update_a_cell_to_layer('images_stats', row_index, 'SHIFT_Y', y_shift)
                 logs.ifverbose(log, setup,
@@ -250,17 +277,17 @@ def find_x_y_shifts_from_the_reference_image(setup, reference_image, target_imag
     half_x = int(edgefraction * float(reference_shape[0]) / 2)
     half_y = int(edgefraction * float(reference_shape[1]) / 2)
 
-    reduce_template = reference_image[
-                      x_center - half_x:x_center + half_x, y_center - half_y:y_center + half_y]
+    #reduce_template = reference_image[
+    #                 x_center - half_x:x_center + half_x, y_center - half_y:y_center + half_y]
 
-    reduce_image = target_image[
-                   x_center - half_x:x_center + half_x, y_center - half_y:y_center + half_y]
+    #reduce_image = target_image[
+    #               x_center - half_x:x_center + half_x, y_center - half_y:y_center + half_y]
     # x_shift, y_shift = correlation_shift(reduce_template, reduce_image)
-    # import pdb;
-    # pdb.set_trace()
+    reduce_image = target_image
+    reduce_template = reference_image
     from skimage.feature import register_translation
     shifts, errors, phasediff = register_translation(reduce_template, reduce_image, 10)
-
+   
     x_shift = shifts[1]
     y_shift = shifts[0]
 
@@ -375,133 +402,6 @@ def point_transformation(params, pts1):
     return model
 
 
-def iterate_on_resampling(ref_sources, ref_image, data_image, reduction_metadata, row_index):
-    data = np.copy(data_image)
-    x_shift, y_shift = -reduction_metadata.images_stats[1][row_index]['SHIFT_X'], - \
-        reduction_metadata.images_stats[1][row_index]['SHIFT_Y']
-    shifteds = []
-    iterations = 0
-    while iterations < 3:
-
-        central_region_x, central_region_y = np.shape(data)
-        center_x, center_y = int(central_region_x / 2), int(central_region_y / 2)
-
-        mean_data, median_data, std_data = sigma_clipped_stats(
-            data, sigma=3.0, iters=5)
-        data_fwhm_x = reduction_metadata.images_stats[1][row_index]['FWHM_X']
-        data_fwhm_y = reduction_metadata.images_stats[1][row_index]['FWHM_Y']
-        data_fwhm = (data_fwhm_x ** 2 + data_fwhm_y ** 2) ** 0.5
-        daofind2 = DAOStarFinder(fwhm=max(data_fwhm_x, data_fwhm_y),
-                                 ratio=min(data_fwhm_x, data_fwhm_y) / max(data_fwhm_x, data_fwhm_y),
-                                 threshold=3. * std_data, exclude_border=True)
-
-        # pts1 = np.c_[]
-        # resample image if there is a sufficient number of stars
-        # import pdb; pdb.set_trace()
-        try:
-            # pts1 = np.c_[ data_sources_x -int(central_region_x/2), data_sources_y -int(central_region_y/2)][matching[:,1]]
-            # pts1 = np.c_[data_sources_x - int(central_region_x / 2)-1, data_sources_y - int(central_region_y / 2)-1][matching[:, 1]]
-            data_sources = daofind2.find_stars(data - median_data)
-
-            data_sources_x, data_sources_y = np.copy(data_sources['xcentroid'].data), np.copy(
-                data_sources['ycentroid'].data)
-
-            # correct for shift to facilitate cross-match
-            data_sources_x -= x_shift
-            data_sources_y -= y_shift
-
-            pts1, pts2, matching = reformat_catalog2(np.c_[ref_sources['xcentroid'], ref_sources['ycentroid']], np.c_[
-                data_sources['xcentroid'] - x_shift, data_sources['ycentroid'] - y_shift],
-                                                     distance_threshold=8)
-            pts1 = np.c_[data_sources_x + x_shift, data_sources_y + y_shift][matching[:, 1]]
-            pts2[:, 0] -= 0
-            pts2[:, 1] -= 0
-            order = ref_sources['flux'][matching[:, 0]].argsort()
-
-            pts1 = pts1[order][:]
-            pts2 = pts2[order][:]
-            e_flux = 0.6 * data_fwhm / data_sources['flux'][matching[:, 1]][order][:].data ** 0.5
-
-            # model_robust, inliers = ransac(( pts1,pts2), tf. AffineTransform,min_samples=10, residual_threshold=0.05, max_trials=300)
-            pts1 = np.c_[pts1, [1] * len(pts1)]
-            pts2 = np.c_[pts2, [1] * len(pts2)]
-
-            # model_final = iterate_on_resampling(pts1, pts2, matching, x_shift, y_shift, threshold_rms=0.05,
-            # threshold_star = 10)
-            model_robust, inliers = ransac((pts2[:, :2], pts1[:, :2]), tf.AffineTransform, min_samples=50,
-                                           residual_threshold=1.0, max_trials=1000)
-            model_final = model_robust
-            # guess = model_final.params.ravel()
-            # res = so.leastsq(quick_pos_fit, guess, args=(pts1[inliers], pts2[inliers], e_flux[inliers]), full_output=True)
-            # import pdb; pdb.set_trace()
-            # res = so.minimize(quick_pos_fit2, guess, args=(reference_image,data_image))
-            # model_final.params = res[0].reshape(3, 3)
-
-            # model_robust2, inliers2 = ransac((pts1[:, :2], pts2[:, :2]), tf.ProjectiveTransform, min_samples=10, residual_threshold = 0.1, max_trials = 100)
-            # model_final2 = model_robust2
-            # guess2 = model_final2.params.ravel()
-            # res2 = so.leastsq(quick_pos_fit, guess, args=(pts2[inliers2], pts1[inliers2], e_flux[inliers2]), full_output=True)
-            # res2 = so.minimize(quick_pos_fit2, guess2, args=(reference_image,data_image))
-            # model_final2.params = res2[0].reshape(3, 3)
-            print('Using Projective Transformation')
-            print(np.std(pts2[inliers, 0] - pts1[inliers, 0]), np.std(pts2[inliers, 1] - pts1[inliers, 1]))
-        except:
-
-            model_final = tf.SimilarityTransform(translation=(-x_shift, -y_shift))
-            print('Using XY shifts')
-
-        shifted = tf.warp(data, inverse_map=model_final, output_shape=data.shape, order=3, mode='constant',
-                          cval=np.median(data), clip=False, preserve_range=True)
-        shifteds.append(shifted)
-        data = np.copy(shifted)
-        shifts, errors, phasediff = register_translation(ref_image, data, 100)
-
-        x_shift = shifts[1]
-        y_shift = shifts[0]
-        iterations += 1
-
-    # import pdb; pdb.set_trace()
-    # try:
-    #    import matplotlib.pyplot as plt
-    #    plt.imshow(np.log10(ref_image))
-    #    plt.scatter(pts1[inliers,0],pts1[inliers,1],c='r')
-    #    plt.scatter(pts2[inliers,0],pts2[inliers,1])
-    #    plt.show()
-    # except:
-    #    pass
-    return shifteds
-
-
-# def iterate_on_resampling(pts1, pts2, matching, xshift, yshift, threshold_rms=0.05, threshold_star=10):
-#    print('Sigma clipping on the resampling')
-#    RMS = 2 * threshold_rms
-
-#    tform = tf.estimate_transform('affine', pts1[:, :2], pts2[:, :2])
-#    model = point_transformation(tform.params, pts1)
-#    distances = (pts2[:, 0] - model[0]) ** 2 + (pts2[:, 1] - model[1]) ** 2
-
-#    bad = np.where(distances > np.percentile(distances, 99))[0]
-
-#    while RMS > threshold_rms:
-
-# bad = np.argmax((e_flux ** 2 * quick_pos_fit(tform.params, pts1, pts2, e_flux)) ** 0.5)
-
-#        matching = np.delete(matching, bad, axis=0)
-#        pts1 = np.delete(pts1, bad, axis=0)
-#        pts2 = np.delete(pts2, bad, axis=0)
-
-#        if len(pts1) < threshold_star:
-#            tform = tf.SimilarityTransform(translation=(-xshift, -yshift))
-
-#            break
-#        tform = tf.estimate_transform('affine', pts1[:, :2], pts2[:, :2])
-#        model = point_transformation(tform.params, pts1)
-#        distances = (pts2[:, 0] - model[0]) ** 2 + (pts2[:, 1] - model[1]) ** 2
-#        bad = np.where(distances > np.percentile(distances, 99))[0]
-#        RMS = np.std(distances ** 0.5)
-#        print(RMS, ' pixels for ', len(pts1), 'stars')
-
-#    return tform
 
 def extract_catalog(reduction_metadata, data_image, row_index):
 
@@ -616,7 +516,7 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
         iteration = 0
         corr_ini = np.corrcoef(reference_image.ravel(), shifted.ravel())[0, 1]
         
-        while iteration <3:
+        while iteration <1:
 
 
 
@@ -642,28 +542,12 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
 
                 pts_reference2 = pts_reference
 
-                #e_pos *= data_fwhm
-
-                ##model_robust, inliers = ransac((pts_data[:, :2], pts_reference[:, :2]), tf.ProjectiveTransform, min_samples=int(0.5*len(pts_data)),
-                 #                              residual_threshold=5, max_trials=200)
-
-
-
-               # pts_data[:,0] -= y_shift
-               # pts_data[:,1] -= x_shift
-
-               # match = sf.match_descriptors(pts_reference, pts_data,max_distance = 10)
-               # pts_reference2 = pts_reference[match[:,0]]
-               # pts_data = pts_data[match[:,1]]
-
-
-               # pts_data[:, 0] += y_shift
-               # pts_data[:, 1] += x_shift
-
-                model_robust, inliers = ransac((pts_data[:2500, :2], pts_reference2[:2500, :2]), tf.ProjectiveTransform, min_samples=min(50,int(0.1*len(pts_data))), residual_threshold=10.0,max_trials=100)
+                
+                model_robust, inliers = ransac((pts_data[:2500, :2], pts_reference2[:2500, :2]), tf.ProjectiveTransform, min_samples=min(50,int(0.1*len(pts_data[:2500]))), residual_threshold=1.0,max_trials=100)
+               
 
                 model_final = model_robust
-
+               
                 print('Using Projective Transformation')
 
             except:
@@ -676,9 +560,12 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
                 shifted = tf.warp(data_image, inverse_map=model_final.inverse, output_shape=data_image.shape, order=3,
                                   mode='constant', cval=np.median(data_image), clip=False, preserve_range=False)
 
-                shifted_mask = tf.warp(shifted_mask, inverse_map=model_final.inverse, preserve_range=True)
-
                 corr = np.corrcoef(reference_image.ravel(),shifted.ravel())[0,1]
+
+
+                shifted_mask = tf.warp(mask_image,inverse_map=model_final.inverse, output_shape=data_image.shape, order=3,
+                                  mode='constant', cval=1, clip=False, preserve_range=False)
+                #import pdb; pdb.set_trace()
             except:
                 shifted_mask = np.zeros(np.shape(data_image))
                 print('Similarity Transform has failed to produce parameters')

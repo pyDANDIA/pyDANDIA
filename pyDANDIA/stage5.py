@@ -323,8 +323,10 @@ def subtract_with_constant_kernel(new_images, reference_image_name, reference_im
         
     if len(new_images) > 0:
         try:
+
             master_mask = fits.open(os.path.join(reduction_metadata.data_architecture[1]['REF_PATH'][0],'master_mask.fits'))
-            master_mask = np.where(master_mask[0].data > 0.85 * np.max(master_mask[0].data))
+            #master_mask = np.where(master_mask[0].data > 0.85 * np.max(master_mask[0].data))
+            master_mask = master_mask[0].data>0
         except:
             master_mask = []
             
@@ -394,6 +396,7 @@ def subtract_with_constant_kernel(new_images, reference_image_name, reference_im
         smoothing = smoothing_2sharp_images(reduction_metadata, ref_fwhm_x, ref_fwhm_y, ref_sigma_x, ref_sigma_y, row_index)
 
         try:
+
             data_image, data_image_unmasked = open_data_image(setup, data_image_directory, new_image, bright_reference_mask, kernel_size, max_adu, xshift = x_shift, yshift = y_shift, sigma_smooth = smoothing, central_crop = maxshift)
             missing_data_mask = (data_image == 0.)        
             b_vector = bvector_constant(reference_image, data_image, kernel_size, noise_image)
