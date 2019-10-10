@@ -28,6 +28,7 @@ def compute_star_colours():
     log.info('Starting parameters: '+repr(params))
 
     conn = phot_db.get_connection(dsn=params['db_file_path'])
+    phot_db.ensure_extra_table(conn,'StarColours')
 
     primary_facility = phot_db.find_primary_reference_facility(conn,log)
 
@@ -68,7 +69,7 @@ def output_colours_to_photdb(conn, primary_facility, stars, photometry):
 
     value_string = ','.join( ['?']*len(keys) )
 
-    command = 'INSERT OR REPLACE INTO star_colours ('+key_string+') VALUES '+value_string
+    command = 'INSERT OR REPLACE INTO star_colours ('+key_string+') VALUES ('+value_string+')'
 
     entries = []
 
@@ -83,13 +84,11 @@ def output_colours_to_photdb(conn, primary_facility, stars, photometry):
                         str(photometry['ri'][j]), str(photometry['ri_err'][j]), \
                         ) )
 
-        print(entries[-1])
+    cursor = conn.cursor()
 
-    #cursor = conn.cursor()
+    cursor.executemany(command, entries)
 
-    #cursor.executemany(command, entries)
-
-    #conn.commit()
+    conn.commit()
 
 if __name__ == '__main__':
 
