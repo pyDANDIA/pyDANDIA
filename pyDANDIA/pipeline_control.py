@@ -9,6 +9,7 @@ from sys import argv
 from sys import path as systempath
 cwd = getcwd()
 systempath.append(path.join(cwd,'../'))
+import copy
 import pipeline_setup
 import glob
 import subprocess
@@ -43,7 +44,7 @@ def get_args():
         params['base_dir'] = input('Please enter the path to the base directory: ')
         params['phot_db_path'] = input('Please enter the path to the database file: ')
         print('''Please enter the required reduction mode out of:
-        {data_preparation, added_data_preparation, reference_analysis, image_analysis}''')
+        {data_preparation, added_data_preparation, reference_analysis, image_analysis, stage3_db_ingest}''')
         params['red_mode'] = input('Reduction mode: ')
 
     else:
@@ -55,6 +56,7 @@ def get_args():
     params['pipeline_config_dir'] = path.join(params['base_dir'],'config')
 
     setup = pipeline_setup.pipeline_setup(params)
+    setup.phot_db_path = params['phot_db_path']
 
     return setup
 
@@ -79,33 +81,21 @@ def get_datasets_for_reduction(setup,log):
 
         file_lines = open(datasets_file).readlines()
 
-        datasets = []
+        datasets = {}
 
         log.info('Going to reduce the following datasets:')
 
         for line in file_lines:
 
             if len(line.replace('\n','')) > 0:
-                datasets.append(line.replace('\n',''))
+                (dataset_code, ref_status) = line.replace('\n','').split()
+                datasets[dataset_code] = ref_status
 
-            log.info(datasets[-1])
+            log.info(dataset_code)
 
     else:
 
-        log.info('No instruction file found, going to reduce all datasets')
-
-        dir_list = glob.glob(path.join(setup.base_dir,'*'))
-
-        datasets = []
-
-        for item in dir_list:
-
-            if 'logs' not in item and 'config' not in item \
-                and len(path.basename(item)) > 0:
-
-                datasets.append(path.basename(item))
-
-                log.info(datasets[-1])
+        raise IOError('Cannot find input list of datasets')
 
     return datasets
 
@@ -118,18 +108,53 @@ def run_reductions(setup,log,datasets):
         datasets    list                    Dataset red_dir names
     """
 
-    log.info('Starting reductions:')
+    if setup.red_mode in ['stage3_db_ingest', 'stage6']:
 
-    for data_dir in datasets:
+        log.info('Starting sequential reductions')
 
-        dataset_dir = path.join(setup.base_dir,data_dir)
+        primary = None
+        for data_dir,data_status in datasets.items():
+            if 'primary' in data_status and primary == None:
+                primary = data_dir
+            elif 'primary' in data_status and primary != None:
+                raise TypeError('Multiple primary reference datasets indicated in input file')
 
-        pid = trigger_reduction(setup,dataset_dir,debug=False)
+        data_order = []
+        if primary != None:
 
-        log.info(' -> Dataset '+path.basename(dataset_dir)+\
-                ' reduction PID '+str(pid))
+            dsetup = copy.copy(setup)
+            dsetup.red_dir = path.join(dsetup.base_dir,primary)
+            dsetup.log_dir = path.join(dsetup.base_dir,primary)
 
-def trigger_reduction(setup,dataset_dir,debug=False):
+            log.info('Running '+dsetup.red_mode+' for '+primary+' as primary reference')
+            trigger_single_reduction(dsetup, primary, 'primary_ref')
+
+        for data_dir,data_status in datasets.items():
+            if data_dir != primary:
+                data_order.append(data_dir)
+
+        for data_dir in data_order:
+            dsetup = copy.copy(setup)
+            dsetup.red_dir = path.join(dsetup.base_dir,data_dir)
+            dsetup.log_dir = path.join(dsetup.base_dir,data_dir)
+
+            log.info('Running '+dsetup.red_mode+' for '+data_dir+' as standard dataset')
+
+            trigger_single_reduction(dsetup, data_dir, 'non_ref')
+
+    else:
+        log.info('Starting parallel reductions:')
+
+        for data_dir,data_status in datasets.items():
+
+            dataset_dir = path.join(setup.base_dir,data_dir)
+
+            pid = trigger_parallel_reduction(setup,dataset_dir,data_status,debug=False)
+
+            log.info(' -> Dataset '+path.basename(dataset_dir)+\
+                    ' reduction PID '+str(pid))
+
+def trigger_parallel_reduction(setup,dataset_dir,data_status,debug=False):
     """Function to spawn a child process to run the reduction of a
     single dataset.
 
@@ -138,26 +163,42 @@ def trigger_reduction(setup,dataset_dir,debug=False):
         dataset_dir   str    Path to dataset red_dir
     """
 
-    if debug == False:
-
-        command = path.join(setup.software_dir,'reduction_control.py')
-
-    else:
-
-        if 'tests' in setup.software_dir:
+    if 'tests' in setup.software_dir:
 
             command = path.join(setup.software_dir,'counter.py')
+            args = args = ['python', command, dataset_dir, setup.phot_db_path, setup.red_mode]
 
-        else:
+    elif setup.red_mode in ['data_preparation', 'added_data_preparation',
+                            'reference_analysis', 'image_analysis']:
 
-            command = path.join(setup.software_dir,'tests','counter.py')
-
-    args = ['python', command, dataset_dir, setup.phot_db_path, setup.red_mode]
+        command = path.join(setup.software_dir,'reduction_control.py')
+        args = ['python', command, dataset_dir, setup.phot_db_path, setup.red_mode, data_status]
 
     p = subprocess.Popen(args, stdout=subprocess.PIPE)
 
     return p.pid
 
+
+def trigger_single_reduction(setup,dataset_dir,data_status):
+    """Function to spawn a child process to run the reduction of a
+    single dataset.
+
+    Inputs:
+        setup       PipelineSetup object
+        dataset_dir   str    Path to dataset red_dir
+    """
+
+    if setup.red_mode == 'stage3_db_ingest' or setup.red_mode == 'stage6':
+
+        command = path.join(setup.software_dir,'reduction_control.py')
+        args = ['python', command, setup.red_dir, setup.phot_db_path, setup.red_mode, data_status]
+
+        pid = subprocess.call(args, stdout=subprocess.PIPE)
+
+    else:
+        raise TypeError('Can only trigger a single reduction for stage3_db_ingest or stage6')
+        
+    return pid
 
 
 if __name__ == '__main__':
