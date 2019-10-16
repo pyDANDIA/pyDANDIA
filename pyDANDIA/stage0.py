@@ -12,6 +12,7 @@
 import numpy as np
 import os
 from astropy.io import fits
+import astropy.units as u
 import sys
 
 from pyDANDIA import config_utils
@@ -81,22 +82,21 @@ def run_stage0(setup):
     new_images = reduction_metadata.find_images_need_to_be_process(setup, all_images,
                                                                    stage_number=0, rerun_all=None, log=log)
     # create new rows on reduction status for new images
-
     reduction_metadata.update_reduction_metadata_reduction_status(new_images, stage_number=0, status=0, log=log)
-
+    
     # construct the stamps if needed
     if reduction_metadata.stamps[1]:
         pass
     else:
 
         open_image = open_an_image(setup, reduction_metadata.data_architecture[1]['IMAGES_PATH'][0],
-                                   new_images[0], image_index=0, log=log)
+                                   new_images[0], log,  image_index=0)
 
         update_reduction_metadata_stamps(setup, reduction_metadata, open_image,
-                                         stamp_size=None,
+                                         stamp_size=(1000,1000),
                                          arcseconds_stamp_size=(110, 110),
                                          pixel_scale=None,
-                                         number_of_overlaping_pixels=25, log=log)
+                                         number_of_overlaping_pixels=10, log=log)
 
     if len(new_images) > 0:
 
@@ -115,11 +115,11 @@ def run_stage0(setup):
 
         for new_image in new_images:
             open_image = open_an_image(setup, reduction_metadata.data_architecture[1]['IMAGES_PATH'][0],
-                                       new_image, image_index=0, log=log)
+                                       new_image, log, image_index=0)
             
             image_bpm = open_an_image(setup, reduction_metadata.data_architecture[1]['BPM_PATH'][0],
-                                           new_image, image_index=2, log=log)
-        
+                                           new_image, log, image_index=2)
+            
             # Occasionally, the LCO BANZAI pipeline fails to produce an image
             # catalogue for an image.  If this happens, there will only be 2 
             # extensions to the FITS image HDU, the PrimaryHDU (main image data)
@@ -127,13 +127,13 @@ def run_stage0(setup):
             if image_bpm == None:
                 
                 image_bpm = open_an_image(setup, reduction_metadata.data_architecture[1]['BPM_PATH'][0],
-                                           new_image, image_index=1, log=log)
+                                           new_image, log, image_index=1)
             
             bpm = bad_pixel_mask.construct_the_pixel_mask(setup, reduction_metadata, 
                                                   open_image, image_bpm, [1,3], log,
                                                   low_level=0,
                                                   instrument_bpm=instrument_bpm)
-                                               
+
             save_the_pixel_mask_in_image(reduction_metadata, new_image, bpm)
             logs.ifverbose(log, setup, ' -> ' + new_image)
 
@@ -172,10 +172,16 @@ def read_the_config_file(config_directory, config_file_name='config.json',
     :rtype: dictionnary
     '''
 
+    if os.path.isdir(config_directory) == False:
+        raise IOError('Cannot find pipeline configuration directory '+config_directory)
+        
     config_file_path = os.path.join(config_directory, config_file_name)
-
+    
+    if os.path.isfile(config_file_path) == False:
+        raise IOError('Cannot find the configuration file '+config_file_path)
+    
     pipeline_configuration = config_utils.read_config(config_file_path)
-
+        
     if log != None:
         log.info('Read pipeline configuration from ' + config_file_path)
 
@@ -203,10 +209,12 @@ def find_the_inst_config_file_name(setup, reduction_metadata, image_name, inst_c
     potential_cameras_names = [i.split('_')[-1][:-5] for i in inst_config_files]
 
     open_image = open_an_image(setup, reduction_metadata.data_architecture[1]['IMAGES_PATH'][0],
-                               image_name, image_index=image_index, log=log)
+                               image_name, log, image_index=image_index)
 
     potential_inst_names = open_image.header.values()
 
+    inst_config_file_name = None
+    
     for name in potential_inst_names:
 
         if name in potential_cameras_names:
@@ -214,6 +222,9 @@ def find_the_inst_config_file_name(setup, reduction_metadata, image_name, inst_c
             inst_config_file_name = 'inst_config_' + good_camera_name + '.json'
             return inst_config_file_name
 
+    if inst_config_file_name == None:
+        raise ValueError('No instrument configuration found for the instrument IDs in the image header data')
+        
     return None
 
 
@@ -343,8 +354,8 @@ def set_bad_pixel_mask_directory(setup, reduction_metadata,
                                 bpm_directory_path)
 
 
-def open_an_image(setup, image_directory, image_name,
-                  image_index=0, log=None):
+def open_an_image(setup, image_directory, image_name, log,
+                  image_index=0):
     '''
     Simply open an image using astropy.io.fits
 
@@ -454,14 +465,16 @@ def update_reduction_metadata_with_config_file(reduction_metadata,
     data = []
     for key in keys:
 
-        try:
-            data.append([key, config_dictionnary[key]['value'], config_dictionnary[key]['format'],
-                         config_dictionnary[key]['unit']])
-
-        except:
-            if log != None:
-                log.info('Error in config file on key' + key)
-            sys.exit(1)
+        if key != 'psf_factors':
+            
+            try:
+                data.append([key, config_dictionnary[key]['value'], config_dictionnary[key]['format'],
+                             config_dictionnary[key]['unit']])
+    
+            except:
+                if log != None:
+                    log.info('Error in config file on key' + key)
+                sys.exit(1)
 
     data = np.array(data)
     names = [i.upper() for i in data[:, 0]]
@@ -477,6 +490,17 @@ def update_reduction_metadata_with_config_file(reduction_metadata,
     else:
         reduction_metadata.create_reduction_parameters_layer(names, formats, units, data[:, 1])
 
+
+    data = []
+
+    for i in range(0,len(config_dictionnary['psf_factors']['value']),1):
+        
+        data.append([str(i+1), 
+                     config_dictionnary['psf_factors']['value'][i],
+                     0.0])
+
+    reduction_metadata.create_psf_dimensions_layer(np.array(data))
+    
     if log != None:
         log.info('Updated metadata with pipeline configuration parameters')
 
@@ -527,7 +551,7 @@ def update_reduction_metadata_headers_summary_with_new_images(setup,
         layer = reduction_metadata.headers_summary[1]
 
         open_image = open_an_image(setup, reduction_metadata.data_architecture[1]['IMAGES_PATH'][0],
-                                   image_name, log=log)
+                                   image_name, log)
 
         header_infos = parse_the_image_header(reduction_metadata, open_image)
 
@@ -552,7 +576,7 @@ def update_reduction_metadata_headers_summary_with_new_images(setup,
 
 def construct_the_stamps(open_image, stamp_size=None, arcseconds_stamp_size=(110, 110),
                          pixel_scale=None,
-                         fraction_of_overlaping_pixels=0.1,number_of_overlaping_pixels=None, log=None):
+                         fraction_of_overlaping_pixels=0.01,number_of_overlaping_pixels=None, log=None):
     '''
     Define the stamps for an image variable kernel definition
 
@@ -588,13 +612,7 @@ def construct_the_stamps(open_image, stamp_size=None, arcseconds_stamp_size=(110
             subimage_shape = [int(np.ceil(float(full_image_x_size)/x_stamp_size)), int(np.ceil(float(full_image_y_size)/y_stamp_size))]
             x_subsize = int(full_image_x_size/subimage_shape[0])
             y_subsize = int(full_image_y_size/subimage_shape[1])
-            #overlapping fraction in pixels
-            if number_of_overlaping_pixels:
-                overlap_x = number_of_overlaping_pixels
-                overlap_y =  number_of_overlaping_pixels                        
-            else:
-                overlap_x = int(fraction_of_overlaping_pixels * x_subsize)
-                overlap_y = int(fraction_of_overlaping_pixels * y_subsize)
+
            
             subimage_slices = []
             for idx in range(subimage_shape[0]):
@@ -613,8 +631,20 @@ def construct_the_stamps(open_image, stamp_size=None, arcseconds_stamp_size=(110
             report = 'No pixel scale found!'+str(e)
             log.info(status + ': ' + report)
             return status, report, np.zeros(1)
+    if (y_stamp_size>full_image_y_size/2) | (x_stamp_size>full_image_x_size/2):
 
+        stamps = [0,0,full_image_y_size,0,full_image_x_size]
+        status = 'OK'
+        report = 'Completed successfully'
+        return status, report, np.array(stamps)
 
+    # overlapping fraction in pixels
+    if number_of_overlaping_pixels:
+        overlap_x = number_of_overlaping_pixels
+        overlap_y = number_of_overlaping_pixels
+    else:
+        overlap_x = int(fraction_of_overlaping_pixels * x_stamp_size)
+        overlap_y = int(fraction_of_overlaping_pixels * y_stamp_size)
     x_stamps_center = np.arange(int(x_stamp_size / 2), full_image_x_size, x_stamp_size)
     y_stamps_center = np.arange(int(y_stamp_size / 2), full_image_y_size, y_stamp_size)
     if x_stamps_center.size == 0:
@@ -628,6 +658,7 @@ def construct_the_stamps(open_image, stamp_size=None, arcseconds_stamp_size=(110
     stamps_y_min[mask] = 0
 
     stamps_y_max = stamps_center_y + int(y_stamp_size / 2) + overlap_y
+    stamps_y_max[-1,:] = [image.shape[0]]*len(stamps_y_max[-1,:])
     mask = stamps_y_max > full_image_y_size
     stamps_y_max[mask] = full_image_y_size
 
@@ -635,9 +666,11 @@ def construct_the_stamps(open_image, stamp_size=None, arcseconds_stamp_size=(110
     mask = stamps_x_min < 0
     stamps_x_min[mask] = 0
     stamps_x_max = stamps_center_x + int(x_stamp_size / 2) + overlap_x
+
+    stamps_x_max[:,-1] = [image.shape[1]]*len(stamps_x_max[-1,:])
+
     mask = stamps_x_max > full_image_x_size
     stamps_x_max[mask] = full_image_x_size
-
     stamps = [[stamps_x_min.shape[1] * i + j, stamps_y_min[i, j], stamps_y_max[i, j], stamps_x_min[i, j],
                stamps_x_max[i, j]]
               for i in range(stamps_x_min.shape[0]) for j in range(stamps_x_min.shape[1])]

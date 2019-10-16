@@ -17,14 +17,15 @@ import sqlite3
 from os import getcwd, path, remove, environ
 import numpy as np
 from astropy import table
+from astropy.coordinates import SkyCoord
+from astropy import units
 
-########## THESE NEED TO BE CHANGED TO THE ACTUAL VALUES TO USE #################
-environ["PHOTDB_PATH"] = '/home/Tux/ytsapras/Programs/Workspace/pyDANDIA/pyDANDIA/db/phot_db'
-database_file_path = path.expanduser(environ["PHOTDB_PATH"])
+cwd = getcwd()
+TEST_DIR = path.join(cwd,'data','proc',
+                        'ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip')
+DB_FILE = 'test.db'
+database_file_path = path.join(TEST_DIR, '..', DB_FILE)
 
-telescopes = {'Chile':[40.1,60.4,2235.6]}
-instruments = {'camera1':[1,2,3,'blah']}
-filters = {'i':'SDSS-i'}
 #################################################################################
 
 class TableDef(object):
@@ -82,7 +83,12 @@ class Facilities(TableDef):
     c_030_enclosure = 'TEXT'
     c_040_telescope = 'TEXT'
     c_050_instrument = 'TEXT'
-
+    c_060_diameter_m = 'REAL'
+    c_070_altitude_m = 'REAL'
+    c_080_gain_eadu = 'REAL'
+    c_090_readnoise_e = 'REAL'
+    c_100_saturation_e = 'REAL'
+    
 class Software(TableDef):
     """Photometry database table describing the software used to produce
     the data products.
@@ -157,19 +163,24 @@ class ReferenceComponents(TableDef):
     
     c_000_component_id = 'INTEGER PRIMARY KEY'
     c_010_image = 'INTEGER REFERENCES images(img_id)'
-    c_020_reference_image = 'INTEGER REFERENCES reference_images(refimg_id)'
+    c_020_reference_image = 'INTEGER REFERENCES reference_images(refimg_id) ON DELETE CASCADE'
     
 class ReferenceImages(TableDef):
     """Photometry database table describing the images used as references 
     in difference image photometry, which may be single images or the product
     of stacking several individual images together.
+    
+    The active parameter is used to indicate whether a reference image (and
+    all data associated with it) is the current best-available reduction for 
+    the associated dataset.  This parameter is used to tombstone older 
+    reduction products.
     """
     
     c_000_refimg_id = 'INTEGER PRIMARY KEY'
     c_010_facility = 'INTEGER REFERENCES facilities(facility_id)'
     c_020_filter = 'INTEGER REFERENCES filters(filter_id)'
     c_030_software = 'INTEGER REFERENCES software(code_id)'
-    c_030_filename = 'TEXT'
+    c_040_filename = 'TEXT'
     
 class Stars(TableDef):
     """Photometry database table describing the stars detected in the imaging
@@ -177,9 +188,31 @@ class Stars(TableDef):
     """
     
     c_000_star_id = 'INTEGER PRIMARY KEY'
+    c_001_star_index = 'INTEGER'
     c_010_ra = 'DOUBLE PRECISION'
     c_020_dec = 'DOUBLE PRECISION'    
-    c_030_reference_image = 'INTEGER REFERENCES reference_images(refimg_id)'
+    c_030_reference_image = 'INTEGER REFERENCES reference_images(refimg_id) ON DELETE CASCADE'
+    c_040_gaia_source_id = 'TEXT'
+    c_041_gaia_ra = 'DOUBLE PRECISION'
+    c_042_gaia_ra_error = 'DOUBLE PRECISION'
+    c_043_gaia_dec = 'DOUBLE PRECISION'
+    c_044_gaia_dec_error = 'DOUBLE PRECISION'
+    c_045_gaia_phot_g_mean_flux = 'REAL'
+    c_046_gaia_phot_g_mean_flux_error = 'REAL'
+    c_047_gaia_phot_bp_mean_flux = 'REAL'
+    c_048_gaia_phot_bp_mean_flux_error = 'REAL'
+    c_049_gaia_phot_rp_mean_flux = 'REAL'
+    c_050_gaia_phot_rp_mean_flux_error = 'REAL'
+    c_060_vphas_source_id = 'TEXT'
+    c_061_vphas_ra = 'DOUBLE PRECISION'
+    c_062_vphas_dec = 'DOUBLE PRECISION'
+    c_063_vphas_gmag = 'REAL'
+    c_064_vphas_gmag_error = 'REAL'
+    c_065_vphas_rmag = 'REAL'
+    c_066_vphas_rmag_error = 'REAL'
+    c_067_vphas_imag = 'REAL'
+    c_068_vphas_imag_error = 'REAL'
+    c_069_vphas_clean = 'INTEGER'
     
     pc_000_raindex = (
         'CREATE INDEX IF NOT EXISTS stars_ra ON stars (ra)')
@@ -193,30 +226,125 @@ class PhotometryPoints(TableDef):
     
     c_000_phot_id = 'INTEGER PRIMARY KEY'
     c_010_star_id = 'INTEGER REFERENCES stars(star_id)'
-    c_020_reference_image = 'INTEGER REFERENCES reference_images(refimg_id)'
-    c_030_image = 'INTEGER REFERENCES images(img_id)'
+    c_020_reference_image = 'INTEGER REFERENCES reference_images(refimg_id) ON DELETE CASCADE'
+    c_030_image = 'INTEGER REFERENCES images(img_id) ON DELETE CASCADE'
     c_040_facility = 'INTEGER REFERENCES facilities(facility_id)'
     c_050_filter = 'INTEGER REFERENCES filters(filter_id)'
     c_060_software = 'INTEGER REFERENCES software(code_id)'
     c_070_x = 'REAL'
     c_075_y = 'REAL'
     c_080_hjd = 'DOUBLE PRECISION'
-    c_090_magnitude = 'REAL'
-    c_095_magnitude_err = 'REAL'
-    c_100_calibrated_mag = 'REAL'
-    c_105_calibrated_mag_err = 'REAL'
-    c_110_flux = 'DOUBLE PRECISION'
-    c_115_flux_err = 'DOUBLE PRECISION'
-    c_120_phot_scale_factor = 'REAL'
-    c_125_phot_scale_factor_err = 'REAL'
-    c_130_local_background = 'DOUBLE PRECISION'
-    c_135_local_background_err = 'DOUBLE PRECISION'
-    c_140_phot_type = 'TEXT'
+    c_090_radius = 'REAL'
+    c_100_magnitude = 'REAL'
+    c_105_magnitude_err = 'REAL'
+    c_110_calibrated_mag = 'REAL'
+    c_115_calibrated_mag_err = 'REAL'
+    c_120_flux = 'REAL'
+    c_125_flux_err = 'REAL'
+    c_130_calibrated_flux = 'REAL'
+    c_135_calibrated_flux_err = 'REAL'
+    c_140_phot_scale_factor = 'REAL'
+    c_145_phot_scale_factor_err = 'REAL'
+    c_150_local_background = 'REAL'
+    c_155_local_background_err = 'REAL'
+    c_160_phot_type = 'TEXT'
     
     pc_000_datesindex = (
         'CREATE INDEX IF NOT EXISTS phot_objs ON phot (star_id)')
+    
+    pc_001_photindex = (
+        'CREATE UNIQUE INDEX phot_entry ON phot(star_id, reference_image, image, facility, filter, software)')
 
+class DetrendingParameters(TableDef):
+    """Photometry database table describing the detrending parameters applied"""
+    
+    c_000_detrend_id = 'INTEGER PRIMARY KEY'
+    c_010_facility = 'INTEGER REFERENCES facilities(facility_id)'
+    c_020_filter = 'INTEGER REFERENCES filters(filter_id)'
+    c_030_coefficient_name = 'TEXT'
+    c_040_coefficient_value = 'REAL'
+    c_050_detrending = 'TEXT'
 
+class StarColours(TableDef):
+    """Photometry database table describing the parameters computed for each
+    star using data of multiple wavelengths"""
+    
+    c_000_star_col_id = 'INTEGER PRIMARY KEY'
+    c_010_star_id = 'INTEGER REFERENCES stars(star_id)'
+    c_020_facility = 'INTEGER REFERENCES facilities(facility_id)'
+    c_030_cal_mag_corr_g = 'REAL'
+    c_030_cal_mag_corr_g_err = 'REAL'
+    c_030_cal_mag_corr_r = 'REAL'
+    c_030_cal_mag_corr_r_err = 'REAL'
+    c_030_cal_mag_corr_i = 'REAL'
+    c_030_cal_mag_corr_i_err = 'REAL'
+    c_030_gi = 'REAL'
+    c_030_gi_err = 'REAL'
+    c_030_gr = 'REAL'
+    c_030_gr_err = 'REAL'
+    c_030_ri = 'REAL'
+    c_030_ri_err = 'REAL'
+    
+class StarVariability(TableDef):
+    """Photometry database table describing the parameters computed on a 
+    per star, facility and filter basis"""
+    
+    c_000_star_var_id = 'INTEGER PRIMARY KEY'
+    c_010_star_id = 'INTEGER REFERENCES stars(star_id)'
+    c_020_facility = 'INTEGER REFERENCES facilities(facility_id)'
+    c_030_filter = 'INTEGER REFERENCES filters(filter_id)'
+    c_040_rms = 'REAL'
+    c_050_shannon_entropy = 'REAL'
+    c_060_con = 'REAL'
+    c_070_con2 = 'REAL'
+    c_080_kurtosis = 'REAL'
+    c_090_skewness = 'REAL'
+    c_100_vonNeumannRatio = 'REAL'
+    c_110_stetsonJ = 'REAL'
+    c_120_stetsonK = 'REAL'
+    c_130_stetsonL = 'REAL'
+    c_140_median_buffer_range = 'REAL'
+    c_150_median_buffer_range2 = 'REAL'
+    c_160_std_over_mean = 'REAL'
+    c_170_amplitude = 'REAL'
+    c_180_median_distance = 'REAL'
+    c_190_above1 = 'REAL'
+    c_200_above3 = 'REAL'
+    c_210_above5 = 'REAL'
+    c_220_below1 = 'REAL'
+    c_230_below3 = 'REAL'
+    c_240_below5 = 'REAL'
+    c_250_medianAbsDev = 'REAL'
+    c_260_root_mean_squared = 'REAL'
+    c_270_meanMag = 'REAL'
+    c_280_integrate = 'REAL'
+    c_290_remove_allbad = 'REAL'
+    c_300_peak_detection = 'REAL'
+    c_310_abs_energy = 'REAL'
+    c_320_abs_sum_changes = 'REAL'
+    c_330_auto_corr = 'REAL'
+    c_340_c3 = 'REAL'
+    c_350_complexity = 'REAL'
+    c_360_count_above = 'REAL'
+    c_370_count_below = 'REAL'
+    c_380_first_loc_max = 'REAL'
+    c_390_first_loc_min = 'REAL'
+    c_400_check_for_duplicate = 'REAL'
+    c_410_check_for_max_duplicate = 'REAL'
+    c_420_check_for_min_duplicate = 'REAL'
+    c_430_check_max_last_loc = 'REAL'
+    c_440_check_min_last_loc = 'REAL'
+    c_450_longest_strike_above = 'REAL'
+    c_460_longest_strike_below = 'REAL'
+    c_470_mean_change = 'REAL'
+    c_480_mean_abs_change = 'REAL'
+    c_490_mean_second_derivative = 'REAL'
+    c_500_ratio_recurring_points = 'REAL'
+    c_510_sample_entropy = 'REAL'
+    c_520_sum_values = 'REAL'
+    c_530_time_reversal_asymmetry = 'REAL'
+    c_540_normalize = 'REAL'
+    
 # This is what the classes are actually called in the database schema
 FILTERS_TD = Filters("filters")
 FACILITIES_TD = Facilities("facilities")
@@ -226,14 +354,19 @@ REFERENCE_COMPONENTS_TD = ReferenceComponents("reference_components")
 IMAGES_TD = Images("images")
 STARS_TD = Stars("stars")
 PHOTOMETRY_TD = PhotometryPoints("phot")
-
+DETREND_TD = DetrendingParameters("detrend")
+STARCOLOURS_TD = StarColours("star_colours")
+STARVARIABILITY_TD = StarVariability("star_var")
 
 def ensure_table(conn, table_def):
     """makes sure the TableDef instance table_def exists on the database.
     """
     curs = conn.cursor()
     for stmt in table_def.iter_build_statements():
-        curs.execute(stmt)
+        try:
+            curs.execute(stmt)
+        except sqlite3.OperationalError:
+            pass
     curs.close()
 
 
@@ -243,13 +376,23 @@ def ensure_tables(conn, *table_defs):
     for table_def in table_defs:
         ensure_table(conn, table_def)
 
-
+def ensure_extra_table(conn,table_name):
+    
+    if table_name == 'DetrendingParameters':
+        ensure_table(conn,DETREND_TD)
+    elif table_name == 'StarColours':
+        ensure_table(conn,STARCOLOURS_TD)
+    elif table_name == 'StarVariability':
+        ensure_table(conn,STARVARIABILITY_TD)
+    
 def get_connection(dsn=database_file_path):
 
     conn = sqlite3.connect(dsn,
-        detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES)
+        detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES,
+        isolation_level=None)
 
     conn.execute("PRAGMA foreign_keys=ON")
+    conn.execute('pragma journal_mode=wal')
     
     ensure_tables(conn, 
                   FILTERS_TD,
@@ -301,7 +444,7 @@ def check_before_commit(conn, params, table_name, table_keys, search_key):
     
     values = []
     for key in table_keys:
-        values.append(params[key])
+        values.append(str(params[key]))
     
     if len(table_data) == 0 or params[search_key] not in table_data[search_key]:
             
@@ -310,7 +453,6 @@ def check_before_commit(conn, params, table_name, table_keys, search_key):
     if commit:
         command = 'INSERT OR REPLACE INTO '+table_name+' ('+\
                 ','.join(table_keys)+') VALUES ('+','.join(wildcards)+')'
-
         cursor.execute(command, values)
         
     conn.commit()
@@ -413,7 +555,17 @@ def feed_to_table_many_dict(conn, table_name, rows):
         names,
         [[d[n] for n in names] for d in rows])
 
-
+def get_facility_code(params):
+    """Function to return the reference code used within the phot_db to 
+    refer to a specific facility as site-enclosure-tel-instrument"""
+    
+    facility_code = params['site']+'-'+\
+                    params['enclosure']+'-'+\
+                    params['telescope']+'-'+\
+                    params['instrument']
+    
+    return facility_code
+    
 def feed_exposure(conn, exp_properties, photometry_points):
     """feed extract from a new image.
 
@@ -492,7 +644,7 @@ def ingest_reference_in_db(conn, setup, reference_header,
              'stage3_version', 'current_best')
                             
     data = [ table.Column(name='refimg_name', data=[reference_image_name]),
-                  table.Column(name='filter_id', data=[reference_header['FILTKEY']]),
+                  table.Column(name='filter', data=[reference_header['FILTKEY']]),
                   table.Column(name='telescope_id', data=[reference_image_name.split('-')[0]]),
                   table.Column(name='instrument_id', data=[reference_image_name.split('-')[1]]),
                   table.Column(name='field_id', data=[field_id]),
@@ -513,6 +665,49 @@ def ingest_reference_in_db(conn, setup, reference_header,
     
     conn.commit()
 
+def find_reference_image_for_dataset(conn,params):
+    """Function to identify the reference image used for a previous reduction 
+    of a given dataset, if any are present
+    params dictionary must include site, enclosure, telescope, instrument and
+    bandpass parameters
+    """
+    
+    facility_code = get_facility_code(params)
+    
+    query = 'SELECT filter_id FROM filters WHERE filter_name="'+params['filter_name']+'"'
+    t = query_to_astropy_table(conn, query, args=())
+    if len(t) > 0:
+        filter_id = t['filter_id'].data[-1]
+    else:
+        return None
+    
+    
+    query = 'SELECT facility_id FROM facilities WHERE facility_code="'+params['facility_code']+'"'
+    t = query_to_astropy_table(conn, query, args=())
+    if len(t) > 0:    
+        facility_id = t['facility_id'].data[-1]
+    else:
+        return None
+        
+    query = 'SELECT refimg_id FROM reference_images WHERE facility='+str(facility_id)+' AND filter='+str(filter_id)
+    t = query_to_astropy_table(conn, query, args=())
+    if len(t) > 0:    
+        ref_id = t['refimg_id'].data
+    else:
+        return None
+    
+    return ref_id
+
+def find_primary_reference_image_for_field(conn):
+    
+    query = 'SELECT reference_image FROM stars'
+    t = query_to_astropy_table(conn, query, args=())
+    
+    if len(t) == 0:
+        raise ValueError('No primary reference dataset available for this field in the photometric database.  Stage3_db_ingest needs to be run with the -primary_ref flag set first.')
+        
+    return t['reference_image'][0]
+    
 def ingest_astropy_table(conn, db_table_name, table):
     """ingests an astropy table into db_table_name via conn.
     """
@@ -538,6 +733,7 @@ def query_to_astropy_table(conn, query, args=()):
     data = [table.Column(name=k,
             data=getColumn(i))
         for i,k in enumerate(keys)]
+            
     return table.Table(data=data)
 
 def box_search_on_position(conn, ra_centre, dec_centre, dra, ddec):
@@ -563,5 +759,64 @@ def box_search_on_position(conn, ra_centre, dec_centre, dra, ddec):
     
     t = query_to_astropy_table(conn, query, args=())
     
-    return t
+    c = SkyCoord(ra_centre, dec_centre, frame='icrs', unit=(units.deg,units.deg))
     
+    s = SkyCoord(t['ra'], t['dec'], frame='icrs', unit=(units.deg,units.deg))
+    
+    separations = c.separation(s)
+    
+    t.add_column(table.Column(name='separation', data=separations))
+    
+    return t
+
+def cascade_delete_reference_images(conn, refimg_id_list,log):
+    """Function to remove all database entries corresponding to a given 
+    reference image, including both the entries for the image itself and 
+    photometry derived from it"""
+    
+    log.info('WARNING: Existing database entries found for a reference image this dataset')
+    log.info('--> Performing cascade delete of all data associated with the old reduction <--')
+    
+    cursor = conn.cursor()
+    
+    for refimg_id in refimg_id_list:
+        
+        command = 'DELETE FROM reference_images WHERE refimg_id="'+str(refimg_id)+'"'
+        cursor.execute(command, ())
+        conn.commit()
+
+def fetch_facilities(conn):
+    """Function to extract a list of facilities known to the phot_db"""
+    
+    query = 'SELECT facility_id, facility_code FROM facilities'
+    facilities = query_to_astropy_table(conn, query, args=())
+    
+    return facilities
+
+def fetch_filters(conn):
+    """Function to extract a list of filters known to the phot_db"""
+    
+    query = 'SELECT filter_id, filter_name FROM filters'
+    filters = query_to_astropy_table(conn, query, args=())
+    
+    return filters
+
+def get_stage_software_id(conn,stage_name):
+    """Function to extract the ID of the software version used for a specific 
+    stage of the pipeline"""
+    
+    query = 'SELECT code_id FROM software WHERE stage="'+stage_name+'"'
+    software = query_to_astropy_table(conn, query, args=())
+    
+    if len(software) > 0:
+        return software['code_id'][-1]
+    else:
+        raise ValueError('Could not find a software entry in the phot_db consistent with '+stage_name)
+
+def fetch_stars_table(conn):
+    """Function to extract the stars table for a given field"""
+    
+    query = 'SELECT * FROM stars'
+    stars = query_to_astropy_table(conn, query, args=())
+    
+    return stars

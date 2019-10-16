@@ -18,7 +18,8 @@ import os
 import sys
 from pyDANDIA import  metadata
 from pyDANDIA import  logs
-from pyDANDIA import quality_control
+from pyDANDIA import  quality_control
+from pyDANDIA import  psf
 
 def run_stage1(setup, rerun_all=None):
     """
@@ -100,6 +101,9 @@ def run_stage1(setup, rerun_all=None):
         (status, report, params) = starfind.starfind(setup, im, reduction_metadata,
                                                      plot_it=False, log=log)
 
+        params['fwhm'] = psf.calc_fwhm_from_psf_sigma(params['sigma_x'],
+                                                      params['sigma_y'])
+        
         # The name of the image
 
         imname = im.split('/')[-1]
@@ -112,18 +116,13 @@ def run_stage1(setup, rerun_all=None):
         # Add a new row to the images_stats layer
         # (if it doesn't already exist)
 
-        entry = [
-            imname,
-            params['fwhm_x'],
-            params['fwhm_y'],
-            params['sky'],
-            params['corr_xy'],
-		params['nstars'],
-		params['sat_frac'],
-            params['symmetry'],
-            use_phot,
-            use_ref,
-            ]
+        entry = [ imname, params['sigma_x'], params['sigma_y'], params['fwhm'], params['sky'], params['corr_xy'], params['nstars'],
+                  params['sat_frac'], params['symmetry'], use_phot, use_ref, ]
+
+        # filling missing values
+        for missing in range(len(reduction_metadata.images_stats[1].columns[0:]) - len(entry)):
+
+             entry.append(0)
 
         reduction_metadata.add_row_to_layer(key_layer='images_stats',
                                             new_row=entry)

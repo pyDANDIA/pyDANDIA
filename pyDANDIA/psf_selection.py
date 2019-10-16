@@ -44,8 +44,8 @@ def psf_star_selection(setup,reduction_metadata,log,ref_star_catalog,
     psf_stars_idx = apply_psf_star_limit(reduction_metadata,ref_star_catalog,
                                          psf_stars_idx,log)
     
-    ref_star_catalog[:,15] = psf_stars_idx
-    idx = np.where(ref_star_catalog[:,15] == 1.0)
+    ref_star_catalog[:,11] = psf_stars_idx
+    idx = np.where(ref_star_catalog[:,11] == 1.0)
     
     psf_idx = ref_star_catalog[idx[0],0]
     
@@ -125,7 +125,7 @@ def id_crowded_stars(setup,reduction_metadata,log,
     """Function to identify those stars with bright neightbours in close 
     proximity and deselect them as potential PSF stars. 
     
-    For this purpose, any star within a distance 0.5*psf_comp_dist*psf_size, 
+    For this purpose, any star within a distance 0.5*psf_comp_dist*psf_diameter, 
     in units of FWHM, of another star is considered to be a companion of that 
     star, if its flux exceeds the threshold flux ratio psf_comp_flux.
     """
@@ -140,9 +140,9 @@ def id_crowded_stars(setup,reduction_metadata,log,
     
     psf_comp_dist = reduction_metadata.reduction_parameters[1]['PSF_COMP_DIST'][0]
     psf_comp_flux = reduction_metadata.reduction_parameters[1]['PSF_COMP_FLUX'][0]
-    psf_size = reduction_metadata.reduction_parameters[1]['PSF_SIZE'][0]
+    psf_diameter = reduction_metadata.psf_dimensions[1]['psf_radius'][0]*2.0
     
-    sep_thresh = 0.5 * psf_comp_dist * psf_size
+    sep_thresh = 0.5 * psf_comp_dist * psf_diameter
     
     log.info('Excluding stars with companions of flux ratio greater than '+\
             str(psf_comp_flux))

@@ -1,0 +1,125 @@
+#  
+#   VizieR Astronomical Server vizier.cfa.harvard.edu
+#    Date: 2018-01-20T13:45:37 [V1.99+ (14-Oct-2013)]
+#   In case of problem, please report to: cds-question@unistra.fr
+# 
+#   
+#Coosys J2000: eq_FK5 J2000 
+#INFO votable-version=1.99+ (14-Oct-2013) 
+#INFO -ref=VIZ5a6347de1ed02 
+#INFO -out.max=unlimited 
+#INFO queryParameters=10 
+#-oc.form=sexa
+#-out.max=unlimited
+#-nav=cat:J/AJ/134/2398&tab:{J/AJ/134/2398/table3}&key:source=J/AJ/134/2398/table3&HTTPPRM:&
+#-source=J/AJ/134/2398/table3
+#-order=I
+#-out=SpType
+#-out=LClass
+#-out=g-r
+#-out=r-i
+#-out=JMAG
+#
+
+#RESOURCE=yCat_51342398
+#Name: J/AJ/134/2398
+#Title: Stellar SEDs in SDSS and 2MASS filters (Covey+, 2007)
+#Table J_AJ_134_2398_table3:
+#Name: J/AJ/134/2398/table3
+#Title: Synthetic SDSS/2MASS photometry of Pickles (1998, Cat. J/PASP/110/863) solar metallicity standards
+#---Details of Columns:
+    SpType     (A4)    MK spectral type [ucd=src.spType]
+    LClass     (A3)    Luminosity class [ucd=src.class.luminosity]
+    g-r (mag)  (F5.2)  The (g-r) color index [ucd=phot.color;em.opt.B;em.opt.R]
+    r-i (mag)  (F5.2)  The (r-i) color index [ucd=phot.color;em.opt.R;em.opt.I]
+    JMAG (mag) (F6.2)  Absolute J band magnitude [ucd=phys.magAbs;em.IR.J]
+---- --- ----- ----- ------
+Sp   LCl g-r   r-i   JMAG  
+Type ass (mag) (mag) (mag) 
+---- --- ----- ----- ------
+O5   V   -0.62 -0.37  -4.50
+O9   V   -0.62 -0.35  -3.81
+B0   V   -0.59 -0.35  -2.80
+B1   V   -0.49 -0.33  -2.03
+B3   V   -0.46 -0.26  -1.55
+B5/7 V   -0.39 -0.23  -1.37
+B8   V   -0.33 -0.23  -1.21
+B9   V   -0.28 -0.23  -0.53
+A0   V   -0.25 -0.18   0.43
+A2   V   -0.23 -0.17   1.17
+A3   V   -0.16 -0.15   1.25
+A5   V   -0.10 -0.11   1.38
+A7   V   -0.02 -0.08   1.73
+F0   V    0.10 -0.01   2.43
+F2   V    0.19  0.03   2.63
+F5   V    0.26  0.03   2.62
+F6   V    0.28  0.08   2.90
+F8   V    0.36  0.10   2.98
+G0   V    0.38  0.14   3.18
+G2   V    0.45  0.16   3.45
+G5   V    0.49  0.16   3.54
+G8   V    0.57  0.19   3.85
+K0   V    0.62  0.22   4.17
+K2   V    0.78  0.24   4.50
+K3   V    0.85  0.32   4.94
+K4   V    1.00  0.38   5.21
+K5   V    1.18  0.40   5.45
+K7   V    1.34  0.54   5.77
+M0   V    1.31  0.64   5.72
+M1   V    1.33  0.78   6.04
+M2   V    1.43  0.85   6.23
+M2.5 V    1.47  1.01   6.51
+M3   V    1.46  1.20   6.77
+M4   V    1.48  1.51   7.06
+M5   V    1.59  1.73   7.39
+M6   V    1.72  2.12   7.72
+O8   III -0.58 -0.38  -4.67
+B1/2 III -0.53 -0.32  -3.65
+B3   III -0.48 -0.25  -2.71
+B5   III -0.42 -0.23  -2.16
+B9   III -0.33 -0.23  -0.76
+A0   III -0.22 -0.20  -0.08
+A3   III -0.12 -0.17   0.10
+A5   III -0.08 -0.10   0.17
+A7   III -0.01 -0.09   0.51
+F0   III  0.05 -0.05   0.56
+F2   III  0.23  0.01   0.85
+F5   III  0.24  0.05   0.83
+G0   III  0.48  0.15   0.78
+G5   III  0.68  0.22   1.82
+G8   III  0.75  0.24   1.72
+K0   III  0.75  0.27   1.67
+K1   III  0.85  0.29   0.31
+K2   III  0.93  0.34  -0.63
+K3   III  1.02  0.35  -1.13
+K4   III  1.23  0.43  -2.17
+K5   III  1.27  0.56  -3.01
+M0   III  1.28  0.65  -3.49
+M1   III  1.29  0.73  -3.71
+M2   III  1.32  0.82  -3.92
+M3   III  1.27  1.01  -4.15
+M4   III  1.22  1.29  -4.51
+M5   III  1.13  1.64  -4.75
+M6   III  1.11  1.99  -5.28
+M7   III  1.15  2.36  -5.64
+M8   III  1.33  2.45  -6.13
+M9   III  1.16  2.37  -6.60
+M10  III  0.89  2.58  -7.04
+B0   I   -0.50 -0.28  -6.59
+B1   I   -0.42 -0.26  -6.23
+B3   I   -0.36 -0.27  -6.28
+B5   I   -0.30 -0.18  -6.19
+B8   I   -0.27 -0.17  -6.64
+A0   I   -0.23 -0.16  -6.62
+A2   I   -0.11 -0.14  -6.87
+F0   I   -0.02 -0.03  -7.17
+F5   I    0.06  0.00  -7.37
+F8   I    0.37  0.03  -7.56
+G0   I    0.58  0.10  -7.67
+G2   I    0.68  0.14  -7.68
+G5   I    0.82  0.17  -7.74
+G8   I    1.00  0.27  -7.82
+K2   I    1.27  0.40  -8.06
+K3   I    1.38  0.47  -8.17
+K4   I    1.47  0.60  -8.40
+M2   I    1.57  1.05 -10.04

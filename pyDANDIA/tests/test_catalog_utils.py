@@ -15,6 +15,7 @@ from astropy.io import fits
 import catalog_utils
 import wcs
 import pipeline_setup
+import metadata
 
 TEST_DIR = os.path.join(cwd,'data','proc',
                         'ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip')
@@ -35,7 +36,7 @@ def test_output_vizier_catalog():
         
     vizier_result = wcs.search_vizier_for_2mass_sources(ra, dec, radius)
     
-    catalog_utils.output_vizier_catalog(output_file, vizier_result)
+    catalog_utils.output_vizier_catalog(output_file, vizier_result, '2MASS')
     
     assert os.path.isfile(output_file)
 
@@ -45,11 +46,26 @@ def test_read_vizier_catalog():
     
     cat_file = os.path.join(setup.pipeline_config_dir,'ROME-FIELD-01_2mass_catalog.fits')
     
-    cat_table = catalog_utils.read_vizier_catalog(cat_file)
+    cat_table = catalog_utils.read_vizier_catalog(cat_file,'2MASS')
     
     assert type(cat_table) == type(Table())
+
+def test_load_ref_star_catalog_from_metadata():
+    
+    setup = pipeline_setup.pipeline_setup({'red_dir': TEST_DIR})
+    
+    reduction_metadata = metadata.MetaData()
+    reduction_metadata.load_a_layer_from_file( setup.red_dir, 
+                                              'pyDANDIA_metadata.fits', 
+                                              'star_catalog' )
+                                              
+    ref_star_catalog = catalog_utils.load_ref_star_catalog_from_metadata(reduction_metadata)
+    
+    print(ref_star_catalog)
     
 if __name__ == '__main__':
     
     #test_output_vizier_catalog()
-    test_read_vizier_catalog()
+    #test_read_vizier_catalog()
+    test_load_ref_star_catalog_from_metadata()
+    

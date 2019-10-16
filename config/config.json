@@ -1,15 +1,9 @@
 {
-    "proc_data": {
-        "comment": "proc_data - STRING - The full path to the reduction directory.", 
-        "value": "/home/Tux/ytsapras/Programs/Workspace/pyDANDIA/pyDANDIA/tests/data/proc",
-	"format":"S200",
-	"unit":""
-    },
-    "phot_database": {
-        "comment": "phot_database - STRING - The full path to the database file that will contain the photometry.", 
-        "value": "/home/Tux/ytsapras/Programs/Workspace/pyDANDIA/pyDANDIA/db/phot_db",
-	"format":"S200",
-	"unit":""
+    "psf_factors": {
+        "comment": "psf_factors - LIST OF FLOATS - Factors used to scale PSF radii values.",
+        "value": [ 2.0, 3.0, 4.0 ],
+        "format": "float",
+        "unit": ""
     },
     "back_var": {
         "comment": "back_var - STRING - Spatially variable differential background {'constant', 'gradient'}.", 
@@ -131,11 +125,11 @@
 	"format":"float",
 	"unit":"adu"
     }, 
-    "max_fwhm_arcsec": {
-        "comment": "max_fwhm_arcsec - DOUBLE - Largest acceptable value of the stellar FWHM (arcsec : Default value = 2.0).", 
+    "max_sigma_pixels": {
+        "comment": "max_sigma_pixels - DOUBLE - Largest acceptable value of the stellar sigma (pixels : Default value = 2.0).", 
         "value": 2.0,
 	"format":"float",
-	"unit":"arcsec"
+	"unit":"pixels"
     }, 
     "min_ell": {
         "comment": "min_ell - DOUBLE - Smallest acceptable value of the PSF ellipticity for an image to be used in the combined reference image. This parameter should be non-negative and less than or equal to 1.0 (Default value = 0.8).", 
@@ -206,12 +200,6 @@
     "psf_range_thresh": {
         "comment": "psf_range_thresh - DOUBLE - Percentage of brightest/faintest stars to exclude from PSF star selection. This parameter should be non-negative (Default value = 10.0).", 
         "value": 10.0,
-	"format":"float",
-	"unit":""
-    }, 
-    "psf_size": {
-        "comment": "psf_size - DOUBLE - Size of the model PSF stamp in units of FWHM. This parameter should be positive (Default value = 8.0).", 
-        "value": 8.0,
 	"format":"float",
 	"unit":""
     }, 

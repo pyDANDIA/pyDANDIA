@@ -1,0 +1,5 @@
+phot_db_path   /Users/rstreet/ROMEREA/2018/full_frame_test/ROME-FIELD-16_phot.db
+dataset        /Users/rstreet/ROMEREA/2018/full_frame_test/ROME-FIELD-16_lsc-doma-1m0-05-fa15_ip   ip
+dataset        /Users/rstreet/ROMEREA/2018/full_frame_test/ROME-FIELD-16_coj-doma-1m0-11-fa12_ip   ip
+dataset        /Users/rstreet/ROMEREA/2018/full_frame_test/ROME-FIELD-16_cpt-doma-1m0-10-fa16_ip   ip
+red_dir        /Users/rstreet/ROMEREA/2018/full_frame_test/

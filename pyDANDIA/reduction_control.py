@@ -7,16 +7,19 @@ Created on Mon Oct  9 11:01:19 2017
 from os import getcwd, path, remove
 from sys import argv, exit
 from sys import path as systempath
+import copy
 cwd = getcwd()
 systempath.append(path.join(cwd,'../'))
 import pipeline_setup
 import stage0
 import stage1
 import stage2
+import reference_astrometry
 import stage3
+import stage3_db_ingest
 import stage4
-#import stage5  # missing uncertainties module
-#import stage6
+import stage5
+import stage6
 import logs
 import subprocess
 
@@ -34,30 +37,159 @@ def reduction_control():
 
     reduction_version = 'reduction_control v0.3'
 
-    setup = get_args()
+    (setup,params) = get_args()
     
-    log = logs.start_pipeline_log(setup.red_dir, 'reduction_control',
+    red_log = logs.start_pipeline_log(setup.red_dir, 'reduction_control',
                                   version=reduction_version)
     
-    log.info('Pipeline setup: '+setup.summary()+'\n')
+    red_log.info('Pipeline setup: '+setup.summary()+'\n')
+    
+    if setup.red_mode == 'data_preparation':
+        
+        run_data_preparation(setup,red_log,select_ref=True)
+        
+    elif setup.red_mode == 'added_data_preparation':
+        
+        run_data_preparation(setup,red_log,select_ref=False)
+        
+    elif setup.red_mode == 'reference_analysis':
+        
+        run_reference_image_analysis(setup,red_log)
+        
+    elif setup.red_mode == 'image_analysis':
+        
+        run_image_analysis(setup,red_log)
+        
+    elif setup.red_mode == 'stage3_db_ingest':
+        
+        run_stage3_db_ingest(setup,red_log,params)
+        
+    elif setup.red_mode == 'stage6':
+        
+        run_stage6_db_ingest(setup,red_log,params)
+        
+    else:
+        red_log.info('ERROR: unrecognised reduction mode ('+setup.red_mode+') selected')
+        
+    logs.close_log(red_log)
+
+def run_data_preparation(setup,red_log=None,select_ref=False):
+    """Function to run in sequence stages 0 - 2 for a single dataset"""
+
+    if red_log!=None:
+        red_log.info('Pipeline setup: '+setup.summary()+'\n')
     
     (status,report,meta_data) = stage0.run_stage0(setup)
-    log.info('Completed stage 0 with status '+repr(status)+': '+report)
     
-    status = execute_stage(stage1.run_stage1, 'stage 1', setup, status, log)
+    if red_log!=None:
+        red_log.info('Completed stage 0 with status '+repr(status)+': '+report)
     
-    status = execute_stage(stage2.run_stage2, 'stage 2', setup, status, log)
+    status = execute_stage(stage1.run_stage1, 'stage 1', setup, status, red_log)
     
-    status = execute_stage(stage3.run_stage3, 'stage 3', setup, status, log)
+    if select_ref:
+        status = execute_stage(stage2.run_stage2, 'stage 2', setup, status, red_log)
     
-# Code deactivated until stage 6 is fully integrated with pipeline   
-#    status = parallelize_stages345(setup, status, log)
-#    (status, report) = stage6.run_stage6(setup)
-#    log.info('Completed stage 6 with status '+repr(status)+': '+report)
+def run_reference_image_analysis(setup,red_log):
+    """Function to run the pipeline stages which perform the analysis of a
+    reference image in sequence."""
     
-    logs.close_log(log)
+    red_log.info('Pipeline setup: '+setup.summary()+'\n')
+    
+    status = 'OK'
+    
+    status = execute_stage(reference_astrometry.run_reference_astrometry, 
+                           'reference astrometry', setup, status, red_log)
+    
+    status = execute_stage(stage3.run_stage3, 'stage 3', setup, status, red_log)
 
-def execute_stage(run_stage_func, stage_name, setup, status, log):
+def run_image_analysis(setup,red_log):
+    """Function to run the sequence of stages which perform the image 
+    subtraction and photometry for a dataset"""
+    
+    red_log.info('Pipeline setup: '+setup.summary()+'\n')
+    
+    status = 'OK'
+    
+    status = execute_stage(stage4.run_stage4, 'stage 4', setup, status, red_log)
+    
+    status = execute_stage(stage5.run_stage5, 'stage 5', setup, status, red_log)
+
+def run_stage3_db_ingest(setup,red_log,params):
+    """Function to run stage3_db_ingest for a set of datasets read from a file
+    File format is one dataset per line plus a column indicating whether or
+    not a given dataset is the primary reference, i.e.:
+    /path/to/data/red/dir  primary_ref
+    /path/to/data/red/dir  not_ref
+    /path/to/data/red/dir  not_ref
+    ...
+    """
+    
+    datasets = parse_dataset_list(params['data_file'])
+    
+    for dataset,ref_flag in datasets.items():
+        
+        dparams = copy.copy(params)
+        dparams['red_dir'] = dataset
+        dparams['log_dir'] = path.join(dparams['red_dir'],'..','logs')
+        dparams['base_dir'] = path.join(dparams['red_dir'],'..')
+        
+        dsetup = pipeline_setup.pipeline_setup(dparams)
+        
+        if 'primary_ref' in ref_flag or 'primary-ref' in ref_flag:
+            red_log.info('Ingesting '+path.basename(dataset)+' as the primary reference dataset')
+            
+            (status,report) = stage3_db_ingest.run_stage3_db_ingest(dsetup, primary_ref=True)
+
+        else:
+
+            red_log.info('Ingesting '+path.basename(dataset))
+            
+            (status,report) = stage3_db_ingest.run_stage3_db_ingest(dsetup, primary_ref=False)
+        
+        red_log.info('Completed stage3_db_ingest for '+path.basename(dataset)+' with status '+repr(status))
+        red_log.info(repr(report))
+        
+def parse_dataset_list(file_path):
+    
+    if path.isfile(file_path) == False:
+        raise IOError('Cannot find list of datasets')
+        
+    flines = open(file_path).readlines()
+    
+    datasets = {}
+    for line in flines:
+        entries = line.replace('\n','').split()
+        datasets[entries[0]] = entries[1]
+    
+    return datasets
+    
+def run_stage6_db_ingest(setup,red_log,params):
+    """Function to run stage6 including the DB ingest for a set of datasets read from a file
+    File format is one dataset per line plus a column indicating whether or
+    not a given dataset is the primary reference, i.e.:
+    /path/to/data/red/dir  primary_ref
+    /path/to/data/red/dir  not_ref
+    /path/to/data/red/dir  not_ref
+    ...
+    """
+    
+    datasets = parse_dataset_list(params['data_file'])
+    
+    for dataset,ref_flag in datasets.items():
+        
+        dparams = copy.copy(params)
+        dparams['red_dir'] = dataset
+        dparams['log_dir'] = path.join(dparams['red_dir'],'..','logs')
+        dparams['base_dir'] = path.join(dparams['red_dir'],'..')
+        
+        dsetup = pipeline_setup.pipeline_setup(dparams)
+        
+        red_log.info('Ingesting '+path.basename(dataset))
+            
+        (status,report) = stage6.run_stage6(dsetup)
+        
+
+def execute_stage(run_stage_func, stage_name, setup, status, red_log):
     """Function to execute a stage and verify whether it completed successfully
     before continuing.
     
@@ -86,20 +218,20 @@ def execute_stage(run_stage_func, stage_name, setup, status, log):
             
             (status, report) = run_stage_func(setup)
             
-        log.info('Completed '+stage_name+' with status '+\
+        red_log.info('Completed '+stage_name+' with status '+\
                     repr(status)+': '+report)
         
     if 'OK' not in status:
         
-        log.info('ERROR halting reduction due to previous errors')
+        red_log.info('ERROR halting reduction due to previous errors')
         
-        logs.close_log(log)
+        logs.close_log(red_log)
         
         exit()
         
     return status
 
-def parallelize_stages345(setup, status, log):
+def parallelize_stages345(setup, status, red_log):
     """Function to execute stages 4 & 5 in parallel with stage 3.
     
     Inputs:
@@ -111,32 +243,32 @@ def parallelize_stages345(setup, status, log):
         :param string status: Status of execution of the most recent stage
     """
     
-    log.info('Executing stage 3 in parallel with stages 4 & 5')
+    red_log.info('Executing stage 3 in parallel with stages 4 & 5')
     
-    process3 = trigger_stage_subprocess('stage3',setup,log,wait=False)
+    process3 = trigger_stage_subprocess('stage3',setup,re_log,wait=False)
     
-    process4 = trigger_stage_subprocess('stage4',setup,log,wait=True)
-    process5 = trigger_stage_subprocess('stage5',setup,log,wait=True)
+    process4 = trigger_stage_subprocess('stage4',setup,red_log,wait=True)
+    process5 = trigger_stage_subprocess('stage5',setup,red_log,wait=True)
     
-    log.info('Completed stages 4 and 5; now waiting for stage 3')
+    red_log.info('Completed stages 4 and 5; now waiting for stage 3')
     
     (outs, errs) = process3.communicate()
 
     if errs == None:
         
         process3.wait()
-        log.info('Completed stage 3')
+        red_log.info('Completed stage 3')
 
     else:
 
-        log.info('ERROR: Problem encountered in stage 3:')
-        log.info(errs)
+        red_log.info('ERROR: Problem encountered in stage 3:')
+        red_log.info(errs)
         
-    log.info('Completed parallel stages')
+    red_log.info('Completed parallel stages')
     
     return 'OK'
     
-def trigger_stage_subprocess(stage_code,setup,log,wait=True):
+def trigger_stage_subprocess(stage_code,setup,red_log,wait=True):
     """Function to run a stage as a separate subprocess
     
     Inputs:
@@ -150,15 +282,15 @@ def trigger_stage_subprocess(stage_code,setup,log,wait=True):
     
     p = subprocess.Popen(args, stdout=subprocess.PIPE)
     
-    log.info('Started '+stage_code+', PID='+str(p.pid))
+    red_log.info('Started '+stage_code+', PID='+str(p.pid))
     
     if wait:
         
-        log.info('Waiting for '+stage_code+' to finish')
+        red_log.info('Waiting for '+stage_code+' to finish')
         
         p.wait()
     
-        log.info('Completed '+stage_code)
+        red_log.info('Completed '+stage_code)
         
     return p
     
@@ -172,10 +304,15 @@ def get_args():
     Main driver program to run pyDANDIA in pipeline mode for a single dataset. 
     
     Command and options:
-    > python reduction_control.py red_dir_path [-v N ]
+    > python reduction_control.py red_dir_path phot_db_path mode [-v N ]
     
     where red_dir_path is the path to a dataset's reduction directory
+          phot_db_path is the path to a photometry database
+          mode is the mode of reduction required
     
+    Reduction mode options are:
+          mode  new_reference
+          
     The -v flag controls the verbosity of the pipeline logging output.  Values 
     N can be:
     -v 0 [Default] Essential logging output only, written to log file. 
@@ -190,15 +327,26 @@ def get_args():
         print(helptext)
         exit()
     
+    reduction_modes = ['data_preparation',
+                       'added_data_preparation',
+                       'reference_analysis', 
+                       'image_analysis',
+                       'stage3_db_ingest',
+                       'stage6']
+    
     params = {}
     
     if len(argv) == 1:
         
-        params['red_dir'] = raw_input('Please enter the path to the datasets reduction directory: ')
+        params['red_dir'] = input('Please enter the path to the datasets reduction directory: ')
+        params['db_file_path'] = input('Please enter the path to the photometric database: ')
+        params['mode'] = input('Please enter the reduction mode, one of {'+','.join(reduction_modes)+'}: ')
     
     else:
         
         params['red_dir'] = argv[1]
+        params['db_file_path'] = argv[2]
+        params['mode'] = argv[3]
     
     if '-v' in argv:
         
@@ -207,6 +355,9 @@ def get_args():
         if len(argv) >= idx + 1:
             
             params['verbosity'] = int(argv[idx+1])
+    
+    if 'stage3_db_ingest' in params['mode'] or 'stage6' in params['mode']:
+        params['data_file'] = input('Please enter the path to the file listing the datasets: ')
         
     params['log_dir'] = path.join(params['red_dir'],'..','logs')
     params['pipeline_config_dir'] = path.join(params['red_dir'],'..','config')
@@ -214,8 +365,9 @@ def get_args():
     params['software_dir'] = getcwd()
     
     setup = pipeline_setup.pipeline_setup(params)
+    setup.red_mode = params['mode']
     
-    return setup
+    return setup, params
     
     
     

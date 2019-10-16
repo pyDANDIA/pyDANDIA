@@ -67,6 +67,12 @@ def update_metadata(params):
     reduction_metadata.load_a_layer_from_file( params['red_dir'], 
                                               'pyDANDIA_metadata.fits', 
                                               'data_architecture' )
+    reduction_metadata.load_a_layer_from_file( params['red_dir'], 
+                                              'pyDANDIA_metadata.fits', 
+                                              'images_stats' )
+    reduction_metadata.load_a_layer_from_file( params['red_dir'], 
+                                              'pyDANDIA_metadata.fits', 
+                                              'psf_dimensions' )
     
     try:
         reduction_metadata.data_architecture[1]['REF_IMAGE'][0] = params['ref_image']
@@ -78,7 +84,13 @@ def update_metadata(params):
         
         col2 = Column([params['ref_image']], name='REF_IMAGE')
         reduction_metadata.data_architecture[1].add_column(col2)
+
+    reduction_metadata.calc_psf_radii()    
     
+    reduction_metadata.save_a_layer_to_file(params['red_dir'], 
+                                                'pyDANDIA_metadata.fits',
+                                                'psf_dimensions')
+                                                
     reduction_metadata.save_a_layer_to_file(params['red_dir'], 
                                                 'pyDANDIA_metadata.fits',
                                                 'data_architecture')

@@ -127,7 +127,7 @@ def plot_lens_plane(current_event,params):
     plt.grid()
     plt.tight_layout()
     #plt.show()
-    fig.savefig(path.join(params['output'],'lens_plane_caustics.eps'),
+    fig.savefig(path.join(params['output'],'lens_plane_caustics.pdf'),
                 dpi=fig.dpi,
                 bbox_inches='tight')
 

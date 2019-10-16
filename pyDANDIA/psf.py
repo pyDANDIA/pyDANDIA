@@ -513,12 +513,12 @@ class ConstantBackground(BackgroundModel):
         for index, key in enumerate(self.model):
             setattr(self.background_parameters, key, parameters[index])
 
-    def background_model(self, data_shape, parameters=None):
+    def background_model(self, Y_data, X_data, parameters=None):
 
         if parameters != None:
             self.update_background_parameters(parameters)
 
-        model = np.ones(data_shape) * \
+        model = np.ones(Y_data.shape) * \
             self.background_parameters.constant
             
         return model
@@ -526,7 +526,7 @@ class ConstantBackground(BackgroundModel):
     def background_guess(self):
 
         # background constant
-        return [0]
+        return [1000]
 
     def get_parameters(self):
 
@@ -536,7 +536,13 @@ class ConstantBackground(BackgroundModel):
             params.append(getattr(self.background_parameters, par))
 
         return params
-
+    
+    def get_local_background(self,x,y):
+        """Method returns the value of the sky background in counts at
+        position x,y"""
+        
+        return self.background_parameters.constant
+        
 class GradientBackground(BackgroundModel):
 
     def background_type(self):
@@ -580,7 +586,7 @@ class GradientBackground(BackgroundModel):
         gradient sky background model.  The parameters returned represent 
         a flat, constant background of zero."""
 
-        return [0.0, 0.0, 0.0]
+        return [1000.0, 0.0, 0.0]
 
     def get_parameters(self):
 
@@ -590,7 +596,16 @@ class GradientBackground(BackgroundModel):
             params.append(getattr(self, par))
 
         return params
-
+        
+        def get_local_background(self,x,y):
+            """Method returns the value of the sky background in counts at
+            position x,y"""
+            
+            bkgd = self.background_parameters.a0 + \
+                    ( self.background_parameters.a1 * x ) + \
+                    + ( self.background_parameters.a2 * y )
+                    
+            return bkgd
 
 class QuadraticBackground(BackgroundModel):
 
@@ -633,7 +648,7 @@ class QuadraticBackground(BackgroundModel):
         gradient sky background model.  The parameters returned represent
         a flat, constant background of zero."""
 
-        return [0.0, 0.0, 0.0, 0.0, 0.0,0.0]
+        return [1000.0, 0.0, 0.0, 0.0, 0.0,0.0]
 
     def get_parameters(self):
 
@@ -726,6 +741,11 @@ class Image(object):
 
         return [np.array(intensities), np.array(y_centers), np.array(x_centers)]
 
+def calc_fwhm_from_psf_sigma(sigma_x,sigma_y):
+    
+    fwhm = np.sqrt(sigma_x*sigma_x + sigma_y*sigma_y) * 2.355
+    
+    return fwhm
 
 def fit_background(data, Y_data, X_data, mask, background_model='Constant'):
     if background_model == 'Constant':
@@ -748,13 +768,13 @@ def fit_background(data, Y_data, X_data, mask, background_model='Constant'):
 
 
 def error_background_fit_function(params, data, background, Y_data, X_data, mask):
+
     back_params = params
-    #import pdb; pdb.set_trace()
+
     back_model = background.background_model(Y_data, X_data, back_params)
-
-    residuals = (data - back_model).ravel()[mask]
-
-    return residuals
+    
+    residuals = ((data - back_model)/np.abs(data)**0.5)[mask]
+    return residuals**2
 
 def fit_star(data, Y_data, X_data, psf_model='Moffat2D', background_model='Constant'):
     psf_model = get_psf_object(psf_model)
@@ -780,7 +800,7 @@ def error_star_fit_function(params, data, psf, background, Y_data, X_data):
     back_params = params[len(psf.psf_parameters._fields):]
 
     psf_model = psf.psf_model(Y_data, X_data, psf_params)
-    back_model = background.background_model(Y_data.shape, parameters=back_params)
+    back_model = background.background_model(Y_data, X_data, parameters=back_params)
 
     residuals = np.ravel(data - psf_model - back_model)
 
@@ -1153,13 +1173,13 @@ def build_psf(setup, reduction_metadata, log, image, ref_star_catalog,
     log.info('Building a PSF model based on the reference image')
 
     # Cut large stamps around selected PSF stars
-    psf_diameter = reduction_metadata.reduction_parameters[1]['PSF_SIZE'][0]
+    psf_diameter = reduction_metadata.psf_dimensions[1]['psf_radius'][0]*2.0
 
     psf_model_type = 'Moffat2D'
 
     logs.ifverbose(log, setup, ' -> Applying PSF size=' + str(psf_diameter))
 
-    idx = np.where(ref_star_catalog[:, 15] == 1.0)
+    idx = np.where(ref_star_catalog[:, 11] == 1.0)
     psf_idx = ref_star_catalog[idx[0], 0]
     psf_star_centres = ref_star_catalog[idx[0], 1:3]
 
@@ -1516,11 +1536,11 @@ def fit_psf_model(setup,log,psf_model_type,psf_diameter,sky_model_type,stamp_ima
     return fitted_model
 
 
-def generate_psf_image(psf_model_type, psf_model_pars, stamp_dims, psf_size):
+def generate_psf_image(psf_model_type, psf_model_pars, stamp_dims, psf_diameter):
     new_psf_model_pars = []
     new_psf_model_pars = [x for x in psf_model_pars]
 
-    if stamp_dims[0] != psf_size:
+    if stamp_dims[0] != psf_diameter:
         (ix, iy) = get_psf_centre_indices(psf_model_type)
 
         x_centre = stamp_dims[1] / 2.0
@@ -1828,7 +1848,7 @@ def output_stamp_image(image, file_path, comps_list=None):
     plt.close(1)
 
 
-def find_psf_companion_stars(setup, psf_idx, psf_x, psf_y, psf_size,
+def find_psf_companion_stars(setup, psf_idx, psf_x, psf_y, psf_diameter,
                              ref_star_catalog, log, stamp_dims,
                              diagnostics=False):
     """Function to identify stars in close proximity to a selected PSF star, 
@@ -1842,7 +1862,7 @@ def find_psf_companion_stars(setup, psf_idx, psf_x, psf_y, psf_size,
     :param int psf_idx: Index of PSF star in the data array (NOT the PSF star number)
     :param float psf_x: x-pixel position of the PSF star in the full frame image
     :param float psf_y: y-pixel position of the PSF star in the full frame image
-    :param float psf_size: diameter of the stellar PSF
+    :param float psf_diameter: diameter of the stellar PSF
     :param array ref_star_catalog: positions and magnitudes of stars in the 
                                 reference image
     :param logging object log: an open logging file
@@ -1855,7 +1875,7 @@ def find_psf_companion_stars(setup, psf_idx, psf_x, psf_y, psf_size,
                                 the ref_star_catalog
     """
 
-    psf_radius = int(float(psf_size / 2.0))
+    psf_radius = int(float(psf_diameter / 2.0))
     dx_psf_box = int(float(stamp_dims[1]) / 2.0) + psf_radius
     dy_psf_box = int(float(stamp_dims[0]) / 2.0) + psf_radius
     x_psf_box = psf_x - dx_psf_box + psf_radius
@@ -1869,7 +1889,7 @@ def find_psf_companion_stars(setup, psf_idx, psf_x, psf_y, psf_size,
                        str(psf_idx + 1) + ' located at (' + str(psf_x) + ', ' + str(psf_y) + ')')
         logs.ifverbose(log, setup, 'PSF box: ' + \
                        'xmin=' + str(x_psf_box) + ', ymin=' + str(y_psf_box) + \
-                       ' stamp dims=' + repr(stamp_dims) + ', PSF diameter=' + str(psf_size))
+                       ' stamp dims=' + repr(stamp_dims) + ', PSF diameter=' + str(psf_diameter))
 
     comps_list = []
 

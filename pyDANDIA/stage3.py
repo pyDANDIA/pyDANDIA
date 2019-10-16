@@ -20,8 +20,11 @@ from pyDANDIA import  psf_selection
 from pyDANDIA import  photometry
 from pyDANDIA import  phot_db
 from pyDANDIA import  utilities
+from pyDANDIA import  catalog_utils
+from pyDANDIA import  calibrate_photometry
 
-VERSION = 'pyDANDIA_stage3_v0.3'
+
+VERSION = 'pyDANDIA_stage3_v0.5'
 
 def run_stage3(setup):
     """Driver function for pyDANDIA Stage 3: 
@@ -48,6 +51,12 @@ def run_stage3(setup):
     reduction_metadata.load_a_layer_from_file( setup.red_dir, 
                                               'pyDANDIA_metadata.fits', 
                                               'data_architecture' )
+    reduction_metadata.load_a_layer_from_file( setup.red_dir, 
+                                              'pyDANDIA_metadata.fits', 
+                                              'star_catalog' )
+    reduction_metadata.load_a_layer_from_file( setup.red_dir, 
+                                              'pyDANDIA_metadata.fits', 
+                                              'psf_dimensions' )
     
     sane = check_metadata(reduction_metadata,log)
     
@@ -61,20 +70,11 @@ def run_stage3(setup):
         
         scidata = fits.getdata(meta_pars['ref_image_path'])
         
-        detected_sources = starfind.detect_sources(setup, reduction_metadata,
-                                        meta_pars['ref_image_path'],
-                                        (scidata-meta_pars['ref_sky_bkgd']),
-                                        log,
-                                        diagnostics=False)
-        
         if use_naylor_phot:
             ref_flux = find_reference_flux(detected_sources,log)
         
-        ref_star_catalog = wcs.reference_astrometry(setup,log,
-                                        meta_pars['ref_image_path'],
-                                        detected_sources,
-                                        diagnostics=False)        
-                                                    
+        ref_star_catalog = catalog_utils.load_ref_star_catalog_from_metadata(reduction_metadata)
+        
         sky_model = sky_background.model_sky_background(setup,
                                         reduction_metadata,log,ref_star_catalog)
                 
@@ -82,17 +82,14 @@ def run_stage3(setup):
                                         reduction_metadata,
                                         log,ref_star_catalog,
                                         diagnostics=False)
-                                                     
-        reduction_metadata.create_star_catalog_layer(ref_star_catalog,log=log)
         
-        
-        psf_size = round( (meta_pars['ref_fwhm'] * 2.0), 0 )
-        log.info('Calculated size of PSF = '+str(psf_size)+'pix')
+        psf_diameter = reduction_metadata.psf_dimensions[1]['psf_radius'][0]*2.0
+        log.info('Calculated diameter of PSF = '+str(psf_diameter)+'pix')
         
         (psf_model,psf_status) = psf.build_psf(setup, reduction_metadata, 
                                             log, scidata, 
                                             ref_star_catalog, sky_model,
-                                            psf_size,
+                                            psf_diameter,
                                             diagnostics=True)
         
         if use_naylor_phot:
@@ -104,7 +101,7 @@ def run_stage3(setup):
                                              psf_model,
                                              sky_model,
                                              ref_flux,
-                                             psf_size=psf_size,
+                                             psf_diameter=psf_diameter,
                                              centroiding=False)
         else:
             ref_star_catalog = photometry.run_psf_photometry(setup, 
@@ -114,15 +111,18 @@ def run_stage3(setup):
                                              meta_pars['ref_image_path'],
                                              psf_model,
                                              sky_model,
-                                             psf_size=psf_size,
+                                             psf_diameter=psf_diameter,
                                              centroiding=False, 
                                              diagnostics=False)
-                           
-        reduction_metadata.create_star_catalog_layer(ref_star_catalog,log=log)
+        
+        
+        reduction_metadata = store_photometry_in_metadata(reduction_metadata, ref_star_catalog)
         
         reduction_metadata.save_a_layer_to_file(setup.red_dir, 
                                                 'pyDANDIA_metadata.fits',
                                                 'star_catalog', log=log)
+        
+        reduction_metadata = calibrate_photometry.calibrate_photometry(setup, reduction_metadata, log)
         
         reduction_metadata.create_software_layer(np.array([VERSION,'NONE']),
                                                      log=log)
@@ -227,11 +227,7 @@ def extract_parameters_stage3(reduction_metadata,log):
     
         meta_pars['ref_sky_bkgd'] = reduction_metadata.images_stats[1]['SKY'].data[idx[0][0]]
         
-        fwhmx = reduction_metadata.images_stats[1]['FWHM_X'].data[idx[0][0]]
-        fwhmy = reduction_metadata.images_stats[1]['FWHM_Y'].data[idx[0][0]]
-        pixscale = reduction_metadata.reduction_parameters[1]['PIX_SCALE'][0]
-        
-        meta_pars['ref_fwhm'] = np.sqrt( fwhmx*fwhmx + fwhmy*fwhmy ) / pixscale
+        meta_pars['ref_fwhm'] = reduction_metadata.images_stats[1]['FWHM'].data[idx[0][0]]
         
         meta_pars['bandpass'] = str(reduction_metadata.headers_summary[1]['FILTKEY'].data[idx[0]][0]).replace('p','')
         
@@ -398,3 +394,18 @@ def ingest_star_catalog_to_db(setup, ref_star_catalog, ref_db_id, star_ids,
                  str(ref_db_id))
                  
     return ref_phot_ids
+
+def store_photometry_in_metadata(reduction_metadata, ref_star_catalog):
+    """Function to save the photometry to the metadata star_catalog"""
+    
+    reduction_metadata.star_catalog[1]['ref_flux'] = ref_star_catalog[:,5]
+    reduction_metadata.star_catalog[1]['ref_flux_error'] = ref_star_catalog[:,6]
+    reduction_metadata.star_catalog[1]['ref_mag'] = ref_star_catalog[:,7]
+    reduction_metadata.star_catalog[1]['ref_mag_error'] = ref_star_catalog[:,8]
+    reduction_metadata.star_catalog[1]['cal_ref_mag'] = ref_star_catalog[:,9]
+    reduction_metadata.star_catalog[1]['cal_ref_mag_error'] = ref_star_catalog[:,10]
+    reduction_metadata.star_catalog[1]['psf_star'] = ref_star_catalog[:,11]
+    reduction_metadata.star_catalog[1]['sky_background'] = ref_star_catalog[:,12]
+    reduction_metadata.star_catalog[1]['sky_background_error'] = ref_star_catalog[:,13]
+    
+    return reduction_metadata

@@ -27,6 +27,7 @@ from astropy.visualization import ZScaleInterval
 from astropy.visualization.mpl_normalize import ImageNormalize
 from astropy.nddata import Cutout2D
 from astropy import units as u
+from astropy import table
 from photutils import background, detection, DAOStarFinder
 from photutils import CircularAperture
 import matplotlib.pyplot as plt
@@ -45,6 +46,7 @@ from pyDANDIA import empirical_psf_simple
 
 ###############################################################################
 def starfind(setup, path_to_image, reduction_metadata, plot_it=False,
+                                                           thumbsize = 250,
                                                            log=None):
     """
     The routine will quickly identify stars in a given image and return 
@@ -62,6 +64,9 @@ def starfind(setup, path_to_image, reduction_metadata, plot_it=False,
     
     :param boolean plot_it: Do you want to plot the selected stars?
     
+    :param int thumbsize: Size of the pixel subregions to split a large image
+                          into. Default 250x250.
+    
     :param string log: Full The full path to the log file.
     
     :return status, report, params: the first two are strings reporting whether
@@ -77,7 +82,7 @@ def starfind(setup, path_to_image, reduction_metadata, plot_it=False,
         log.info('Starting starfind')
     
 
-    params = { 'sky': 0.0, 'fwhm_y': 0.0, 'fwhm_x': 0.0, 'corr_xy':0.0, 'nstars':0, 'sat_frac':0.0, 'symmetry' : 1. }
+    params = { 'sky': 0.0, 'sigma_y': 0.0, 'sigma_x': 0.0, 'corr_xy':0.0, 'nstars':0, 'sat_frac':0.0, 'symmetry' : 1. }
     
 
     t0 = time.time()
@@ -88,8 +93,9 @@ def starfind(setup, path_to_image, reduction_metadata, plot_it=False,
     # Get size of image
     ymax, xmax = scidata.shape
     
-    # If it is a large image, consider 250x250 pixel subregions and
-    # choose the one with the fewest saturated pixels to evaluate stats
+    # If it is a large image, consider thumbnail sized (deftault 250x250) pixel 
+    # subregions and choose the one with the fewest saturated pixels to evaluate 
+    # stats
     try:
         
         saturation = reduction_metadata.reduction_parameters[1]['MAXVAL']
@@ -109,37 +115,50 @@ def starfind(setup, path_to_image, reduction_metadata, plot_it=False,
 
    
             
-    nr_sat_pix = 100000
+    nr_sat_pix = 1000000
     bestx1 = -1
     bestx2 = -1
     besty1 = -1
     besty2 = -1
-    regionsx = np.arange(0, xmax, 250)
-    regionsy = np.arange(0, ymax, 250)
     
-    for i in regionsx[0:-1]:
+    # Attempt to consider subregrions from a large image
+    # provided the thumbsize is smaller than half the size of the image.
+    # Alternatively use the whole image. 
+    if (thumbsize <= xmax/2.0) and (thumbsize <= ymax/2.0): 
+        regionsx = np.arange(0, xmax, thumbsize)
+        regionsy = np.arange(0, ymax, thumbsize)
         
-        x1 = i
-        x2 = i + 250
+        for i in regionsx[0:-1]:
+            
+            x1 = i
+            x2 = i + thumbsize
+            
+            for j in regionsy[0:-1]:
+                
+                y1 = j
+                y2 = j + thumbsize
+                nr_pix = len(scidata[y1:y2,x1:x2][np.where(scidata[y1:y2,x1:x2] > saturation)])
+                #print x1, x2, y1, y2, nr_pix
+                
+                if nr_pix < nr_sat_pix:
+                    nr_sat_pix = nr_pix
+                    bestx1 = x1
+                    bestx2 = x2
+                    besty1 = y1
+                    besty2 = y2
+    
+    else:
+        nr_pix = len(scidata[:,:][np.where(scidata[:,:] > saturation)])
+        nr_sat_pix = nr_pix
+        bestx1 = 1
+        bestx2 = xmax
+        besty1 = 1
+        besty2 = ymax
         
-        for j in regionsy[0:-1]:
-            
-            y1 = j
-            y2 = j + 250
-            nr_pix = len(scidata[y1:y2,x1:x2][np.where(scidata[y1:y2,x1:x2] > saturation)])
-            #print x1, x2, y1, y2, nr_pix
-            
-            if nr_pix < nr_sat_pix:
-               nr_sat_pix = nr_pix
-               bestx1 = x1
-               bestx2 = x2
-               besty1 = y1
-               besty2 = y2
-               
-    #mean, median, std = sigma_clipped_stats(scidata[1:ymax, 1:xmax], sigma=3.0, iters=5)
+    #mean, median, std = sigma_clipped_stats(scidata[1:ymax, 1:xmax], sigma=3.0, maxiters=5)
     # Evaluate mean, median and standard deviation for the selected subregion
     mean, median, std = sigma_clipped_stats(scidata[besty1:besty2, bestx1:bestx2],
-                                            sigma=3.0, iters=5)
+                                            sigma=3.0, maxiters=5)
     
     # Identify stars
     daofind = DAOStarFinder(fwhm=3.0, threshold=5.*std)
@@ -174,14 +193,20 @@ def starfind(setup, path_to_image, reduction_metadata, plot_it=False,
     sources.reverse()
     
     # Store the number of identified sources and fraction of saturated pixels
-    nstars = len(sources)
-    sat_frac = nr_sat_pix/(250.*250.)
-    
     # Discount stars too close to the edges of the image
-    sources = sources[np.where((sources['xcentroid'] > 10) & 
-                               (sources['xcentroid'] < 240) &  
-                   (sources['ycentroid'] < 240) & 
-                   (sources['ycentroid'] > 30))]
+    nstars = len(sources)
+    if (thumbsize <= xmax/2.0) and (thumbsize <= ymax/2.0):
+        sat_frac = nr_sat_pix/(thumbsize*thumbsize)
+        sources = sources[np.where((sources['xcentroid'] > 10) & 
+                          (sources['xcentroid'] < thumbsize-10) &  
+                          (sources['ycentroid'] < thumbsize-10) & 
+                          (sources['ycentroid'] > 30))]
+    else:
+        sat_frac = nr_sat_pix/(xmax*ymax)
+        sources = sources[np.where((sources['xcentroid'] > 10) & 
+                          (sources['xcentroid'] < xmax-10) &  
+                          (sources['ycentroid'] < ymax-10) & 
+                          (sources['ycentroid'] > 30))]
     
     # Keep only up to 100 stars
     sources = sources[0:100]
@@ -216,8 +241,8 @@ def starfind(setup, path_to_image, reduction_metadata, plot_it=False,
     
     # Fit a model to identified sources and estimate PSF shape parameters
     sky_arr = []
-    fwhm_x_arr = []
-    fwhm_y_arr = []
+    sigma_x_arr = []
+    sigma_y_arr = []
     corr_xy_arr = []
     
     i = 0
@@ -239,13 +264,18 @@ def starfind(setup, path_to_image, reduction_metadata, plot_it=False,
             background = psf.ConstantBackground()
             fit_residuals = psf.error_star_fit_function(fit_params, 
                                 cutout.data, biv, background, yy, xx)
+
             fit_residuals = fit_residuals.reshape(cutout.data.shape)
             cov = fit[1]*np.sum(fit_residuals**2)/((stamp_size[0])**2-6)
             fit_errors = cov.diagonal()**0.5
             #print fit_params
             model = biv.psf_model(yy, xx, fit_params)
-            fwhm_y_arr.append(fit_params[3])
-            fwhm_x_arr.append(fit_params[4])
+            if np.isnan(fit_params[3]) == True or np.isnan(fit_params[4]) == True:
+                sigma_x_arr.append(0.0)
+                sigma_y_arr.append(0.0)
+            else:
+                sigma_y_arr.append(fit_params[3])
+                sigma_x_arr.append(fit_params[4])
             corr_xy_arr.append(fit_params[5])
             sky_arr.append(fit_params[6])
             
@@ -265,40 +295,47 @@ def starfind(setup, path_to_image, reduction_metadata, plot_it=False,
                 plt.colorbar()
                 plt.savefig(path.join(setup.red_dir,'starfind_model.png'))
         except:
+            
+            for key, value in params.items():
+                
+                if np.isnan(value):
+                    params[key] = 0.0
+                
             if log != None:
                 log.info("Could not fit source: %s." %str(i))
         
         i = i + 1
     
     # Estimate the median values for the parameters over the stars identified
-    params['sky'] = np.median(sky_arr)
-    params['fwhm_y'] = np.median(fwhm_y_arr)
-    params['fwhm_x'] = np.median(fwhm_x_arr)
-    params['corr_xy'] = np.median(corr_xy_arr)
-    params['nstars'] = nstars
-    params['sat_frac'] = sat_frac
+    if len(sigma_x_arr) > 0:
+        params['sky'] = np.median(sky_arr)
+        params['sigma_y'] = np.median(sigma_y_arr)
+        params['sigma_x'] = np.median(sigma_x_arr)
+        params['corr_xy'] = np.median(corr_xy_arr)
+        params['nstars'] = nstars
+        params['sat_frac'] = sat_frac
 
-    try:
-        if xmax>200 and ymax>200:            
-            psf_emp, psf_error_emp = empirical_psf_simple.empirical_psf_median(np.copy(scidata)[:200,:200], 20, saturation)
-        else:
-            psf_emp, psf_error_emp = empirical_psf_simple.empirical_psf_median(np.copy(scidata), 20, saturation)
-        #imgname = os.path.basename(path_to_image)
-        #hduout=fits.PrimaryHDU(psf_emp)
-        #hduout.writeto('psf_'+imgname,overwrite = True)
-        symmetry_metric = empirical_psf_simple.symmetry_check(psf_emp)
-        params['symmetry'] = symmetry_metric
-    except Exception as e:
-      
-        if log != None:
-            report = ('Could not extract the symmetry based on the PSF ')
-            log.info(report)    
+        try:
+            if xmax>200 and ymax>200:            
+                psf_emp, psf_error_emp = empirical_psf_simple.empirical_psf_median(np.copy(scidata)[:200,:200], 20, saturation)
+            else:
+                psf_emp, psf_error_emp = empirical_psf_simple.empirical_psf_median(np.copy(scidata), 20, saturation)
+            #imgname = os.path.basename(path_to_image)
+            #hduout=fits.PrimaryHDU(psf_emp)
+            #hduout.writeto('psf_'+imgname,overwrite = True)
+            symmetry_metric = empirical_psf_simple.symmetry_check(psf_emp)
+            params['symmetry'] = symmetry_metric
+        except Exception as e:
+          
+            if log != None:
+                report = ('Could not extract the symmetry based on the PSF ')
+                log.info(report)    
 
     if log != None:
         log.info('Measured median values:')
         log.info('Sky background = '+str(params['sky']))
-        log.info('FWHM X = '+str(params['fwhm_x']))
-        log.info('FWHM Y = '+str(params['fwhm_y']))
+        log.info('FWHM X = '+str(params['sigma_x']))
+        log.info('FWHM Y = '+str(params['sigma_y']))
         log.info('Corr XY = '+str(params['corr_xy']))
         log.info('Nstars = '+str(params['nstars']))
         log.info('Saturation fraction = '+str(params['sat_frac']))
@@ -337,7 +374,7 @@ def build_star_finder(reduction_metadata, image_path, log):
     
     image_idx = reduction_metadata.images_stats[1]['IM_NAME'].tolist().index(os.path.basename(image_path))
     
-    fwhm = reduction_metadata.images_stats[1]['FWHM_X'][image_idx]
+    fwhm = reduction_metadata.images_stats[1]['FWHM'][image_idx]
     sky_bkgd = reduction_metadata.images_stats[1]['SKY'][image_idx]
     
     sky_bkgd_sig = np.sqrt(sky_bkgd)
@@ -356,7 +393,7 @@ def build_star_finder(reduction_metadata, image_path, log):
     return daofind
 
 def detect_sources(setup, reduction_metadata, image_path, scidata, log,
-                   diagnostics=False):
+                   diagnostics=False,table_format='table'):
     """Function to detect all sources in the given image
     
     :param MetaData reduction_metadata: pipeline metadata for this dataset
@@ -364,29 +401,41 @@ def detect_sources(setup, reduction_metadata, image_path, scidata, log,
     :param array scidata: image pixel data
     :param logging log: Open reduction log object
     :param diagnostics Bool: Switch for additional diagnostic plots
-
+    :param str table_format: Output table format {'table', 'array'}
+    
     Returns:
     
     :param array detected_sources: position information on all objects in the image
     """
 
+    col_names = { 'id': 'index', 'xcentroid': 'x', 'ycentroid': 'y', 
+                  'sharpness': 'sharpness', 'roundness1': 'roundness1', 
+                  'roundness2': 'roundness2', 'npix': 'npix', 'sky': 'sky', 
+                  'peak': 'peak', 'flux': 'ref_flux', 'mag': 'mag' }
+                  
     daofind = build_star_finder(reduction_metadata, image_path, log)
     
     sources = daofind(scidata)
-        
-    detected_sources = np.zeros([len(sources),len(sources.colnames)])
     
-    for i, col in enumerate(sources.colnames):
-                
-        detected_sources[:,i] = sources[col].data
+    if table_format == 'table':
+        detected_sources = [ table.Column(name='index', data=sources['id'].data),
+                             table.Column(name='x', data=sources['xcentroid'].data),
+                             table.Column(name='y', data=sources['ycentroid'].data),
+                             table.Column(name='ra', data=np.zeros(len(sources))),
+                             table.Column(name='dec', data=np.zeros(len(sources))),
+                             table.Column(name='ref_flux', data=sources['flux'].data),
+                             table.Column(name='ref_flux_err', data=np.zeros(len(sources))),
+                             table.Column(name='ref_mag', data=np.zeros(len(sources))),
+                             table.Column(name='ref_mag_err', data=np.zeros(len(sources))) ]
+        
+        detected_sources = table.Table(detected_sources)
+        
+    else:
+        for i, col in enumerate(sources.colnames):
+            
+            detected_sources[:,i] = sources[col].data
     
     log.info('Detected '+str(len(sources)))
-    
-    if diagnostics:
-        
-        file_path = os.path.join(setup.red_dir,'ref','ref_image_detected_sources.png')
-        
-        plot_detected_sources(image_path,file_path,detected_sources)
     
     return detected_sources
 

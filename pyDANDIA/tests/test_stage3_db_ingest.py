@@ -12,11 +12,13 @@ from astropy.io import fits
 from astropy import table
 import numpy as np
 import sqlite3
+from skimage.transform import AffineTransform
 from pyDANDIA import  logs
 from pyDANDIA import  metadata
 from pyDANDIA import  phot_db
 from pyDANDIA import  stage3_db_ingest
 from pyDANDIA import  pipeline_setup
+from pyDANDIA import  match_utils
 
 
 TEST_DIR = os.path.join(cwd,'data','proc',
@@ -33,7 +35,7 @@ def test_configure_setup():
     for key in ['setup_g', 'setup_r', 'setup_i']:
         assert type(params[key]) == type(test_setup)
 
-def test_harvest_dataset_parameters():
+def test_harvest_stage3_parameters():
     
     setup = pipeline_setup.pipeline_setup({'red_dir': TEST_DIR})
     
@@ -54,7 +56,7 @@ def test_harvest_dataset_parameters():
                                           'pyDANDIA_metadata.fits', 
                                           'software' )
     
-    dataset_params = stage3_db_ingest.harvest_dataset_parameters(setup,reduction_metadata)
+    dataset_params = stage3_db_ingest.harvest_stage3_parameters(setup,reduction_metadata)
     
     assert type(dataset_params) == type({})
     assert len(dataset_params) > 1
@@ -95,18 +97,26 @@ def test_commit_reference_component():
     
     log = logs.start_stage_log( TEST_DIR, 'stage3_db_ingest_test' )
 
-    (facility_keys, software_keys, image_keys, params) = fetch_test_db_contents()
+    (facility_keys, software_keys, image_keys, params, star_catalog, cols) = fetch_test_db_contents()
     
     conn = phot_db.get_connection(dsn=db_file_path)
     
     phot_db.check_before_commit(conn, params, 'facilities', facility_keys, 'facility_code')
     phot_db.check_before_commit(conn, params, 'software', software_keys, 'version')
-    phot_db.check_before_commit(conn, params, 'images', image_keys, 'filename')
     
+    query = 'SELECT facility_id FROM facilities WHERE facility_code ="'+params['facility_code']+'"'
+    params['facility'] = phot_db.query_to_astropy_table(conn, query, args=())['facility_id'][0]
+    
+    query = 'SELECT filter_id,filter_name FROM filters WHERE filter_name ="'+params['filter_name']+'"'
+    result = phot_db.query_to_astropy_table(conn, query, args=())
+    params['filter'] = result['filter_id'][0]
+    
+    phot_db.check_before_commit(conn, params, 'images', image_keys, 'filename')
     
     query = 'SELECT img_id FROM images WHERE filename="'+\
             params['filename']+'"'
     image = phot_db.query_to_astropy_table(conn, query, args=())
+    print(image)
     
     stage3_db_ingest.commit_reference_image(conn, params, log)
     
@@ -115,36 +125,50 @@ def test_commit_reference_component():
     query = 'SELECT component_id,image,reference_image FROM reference_components WHERE image='+\
             str(image['img_id'][0])
     t = phot_db.query_to_astropy_table(conn, query, args=())
-    
     assert len(t) == 1
     
     conn.close()
     
     logs.close_log(log)
     
+def test_run_stage3_db_ingest_primary_ref():
+    
+    setup = pipeline_setup.pipeline_setup({'red_dir': TEST_DIR})
+    
+    stage3_db_ingest.run_stage3_db_ingest(setup, primary_ref=True)
+
+
 def test_run_stage3_db_ingest():
     
-    stage3_db_ingest.run_stage3_db_ingest()
+    setup = pipeline_setup.pipeline_setup({'red_dir': TEST_DIR})
+    
+    stage3_db_ingest.run_stage3_db_ingest(setup, primary_ref=True)
 
+    stage3_db_ingest.run_stage3_db_ingest(setup, primary_ref=False)
+    
+    
 def fetch_test_db_contents():
     
     facility_keys = ['facility_code', 'site', 'enclosure', 
                      'telescope', 'instrument']
     software_keys = ['code_name', 'stage', 'version']
-    image_keys =    ['filename', 'field_id',
+    image_keys =    ['facility', 'filter', 'field_id', 'filename',
                      'date_obs_utc','date_obs_jd','exposure_time',
                      'fwhm','fwhm_err',
                      'ellipticity','ellipticity_err',
                      'slope','slope_err','intercept','intercept_err',
                      'wcsfrcat','wcsimcat','wcsmatch','wcsnref','wcstol','wcsra',
                      'wcsdec','wequinox','wepoch','radecsys',
-                     'ctype1','ctype2','cdelt1','cdelt2','crota1','crota2',
+                     'ctype1','ctype2','crpix1', 'crpix2', 'crval1', 'crval2',
+                     'cdelt1','cdelt2','crota1','crota2',
+                     'cunit1', 'cunit2',
                      'secpix1','secpix2',
                      'wcssep','equinox',
                      'cd1_1','cd1_2','cd2_1','cd2_2','epoch',
                      'airmass','moon_phase','moon_separation',
                      'delta_x','delta_y']
     
+
     params = {'facility_code': 'lsc-doma-1m0a-fl15', 
               'site': 'lsc', 
               'enclosure': 'doma', 
@@ -154,6 +178,7 @@ def fetch_test_db_contents():
               'stage': 'stage3_test', 
               'version': 'stage3_test_v0.1',
               'filename': 'lsc1m005-fl15-20170418-0131-e91_cropped.fits', 
+              'ref_filename': 'lsc1m005-fl15-20170418-0131-e91_cropped.fits', 
               'field_id': 'ROME-FIELD-16',
               'filter_name': 'gp',
               'date_obs_utc': '2016-05-18T10:57:30',
@@ -170,8 +195,11 @@ def fetch_test_db_contents():
               'wcsnref':None,'wcstol':None,'wcsra':None,
               'wcsdec':None,'wequinox':None,'wepoch':None,'radecsys':None,
               'ctype1':None,'ctype2':None,
+              'crpix1':None,'crpix2':None,
+              'crval1':None,'crval2':None,
               'cdelt1':None,'cdelt2':None,
               'crota1':None,'crota2':None,
+              'cunit1':None,'cunit2':None,
               'secpix1':None,'secpix2':None,
               'wcssep':None,'equinox':None,
               'cd1_1':None,'cd1_2':None,'cd2_1':None,'cd2_2':None,'epoch':None,
@@ -306,14 +334,288 @@ def test_commit_photometry():
     conn.close()
     
     logs.close_log(log)
+
+def test_fetch_field_starlist():
     
+    if os.path.isfile(db_file_path):
+        os.remove(db_file_path)
+    
+    log = logs.start_stage_log( TEST_DIR, 'stage3_db_ingest_test' )
+    
+    (facility_keys, software_keys, image_keys, params, star_catalog, cols) = fetch_test_db_contents()
+    
+    setup = pipeline_setup.pipeline_setup({'red_dir': TEST_DIR})
+    
+    reduction_metadata = metadata.MetaData()
+    reduction_metadata.load_a_layer_from_file( setup.red_dir, 
+                                          'pyDANDIA_metadata.fits', 
+                                          'data_architecture' )
+    reduction_metadata.load_a_layer_from_file( setup.red_dir, 
+                                          'pyDANDIA_metadata.fits', 
+                                          'reduction_parameters' )
+    reduction_metadata.load_a_layer_from_file( setup.red_dir, 
+                                          'pyDANDIA_metadata.fits', 
+                                          'headers_summary' )
+    reduction_metadata.load_a_layer_from_file( setup.red_dir, 
+                                          'pyDANDIA_metadata.fits', 
+                                          'images_stats' )
+    reduction_metadata.load_a_layer_from_file( setup.red_dir, 
+                                          'pyDANDIA_metadata.fits', 
+                                          'star_catalog' )
+    
+    conn = phot_db.get_connection(dsn=db_file_path)
+    phot_db.check_before_commit(conn, params, 'facilities', facility_keys, 'facility_code')
+    phot_db.check_before_commit(conn, params, 'software', software_keys, 'version')
+    phot_db.check_before_commit(conn, params, 'images', image_keys, 'filename')
+    stage3_db_ingest.commit_reference_image(conn, params, log)
+    star_ids = stage3_db_ingest.commit_stars(conn, params, reduction_metadata, log)
+    
+    starlist = stage3_db_ingest.fetch_field_starlist(conn,params,log)
+    
+    test_table = table.Table()
+    
+    assert type(starlist) == type(test_table)
+    assert len(starlist) > 0
+    
+    conn.close()
+    
+    logs.close_log(log)
+
+def test_match_catalog_entries_with_starlist():
+    
+    if os.path.isfile(db_file_path):
+        os.remove(db_file_path)
+    
+    log = logs.start_stage_log( TEST_DIR, 'stage3_db_ingest_test' )
+    
+    (facility_keys, software_keys, image_keys, params, star_catalog, cols) = fetch_test_db_contents()
+    
+    setup = pipeline_setup.pipeline_setup({'red_dir': TEST_DIR})
+    
+    reduction_metadata = metadata.MetaData()
+    reduction_metadata.load_a_layer_from_file( setup.red_dir, 
+                                          'pyDANDIA_metadata.fits', 
+                                          'data_architecture' )
+    reduction_metadata.load_a_layer_from_file( setup.red_dir, 
+                                          'pyDANDIA_metadata.fits', 
+                                          'reduction_parameters' )
+    reduction_metadata.load_a_layer_from_file( setup.red_dir, 
+                                          'pyDANDIA_metadata.fits', 
+                                          'headers_summary' )
+    reduction_metadata.load_a_layer_from_file( setup.red_dir, 
+                                          'pyDANDIA_metadata.fits', 
+                                          'images_stats' )
+    reduction_metadata.load_a_layer_from_file( setup.red_dir, 
+                                          'pyDANDIA_metadata.fits', 
+                                          'star_catalog' )
+    
+    conn = phot_db.get_connection(dsn=db_file_path)
+    phot_db.check_before_commit(conn, params, 'facilities', facility_keys, 'facility_code')
+    phot_db.check_before_commit(conn, params, 'software', software_keys, 'version')
+    phot_db.check_before_commit(conn, params, 'images', image_keys, 'filename')
+    stage3_db_ingest.commit_reference_image(conn, params, log)
+    star_ids = stage3_db_ingest.commit_stars(conn, params, reduction_metadata, log)
+    stage3_db_ingest.commit_photometry(conn, params, reduction_metadata, star_ids, log)
+
+    starlist = stage3_db_ingest.fetch_field_starlist(conn,params,log)
+    
+    ref_id_list = phot_db.find_reference_image_for_dataset(conn,params)
+    
+    matched_stars = stage3_db_ingest.match_catalog_entries_with_starlist(conn,params,starlist,
+                                                                  reduction_metadata,
+                                                                  ref_id_list[0],
+                                                                  log)
+    
+    assert type(matched_stars) == type(match_utils.StarMatchIndex())
+    assert len(matched_stars.cat1_index) > 0
+    
+    conn.close()
+    
+    logs.close_log(log)
+
+def test_commit_photometry_matching():
+    
+    if os.path.isfile(db_file_path):
+        os.remove(db_file_path)
+    
+    log = logs.start_stage_log( TEST_DIR, 'stage3_db_ingest_test' )
+    
+    (facility_keys, software_keys, image_keys, params, star_catalog, cols) = fetch_test_db_contents()
+    
+    setup = pipeline_setup.pipeline_setup({'red_dir': TEST_DIR})
+    
+    reduction_metadata = metadata.MetaData()
+    reduction_metadata.load_a_layer_from_file( setup.red_dir, 
+                                          'pyDANDIA_metadata.fits', 
+                                          'data_architecture' )
+    reduction_metadata.load_a_layer_from_file( setup.red_dir, 
+                                          'pyDANDIA_metadata.fits', 
+                                          'reduction_parameters' )
+    reduction_metadata.load_a_layer_from_file( setup.red_dir, 
+                                          'pyDANDIA_metadata.fits', 
+                                          'headers_summary' )
+    reduction_metadata.load_a_layer_from_file( setup.red_dir, 
+                                          'pyDANDIA_metadata.fits', 
+                                          'images_stats' )
+    reduction_metadata.load_a_layer_from_file( setup.red_dir, 
+                                          'pyDANDIA_metadata.fits', 
+                                          'star_catalog' )
+    
+    conn = phot_db.get_connection(dsn=db_file_path)
+    phot_db.check_before_commit(conn, params, 'facilities', facility_keys, 'facility_code')
+    phot_db.check_before_commit(conn, params, 'software', software_keys, 'version')
+    phot_db.check_before_commit(conn, params, 'images', image_keys, 'filename')
+    stage3_db_ingest.commit_reference_image(conn, params, log)
+    star_ids = stage3_db_ingest.commit_stars(conn, params, reduction_metadata, log)
+    
+    stage3_db_ingest.commit_photometry(conn, params, reduction_metadata, star_ids, log)
+
+    starlist = stage3_db_ingest.fetch_field_starlist(conn,params,log)
+    
+    ref_id_list = phot_db.find_reference_image_for_dataset(conn,params)
+    
+    matched_stars = stage3_db_ingest.match_new_data_with_starlist(conn,params,starlist,
+                                                                  reduction_metadata,
+                                                                  ref_id_list[0],
+                                                                  log)
+                                                                  
+    stage3_db_ingest.commit_photometry_matching(conn, params, reduction_metadata, matched_stars, log)
+    
+    query = 'SELECT phot_id,x,y,magnitude, magnitude_err, calibrated_mag, calibrated_mag_err, flux, flux_err,filter,software,image,reference_image,facility FROM phot WHERE star_id="'+str(matched_stars.cat1_index[0])+'"'
+    t = phot_db.query_to_astropy_table(conn, query, args=())
+    
+    for j in range(0,10,1):
+        assert len(t) == 2
+        for col in ['x', 'y', 'magnitude', 'magnitude_err']:
+            assert t[col][0] == t[col][1]
+    
+    conn.close()
+    
+    logs.close_log(log)
+
+def test_calc_transform_to_primary_ref():
+    
+    if os.path.isfile(db_file_path):
+        os.remove(db_file_path)
+    
+    log = logs.start_stage_log( TEST_DIR, 'stage3_db_ingest_test' )
+    
+    (facility_keys, software_keys, image_keys, params, star_catalog, cols) = fetch_test_db_contents()
+    
+    setup = pipeline_setup.pipeline_setup({'red_dir': TEST_DIR})
+    
+    reduction_metadata = metadata.MetaData()
+    reduction_metadata.load_a_layer_from_file( setup.red_dir, 
+                                          'pyDANDIA_metadata.fits', 
+                                          'data_architecture' )
+    reduction_metadata.load_a_layer_from_file( setup.red_dir, 
+                                          'pyDANDIA_metadata.fits', 
+                                          'reduction_parameters' )
+    reduction_metadata.load_a_layer_from_file( setup.red_dir, 
+                                          'pyDANDIA_metadata.fits', 
+                                          'headers_summary' )
+    reduction_metadata.load_a_layer_from_file( setup.red_dir, 
+                                          'pyDANDIA_metadata.fits', 
+                                          'images_stats' )
+    reduction_metadata.load_a_layer_from_file( setup.red_dir, 
+                                          'pyDANDIA_metadata.fits', 
+                                          'star_catalog' )
+    
+    conn = phot_db.get_connection(dsn=db_file_path)
+    phot_db.check_before_commit(conn, params, 'facilities', facility_keys, 'facility_code')
+    phot_db.check_before_commit(conn, params, 'software', software_keys, 'version')
+    phot_db.check_before_commit(conn, params, 'images', image_keys, 'filename')
+    stage3_db_ingest.commit_reference_image(conn, params, log)
+    star_ids = stage3_db_ingest.commit_stars(conn, params, reduction_metadata, log)
+    
+    stage3_db_ingest.commit_photometry(conn, params, reduction_metadata, star_ids, log)
+
+    starlist = stage3_db_ingest.fetch_field_starlist(conn,params,log)
+    
+    ref_id_list = phot_db.find_reference_image_for_dataset(conn,params)
+    
+    matched_stars = stage3_db_ingest.match_new_data_with_starlist(conn,params,starlist,
+                                                                  reduction_metadata,
+                                                                  ref_id_list[0],
+                                                                  log)
+    
+    transform = stage3_db_ingest.calc_transform_to_primary_ref(setup,matched_stars,log)
+    
+    assert type(transform) == type(AffineTransform())
+    assert round(transform.params[0,2],3) == 0.0
+    assert round(transform.params[1,2],3) == 0.0
+    
+    conn.close()
+    
+    logs.close_log(log)
+  
+def test_match_all_entries_with_starlist():
+    
+    if os.path.isfile(db_file_path):
+        os.remove(db_file_path)
+    
+    log = logs.start_stage_log( TEST_DIR, 'stage3_db_ingest_test' )
+    
+    (facility_keys, software_keys, image_keys, params, star_catalog, cols) = fetch_test_db_contents()
+    
+    setup = pipeline_setup.pipeline_setup({'red_dir': TEST_DIR})
+    
+    reduction_metadata = metadata.MetaData()
+    reduction_metadata.load_a_layer_from_file( setup.red_dir, 
+                                          'pyDANDIA_metadata.fits', 
+                                          'data_architecture' )
+    reduction_metadata.load_a_layer_from_file( setup.red_dir, 
+                                          'pyDANDIA_metadata.fits', 
+                                          'reduction_parameters' )
+    reduction_metadata.load_a_layer_from_file( setup.red_dir, 
+                                          'pyDANDIA_metadata.fits', 
+                                          'headers_summary' )
+    reduction_metadata.load_a_layer_from_file( setup.red_dir, 
+                                          'pyDANDIA_metadata.fits', 
+                                          'images_stats' )
+    reduction_metadata.load_a_layer_from_file( setup.red_dir, 
+                                          'pyDANDIA_metadata.fits', 
+                                          'star_catalog' )
+    
+    conn = phot_db.get_connection(dsn=db_file_path)
+    phot_db.check_before_commit(conn, params, 'facilities', facility_keys, 'facility_code')
+    phot_db.check_before_commit(conn, params, 'software', software_keys, 'version')
+    phot_db.check_before_commit(conn, params, 'images', image_keys, 'filename')
+    stage3_db_ingest.commit_reference_image(conn, params, log)
+    star_ids = stage3_db_ingest.commit_stars(conn, params, reduction_metadata, log)
+    
+    stage3_db_ingest.commit_photometry(conn, params, reduction_metadata, star_ids, log)
+
+    starlist = stage3_db_ingest.fetch_field_starlist(conn,params,log)
+
+    transform = AffineTransform()
+
+    matched_stars = stage3_db_ingest.match_all_entries_with_starlist(setup,conn,params,starlist,
+                                                     reduction_metadata,
+                                                     1,transform,log)
+    
+    assert type(matched_stars) == type(match_utils.StarMatchIndex())
+    assert len(matched_stars.cat1_index) == len(starlist)
+    assert matched_stars.cat1_x == matched_stars.cat2_x
+    assert matched_stars.cat1_y == matched_stars.cat2_y
+    
+    conn.close()
+    
+    logs.close_log(log)
+  
 if __name__ == '__main__':
     
     #test_configure_setup()
-    #test_harvest_dataset_parameters()
+    #test_harvest_stage3_parameters()
     #test_commit_reference_image()
-    #test_commit_reference_component()
+    test_commit_reference_component()
     #test_read_combined_star_catalog()
     #test_commit_stars()
-    test_commit_photometry()
+    #test_commit_photometry()
+    #test_run_stage3_db_ingest_primary_ref()
+    #test_fetch_field_starlist()
+    #test_match_new_data_with_starlist()
+    #test_commit_photometry_matching()
+    #test_calc_transform_to_primary_ref()
+    #test_match_all_entries_with_starlist()
     #test_run_stage3_db_ingest()

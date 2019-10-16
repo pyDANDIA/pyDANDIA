@@ -71,7 +71,7 @@ def assess_image(reduction_metadata,image_params,log):
     use_ref = 1
     report = ''
     
-    fwhm_max = reduction_metadata.reduction_parameters[1]['MAX_FWHM_ARCSEC'][0]
+    sigma_max = reduction_metadata.reduction_parameters[1]['MAX_SIGMA_PIXELS'][0]
     sky_max = reduction_metadata.reduction_parameters[1]['MAX_SKY'][0]
     sky_ref_max = reduction_metadata.reduction_parameters[1]['MAX_SKY_REF'][0]
     
@@ -81,7 +81,7 @@ def assess_image(reduction_metadata,image_params,log):
         use_ref = 0
         report = append_errors(report, 'No stars detected in frame')
         
-    if image_params['fwhm_x'] > fwhm_max or image_params['fwhm_y'] > fwhm_max:
+    if image_params['sigma_x'] > sigma_max or image_params['sigma_y'] > sigma_max:
         
         use_phot = 0
         use_ref = 0

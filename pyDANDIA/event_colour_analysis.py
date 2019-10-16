@@ -1248,7 +1248,7 @@ def calc_distribution_centre_and_spread(xdata, use_iqr=False):
     
     return xcentre, sig_x
     
-def measure_RC_offset(params,RC,target,log):
+def measure_RC_offset(params,RC,log):
     """Function to calculate the offset of the Red Clump from its expected 
     values, taken from Bensby et al. (2017), 2017, A&A, 605A, 89 for V, I bands and
     Hawkins et al. (2017) MNRAS, 471, 722 for 2MASS J,H,Ks.

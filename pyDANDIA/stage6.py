@@ -16,6 +16,9 @@ from astropy.io import fits
 from astropy.table import Table
 from astropy.table import Column
 from scipy.ndimage.interpolation import shift
+import astropy.time
+import dateutil.parser
+
 from pyDANDIA.sky_background import mask_saturated_pixels, generate_sky_model
 from pyDANDIA.sky_background import fit_sky_background, generate_sky_model_image
 
@@ -31,7 +34,7 @@ from pyDANDIA import phot_db as db_phot
 from pyDANDIA import sky_background
 from pyDANDIA import psf
 from pyDANDIA import photometry
-
+from pyDANDIA import stage3_db_ingest
 
 def run_stage6(setup):
     """Main driver function to run stage 6: image substraction and photometry.
@@ -43,7 +46,7 @@ def run_stage6(setup):
 
     """
 
-    stage6_version = 'stage6 v0.1'
+    stage6_version = 'stage6 v0.2'
 
     log = logs.start_stage_log(setup.red_dir, 'stage6', version=stage6_version)
     log.info('Setup:\n' + setup.summary() + '\n')
@@ -52,25 +55,50 @@ def run_stage6(setup):
     reduction_metadata = metadata.MetaData()
     reduction_metadata.load_all_metadata(setup.red_dir, 'pyDANDIA_metadata.fits')
 
+    dataset_params = harvest_stage6_parameters(setup,reduction_metadata,stage6_version)
+    
+    # Setup the DB connection and record dataset and software parameters
+    conn = db_phot.get_connection(dsn=setup.phot_db_path)
+    conn.execute('pragma synchronous=OFF')
+    
+    (facility_keys, software_keys, image_keys) = stage3_db_ingest.define_table_keys()
+    
+    db_phot.check_before_commit(conn, dataset_params, 'facilities', facility_keys, 'facility_code')
+    db_phot.check_before_commit(conn, dataset_params, 'software', software_keys, 'version')
+    
+    query = 'SELECT facility_id FROM facilities WHERE facility_code ="'+dataset_params['facility_code']+'"'
+    dataset_params['facility'] = db_phot.query_to_astropy_table(conn, query, args=())['facility_id'][0]
+    
+    query = 'SELECT code_id FROM software WHERE version ="'+dataset_params['version']+'"'
+    dataset_params['software'] = db_phot.query_to_astropy_table(conn, query, args=())['code_id'][0]
+    
+    query = 'SELECT filter_id FROM filters WHERE filter_name ="'+dataset_params['filter_name']+'"'
+    dataset_params['filter'] = db_phot.query_to_astropy_table(conn, query, args=())['filter_id'][0]
+    
+    # Measure the offset between the reference image for this dataset relative
+    # to the primary reference for this field
+    (transform, matched_stars) = match_dataset_with_field_primary_reference(setup,conn,dataset_params,
+                                                                           reduction_metadata,log)
+                                                                           
     # find the images needed to treat
     all_images = reduction_metadata.find_all_images(setup, reduction_metadata,
                                                     os.path.join(setup.red_dir, 'data'), log=log)
 
     new_images = reduction_metadata.find_images_need_to_be_process(setup, all_images,
-                                                                   stage_number=6, rerun_all=None, log=log)
+                                                                   stage_number=6, rerun_all=True, log=log)
 
     # find the starlist
     starlist = reduction_metadata.star_catalog[1]
 
-    max_x = np.max(starlist['x_pixel'].data)
-    max_y = np.max(starlist['y_pixel'].data)
-    mask = (starlist['psf_star'].data == 1) & (starlist['x_pixel'].data < max_x - 25) & (
-    starlist['x_pixel'].data > 25) & (starlist['y_pixel'].data < max_y - 25) & (starlist['y_pixel'].data > 25)
+    max_x = np.max(starlist['x'].data)
+    max_y = np.max(starlist['y'].data)
+    mask = (starlist['psf_star'].data == 1) & (starlist['x'].data < max_x - 25) & (
+    starlist['x'].data > 25) & (starlist['y'].data < max_y - 25) & (starlist['y'].data > 25)
 
     control_stars = starlist[mask][:10]
-    star_coordinates = np.c_[control_stars['star_index'].data,
-                             control_stars['x_pixel'].data,
-                             control_stars['y_pixel'].data]
+    star_coordinates = np.c_[control_stars['index'].data,
+                             control_stars['x'].data,
+                             control_stars['y'].data]
 
     for index, key in enumerate(starlist.columns.keys()):
 
@@ -81,54 +109,45 @@ def run_stage6(setup):
         else:
 
             ref_star_catalog = starlist[key].data
-
-    # create the starlist table in db, if needed
-    #ingest_the_stars_in_db(setup, starlist)
-
-    # find star indexes in the db
-    #star_indexes = find_stars_indexes_in_db(setup) 
+    log.info('Established ref_star_catalog array')
     
     psf_model = fits.open(reduction_metadata.data_architecture[1]['REF_PATH'].data[0] + '/psf_model.fits')
 
     psf_type = psf_model[0].header['PSFTYPE']
-
-    psf_parameters = [0, psf_model[0].header['Y_CENTER'],
+    #import pdb;
+    #pdb.set_trace()
+    psf_parameters = [ psf_model[0].header['INTENSIT'], psf_model[0].header['Y_CENTER'],
                       psf_model[0].header['X_CENTER'],
                       psf_model[0].header['GAMMA'],
                       psf_model[0].header['ALPHA']]
-
-    sky_model = sky_background.model_sky_background(setup,
-                                                    reduction_metadata, log, ref_star_catalog)
-
+    
+    log.info('Established PSF parameters')
+    
     psf_model = psf.get_psf_object(psf_type)
     psf_model.update_psf_parameters(psf_parameters)
-
-    ind = ((starlist['x_pixel'] - 150) ** 2 < 1) & ((starlist['y_pixel'] - 150) ** 2 < 1)
+    log.info('Built PSF model')
+    
+    ind = ((starlist['x'] - 150) ** 2 < 1) & ((starlist['y'] - 150) ** 2 < 1)
 
     time = []
     exposures_id = []
     photometric_table = []
-
+    
+    log.info('Starting photometry of difference images')
+    
     if len(new_images) > 0:
 
         # find the reference image
         try:
             reference_image_name = reduction_metadata.data_architecture[1]['REF_IMAGE'].data[0]
             reference_image_directory = reduction_metadata.data_architecture[1]['REF_PATH'].data[0]
-            reference_image, date = open_an_image(setup, reference_image_directory, reference_image_name, image_index=0,
-                                                  log=None)
+            reference_image, date = open_an_image(setup, reference_image_directory, reference_image_name, log, image_index=0)
 
             ref_image_name = reduction_metadata.data_architecture[1]['REF_IMAGE'].data[0]
             index_reference = np.where(ref_image_name == reduction_metadata.headers_summary[1]['IMAGES'].data)[0][0]
             ref_exposure_time = float(reduction_metadata.headers_summary[1]['EXPKEY'].data[index_reference])
 
             reference_header = reduction_metadata.headers_summary[1][index_reference]
-
-            # create the reference table in db
-            ingest_reference_in_db(setup, reference_header, reference_image_directory, reference_image_name)
-            conn = db_phot.get_connection(dsn=setup.red_dir + 'phot.db')
-            #ref_image_id = db_phot.query_to_astropy_table(conn, "SELECT refimg_id FROM reference_images")[0][0]
-            conn.commit()
 
             logs.ifverbose(log, setup,
                            'I found the reference frame:' + reference_image_name)
@@ -158,90 +177,85 @@ def run_stage6(setup):
 
             return status, report
 
-        data = []
+        date = []
         diffim_directory = os.path.join(reduction_metadata.data_architecture[1]['OUTPUT_DIRECTORY'].data[0], 'diffim')
 
-        photometric_table = np.zeros((len(new_images), len(ref_star_catalog), 16))
-        compt_db = 0
-
+        n_images = len(new_images)
+        
         for idx, new_image in enumerate(new_images[:]):
-            print(new_image)
+            log.info('Extracting parameters of image ' + new_image + ' for photometry ('+str(idx)+' of '+str(n_images)+')')
             index_image = np.where(new_image == reduction_metadata.headers_summary[1]['IMAGES'].data)[0][0]
             image_header = reduction_metadata.headers_summary[1][index_image]
 
-            #ingest_exposure_in_db(setup, image_header, ref_image_id)
-            #conn = db_phot.get_connection(dsn=setup.red_dir + 'phot.db')
+            ddate = reduction_metadata.headers_summary[1]['DATEKEY'][index_image]
+            jd =  dateutil.parser.parse(ddate)
+            time = astropy.time.Time(jd)
+            date.append(time.jd)
 
-           # image_id = db_phot.query_to_astropy_table(conn,
-          #                                          "SELECT exposure_id FROM exposures WHERE exposure_name='%s'" % new_image)[
-            #    0][0]
-
-            #conn.commit()
+            image_params = stage3_db_ingest.harvest_image_params(reduction_metadata,
+                                                                 os.path.join(setup.red_dir,'data',new_image), 
+                                                                 dataset_params['ref_filename'])
+            image_params['version'] = stage6_version
+            image_params['facility'] = dataset_params['facility']
+            image_params['filter'] = dataset_params['filter']
+            
+            db_phot.check_before_commit(conn, image_params, 'facilities', facility_keys, 'facility_code')
+            db_phot.check_before_commit(conn, image_params, 'images', image_keys, 'filename')
+            log.info('Recorded image '+str(new_image)+' in DB')
+            
             image_id = idx
             exposures_id.append(image_id)
 
             log.info('Starting difference photometry of ' + new_image)
-            #target_image,date = open_an_image(setup, images_directory, new_image, image_index=0, log=None)
             kernel_image, kernel_error, kernel_bkg = find_the_associated_kernel(setup, kernels_directory, new_image)
-
-            # difference_image = subtract_images(target_image, reference_image, kernel_image, kernel_size, kernel_bkg)
-            difference_image = open_an_image(setup, diffim_directory, 'diff_' + new_image, 0, log=None)[0]
-
-            time.append(date)
-
-            # save_control_stars_of_the_difference_image(setup, new_image, difference_image, star_coordinates)
-
-            phot_table, control_zone = photometry_on_the_difference_image(setup, reduction_metadata, log,
+            
+            sky_model = sky_background.model_sky_background(setup,
+                                                            reduction_metadata, 
+                                                            log, ref_star_catalog,
+                                                            image_path=os.path.join(setup.red_dir,'data',new_image))
+            log.info('Built sky model')
+    
+            difference_image = open_an_image(setup, diffim_directory, 'diff_' + new_image, log, 0)[0]
+            
+            if len(difference_image) > 1:
+                diff_table, control_zone, phot_table = photometry_on_the_difference_image(setup, reduction_metadata, log,
                                                                           ref_star_catalog, difference_image, psf_model,
                                                                           sky_model, kernel_image, kernel_error,
-                                                                          ref_exposure_time)
-            psf_model.update_psf_parameters(psf_parameters)
-            try:
-                photometric_table[compt_db, :, :] = phot_table
-                phot_table = np.zeros(phot_table.shape)
-                compt_db += 1
+                                                                          ref_exposure_time,idx)
+                psf_model.update_psf_parameters(psf_parameters)
 
-            except:
+                commit_image_photometry_matching(conn, image_params, reduction_metadata, matched_stars, phot_table, log)
+                
+            else:
+                log.info('No difference image available, so no photometry performed.')
+        
+        output_txt_files = False
+        if output_txt_files:
+            
+            if os.path.isdir(os.path.join(setup.red_dir, 'lightcurves')) == False:
+                os.mkdir(os.path.join(setup.red_dir, 'lightcurves'))
+                
+            jd = np.array(date)
+        
+            for star in range(len(photometric_table[0, :, 0]))[:]:
+                mag = photometric_table[:, star, [8,9]]
+                lightcurve = np.c_[jd,mag]
+        
+                file_to_write = open(os.path.join(setup.red_dir,'lightcurves','light_'+str(star),'ab'))
+        
+                np.savetxt(file_to_write,lightcurve)
+        
+                file_to_write.close()
 
-                # save_control_zone_of_residuals(setup, new_image, control_zone)
-
-                # ingest_photometric_table_in_db(setup, photometric_table)
-                compt_db += 1
-
-                # if compt_db >9:
-
-                #   ingest_photometric_table_in_db(setup, exposures_id, star_indexes, photometric_table)
-                #   photometric_table = np.zeros((10,len(ref_star_catalog),16))
-                #   exposures_id = []
-                #   compt_db = 0
-
-        import astropy.time
-        import dateutil.parser
-        jd = []
-
-        for ddate in reduction_metadata.headers_summary[1]['DATEKEY'].data.tolist():
-            dt = dateutil.parser.parse(ddate)
-            time = astropy.time.Time(dt)
-            jd.append(time.jd)
-
-
-
-
-        for star in range(len(photometric_table[0, :, 0])):
-            mag = photometric_table[:, star, [8,9]]
-            lightcurve = np.c_[jd,mag]
-
-            np.savetxt('./lightcurves/light_'+str(star),lightcurve)
-        import pdb;
-        pdb.set_trace()
-        ingest_photometric_table_in_db(setup, exposures_id, star_indexes, photometric_table)
 
         reduction_metadata.update_reduction_metadata_reduction_status(new_images, stage_number=6, status=1, log=log)
+        reduction_metadata.software[1]['stage6_version'] = stage6_version
         reduction_metadata.save_updated_metadata(
             reduction_metadata.data_architecture[1]['OUTPUT_DIRECTORY'][0],
             reduction_metadata.data_architecture[1]['METADATA_NAME'][0],
             log=log)
 
+    conn.close()                         
     logs.close_log(log)
 
     status = 'OK'
@@ -266,8 +280,7 @@ def background_subtract(setup, image, max_adu):
     return image - sky_model_image
 
 
-def open_an_image(setup, image_directory, image_name,
-                  image_index=0, log=None):
+def open_an_image(setup, image_directory, image_name, log, image_index=0):
     '''
     Simply open an image using astropy.io.fits
 
@@ -291,20 +304,21 @@ def open_an_image(setup, image_directory, image_name,
         image_data = fits.open(os.path.join(image_directory_path, image_name),
                                mmap=True)
         image_data = image_data[image_index]
+        
         try:
             date = image_data.header['MJD-OBS']
 	    #exptime = image_data.header['EXPTIME']
         except:
             date = 0
 	    #exptime = 1
-        logs.ifverbose(log, setup, image_name + ' open : OK')
+        log.info(image_name + ' open : OK')
 
         return image_data.data, date
 
     except:
-        logs.ifverbose(log, setup, image_name + ' open : not OK!')
+        log.info('Warning: '+image_name + ' open : not OK!')
 
-        return None
+        return np.zeros([1]), 0
 
 
 def save_control_zone_of_residuals(setup, image_name, control_zone):
@@ -386,8 +400,8 @@ def image_substraction2(setup, diffim_directory, image_name, log=None):
     # import pdb; pdb.set_trace()
     diffim = 'diff_' + image_name
 
-    diffim, date = open_an_image(setup, diffim_directory, diffim,
-                                 image_index=0, log=None)
+    diffim, date = open_an_image(setup, diffim_directory, diffim, log,
+                                 image_index=0)
 
     return diffim
 
@@ -407,7 +421,7 @@ def image_substraction(setup, reduction_metadata, reference_image_data, kernel_d
     :rtype: array_like
     '''
 
-    image_data, date = open_an_image(setup, './data/', image_name, image_index=0, log=None)
+    image_data, date = open_an_image(setup, './data/', image_name, log, image_index=0)
     row_index = np.where(reduction_metadata.images_stats[1]['IM_NAME'] == image_name)[0][0]
 
     kernel_size = kernel_data.shape[0]
@@ -453,10 +467,10 @@ def find_the_associated_kernel(setup, kernels_directory, image_name):
 
     kernel = fits.open(os.path.join(kernels_directory, kernel_name))
     kernel_error = fits.open(os.path.join(kernels_directory, kernel_err))
-    # kernel,date = open_an_image(setup, kernels_directory, kernel_name,
-    #                       image_index=0, log=None)
-    # kernel_error,date = open_an_image(setup, kernels_directory, kernel_err,
-    #                       image_index=0, log=None)
+    # kernel,date = open_an_image(setup, kernels_directory, kernel_name, log,
+    #                       image_index=0)
+    # kernel_error,date = open_an_image(setup, kernels_directory, kernel_err, log,
+    #                       image_index=0)
     bkgd = +kernel[0].header['KERBKG']
 
     kernel = kernel[0].data
@@ -465,7 +479,7 @@ def find_the_associated_kernel(setup, kernels_directory, image_name):
 
 
 def photometry_on_the_difference_image(setup, reduction_metadata, log, star_catalog, difference_image, psf_model,
-                                       sky_model, kernel, kernel_error, ref_exposure_time):
+                                       sky_model, kernel, kernel_error, ref_exposure_time,image_id):
     '''
     Find the appropriate kernel associated to an image
     :param object reduction_metadata: the metadata object
@@ -476,138 +490,35 @@ def photometry_on_the_difference_image(setup, reduction_metadata, log, star_cata
     :rtype: array_like
     '''
 
-    differential_photometry = photometry.run_psf_photometry_on_difference_image(setup, reduction_metadata, log,
-                                                                                star_catalog,
+    # PSF photometry function returns a list of lists
+    (differential_photometry, control_zone) = photometry.run_psf_photometry_on_difference_image(setup, reduction_metadata, log,
+                                                                                star_catalog, sky_model,
                                                                                 difference_image, psf_model, kernel,
-                                                                                kernel_error, ref_exposure_time)
+                                                                                kernel_error, ref_exposure_time,image_id)
 
-    column_names = (
-    'exposure_id', 'star_id', 'reference_mag', 'reference_mag_err', 'reference_flux', 'reference_flux_err', 'diff_flux',
-    'diff_flux_err', 'magnitude', 'magnitude_err',
-    'phot_scale_factor', 'phot_scale_factor_err', 'local_background', 'local_background_err', 'residual_x',
-    'residual_y')
-
-    column_types = ('i8', 'i8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8')
-    photometric_table = Table(differential_photometry[0], names=column_names, dtype=column_types)
-
+    table_data = [ Column(name='star_id', data=differential_photometry[0]),
+                   Column(name='diff_flux', data=differential_photometry[1]),
+                   Column(name='diff_flux_err', data=differential_photometry[2]),
+                   Column(name='magnitude', data=differential_photometry[3]),
+                   Column(name='magnitude_err', data=differential_photometry[4]),
+                   Column(name='cal_magnitude', data=differential_photometry[5]),
+                   Column(name='cal_magnitude_err', data=differential_photometry[6]),
+                   Column(name='flux', data=differential_photometry[7]),
+                   Column(name='flux_err', data=differential_photometry[8]),
+                   Column(name='cal_flux', data=differential_photometry[9]),
+                   Column(name='cal_flux_err', data=differential_photometry[10]),
+                   Column(name='phot_scale_factor', data=differential_photometry[11]),
+                   Column(name='phot_scale_factor_err', data=differential_photometry[12]),
+                   Column(name='local_background', data=differential_photometry[13]),
+                   Column(name='local_background_err', data=differential_photometry[14]),
+                   Column(name='residual_x', data=differential_photometry[15]),
+                   Column(name='residual_y', data=differential_photometry[16]),
+                   Column(name='radius', data=differential_photometry[17]) ]
+    
+    photometric_table = Table(data=table_data)
+    
     # return table
-    return differential_photometry
-
-
-def ingest_the_stars_in_db(setup, star_catalog):
-    conn = db_phot.get_connection(dsn=setup.red_dir + 'phot.db')
-
-    # checkif the catalog exist
-    indexes = db_phot.query_to_astropy_table(conn, "SELECT star_id FROM stars")['star_id']
-
-    if len(indexes) == 0:
-
-        print('I create a new star catalog for the db')
-
-        new_table = star_catalog[['RA_J2000', 'DEC_J2000']]
-        new_table['RA_J2000'].name = 'ra'
-        new_table['DEC_J2000'].name = 'dec'
-        db_phot.ingest_astropy_table(conn, 'stars', new_table)
-        conn.commit()
-
-    else:
-
-        print('A star catalog for exists in the db, I skip the creation.')
-
-
-def find_stars_indexes_in_db(setup):
-    conn = db_phot.get_connection(dsn=setup.red_dir + 'phot.db')
-    indexes = db_phot.query_to_astropy_table(conn, "SELECT star_id FROM stars")['star_id']
-
-    return indexes
-
-
-def ingest_reference_in_db(setup, reference_header, reference_image_directory, reference_image_name):
-    names = ('telescope_id', 'instrument_id', 'filter_id', 'refimg_fwhm', 'refimg_fwhm_err', 'refimg_ellipticity',
-             'refimge_ellipticity_err', 'refimg_name', 'wcsfrcat', 'wcsimcat', 'wcsmatch', 'wcsnref', 'wcstol',
-             'wcsra', 'wcsdec', 'wequinox', 'wepoch', 'radecsys', 'cdelt1', 'cdelt2', 'crota1', 'crota2', 'secpix1',
-             'secpix2',
-             'wcssep', 'equinox', 'cd1_1', 'cd1_2', 'cd2_1', 'cd2_2', 'epoch')
-
-    conn = db_phot.get_connection(dsn=setup.red_dir + 'phot.db')
-
-    name = reference_image_name
-    cam_filter = reference_header['FILTKEY']
-    telescope_id = name.split('-')[0]
-    camera_id = name.split('-')[1]
-
-    new_table = Table([[name], [cam_filter], [telescope_id], [camera_id]],
-                      names=('refimg_name', 'filter_id', 'telescope_id',
-                             'instrument_id'))
-
-    db_phot.ingest_astropy_table(conn, 'reference_images', new_table)
-    conn.commit()
-    # what need to be filled...
-
-    # c_020_telescope_id = 'TEXT'
-    # c_030_instrument_id = 'TEXT'
-    # c_040_filter_id = 'TEXT'
-    # c_050_refimg_fwhm = 'REAL'
-    # c_060_refimg_fwhm_err = 'REAL'
-    # c_070_refimg_ellipticity = 'REAL'
-    # c_080_refimg_ellipticity_err = 'REAL'
-    # c_090_slope = 'REAL' #The slope of the photometric calibration: VPHAS mags vs instr mags
-    # c_095_slope_err = 'REAL'
-    # c_100_intercept = 'REAL' #The intercept of the photometric calibration: VPHAS mags vs instr mags
-    # c_105_intercept_err = 'REAL'
-    # c_120_refimg_name = 'TEXT'
-    # c_130_wcsfrcat = 'TEXT' #WCS fit information stored in the next lines (c_130 to c_152)
-    # c_131_wcsimcat = 'TEXT'
-    # c_132_wcsmatch = 'INTEGER'
-    # c_133_wcsnref = 'INTEGER'
-    # c_134_wcstol = 'REAL'
-    # c_135_wcsra = 'TEXT'
-    # c_136_wcsdec = 'TEXT'
-    # c_137_wequinox = 'INTEGER'
-    # c_138_wepoch = 'INTEGER'
-    # c_139_radecsys = 'FK5'
-    # c_140_cdelt1 = 'DOUBLE PRECISION'
-    # c_141_cdelt2 = 'DOUBLE PRECISION'
-    # c_142_crota1 = 'DOUBLE PRECISION'
-    # c_143_crota2 = 'DOUBLE PRECISION'
-    # c_144_secpix1 = 'REAL'
-    # c_145_secpix2 = 'REAL'
-    # c_146_wcssep = 'REAL'
-    # c_147_equinox = 'INTEGER'
-    # c_148_cd1_1 = 'DOUBLE PRECISION'
-    # c_149_cd1_2 = 'DOUBLE PRECISION'
-    # c_150_cd2_1 = 'DOUBLE PRECISION'
-    # c_151_cd2_2 = 'DOUBLE PRECISION'
-    # c_152_epoch = 'INTEGER'
-    #
-
-
-def ingest_exposure_in_db(setup, image_header, ref_image_id):
-    conn = db_phot.get_connection(dsn=setup.red_dir + 'phot.db')
-
-    # import pdb; pdb.set_trace()
-    image_name = image_header['IMAGES']
-    exposure_time = float(image_header['EXPKEY'])
-    new_table = Table([[image_name], [exposure_time]], names=('exposure_name', 'exposure_time'))
-
-    db_phot.ingest_astropy_table(conn, 'exposures', new_table)
-    conn.commit()
-    # what need to be filled...
-
-    # c_000_exposure_id = 'INTEGER PRIMARY KEY'
-    # c_005_reference_image = 'INTEGER REFERENCES reference_images(refimg_id)'
-    # c_010_jd = 'DOUBLE PRECISION'
-    # c_050_exposure_fwhm = 'REAL'
-    # c_060_exposure_fwhm_err = 'REAL'
-    # c_050_exposure_ellipticity = 'REAL'
-    # c_060_exposure_ellipticity_err = 'REAL'
-    # c_110_airmass = 'REAL'
-    # c_120_exposure_time = 'INTEGER'
-    # c_130_moon_phase = 'REAL'
-    # c_140_moon_separation = 'REAL'
-    # c_150_delta_x = 'REAL'
-    # c_160_delta_y = 'REAL'
-    # c_170_exposure_name = 'TEXT'
+    return differential_photometry, control_zone, photometric_table
 
 
 def ingest_photometric_table_in_db(setup, exposures_indexes, star_indexes, photometric_table):
@@ -630,3 +541,147 @@ def ingest_photometric_table_in_db(setup, exposures_indexes, star_indexes, photo
 
                 db_phot.ingest_astropy_table(conn, 'phot', new_table)
         conn.commit()
+
+def harvest_stage6_parameters(setup,reduction_metadata,version):
+    """Function to harvest the parameters required for ingest of a single 
+    dataset into the photometric database."""
+    
+    dataset_params = {}
+    
+    ref_path = reduction_metadata.data_architecture[1]['REF_PATH'][0]
+    ref_filename = reduction_metadata.data_architecture[1]['REF_IMAGE'][0]
+    
+    ref_image_path = os.path.join(ref_path, ref_filename)
+    
+    dataset_params = stage3_db_ingest.harvest_image_params(reduction_metadata, ref_image_path, ref_image_path)
+    
+    dataset_params['ref_filename'] = ref_filename
+    
+    # Software
+    dataset_params['version'] = version
+    dataset_params['stage'] = 'stage6'
+    dataset_params['code_name'] = 'stage6.py'
+    
+    return dataset_params
+
+def match_dataset_with_field_primary_reference(setup,conn,dataset_params,
+                                               reduction_metadata,log):
+    """Function to compare the stars detected in the reference image for the
+    current dataset with those in the primary reference dataset for this field.
+    The transformation between the two is calculated so that stars from this
+    dataset can be accurately matched with the master starlist in the
+    photometry DB for this field.
+    """
+    
+    starlist = stage3_db_ingest.fetch_field_starlist(conn,dataset_params,log)
+    
+    primary_refimg_id = db_phot.find_primary_reference_image_for_field(conn)
+        
+    matched_stars = stage3_db_ingest.match_catalog_entries_with_starlist(conn,dataset_params,
+                                                        starlist,
+                                                        reduction_metadata,
+                                                        primary_refimg_id,log)
+        
+    transform = stage3_db_ingest.calc_transform_to_primary_ref(setup,matched_stars,log)
+    
+    matched_stars = stage3_db_ingest.match_all_entries_with_starlist(setup,conn,dataset_params,
+                                                    starlist,reduction_metadata,
+                                                    primary_refimg_id,transform,log,
+                                                    verbose=False)
+                                                    
+    return transform, matched_stars
+
+def commit_image_photometry_matching(conn, params, reduction_metadata, 
+                                     matched_stars, phot_table, log):
+    
+    log.info('Starting database ingest')
+    
+    query = 'SELECT facility_id, facility_code FROM facilities WHERE facility_code="'+params['facility_code']+'"'
+    facility = db_phot.query_to_astropy_table(conn, query, args=())
+    
+    query = 'SELECT filter_id, filter_name FROM filters WHERE filter_name="'+params['filter_name']+'"'
+    f = db_phot.query_to_astropy_table(conn, query, args=())
+        
+    query = 'SELECT code_id, version FROM software WHERE version="'+params['version']+'"'
+    code = db_phot.query_to_astropy_table(conn, query, args=())
+    
+    query = 'SELECT refimg_id, filename FROM reference_images WHERE filename ="'+params['ref_filename']+'"'
+    refimage = db_phot.query_to_astropy_table(conn, query, args=())  
+    
+    if len(refimage) == 0:
+        raise ValueError('No Stage 3 results for this reference image available in photometry DB.  Stage3_db_ingest needs to be run for this dataset first.')
+        
+    query = 'SELECT img_id, filename FROM images WHERE filename ="'+params['filename']+'"'
+    image = db_phot.query_to_astropy_table(conn, query, args=())  
+    
+    log.info('Extracted dataset identifiers from database')
+    
+    key_list = ['star_id', 'reference_image', 'image', 
+                'facility', 'filter', 'software', 
+                'x', 'y', 'hjd', 'radius', 'magnitude', 'magnitude_err', 
+                'calibrated_mag', 'calibrated_mag_err',
+                'flux', 'flux_err', 
+                'calibrated_flux', 'calibrated_flux_err',
+                'phot_scale_factor', 'phot_scale_factor_err',
+                'local_background', 'local_background_err',
+                'phot_type']
+    
+    wildcards = ','.join(['?']*len(key_list))
+    
+    n_stars = len(phot_table)
+    
+    entries = []
+    
+    log.info('Building database entries array')
+    
+    for i in range(0,matched_stars.n_match,1):
+        
+        j_cat = matched_stars.cat1_index[i]     # Starlist index in DB
+        j_new = matched_stars.cat2_index[i]     # Star detected in image
+        
+        x = str(phot_table['residual_x'][j_new])
+        y = str(phot_table['residual_y'][j_new])
+        radius = str(phot_table['radius'][j_new])
+        mag = str(phot_table['magnitude'][j_new])
+        mag_err = str(phot_table['magnitude_err'][j_new])
+        cal_mag = str(phot_table['cal_magnitude'][j_new])
+        cal_mag_err = str(phot_table['cal_magnitude_err'][j_new])
+        flux = str(phot_table['flux'][j_new])
+        flux_err = str(phot_table['flux_err'][j_new])
+        cal_flux = str(phot_table['cal_flux'][j_new])
+        cal_flux_err = str(phot_table['cal_flux_err'][j_new])
+        ps = str(phot_table['phot_scale_factor'][j_new])
+        ps_err = str(phot_table['phot_scale_factor_err'][j_new])
+        bkgd = str(phot_table['local_background'][j_new])
+        bkgd_err = str(phot_table['local_background_err'][j_new])
+        
+        entry = (str(int(j_cat)), str(refimage['refimg_id'][0]), str(image['img_id'][0]),
+                   str(facility['facility_id'][0]), str(f['filter_id'][0]), str(code['code_id'][0]),
+                    x, y, str(params['hjd']), radius, 
+                    mag, mag_err, cal_mag, cal_mag_err, 
+                    flux, flux_err, cal_flux, cal_flux_err,
+                    ps, ps_err,   # No phot scale factor for PSF fitting photometry
+                    bkgd, bkgd_err,  # No background measurements propageted
+                    'DIA' )
+        
+        entries.append(entry)
+    
+    if len(entries) > 0:
+    
+        log.info('Ingesting data to phot_db')
+        
+        command = 'INSERT OR REPLACE INTO phot('+','.join(key_list)+\
+                ') VALUES ('+wildcards+')'
+    
+        cursor = conn.cursor()
+        
+        cursor.executemany(command,entries)
+    
+        conn.commit()
+        
+    else:
+        
+        log.info('No photometry to be ingested')
+        
+    log.info('Completed ingest of photometry for '+str(len(matched_stars.cat1_index))+' stars')
+

@@ -20,6 +20,17 @@ def read_config(path_to_config_file):
 
     config_file.close()
     
+    for key, value in config_dict.items():
+        if '[' in value and ']' in value and ',' in value:
+            entries = value.replace('[','').replace(']','').split(',')
+            l = []
+            for e in entries:
+                try:
+                    l.append(float(e))
+                except:
+                    l.append(e)
+            config_dict[key] = l
+            
     return config_dict
 
 

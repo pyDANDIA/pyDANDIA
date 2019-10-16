@@ -7,15 +7,17 @@ Created on Wed May  9 11:35:31 2018
 
 from sys import argv
 from astroquery.vizier import Vizier
+from astroquery.gaia import Gaia
 from astropy import wcs, coordinates, units, visualization
 
-def search_vizier_for_sources(ra, dec, radius, catalog, row_limit=-1):
+def search_vizier_for_sources(ra, dec, radius, catalog, row_limit=-1, 
+                              coords='sexigesimal'):
     """Function to perform online query of the 2MASS catalogue and return
     a catalogue of known objects within the field of view
     
     Inputs:
-        :param str ra: RA J2000 in sexigesimal format
-        :param str dec: Dec J2000 in sexigesimal format
+        :param str ra: RA J2000 in sexigesimal format [default, accepts degrees]
+        :param str dec: Dec J2000 in sexigesimal format [default, accepts degrees]
         :param float radius: Search radius in arcmin
         :param str catalog: Catalog to search.  Options include:
                                     ['2MASS', 'VPHAS+']
@@ -36,7 +38,12 @@ def search_vizier_for_sources(ra, dec, radius, catalog, row_limit=-1):
                 column_filters=cat_filters)
 
     v.ROW_LIMIT = row_limit
-    c = coordinates.SkyCoord(ra+' '+dec, frame='icrs', unit=(units.hourangle, units.deg))
+    
+    if 'sexigesimal' in coords:
+        c = coordinates.SkyCoord(ra+' '+dec, frame='icrs', unit=(units.hourangle, units.deg))
+    else:
+        c = coordinates.SkyCoord(ra, dec, frame='icrs', unit=(units.deg, units.deg))
+        
     r = radius * units.arcminute
     
     catalog_list = Vizier.find_catalogs(cat_id)
@@ -47,6 +54,24 @@ def search_vizier_for_sources(ra, dec, radius, catalog, row_limit=-1):
         result = result[0]
         
     return result
+
+def search_vizier_for_gaia_sources(ra, dec, radius):
+    """Function to perform online query of the 2MASS catalogue and return
+    a catalogue of known objects within the field of view
+    """
+    
+    c = coordinates.SkyCoord(ra+' '+dec, frame='icrs', unit=(units.deg, units.deg))
+    r = units.Quantity(radius/60.0, units.deg)
+    
+    qs = Gaia.cone_search_async(c, r)
+    result = qs.get_results()
+    
+    catalog = result['ra','dec','source_id','ra_error','dec_error',
+                     'phot_g_mean_flux','phot_g_mean_flux_error',
+                     'phot_rp_mean_flux','phot_rp_mean_flux_error',
+                     'phot_bp_mean_flux','phot_bp_mean_flux_error']
+    
+    return catalog
 
 if __name__ == '__main__':
     

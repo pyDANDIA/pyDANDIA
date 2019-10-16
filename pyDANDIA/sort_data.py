@@ -76,7 +76,7 @@ def get_image_dataset(image):
     ds.site = hdr['SITEID'].replace('/','')
     ds.enclosure = hdr['ENCID'].replace('/','')
     ds.tel = hdr['TELESCOP'].replace('/','')
-    ds.instrument = hdr['INSTRUME'].replace('/','')
+    ds.instrument = hdr['INSTRUME'].replace('/','').replace('fl','fa')
     ds.filter = hdr['FILTER']
     
     ds.parse_telescope()
