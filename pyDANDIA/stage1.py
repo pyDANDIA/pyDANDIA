@@ -100,7 +100,7 @@ def run_stage1(setup, rerun_all=None):
     for im in full_path_to_images:
         (status, report, params) = starfind.starfind(setup, im, reduction_metadata,
                                                      plot_it=False, log=log)
-        
+
         params['fwhm'] = psf.calc_fwhm_from_psf_sigma(params['sigma_x'],
                                                       params['sigma_y'])
         

@@ -10,10 +10,9 @@ import scipy.ndimage as sndi
 
 def subtract_images(data_image, reference_image, kernel, kernel_size, bkg_kernel, mask = None):
     model_image = convolve2d(reference_image, kernel, mode='same')
-    #model_image = sndi.filters.convolve(reference_image, kernel)
-    #import pdb;
-    #pdb.set_trace()
+
     #avoid image parts with shift 0 
+
     model_image[data_image==0]=-bkg_kernel
     difference_image = model_image - data_image + bkg_kernel
     if mask != None:

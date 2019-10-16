@@ -264,6 +264,7 @@ def starfind(setup, path_to_image, reduction_metadata, plot_it=False,
             background = psf.ConstantBackground()
             fit_residuals = psf.error_star_fit_function(fit_params, 
                                 cutout.data, biv, background, yy, xx)
+
             fit_residuals = fit_residuals.reshape(cutout.data.shape)
             cov = fit[1]*np.sum(fit_residuals**2)/((stamp_size[0])**2-6)
             fit_errors = cov.diagonal()**0.5

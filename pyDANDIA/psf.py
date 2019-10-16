@@ -513,12 +513,12 @@ class ConstantBackground(BackgroundModel):
         for index, key in enumerate(self.model):
             setattr(self.background_parameters, key, parameters[index])
 
-    def background_model(self, data_shape, parameters=None):
+    def background_model(self, Y_data, X_data, parameters=None):
 
         if parameters != None:
             self.update_background_parameters(parameters)
 
-        model = np.ones(data_shape) * \
+        model = np.ones(Y_data.shape) * \
             self.background_parameters.constant
             
         return model
@@ -526,7 +526,7 @@ class ConstantBackground(BackgroundModel):
     def background_guess(self):
 
         # background constant
-        return [0]
+        return [1000]
 
     def get_parameters(self):
 
@@ -586,7 +586,7 @@ class GradientBackground(BackgroundModel):
         gradient sky background model.  The parameters returned represent 
         a flat, constant background of zero."""
 
-        return [0.0, 0.0, 0.0]
+        return [1000.0, 0.0, 0.0]
 
     def get_parameters(self):
 
@@ -648,7 +648,7 @@ class QuadraticBackground(BackgroundModel):
         gradient sky background model.  The parameters returned represent
         a flat, constant background of zero."""
 
-        return [0.0, 0.0, 0.0, 0.0, 0.0,0.0]
+        return [1000.0, 0.0, 0.0, 0.0, 0.0,0.0]
 
     def get_parameters(self):
 
@@ -768,13 +768,13 @@ def fit_background(data, Y_data, X_data, mask, background_model='Constant'):
 
 
 def error_background_fit_function(params, data, background, Y_data, X_data, mask):
+
     back_params = params
-    #import pdb; pdb.set_trace()
+
     back_model = background.background_model(Y_data, X_data, back_params)
-
-    residuals = (data - back_model).ravel()[mask]
-
-    return residuals
+    
+    residuals = ((data - back_model)/np.abs(data)**0.5)[mask]
+    return residuals**2
 
 def fit_star(data, Y_data, X_data, psf_model='Moffat2D', background_model='Constant'):
     psf_model = get_psf_object(psf_model)
@@ -800,7 +800,7 @@ def error_star_fit_function(params, data, psf, background, Y_data, X_data):
     back_params = params[len(psf.psf_parameters._fields):]
 
     psf_model = psf.psf_model(Y_data, X_data, psf_params)
-    back_model = background.background_model(Y_data.shape, parameters=back_params)
+    back_model = background.background_model(Y_data, X_data, parameters=back_params)
 
     residuals = np.ravel(data - psf_model - back_model)
 
