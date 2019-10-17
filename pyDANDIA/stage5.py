@@ -111,10 +111,10 @@ def run_stage5(setup):
     for percentile in kernel_percentile:
 
         kernel_size_tmp = int(
-            4. * float(reduction_metadata.reduction_parameters[1]['KER_RAD'][0]) * np.percentile(fwhms, percentile))
+            2.5*float(reduction_metadata.reduction_parameters[1]['KER_RAD'][0]) * np.percentile(fwhms, percentile))
 
         if kernel_size_tmp % 2 == 0:
-            kernel_size_tmp -= 1
+            kernel_size_tmp += 1
 
         if kernel_size_tmp < 1:
             kernel_size_tmp = 1
@@ -312,6 +312,7 @@ def smoothing_2sharp_images(reduction_metadata, ref_fwhm_x, ref_fwhm_y, ref_sigm
 
     if smoothing >0 :
         smoothing = 2* (ref_sigma_x ** 2 + ref_sigma_y ** 2) ** 0.5
+        #smoothing =
     return smoothing
 
 
@@ -537,7 +538,7 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
 
     log.info('Starting image subtraction with a constant kernel')
 
-    grow_kernel = 4. * float(reduction_metadata.reduction_parameters[1]['KER_RAD'][0])
+    grow_kernel = 2.5 * float(reduction_metadata.reduction_parameters[1]['KER_RAD'][0])
     pixscale = reduction_metadata.reduction_parameters[1]['PIX_SCALE'][0]
 
     list_of_stamps = reduction_metadata.stamps[1]['PIXEL_INDEX'].tolist()
@@ -568,7 +569,7 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
             reference_images.append(
                 open_reference(setup, reference_image_directory, reference_image_name, kernel_size_array[idx], max_adu,
                                ref_extension=0, log=log, central_crop=maxshift, master_mask=master_mask,
-                               external_weight=None))
+                               external_weight=resampled_median_image))
             log.info(' -> Completed image masking')
 
         try:
@@ -648,6 +649,7 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
 
         umatrix_index = int(np.digitize(fwhm_val, np.array(kernel_size_array)))
         umatrix_index = min(umatrix_index, len(kernel_size_array) - 1)
+       # umatrix_index = -1
         umatrix_grid = umatrices_grid[umatrix_index]
         kernel_size = kernel_size_array[umatrix_index]
         reference_image, bright_reference_mask, reference_image_unmasked, noise_image = reference_images[umatrix_index]
@@ -676,6 +678,7 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
             stamps_directory = os.path.join(data_image_directory, new_image)
 
             for stamp in list_of_stamps:
+
                 stamp_row = np.where(reduction_metadata.stamps[1]['PIXEL_INDEX'] == stamp)[0][0]
                 xmin = int(reduction_metadata.stamps[1][stamp_row]['X_MIN'])
                 xmax = int(reduction_metadata.stamps[1][stamp_row]['X_MAX'])
@@ -701,7 +704,7 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
                 #img = fits.open(os.path.join(stamps_directory, 'resample__stamp_' + str(stamp) + '.fits'))[0].data
                 #img_unmasked = np.copy(img)
 
-                img, img_unmasked = open_data_image(setup,stamps_directory, new_image,
+                img, img_unmasked = open_data_image(setup,stamps_directory, 'resample_stamp_'+str(stamp)+'.fits',
                                                               bal_mask_extended, kernel_size, max_adu,
                                                               xshift=x_shift, yshift=y_shift, sigma_smooth=smoothing,
                                                               central_crop=maxshift)

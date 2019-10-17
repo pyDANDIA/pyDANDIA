@@ -21,8 +21,8 @@ def background_fit(image1, master_mask = []):
 
     from pyDANDIA import psf
     y, x = np.indices(image1.shape)
-    fit = psf.fit_background(image1, y, x, ~master_mask, background_model='Quadratic')
-    background_model = psf.QuadraticBackground()
+    fit = psf.fit_background(image1, y, x, ~master_mask, background_model='Gradient')
+    background_model = psf.GradientBackground()
     background = background_model.background_model(y, x, fit[0])
 
     background[master_mask] = 0
@@ -233,11 +233,13 @@ def open_reference(setup, ref_image_directory, ref_image_name, kernel_size, max_
     img_shape = np.shape(ref_image) 
     ref50pc = np.median(ref_image)
 
-    if master_mask != []:
-        ref_image[master_mask] = max_adu + ref50pc + 1.
+
 
     ref_bright_mask_1 = (ref_image > max_adu + ref50pc)
-
+    import scipy.ndimage as sn
+    ref_bright_mask_1 = sn.morphology.binary_dilation(ref_bright_mask_1, iterations=20)
+    if master_mask != []:
+        ref_bright_mask_1[master_mask] = 1
     #bkg_image = background_mesh_perc(ref_image,master_mask = master_mask)
     #bkg_image = np.median(ref_image[~master_mask])
     bkg_image = background_fit(ref_image, master_mask=ref_bright_mask_1)
