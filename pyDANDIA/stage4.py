@@ -734,37 +734,41 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
             pass
 
         for stamp in list_of_stamps:
+            try:
+                stamp_row = np.where(reduction_metadata.stamps[1]['PIXEL_INDEX'] == stamp)[0][0]
+                xmin = reduction_metadata.stamps[1][stamp_row]['X_MIN'].astype(int)
+                xmax = reduction_metadata.stamps[1][stamp_row]['X_MAX'].astype(int)
+                ymin = reduction_metadata.stamps[1][stamp_row]['Y_MIN'].astype(int)
+                ymax = reduction_metadata.stamps[1][stamp_row]['Y_MAX'].astype(int)
 
-            stamp_row = np.where(reduction_metadata.stamps[1]['PIXEL_INDEX'] == stamp)[0][0]
-            xmin = reduction_metadata.stamps[1][stamp_row]['X_MIN'].astype(int)
-            xmax = reduction_metadata.stamps[1][stamp_row]['X_MAX'].astype(int)
-            ymin = reduction_metadata.stamps[1][stamp_row]['Y_MIN'].astype(int)
-            ymax = reduction_metadata.stamps[1][stamp_row]['Y_MAX'].astype(int)
+                img = shifted[ymin:ymax, xmin:xmax]
+                ref = reference_image[ymin:ymax, xmin:xmax]
 
-            img = shifted[ymin:ymax, xmin:xmax]
-            ref = reference_image[ymin:ymax, xmin:xmax]
+                stamp_mask = (ref_sources['xcentroid']<xmax) & (ref_sources['xcentroid']>xmin ) &\
+                             (ref_sources['ycentroid']<ymax) & (ref_sources['ycentroid']>ymin )
+                ref_stamps = ref_sources[stamp_mask]
 
-            stamp_mask = (ref_sources['xcentroid']<xmax) & (ref_sources['xcentroid']>xmin ) &\
-                         (ref_sources['ycentroid']<ymax) & (ref_sources['xcentroid']>ymin )
-            ref_stamps = ref_sources[stamp_mask]
+                data_stamps, stamps_fwhm = extract_catalog(reduction_metadata, img, row_index)
 
-            data_stamps, stamps_fwhm = extract_catalog(reduction_metadata, img, row_index)
+                data_stamps['xcentroid'] += xmin
+                data_stamps['ycentroid'] += ymin
 
-            data_stamps['xcentroid'] += xmin
-            data_stamps['ycentroid'] += ymin
+                pts_data, pts_reference, e_pos = crossmatch_catalogs(ref_stamps, data_stamps,0,0)
 
-            pts_data, pts_reference, e_pos = crossmatch_catalogs(ref_stamps, data_stamps,0,0)
+                model_stamp, inliers = ransac((pts_reference[:2500, :2] , pts_data[:2500, :2] ),
+                                           tf.AffineTransform, min_samples=min(50, int(0.1 * len(pts_data[:2500]))),
+                                           residual_threshold=0.1, max_trials=1000)
+                shifted_stamp = tf.warp(img, inverse_map=model_stamp, output_shape=img.shape, order=1,
+                                  mode='constant', cval=0, clip=True, preserve_range=True)
 
-            model_stamp, inliers = ransac((pts_reference[:2500, :2] , pts_data[:2500, :2] ),
-                                       tf.AffineTransform, min_samples=min(50, int(0.1 * len(pts_data[:2500]))),
-                                       residual_threshold=0.1, max_trials=1000)
-            shifted_stamp = tf.warp(img, inverse_map=model_stamp, output_shape=img.shape, order=1,
-                              mode='constant', cval=0, clip=True, preserve_range=True)
 
-            resampled_stamp_hdu = fits.PrimaryHDU(shifted_stamp)
+            except:
+
+                shifted_stamp = img
+
+            resampled_stamp_hdu = fits.PrimaryHDU(shifted_stamp,shifted_mask)
             resampled_stamp_hdu.writeto(os.path.join(resample_directory, 'resample_stamp_' + str(stamp) + '.fits')
-                                                                  , overwrite=True)
-
+                                            , overwrite=True)
         resampled_image_hdu = fits.PrimaryHDU(shifted)
         resampled_image_hdu.writeto(os.path.join(resample_directory, new_image), overwrite=True)
         data_image_hdu.close()

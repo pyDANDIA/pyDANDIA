@@ -67,3 +67,14 @@ def convolve_image_with_a_psf(image, psf, fourrier_transform_psf=None, fourrier_
     half_image_shape += (image_shape % 2)  # shift correction for odd size images.
 
     return np.roll(np.roll(convolution, half_image_shape[0], 0), half_image_shape[1], 1)
+
+def convolve_2d(image, kernel):
+    m, n = kernel.shape
+    y, x = image.shape
+    image_repad = np.zeros((y+m*2,x+n*2))
+    image_repad[m:-m,n:-n] = image
+    new_image = np.zeros((y+m*2,x+n*2))
+    for i in range(y+m-1):
+        for j in range(x+n-1):
+            new_image[i][j] = np.sum(image_repad[i:i+m, j:j+n]*kernel)
+    return new_image[m-m//2:-m-m//2,n-n//2:-n-n//2]
