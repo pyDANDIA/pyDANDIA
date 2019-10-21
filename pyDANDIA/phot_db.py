@@ -49,8 +49,8 @@ class TableDef(object):
     _to_name_RE = re.compile(r"^c_\d+_(.*)")
 
     def _make_schema(self):
-        return [(mat.group(1), getattr(self, mat.group())) 
-             for mat in (self._to_name_RE.match(name) 
+        return [(mat.group(1), getattr(self, mat.group()))
+             for mat in (self._to_name_RE.match(name)
                 for name in sorted(dir(self)))
             if mat]
 
@@ -72,11 +72,11 @@ class Filters(TableDef):
 
     c_000_filter_id = 'INTEGER PRIMARY KEY'
     c_010_filter_name = 'TEXT'
-    
+
 class Facilities(TableDef):
     """Photometry database table describing the observing facilities used
     """
-    
+
     c_000_facility_id = 'INTEGER PRIMARY KEY'
     c_010_facility_code = 'TEXT'
     c_020_site = 'TEXT'
@@ -88,17 +88,17 @@ class Facilities(TableDef):
     c_080_gain_eadu = 'REAL'
     c_090_readnoise_e = 'REAL'
     c_100_saturation_e = 'REAL'
-    
+
 class Software(TableDef):
     """Photometry database table describing the software used to produce
     the data products.
     """
-    
+
     c_000_code_id = 'INTEGER PRIMARY KEY'
     c_010_code_name = 'TEXT'
     c_020_stage = 'TEXT'
     c_030_version = 'TEXT'
-    
+
 class Images(TableDef):
     """Photometry database table describing the properties of a single image.
     """
@@ -157,40 +157,40 @@ class Images(TableDef):
 
 class ReferenceComponents(TableDef):
     """Photometry database table describing the individual combined to form
-    the reference images used in difference image photometry, which may be 
+    the reference images used in difference image photometry, which may be
     single images or the product of stacking several individual images together.
     """
-    
+
     c_000_component_id = 'INTEGER PRIMARY KEY'
     c_010_image = 'INTEGER REFERENCES images(img_id)'
     c_020_reference_image = 'INTEGER REFERENCES reference_images(refimg_id) ON DELETE CASCADE'
-    
+
 class ReferenceImages(TableDef):
-    """Photometry database table describing the images used as references 
+    """Photometry database table describing the images used as references
     in difference image photometry, which may be single images or the product
     of stacking several individual images together.
-    
+
     The active parameter is used to indicate whether a reference image (and
-    all data associated with it) is the current best-available reduction for 
-    the associated dataset.  This parameter is used to tombstone older 
+    all data associated with it) is the current best-available reduction for
+    the associated dataset.  This parameter is used to tombstone older
     reduction products.
     """
-    
+
     c_000_refimg_id = 'INTEGER PRIMARY KEY'
     c_010_facility = 'INTEGER REFERENCES facilities(facility_id)'
     c_020_filter = 'INTEGER REFERENCES filters(filter_id)'
     c_030_software = 'INTEGER REFERENCES software(code_id)'
     c_040_filename = 'TEXT'
-    
+
 class Stars(TableDef):
     """Photometry database table describing the stars detected in the imaging
     data, referring to static coordinates on sky.
     """
-    
+
     c_000_star_id = 'INTEGER PRIMARY KEY'
     c_001_star_index = 'INTEGER'
     c_010_ra = 'DOUBLE PRECISION'
-    c_020_dec = 'DOUBLE PRECISION'    
+    c_020_dec = 'DOUBLE PRECISION'
     c_030_reference_image = 'INTEGER REFERENCES reference_images(refimg_id) ON DELETE CASCADE'
     c_040_gaia_source_id = 'TEXT'
     c_041_gaia_ra = 'DOUBLE PRECISION'
@@ -213,17 +213,17 @@ class Stars(TableDef):
     c_067_vphas_imag = 'REAL'
     c_068_vphas_imag_error = 'REAL'
     c_069_vphas_clean = 'INTEGER'
-    
+
     pc_000_raindex = (
         'CREATE INDEX IF NOT EXISTS stars_ra ON stars (ra)')
     pc_010_decindex = (
         'CREATE INDEX IF NOT EXISTS stars_dec ON stars (dec)')
-    
+
 class PhotometryPoints(TableDef):
     """Photometry database table describing the primary photometric quantities
     measured from image data.
     """
-    
+
     c_000_phot_id = 'INTEGER PRIMARY KEY'
     c_010_star_id = 'INTEGER REFERENCES stars(star_id)'
     c_020_reference_image = 'INTEGER REFERENCES reference_images(refimg_id) ON DELETE CASCADE'
@@ -248,16 +248,16 @@ class PhotometryPoints(TableDef):
     c_150_local_background = 'REAL'
     c_155_local_background_err = 'REAL'
     c_160_phot_type = 'TEXT'
-    
+
     pc_000_datesindex = (
         'CREATE INDEX IF NOT EXISTS phot_objs ON phot (star_id)')
-    
+
     pc_001_photindex = (
         'CREATE UNIQUE INDEX phot_entry ON phot(star_id, reference_image, image, facility, filter, software)')
 
 class DetrendingParameters(TableDef):
     """Photometry database table describing the detrending parameters applied"""
-    
+
     c_000_detrend_id = 'INTEGER PRIMARY KEY'
     c_010_facility = 'INTEGER REFERENCES facilities(facility_id)'
     c_020_filter = 'INTEGER REFERENCES filters(filter_id)'
@@ -268,7 +268,7 @@ class DetrendingParameters(TableDef):
 class StarColours(TableDef):
     """Photometry database table describing the parameters computed for each
     star using data of multiple wavelengths"""
-    
+
     c_000_star_col_id = 'INTEGER PRIMARY KEY'
     c_010_star_id = 'INTEGER REFERENCES stars(star_id)'
     c_020_facility = 'INTEGER REFERENCES facilities(facility_id)'
@@ -284,11 +284,11 @@ class StarColours(TableDef):
     c_030_gr_err = 'REAL'
     c_030_ri = 'REAL'
     c_030_ri_err = 'REAL'
-    
+
 class StarVariability(TableDef):
-    """Photometry database table describing the parameters computed on a 
+    """Photometry database table describing the parameters computed on a
     per star, facility and filter basis"""
-    
+
     c_000_star_var_id = 'INTEGER PRIMARY KEY'
     c_010_star_id = 'INTEGER REFERENCES stars(star_id)'
     c_020_facility = 'INTEGER REFERENCES facilities(facility_id)'
@@ -344,7 +344,7 @@ class StarVariability(TableDef):
     c_520_sum_values = 'REAL'
     c_530_time_reversal_asymmetry = 'REAL'
     c_540_normalize = 'REAL'
-    
+
 # This is what the classes are actually called in the database schema
 FILTERS_TD = Filters("filters")
 FACILITIES_TD = Facilities("facilities")
@@ -377,14 +377,14 @@ def ensure_tables(conn, *table_defs):
         ensure_table(conn, table_def)
 
 def ensure_extra_table(conn,table_name):
-    
+
     if table_name == 'DetrendingParameters':
         ensure_table(conn,DETREND_TD)
     elif table_name == 'StarColours':
         ensure_table(conn,STARCOLOURS_TD)
     elif table_name == 'StarVariability':
         ensure_table(conn,STARVARIABILITY_TD)
-    
+
 def get_connection(dsn=database_file_path):
 
     conn = sqlite3.connect(dsn,
@@ -393,38 +393,38 @@ def get_connection(dsn=database_file_path):
 
     conn.execute("PRAGMA foreign_keys=ON")
     conn.execute('pragma journal_mode=wal')
-    
-    ensure_tables(conn, 
+
+    ensure_tables(conn,
                   FILTERS_TD,
                   FACILITIES_TD,
                   SOFTWARE_TD,
                   IMAGES_TD,
                   REFERENCE_COMPONENTS_TD,
-                  REFERENCE_IMAGES_TD, 
-                  STARS_TD, 
+                  REFERENCE_IMAGES_TD,
+                  STARS_TD,
                   PHOTOMETRY_TD)
-    
+
     populate_db_defaults(conn)
-    
+
     return conn
 
 def populate_db_defaults(conn):
     """Function to pre-populate the photometric database tables for the filters
     and facilities used in the survey."""
-    
+
     cursor = conn.cursor()
-    
+
     query = 'SELECT filter_name FROM filters'
     filters_table = query_to_astropy_table(conn, query, args=())
-    
+
     for f in ['gp', 'rp', 'ip']:
-        
+
         if f not in filters_table['filter_name']:
-            
+
             command = 'INSERT OR REPLACE INTO filters (filter_name) VALUES (?)'
-        
+
             cursor.execute(command, [f])
-        
+
     conn.commit()
 
 def check_before_commit(conn, params, table_name, table_keys, search_key):
@@ -433,34 +433,34 @@ def check_before_commit(conn, params, table_name, table_keys, search_key):
     """
 
     cursor = conn.cursor()
-    
+
     commit = False
-    
+
     query = 'SELECT '+','.join(table_keys)+' FROM '+table_name
 
     table_data = query_to_astropy_table(conn, query, args=())
-    
+
     wildcards = ['?']*len(table_keys)
-    
+
     values = []
     for key in table_keys:
         values.append(str(params[key]))
-    
+
     if len(table_data) == 0 or params[search_key] not in table_data[search_key]:
-            
+
             commit = True
-    
+
     if commit:
         command = 'INSERT OR REPLACE INTO '+table_name+' ('+\
                 ','.join(table_keys)+') VALUES ('+','.join(wildcards)+')'
         cursor.execute(command, values)
-        
+
     conn.commit()
-    
+
 def update_table_entry(conn,table_name,key_name,search_key,entry_id,value):
     """Function to commit a single-value entry for a single keyword in a
     given table
-    
+
     :param Connection conn: Open DB connection object
     :param string table_name: Name of the DB table to insert into
     :param string key_name: Entry keyword to be modified in the DB table
@@ -469,15 +469,15 @@ def update_table_entry(conn,table_name,key_name,search_key,entry_id,value):
     :param int entry_id: PK index in table of the entry to be modified
     :param dtype value: Values of the keyword to be set
     """
-    
+
     cursor = conn.cursor()
     try:
-        
+
         command = 'UPDATE '+str(table_name)+ ' SET '+key_name+' = '+str(value)+\
                  ' WHERE '+search_key+' = '+str(entry_id)
 
         cursor.execute(command)
-        
+
     finally:
 
         conn.commit()
@@ -489,7 +489,7 @@ def feed_to_table(conn, table_name, names, values):
 
     This returns the value of last_insert_rowid(), whether or not that
     actually has a meaning.
-    
+
     :param Connection conn: Open DB connection object
     :param string table_name: Name of the DB table to insert into
     :param list names: List of entry keywords in the DB table
@@ -497,15 +497,15 @@ def feed_to_table(conn, table_name, names, values):
     """
     cursor = conn.cursor()
     try:
-        
+
         command = 'INSERT OR REPLACE INTO '+str(table_name)+ ' (' + \
                     ','.join(names)+') VALUES ('+\
                     ','.join("?"*len(values)) + ')'
-        
+
         cursor.execute(command, values)
-        
+
         return list(cursor.execute("SELECT last_insert_rowid()"))[0][0]
-        
+
     finally:
 
         conn.commit()
@@ -517,7 +517,7 @@ def feed_to_table_many(conn, table_name, names, tuples):
     """dumps a sequence of tuples into table_name.
 
     names gives the sequence of column names per tuple element.
-    !!! careful not to include the PRIMARY KEY column for the table in the 
+    !!! careful not to include the PRIMARY KEY column for the table in the
         names or tuples !!!
     """
 
@@ -525,28 +525,28 @@ def feed_to_table_many(conn, table_name, names, tuples):
                                         ','.join(names) + ') ' +\
                                         ' VALUES ('+\
                                          ','.join("?"*len(names)) + ')'
-    
+
     conn.executemany(command, tuples)
-    
+
     conn.commit()
 
 
 def update_stars_ref_image_id(conn, ref_image_name, star_ids):
-    """Dumps a sequence of tuples into table_name, where foreign keys 
+    """Dumps a sequence of tuples into table_name, where foreign keys
     require a table JOIN.
 
     names gives the sequence of column names per tuple element.
-    !!! careful not to include the PRIMARY KEY column for the table in the 
+    !!! careful not to include the PRIMARY KEY column for the table in the
         names or tuples !!!
     """
 
     command = 'UPDATE stars SET reference_images=(SELECT refimg_id FROM reference_images WHERE refimg_name="lsc1m005-fl15-20170418-0131-e91_cropped.fits") WHERE star_id=(?)'
-    
+
     print(command)
     conn.executemany(command, star_ids)
-    
+
     conn.commit()
-    
+
 def feed_to_table_many_dict(conn, table_name, rows):
     """dumps a list of (structurally identical!) dictionaries to the database.
     """
@@ -556,16 +556,16 @@ def feed_to_table_many_dict(conn, table_name, rows):
         [[d[n] for n in names] for d in rows])
 
 def get_facility_code(params):
-    """Function to return the reference code used within the phot_db to 
+    """Function to return the reference code used within the phot_db to
     refer to a specific facility as site-enclosure-tel-instrument"""
-    
+
     facility_code = params['site']+'-'+\
                     params['enclosure']+'-'+\
                     params['telescope']+'-'+\
                     params['instrument']
-    
+
     return facility_code
-    
+
 def feed_exposure(conn, exp_properties, photometry_points):
     """feed extract from a new image.
 
@@ -575,12 +575,12 @@ def feed_exposure(conn, exp_properties, photometry_points):
     photometry_points is a list of dicts with keys from PhotometryPoints.
     Leave empty exposure field.
     """
-    exposure_id = feed_to_table(conn, "exposures", 
+    exposure_id = feed_to_table(conn, "exposures",
         exp_properties.keys(), exp_properties.values())
-    
+
     for row in photometry_points:
         row["exposure_id"] = exposure_id
-    
+
     feed_to_table_many_dict(conn, "phot", photometry_points)
 
 
@@ -589,7 +589,7 @@ def _adaptFloat(f):
 sqlite3.register_adapter(np.float32, _adaptFloat)
 sqlite3.register_adapter(np.float64, _adaptFloat)
 
-def ingest_reference_in_db(conn, setup, reference_header, 
+def ingest_reference_in_db(conn, setup, reference_header,
                            reference_image_directory, reference_image_name,
                            field_id, version):
     """Function to ingest a ReferenceImage to the photometric database
@@ -635,79 +635,99 @@ def ingest_reference_in_db(conn, setup, reference_header,
         c_170_current_best = 'INTEGER'
     """
 
-    names = ('refimg_name', 'telescope_id', 'instrument_id', 
+    names = ('refimg_name', 'telescope_id', 'instrument_id',
              'filter_id', 'field_id', 'refimg_fwhm', 'refimg_fwhm_err', 'refimg_ellipticity',
              'refimge_ellipticity_err', 'refimg_name', 'wcsfrcat', 'wcsimcat', 'wcsmatch', 'wcsnref', 'wcstol',
              'wcsra', 'wcsdec', 'wequinox', 'wepoch', 'radecsys', 'cdelt1', 'cdelt2', 'crota1', 'crota2', 'secpix1',
              'secpix2',
              'wcssep', 'equinox', 'cd1_1', 'cd1_2', 'cd2_1', 'cd2_2', 'epoch',
              'stage3_version', 'current_best')
-                            
+
     data = [ table.Column(name='refimg_name', data=[reference_image_name]),
                   table.Column(name='filter', data=[reference_header['FILTKEY']]),
                   table.Column(name='telescope_id', data=[reference_image_name.split('-')[0]]),
                   table.Column(name='instrument_id', data=[reference_image_name.split('-')[1]]),
                   table.Column(name='field_id', data=[field_id]),
                   table.Column(name='stage3_version', data=[version]) ]
-            
+
     new_table = table.Table(data=data)
-    
+
     ingest_astropy_table(conn, 'reference_images', new_table)
     conn.commit()
-    
+
     # Workaround for known bug with sqlite3 ingestion of integer data, which
-    # it mis-interprets as binary 'Blobs'.  
+    # it mis-interprets as binary 'Blobs'.
     query = 'SELECT refimg_name,refimg_id,current_best FROM reference_images'
     t = query_to_astropy_table(conn, query, args=())
     ref_id = t['refimg_id'].data[-1]
 
     update_table_entry(conn,'reference_images','current_best','refimg_id',ref_id,1)
-    
+
     conn.commit()
 
 def find_reference_image_for_dataset(conn,params):
-    """Function to identify the reference image used for a previous reduction 
+    """Function to identify the reference image used for a previous reduction
     of a given dataset, if any are present
     params dictionary must include site, enclosure, telescope, instrument and
     bandpass parameters
     """
-    
+
     facility_code = get_facility_code(params)
-    
+
     query = 'SELECT filter_id FROM filters WHERE filter_name="'+params['filter_name']+'"'
     t = query_to_astropy_table(conn, query, args=())
     if len(t) > 0:
         filter_id = t['filter_id'].data[-1]
     else:
         return None
-    
-    
+
+
     query = 'SELECT facility_id FROM facilities WHERE facility_code="'+params['facility_code']+'"'
     t = query_to_astropy_table(conn, query, args=())
-    if len(t) > 0:    
+    if len(t) > 0:
         facility_id = t['facility_id'].data[-1]
     else:
         return None
-        
+
     query = 'SELECT refimg_id FROM reference_images WHERE facility='+str(facility_id)+' AND filter='+str(filter_id)
     t = query_to_astropy_table(conn, query, args=())
-    if len(t) > 0:    
+    if len(t) > 0:
         ref_id = t['refimg_id'].data
     else:
         return None
-    
+
     return ref_id
 
+def find_primary_reference_facility(conn,log=None):
+    """For the purposes of ROME/REA photometry, the Sinistro instrument fa15/fl15
+    mounted in Chile (LSC) Dome A, 1m0a is considered to be the primary
+    reference dataset in all filters.  Photometry from this instrument is
+    photometrically calibrated against catalog data, and all other datasets are
+    calibrated relative to the primary reference."""
+
+    facility_code = get_facility_code({'site': 'lsc',
+                                       'enclosure': 'doma',
+                                       'telescope': '1m0a',
+                                       'instrument': 'fa15'})
+
+    query = 'SELECT facility_id, facility_code FROM facilities WHERE facility_code="'+facility_code+'"'
+    facility = query_to_astropy_table(conn, query, args=())
+
+    if log != None:
+        log.info('Found primary reference facility to be '+repr(facility))
+
+    return facility
+
 def find_primary_reference_image_for_field(conn):
-    
+
     query = 'SELECT reference_image FROM stars'
     t = query_to_astropy_table(conn, query, args=())
-    
+
     if len(t) == 0:
         raise ValueError('No primary reference dataset available for this field in the photometric database.  Stage3_db_ingest needs to be run with the -primary_ref flag set first.')
-        
+
     return t['reference_image'][0]
-    
+
 def ingest_astropy_table(conn, db_table_name, table):
     """ingests an astropy table into db_table_name via conn.
     """
@@ -726,88 +746,88 @@ def query_to_astropy_table(conn, query, args=()):
     cursor.execute(query, args)
     keys = [cd[0] for cd in cursor.description]
     tuples = list(cursor)
-    
+
     def getColumn(index):
         return [t[index] for t in tuples]
-    
+
     data = [table.Column(name=k,
             data=getColumn(i))
         for i,k in enumerate(keys)]
-            
+
     return table.Table(data=data)
 
 def box_search_on_position(conn, ra_centre, dec_centre, dra, ddec):
-    """Function to search the database for stars within (d(ra),d(dec)) of the 
+    """Function to search the database for stars within (d(ra),d(dec)) of the
     (ra_centre, dec_centre) given.
-    
+
     :param connection conn: SQlite3 open connection object
     :param float ra_centre: Box central RA in decimal degrees
     :param float dec_centre: Box central Dec in decimal degrees
     :param float dra:       Box half-width in decimal degrees
     :param float ddec:      Box half-width in decimal degrees
     """
-    
+
     ra_min = ra_centre - dra
     ra_max = ra_centre + dra
     dec_min = dec_centre - ddec
     dec_max = dec_centre + ddec
-    
+
     query = 'SELECT star_id,ra,dec FROM stars WHERE ra BETWEEN '+\
             str(ra_min)+' AND '+str(ra_max)+\
             ' AND dec BETWEEN '+\
             str(dec_min)+' AND '+str(dec_max)
-    
+
     t = query_to_astropy_table(conn, query, args=())
-    
+
     c = SkyCoord(ra_centre, dec_centre, frame='icrs', unit=(units.deg,units.deg))
-    
+
     s = SkyCoord(t['ra'], t['dec'], frame='icrs', unit=(units.deg,units.deg))
-    
+
     separations = c.separation(s)
-    
+
     t.add_column(table.Column(name='separation', data=separations))
-    
+
     return t
 
 def cascade_delete_reference_images(conn, refimg_id_list,log):
-    """Function to remove all database entries corresponding to a given 
-    reference image, including both the entries for the image itself and 
+    """Function to remove all database entries corresponding to a given
+    reference image, including both the entries for the image itself and
     photometry derived from it"""
-    
+
     log.info('WARNING: Existing database entries found for a reference image this dataset')
     log.info('--> Performing cascade delete of all data associated with the old reduction <--')
-    
+
     cursor = conn.cursor()
-    
+
     for refimg_id in refimg_id_list:
-        
+
         command = 'DELETE FROM reference_images WHERE refimg_id="'+str(refimg_id)+'"'
         cursor.execute(command, ())
         conn.commit()
 
 def fetch_facilities(conn):
     """Function to extract a list of facilities known to the phot_db"""
-    
+
     query = 'SELECT facility_id, facility_code FROM facilities'
     facilities = query_to_astropy_table(conn, query, args=())
-    
+
     return facilities
 
 def fetch_filters(conn):
     """Function to extract a list of filters known to the phot_db"""
-    
+
     query = 'SELECT filter_id, filter_name FROM filters'
     filters = query_to_astropy_table(conn, query, args=())
-    
+
     return filters
 
 def get_stage_software_id(conn,stage_name):
-    """Function to extract the ID of the software version used for a specific 
+    """Function to extract the ID of the software version used for a specific
     stage of the pipeline"""
-    
+
     query = 'SELECT code_id FROM software WHERE stage="'+stage_name+'"'
     software = query_to_astropy_table(conn, query, args=())
-    
+
     if len(software) > 0:
         return software['code_id'][-1]
     else:
@@ -815,8 +835,8 @@ def get_stage_software_id(conn,stage_name):
 
 def fetch_stars_table(conn):
     """Function to extract the stars table for a given field"""
-    
+
     query = 'SELECT * FROM stars'
     stars = query_to_astropy_table(conn, query, args=())
-    
+
     return stars
