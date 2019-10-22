@@ -133,7 +133,7 @@ def run_stage0(setup):
                                                   open_image, image_bpm, [1,3], log,
                                                   low_level=0,
                                                   instrument_bpm=instrument_bpm)
-
+          
             save_the_pixel_mask_in_image(reduction_metadata, new_image, bpm)
             logs.ifverbose(log, setup, ' -> ' + new_image)
 
