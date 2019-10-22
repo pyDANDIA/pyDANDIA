@@ -208,7 +208,7 @@ def run_stage4(setup):
     #               mask_extension_in=3)
     resample_image_stamps(new_images, reference_image_name, reference_image_directory, reduction_metadata, setup,
                    data_image_directory, resampled_directory_path, ref_row_index, px_scale, log=log,
-                   mask_extension_in=3)
+                   mask_extension_in=-1)
     reduction_metadata.save_updated_metadata(
         reduction_metadata.data_architecture[1]['OUTPUT_DIRECTORY'][0],
         reduction_metadata.data_architecture[1]['METADATA_NAME'][0],
@@ -651,7 +651,8 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
 
         reference_image_hdu = fits.open(os.path.join(reference_image_directory, reference_image_name), memmap=True)
         reference_image = np.copy(reference_image_hdu[0].data)
-        mask_reference = reference_image_hdu[3].data.astype(bool)
+
+        mask_reference = reference_image_hdu[mask_extension_in].data.astype(bool)
 
 
     ref_sources, ref_fwhm = extract_catalog(reduction_metadata, reference_image, ref_row_index)
@@ -669,12 +670,7 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
         data_image_hdu = fits.open(os.path.join(data_image_directory, new_image), memmap=True)
         data_image = np.copy(data_image_hdu[0].data)
 
-        if mask_extension_in > len(data_image_hdu) - 1 or mask_extension_in == -1:
-            mask_extension = -1
-            mask_image = np.zeros(data_image.shape)
-        else:
-            mask_extension = mask_extension_in
-            mask_image = np.array(data_image_hdu[mask_extension].data, dtype=float)
+        mask_image = np.array(data_image_hdu[mask_extension_in].data, dtype=float)
 
         shifted_mask = np.copy(mask_image)
         shifted = np.copy(data_image)
@@ -768,7 +764,6 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
                                            residual_threshold=0.05, max_trials=1000)
                 shifted_stamp = tf.warp(img, inverse_map=model_stamp, output_shape=img.shape, order=0,
                                   mode='constant', cval=0, clip=True, preserve_range=True)
-
 
 
 

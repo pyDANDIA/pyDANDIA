@@ -523,7 +523,7 @@ def construct_the_pixel_mask(setup, reduction_metadata,
             bpm.load_banzai_mask(banzai_bpm, log=log)
         
         # variables_pixel_mask = construct_the_variables_star_mask(open_image, variable_star_pixels=10)
-      
+
         saturation_level = reduction_metadata.reduction_parameters[1]['MAXVAL']
         
         bpm.mask_image_saturated_pixels(open_image, saturation_level, log=log)
