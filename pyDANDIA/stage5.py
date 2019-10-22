@@ -111,7 +111,7 @@ def run_stage5(setup):
     for percentile in kernel_percentile:
 
         kernel_size_tmp = int(
-            2.5*float(reduction_metadata.reduction_parameters[1]['KER_RAD'][0]) * np.percentile(fwhms, percentile))
+            2.0*float(reduction_metadata.reduction_parameters[1]['KER_RAD'][0]) * np.percentile(fwhms, percentile))
 
         if kernel_size_tmp % 2 == 0:
             kernel_size_tmp += 1
@@ -311,8 +311,8 @@ def smoothing_2sharp_images(reduction_metadata, ref_fwhm_x, ref_fwhm_y, ref_sigm
         smoothing = smoothing_y
 
     if smoothing >0 :
-        smoothing = 2* (ref_sigma_x ** 2 + ref_sigma_y ** 2) ** 0.5
-        #smoothing =
+        smoothing = 3* (ref_sigma_x ** 2 + ref_sigma_y ** 2) ** 0.5
+    smoothing = 0
     return smoothing
 
 
@@ -363,6 +363,9 @@ def subtract_with_constant_kernel(new_images, reference_image_name, reference_im
                 os.path.join(reduction_metadata.data_architecture[1]['REF_PATH'][0], 'master_mask.fits'))
             # master_mask = np.where(master_mask[0].data > 0.85 * np.max(master_mask[0].data))
             master_mask = master_mask[0].data > 0
+
+
+
         except:
             master_mask = []
 
@@ -538,7 +541,7 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
 
     log.info('Starting image subtraction with a constant kernel')
 
-    grow_kernel = 2.5 * float(reduction_metadata.reduction_parameters[1]['KER_RAD'][0])
+    grow_kernel = 2.0* float(reduction_metadata.reduction_parameters[1]['KER_RAD'][0])
     pixscale = reduction_metadata.reduction_parameters[1]['PIX_SCALE'][0]
 
     list_of_stamps = reduction_metadata.stamps[1]['PIXEL_INDEX'].tolist()
@@ -551,14 +554,23 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
             master_mask = fits.open(
                 os.path.join(reduction_metadata.data_architecture[1]['REF_PATH'][0], 'master_mask.fits'))
             # master_mask = np.where(master_mask[0].data > 0.85 * np.max(master_mask[0].data))
+
             master_mask = master_mask[0].data > 0
+
+           # import scipy.ndimage as sn
+           # import pdb;
+           # pdb.set_trace()
+            ##master_mask = sn.morphology.binary_dilation(master_mask, iterations=10,
+             #                                           structure=sn.generate_binary_structure(2, 2)).astype(int)
+
+            #master_mask = master_mask > 0
         except:
             master_mask = []
 
         try:
             resampled_median_image = resampled_median_stack(setup, reduction_metadata, new_images, log)
         except:
-            resampled_median_image = np.zeros(np.shape(master_mask[0].data))
+            resampled_median_image = np.zeros(np.shape(master_mask))
 
         kernel_size_max = max(kernel_size_array)
         reference_images = []
@@ -569,7 +581,7 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
             reference_images.append(
                 open_reference(setup, reference_image_directory, reference_image_name, kernel_size_array[idx], max_adu,
                                ref_extension=0, log=log, central_crop=maxshift, master_mask=master_mask,
-                               external_weight=resampled_median_image))
+                               external_weight=None))
             log.info(' -> Completed image masking')
 
         try:
@@ -687,6 +699,7 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
 
 
                 ref = reference_image[kernel_size:-kernel_size, kernel_size:-kernel_size][ymin:ymax, xmin:xmax]
+
                 ref_unmasked = reference_image_unmasked[ymin:ymax, xmin:xmax]
 
                 ref_extended = np.zeros((ref.shape[0]+2*kernel_size,ref.shape[1]+2*kernel_size))
@@ -699,7 +712,7 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
 
 
                 bal_mask_extended[kernel_size:-kernel_size, kernel_size:-kernel_size] = \
-                    bright_reference_mask[kernel_size:-kernel_size, kernel_size:-kernel_size][ymin:ymax, xmin:xmax]
+                    master_mask[ymin:ymax, xmin:xmax]
                 #img = data_image[ymin:ymax, xmin:xmax]
                 #img = fits.open(os.path.join(stamps_directory, 'resample__stamp_' + str(stamp) + '.fits'))[0].data
                 #img_unmasked = np.copy(img)
@@ -709,7 +722,6 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
                                                               xshift=x_shift, yshift=y_shift, sigma_smooth=smoothing,
                                                               central_crop=maxshift)
 
-                img[bal_mask_extended] = 0
 
                 noisy = noise_image[kernel_size:-kernel_size, kernel_size:-kernel_size][ymin:ymax, xmin:xmax]
                 noise = np.zeros(ref_extended.shape)
@@ -731,11 +743,12 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
                 hdu_kernel = fits.PrimaryHDU(kernel_matrix, header=kernel_header)
                 hdu_kernel.writeto(os.path.join(kernel_directory, 'kernel_stamp_' + str(stamp) + '.fits'), overwrite=True)
                 hdu_kernel_err = fits.PrimaryHDU(kernel_uncertainty)
-                hdu_kernel_err.writeto(os.path.join(kernel_directory, 'kernel__err_stamp_' + str(stamp) + '.fits'), overwrite=True)
+                hdu_kernel_err.writeto(os.path.join(kernel_directory, 'kernel_err_stamp_' + str(stamp) + '.fits'), overwrite=True)
                 # Particle data group formatting
                 pscale_formatted = round_unc(pscale, pscale_err)
                 difference_image = subtract_images(img_unmasked, ref_unmasked, kernel_matrix,
                                                kernel_size, bkg_kernel)
+
                 # unmasked subtraction (for quality stats)
                 mean_sky, median_sky, std_sky = sigma_clipped_stats(ref_unmasked, sigma=5.0)
                 difference_image_um = subtract_images(img, ref_extended, kernel_matrix, kernel_size, bkg_kernel)
@@ -884,8 +897,9 @@ def noise_model(model_image, gain=1., readout_noise=0., flat=None, initialize=No
 
     weights = 1. / noise_image
 
-    weights[noise_image == 1] = 0.
-
+    #weights[noise_image == 1] = 0.
+    weights = np.ones(noise_image.shape)
+    weights[mask] = 0
     return weights
 
 

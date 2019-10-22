@@ -36,6 +36,7 @@ import scipy.ndimage as sn
 from skimage.measure import ransac
 import skimage.feature as sf
 from photutils import centroid_com
+import matplotlib.pyplot as plt
 
 from pyDANDIA import metadata
 from pyDANDIA import logs
@@ -48,6 +49,8 @@ from skimage.feature import register_translation
 from skimage.feature import (ORB, match_descriptors,
                              plot_matches)
 import itertools
+import matplotlib.pyplot as plt
+
 class PolyTF_4(tf.PolynomialTransform):
     def estimate(*data):
         return tf.PolynomialTransform.estimate(*data, order=2)
@@ -141,6 +144,7 @@ def run_stage4(setup):
             target_image = open_an_image(setup, images_directory, new_image, log, image_index=0)
 
             try:
+
                 x_new_center, y_new_center, x_shift, y_shift = find_x_y_shifts_from_the_reference_image(setup,
                                                                                                         reference_image,
                                                                                                         target_image,
@@ -478,6 +482,24 @@ def refine_positions(image,positions):
 
     return refine_positions
 
+
+def refine_positions2(image,positions):
+
+    Y,X = np.mgrid[:image.shape[0], :image.shape[1]]
+
+
+    refine_positions = []
+    for idx,pos in enumerate(positions):
+
+
+        stamp = image[int(np.round(pos[1]))-1:int(np.round(pos[1]))+2,int(np.round(pos[0]))-1:int(np.round(pos[0]))+2]
+
+        weight_x = np.sum(stamp*X[int(np.round(pos[1]))-1:int(np.round(pos[1]))+2,int(np.round(pos[0]))-1:int(np.round(pos[0]))+2])/np.sum(stamp)
+        weight_y = np.sum(stamp*Y[int(np.round(pos[1]))-1:int(np.round(pos[1]))+2,int(np.round(pos[0]))-1:int(np.round(pos[0]))+2])/np.sum(stamp)
+        refine_positions.append([weight_x,weight_y,1])
+
+    return refine_positions
+
 def resample_image(new_images, reference_image_name, reference_image_directory, reduction_metadata, setup,
                    data_image_directory, resampled_directory_path, ref_row_index, px_scale, log=None,
                    mask_extension_in=-1):
@@ -546,8 +568,8 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
 
                 pts_reference2 = np.copy(pts_reference)
 
-                #model_robust, inliers = ransac((pts_data[:2500, :2], pts_reference2[:2500, :2]), tf.AffineTransform, min_samples=min(50,int(0.1*len(pts_data[:2500]))), residual_threshold=0.1,max_trials=1000)
-                model_robust, inliers = ransac((pts_reference2[:2500, :2]-center, pts_data[:2500, :2]-center),  tf.AffineTransform, min_samples=min(50,int(0.1*len(pts_data[:2500]))), residual_threshold=0.1,max_trials=1000)
+                #model_robust, inliers = ransac((pts_data[:5000, :2], pts_reference2[:5000, :2]), tf.AffineTransform, min_samples=min(50,int(0.1*len(pts_data[:5000]))), residual_threshold=0.1,max_trials=1000)
+                model_robust, inliers = ransac((pts_reference2[:5000, :2]-center, pts_data[:5000, :2]-center),  tf.AffineTransform, min_samples=min(50,int(0.1*len(pts_data[:5000]))), residual_threshold=0.1,max_trials=1000)
 
 
                 print('Using Affine Transformation')
@@ -626,8 +648,11 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
     list_of_stamps = reduction_metadata.stamps[1]['PIXEL_INDEX'].tolist()
 
     if len(new_images) > 0:
+
         reference_image_hdu = fits.open(os.path.join(reference_image_directory, reference_image_name), memmap=True)
-        reference_image = reference_image_hdu[0].data
+        reference_image = np.copy(reference_image_hdu[0].data)
+        mask_reference = reference_image_hdu[3].data.astype(bool)
+
 
     ref_sources, ref_fwhm = extract_catalog(reduction_metadata, reference_image, ref_row_index)
 
@@ -642,7 +667,7 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
             reduction_metadata.images_stats[1][row_index]['SHIFT_Y']
 
         data_image_hdu = fits.open(os.path.join(data_image_directory, new_image), memmap=True)
-        data_image = data_image_hdu[0].data
+        data_image = np.copy(data_image_hdu[0].data)
 
         if mask_extension_in > len(data_image_hdu) - 1 or mask_extension_in == -1:
             mask_extension = -1
@@ -653,59 +678,50 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
 
         shifted_mask = np.copy(mask_image)
         shifted = np.copy(data_image)
-
+        shifted_catalog = np.copy(data_image)
+        shifted_catalog[mask_image.astype(bool)] = 0
         iteration = 0
         corr_ini = np.corrcoef(reference_image.ravel(), shifted.ravel())[0, 1]
 
         while iteration < 1:
 
-            data_sources, data_fwhm = extract_catalog(reduction_metadata, shifted, row_index)
+            data_sources, data_fwhm = extract_catalog(reduction_metadata, shifted_catalog, row_index)
 
             try:
+
                 if iteration > 0:
 
                     x_shift = 0
                     y_shift = 0
-                    center = int(len(data_image) / 2)
                     original_matrix = model_final.params
 
                 else:
-                    center = int(len(data_image) / 2)
                     original_matrix = np.identity(3)
 
                 pts_data, pts_reference, e_pos = crossmatch_catalogs(ref_sources, data_sources, x_shift, y_shift)
 
                 pts_reference2 = np.copy(pts_reference)
 
-                model_robust, inliers = ransac((pts_reference2[:2500, :2] - center, pts_data[:2500, :2] - center),
-                                               tf.AffineTransform, min_samples=min(50, int(0.1 * len(pts_data[:2500]))),
-                                               residual_threshold=0.1, max_trials=1000)
+                model_robust, inliers = ransac((pts_reference2[:5000, :2] , pts_data[:5000, :2] ), tf.AffineTransform, min_samples=min(50, int(0.1 * len(pts_data[:5000]))),  residual_threshold=0.05, max_trials=1000)
 
+                if len(pts_data[inliers])<10:
+                    raise ValueError("Not enough matching stars! Switching to translation")
+                model_final = np.dot(original_matrix, model_robust.params)
                 print('Using Affine Transformation')
 
             except:
 
-                model_final = tf.SimilarityTransform(translation=(-x_shift, -y_shift))
+                model_final = tf.SimilarityTransform(translation=(x_shift, y_shift))
                 print('Using XY shifts')
             try:
 
-                model_params = np.dot(original_matrix, model_robust.params)
-                model_final = model_robust
-                model_final.params = model_params
-                model_final.params[0, 2] += center * (1 - model_final.params[0, 0] - model_final.params[0, 1])
-                model_final.params[1, 2] += center * (1 - model_final.params[1, 0] - model_final.params[1, 1])
 
 
-                shifted = tf.warp(data_image, inverse_map=model_final, output_shape=data_image.shape, order=1,
-                                  mode='constant', cval=0, clip=True, preserve_range=True)
-                shifted_mask = tf.warp(mask_image, inverse_map=model_final, output_shape=data_image.shape, order=1,
-                                       mode='constant', cval=1, clip=False, preserve_range=False)
 
+                shifted = tf.warp(data_image, inverse_map=model_final, output_shape=data_image.shape, order=5,mode='constant', cval=0, clip=True, preserve_range=True)
+                shifted_mask = tf.warp(mask_image, inverse_map=model_final, output_shape=data_image.shape, order=0, mode='constant', cval=1, clip=True, preserve_range=True)
 
-                corr = np.corrcoef(reference_image[~shifted_mask.astype(bool)], shifted[~shifted_mask.astype(bool)])[
-                    0, 1]
-
-
+                corr = np.corrcoef(reference_image[~shifted_mask.astype(bool)], shifted[~shifted_mask.astype(bool)])[0, 1]
 
 
             except:
@@ -719,17 +735,10 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
         shifted_mask[mask] = 0
         master_mask += shifted_mask
 
-        if mask_extension > -1 and model_final != None:
-            shifted_mask = tf.warp(shifted_mask, inverse_map=model_final, preserve_range=True)
-
-
         #resample the stamps
         resample_directory = os.path.join(resampled_directory_path, new_image)
         try:
             os.mkdir(resample_directory)
-
-
-
         except:
             pass
 
@@ -742,7 +751,6 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
                 ymax = reduction_metadata.stamps[1][stamp_row]['Y_MAX'].astype(int)
 
                 img = shifted[ymin:ymax, xmin:xmax]
-                ref = reference_image[ymin:ymax, xmin:xmax]
 
                 stamp_mask = (ref_sources['xcentroid']<xmax) & (ref_sources['xcentroid']>xmin ) &\
                              (ref_sources['ycentroid']<ymax) & (ref_sources['ycentroid']>ymin )
@@ -755,21 +763,25 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
 
                 pts_data, pts_reference, e_pos = crossmatch_catalogs(ref_stamps, data_stamps,0,0)
 
-                model_stamp, inliers = ransac((pts_reference[:2500, :2] , pts_data[:2500, :2] ),
-                                           tf.AffineTransform, min_samples=min(50, int(0.1 * len(pts_data[:2500]))),
-                                           residual_threshold=0.1, max_trials=1000)
-                shifted_stamp = tf.warp(img, inverse_map=model_stamp, output_shape=img.shape, order=1,
+                model_stamp, inliers = ransac((pts_reference[:5000, :2] , pts_data[:5000, :2] ),
+                                           tf.AffineTransform, min_samples=min(50, int(0.1 * len(pts_data[:5000]))),
+                                           residual_threshold=0.05, max_trials=1000)
+                shifted_stamp = tf.warp(img, inverse_map=model_stamp, output_shape=img.shape, order=0,
                                   mode='constant', cval=0, clip=True, preserve_range=True)
 
+
+
+
+                #shifted_stamp = shifted
 
             except:
 
                 shifted_stamp = img
 
-            resampled_stamp_hdu = fits.PrimaryHDU(shifted_stamp,shifted_mask)
+            resampled_stamp_hdu = fits.PrimaryHDU([shifted_stamp,shifted_mask[ymin:ymax, xmin:xmax]])
             resampled_stamp_hdu.writeto(os.path.join(resample_directory, 'resample_stamp_' + str(stamp) + '.fits')
                                             , overwrite=True)
-        resampled_image_hdu = fits.PrimaryHDU(shifted)
+        resampled_image_hdu = fits.PrimaryHDU([shifted,shifted_mask])
         resampled_image_hdu.writeto(os.path.join(resample_directory, new_image), overwrite=True)
         data_image_hdu.close()
 

@@ -200,7 +200,13 @@ class BadPixelMask:
             pass
     
         pass
-    
+
+    def mask_ccd_blooming2(self, setup, reduction_metadata, image, log=None,
+                          diagnostic_plots=False):
+        import scipy.ndimage as sn
+        self.bloom_mask = sn.morphology.binary_dilation(self.saturated_pixels, iterations=20,
+                                                        structure = sn.generate_binary_structure(2, 2) ).astype(int)
+
     def mask_ccd_blooming(self,setup,reduction_metadata,image,log=None,
                           diagnostic_plots=False):
         """Method to identify and mask regions of an image where bright stars 
@@ -209,14 +215,15 @@ class BadPixelMask:
         
         if log!=None: log.info('Masking blooming by saturated stars')
         
-        psf_radius = reduction_metadata.reduction_parameters[1]['PSF_SIZE'][0]/2.0
+        #psf_radius = reduction_metadata.reduction_parameters[1]['PSF_SIZE'][0]/2.0
+        psf_radius = 5
         min_cluster_pix = int(np.pi * psf_radius * psf_radius)
         saturation = reduction_metadata.reduction_parameters[1]['MAXVAL'][0]
         
         sat_columns = find_columns_with_blooming(self.saturated_pixels)
         
         sat_regions = []
-        
+
         for columns in sat_columns:
             
             sat_image_region = self.saturated_pixels[:,columns[1]:columns[2]]
@@ -253,6 +260,7 @@ class BadPixelMask:
                                                   ', '+str(image_sigma))
                                                   
             threshold = bkgd + 3.0 * bkgd_sigma
+
             #threshold = image_median + 1.0 * image_sigma
             
             if log!=None: 
@@ -272,37 +280,40 @@ class BadPixelMask:
             tmin = -np.pi/2.0
             tmax = tmin + dtheta
             while tmax <= (np.pi/2.0) + dtheta:
-                idx = select_pixels_in_theta_range(theta, tmin, tmax)
-            
-                mask_radius = measure_mask_radius(radial_sep[idx].flatten(), 
-                                              sat_image_region[idx].flatten(), 
-                                              saturation, threshold)
-            
-                if log!=None: 
-                    log.info('Theta = '+str(tmin)+'rads, '+\
-                          'mask radius = '+str(mask_radius)+' pixels')
-                
-                jdx = np.where(radial_sep < mask_radius)
-                
-                kdx = select_common_indices_2D(idx, jdx)
-                
-                self.bloom_mask[yy[kdx],xx[kdx]] = 1
-                
-                tmin += dtheta
-                tmax = tmin + dtheta
-                
-                # Order array of pixel values in increasing radial separation
-                if diagnostic_plots:
-                    fig = plt.figure(2)
-                    plt.plot(radial_sep[idx].flatten(),sat_image_region[idx].flatten(),'r.')
-                    threshold_line = np.arange(0,(radial_sep[idx].max()),1)
-                    plt.plot(threshold_line,
-                             [threshold]*len(threshold_line),'m-.')
-                    mask_line = np.arange(0,(sat_image_region[idx].max()),1)
-                    plt.plot([mask_radius]*len(mask_line), mask_line, 'k--')
-                    plt.savefig('test_theta'+str(round(tmin,3))+'.png')
-                    plt.close(2)
-            
+                try:
+                    idx = select_pixels_in_theta_range(theta, tmin, tmax)
+
+                    mask_radius = measure_mask_radius(radial_sep[idx].flatten(),
+                                                  sat_image_region[idx].flatten(),
+                                                  saturation, threshold)
+
+                    if log!=None:
+                        log.info('Theta = '+str(tmin)+'rads, '+\
+                              'mask radius = '+str(mask_radius)+' pixels')
+
+                    jdx = np.where(radial_sep < mask_radius)
+
+                    kdx = select_common_indices_2D(idx, jdx)
+
+                    self.bloom_mask[yy[kdx],xx[kdx]] = 1
+
+                    tmin += dtheta
+                    tmax = tmin + dtheta
+
+                    # Order array of pixel values in increasing radial separation
+                    if diagnostic_plots:
+                        fig = plt.figure(2)
+                        plt.plot(radial_sep[idx].flatten(),sat_image_region[idx].flatten(),'r.')
+                        threshold_line = np.arange(0,(radial_sep[idx].max()),1)
+                        plt.plot(threshold_line,
+                                 [threshold]*len(threshold_line),'m-.')
+                        mask_line = np.arange(0,(sat_image_region[idx].max()),1)
+                        plt.plot([mask_radius]*len(mask_line), mask_line, 'k--')
+                        plt.savefig('test_theta'+str(round(tmin,3))+'.png')
+                        plt.close(2)
+                except:
+                    import pdb;
+                    pdb.set_trace()
         if diagnostic_plots:
             hdu = fits.PrimaryHDU(bloom_mask)
             hdu.writeto('bloom_mask.fits', overwrite=True)
@@ -486,7 +497,7 @@ def construct_the_pixel_mask(setup, reduction_metadata,
     '''
     
     log.info('Constructing the image bad pixel mask')
-   
+
     try:
         bpm = BadPixelMask()
         
@@ -517,7 +528,7 @@ def construct_the_pixel_mask(setup, reduction_metadata,
         
         bpm.mask_image_saturated_pixels(open_image, saturation_level, log=log)
     
-        bpm.mask_ccd_blooming(setup, reduction_metadata, open_image, log=log)
+        bpm.mask_ccd_blooming2(setup, reduction_metadata, open_image, log=log)
         
         bpm.mask_image_low_level_pixels(open_image, low_level, log=log)
         
@@ -526,10 +537,11 @@ def construct_the_pixel_mask(setup, reduction_metadata,
                          bpm.saturated_pixels,
                          bpm.bloom_mask,
                          bpm.low_pixels]
-        
-        bpm.master_mask = pixelmasks.construct_a_master_mask(bpm.master_mask, 
+
+        master_mask = pixelmasks.construct_a_master_mask(bpm.master_mask,
                                                              list_of_masks,
                                                              log=log)
+        bpm.master_mask = master_mask
     
         if log != None:
             log.info('Successfully built a BPM')
@@ -691,14 +703,14 @@ def find_columns_with_blooming(saturated_pixel_mask, diagnostic_plots=False):
     
     columns = saturated_pixel_mask.sum(axis=0)
     
-    idx = np.where(columns > 200)
+    idx = np.where(columns > 10)
     
     clusters = find_clusters_in_vector(idx[0])
     
     idx = np.where(columns == 0)[0]
     
     regions = []
-    
+
     for c in clusters:
         
         sep = abs(idx - c.xc)
@@ -736,14 +748,14 @@ def find_rows_with_blooming(saturated_pixel_mask, diagnostic_plots=False):
     
     rows = saturated_pixel_mask.sum(axis=1)
     
-    idx = np.where(rows > 10)
+    idx = np.where(rows > 2)
     
     clusters = find_clusters_in_vector(idx[0])
     
     idx = np.where(rows == 0)[0]
     
     regions = []
-    
+
     for c in clusters:
         
         sep = abs(idx - c.xc)
@@ -852,10 +864,11 @@ def estimate_background(section):
     i = np.where(hist[0] == max_entries)
     bkgd = hist[1][i][0]
     
-    idx = np.where(hist[0] > 200)
-    
+    #idx = np.where(hist[0] > 200)
+    idx = np.where(hist[0] < 2*bkgd)
+
     bkgd_sigma = hist[1][idx].std()
-    
+
     image_median = np.median(section)
     image_sigma = section.std()
     
@@ -887,6 +900,7 @@ def measure_mask_radius(radial_seps, pixel_values, saturation, threshold):
     # separation, locate the index where the pixel value first drops 
     # below the threshold
     idx = r.argsort()
+
     jdx = np.where( (data[idx] - threshold) < 0.0 )
     
     mask_radius = r[idx][jdx[0][0]]
