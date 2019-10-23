@@ -180,8 +180,10 @@ def run_stage6(setup):
         date = []
         diffim_directory = os.path.join(reduction_metadata.data_architecture[1]['OUTPUT_DIRECTORY'].data[0], 'diffim')
 
+
         n_images = len(new_images)
-        
+        list_of_stamps = reduction_metadata.stamps[1]['PIXEL_INDEX'].tolist()
+
         for idx, new_image in enumerate(new_images[:]):
             log.info('Extracting parameters of image ' + new_image + ' for photometry ('+str(idx)+' of '+str(n_images)+')')
             index_image = np.where(new_image == reduction_metadata.headers_summary[1]['IMAGES'].data)[0][0]
@@ -207,27 +209,45 @@ def run_stage6(setup):
             exposures_id.append(image_id)
 
             log.info('Starting difference photometry of ' + new_image)
-            kernel_image, kernel_error, kernel_bkg = find_the_associated_kernel(setup, kernels_directory, new_image)
-            
-            sky_model = sky_background.model_sky_background(setup,
-                                                            reduction_metadata, 
-                                                            log, ref_star_catalog,
-                                                            image_path=os.path.join(setup.red_dir,'data',new_image))
-            log.info('Built sky model')
-    
-            difference_image = open_an_image(setup, diffim_directory, 'diff_' + new_image, log, 0)[0]
-            
-            if len(difference_image) > 1:
-                diff_table, control_zone, phot_table = photometry_on_the_difference_image(setup, reduction_metadata, log,
-                                                                          ref_star_catalog, difference_image, psf_model,
-                                                                          sky_model, kernel_image, kernel_error,
-                                                                          ref_exposure_time,idx)
-                psf_model.update_psf_parameters(psf_parameters)
+            import pdb;
+            pdb.set_trace()
 
-                commit_image_photometry_matching(conn, image_params, reduction_metadata, matched_stars, phot_table, log)
-                
-            else:
-                log.info('No difference image available, so no photometry performed.')
+            for stamp in list_of_stamps:
+
+                stamp_row = np.where(reduction_metadata.stamps[1]['PIXEL_INDEX'] == stamp)[0][0]
+                xmin = int(reduction_metadata.stamps[1][stamp_row]['X_MIN'])
+                xmax = int(reduction_metadata.stamps[1][stamp_row]['X_MAX'])
+                ymin = int(reduction_metadata.stamps[1][stamp_row]['Y_MIN'])
+                ymax = int(reduction_metadata.stamps[1][stamp_row]['Y_MAX'])
+
+                stamp_mask = (ref_star_catalog[:,1].astype(float) < xmax) & (ref_star_catalog[:,1].astype(float) > xmin) & \
+                             (ref_star_catalog[:,2].astype(float) < ymax) & (ref_star_catalog[:,2].astype(float) > ymin)
+
+
+                stamp_star_catalog = ref_star_catalog[stamp_mask]
+
+                kernel_image, kernel_error, kernel_bkg = find_the_associated_kernel_stamp(setup, kernels_directory, new_image,stamp)
+
+                sky_model = sky_background.model_sky_background(setup,
+                                                                reduction_metadata,
+                                                                log, ref_star_catalog,
+                                                                image_path=os.path.join(setup.red_dir,'data',new_image))
+                log.info('Built sky model')
+                stamp_directory = os.path.join(diffim_directory,new_image)
+                difference_image = open_an_image(setup, stamp_directory,'diff_stamp_'+str(stamp)+'.fits' , log, 0)[0]
+
+                if len(difference_image) > 1:
+
+                    diff_table, control_zone, phot_table = photometry_on_the_difference_image_stamp(setup, reduction_metadata, log,
+                                                                              stamp_star_catalog, difference_image, psf_model,
+                                                                              sky_model, kernel_image, kernel_error,
+                                                                              ref_exposure_time,idx)
+                    psf_model.update_psf_parameters(psf_parameters)
+
+                    commit_image_photometry_matching(conn, image_params, reduction_metadata, matched_stars, phot_table, log)
+
+                else:
+                    log.info('No difference image available, so no photometry performed.')
         
         output_txt_files = False
         if output_txt_files:
@@ -298,7 +318,6 @@ def open_an_image(setup, image_directory, image_name, log, image_index=0):
 
     logs.ifverbose(log, setup,
                    'Attempting to open image ' + os.path.join(image_directory_path, image_name))
-    # import pdb; pdb.set_trace()
     try:
 
         image_data = fits.open(os.path.join(image_directory_path, image_name),
@@ -477,6 +496,33 @@ def find_the_associated_kernel(setup, kernels_directory, image_name):
 
     return kernel, kernel_error[0].data, bkgd
 
+def find_the_associated_kernel_stamp(setup, kernels_directory, image_name, stamp):
+    '''
+    Find the appropriate kernel associated to an image stamp
+    :param object reduction_metadata: the metadata object
+    :param string kernels_directory: the path to the kernels
+    :param string image_name: the image name
+
+    :return: the associated kernel to the image
+    :rtype: array_like
+    '''
+    # import pdb; pdb.set_trace()
+    kernel_name = 'kernel_stamp_' + str(stamp) +'.fits'
+    kernel_err =  'kernel_err_stamp_' + str(stamp) +'.fits'
+
+    kernel_directory = kernels_directory+'/'+image_name+'/'
+    kernel = fits.open(os.path.join(kernel_directory, kernel_name))
+    kernel_error = fits.open(os.path.join(kernel_directory, kernel_err))
+    # kernel,date = open_an_image(setup, kernels_directory, kernel_name, log,
+    #                       image_index=0)
+    # kernel_error,date = open_an_image(setup, kernels_directory, kernel_err, log,
+    #                       image_index=0)
+    bkgd = +kernel[0].header['KERBKG']
+
+    kernel = kernel[0].data
+
+    return kernel, kernel_error[0].data, bkgd
+
 
 def photometry_on_the_difference_image(setup, reduction_metadata, log, star_catalog, difference_image, psf_model,
                                        sky_model, kernel, kernel_error, ref_exposure_time,image_id):
@@ -519,6 +565,56 @@ def photometry_on_the_difference_image(setup, reduction_metadata, log, star_cata
     
     # return table
     return differential_photometry, control_zone, photometric_table
+
+
+def photometry_on_the_difference_image_stamp(setup, reduction_metadata, log, star_catalog, difference_image, psf_model,
+                                            sky_model, kernel, kernel_error, ref_exposure_time, image_id):
+    '''
+    Find the appropriate kernel associated to an image
+    :param object reduction_metadata: the metadata object
+    :param string kernels_directory: the path to the kernels
+    :param string image_name: the image name
+
+    :return: the associated kernel to the image
+    :rtype: array_like
+    '''
+
+    # PSF photometry function returns a list of lists
+    (differential_photometry, control_zone) = photometry.run_psf_photometry_on_difference_image(setup,
+                                                                                                reduction_metadata, log,
+                                                                                                star_catalog, sky_model,
+                                                                                                difference_image,
+                                                                                                psf_model, kernel,
+                                                                                                kernel_error,
+                                                                                                ref_exposure_time,
+                                                                                                image_id)
+
+    table_data = [Column(name='star_id', data=differential_photometry[0]),
+                  Column(name='diff_flux', data=differential_photometry[1]),
+                  Column(name='diff_flux_err', data=differential_photometry[2]),
+                  Column(name='magnitude', data=differential_photometry[3]),
+                  Column(name='magnitude_err', data=differential_photometry[4]),
+                  Column(name='cal_magnitude', data=differential_photometry[5]),
+                  Column(name='cal_magnitude_err', data=differential_photometry[6]),
+                  Column(name='flux', data=differential_photometry[7]),
+                  Column(name='flux_err', data=differential_photometry[8]),
+                  Column(name='cal_flux', data=differential_photometry[9]),
+                  Column(name='cal_flux_err', data=differential_photometry[10]),
+                  Column(name='phot_scale_factor', data=differential_photometry[11]),
+                  Column(name='phot_scale_factor_err', data=differential_photometry[12]),
+                  Column(name='local_background', data=differential_photometry[13]),
+                  Column(name='local_background_err', data=differential_photometry[14]),
+                  Column(name='residual_x', data=differential_photometry[15]),
+                  Column(name='residual_y', data=differential_photometry[16]),
+                  Column(name='radius', data=differential_photometry[17])]
+
+    photometric_table = Table(data=table_data)
+
+    # return table
+    return differential_photometry, control_zone, photometric_table
+
+
+
 
 
 def ingest_photometric_table_in_db(setup, exposures_indexes, star_indexes, photometric_table):

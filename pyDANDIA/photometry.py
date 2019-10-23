@@ -75,7 +75,7 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
     
     Y_image, X_image = np.indices(data.shape)
     
-    sky_bkgd = sky_model.background_model(data.shape,sky_model.get_parameters())
+    sky_bkgd = sky_model.background_model(Y_data,X_data,sky_model.get_parameters())
     
     residuals = np.copy(data)
     

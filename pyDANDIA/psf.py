@@ -938,11 +938,10 @@ def fit_star_existing_model(setup, data, x_cen, y_cen, psf_radius,
         init_par = [ psf_model.get_parameters()[0], y_cen, x_cen ]
     else:
         init_par = [ psf_model.get_parameters()[0] ]
-    
-    fit = optimize.leastsq(error_star_fit_existing_model, init_par, 
+    fit = optimize.leastsq(error_star_fit_existing_model, init_par,
         args=(data, psf_model, psf_sky_bkgd, Y_data, X_data), 
         full_output=1)
-    
+
     fitted_model = get_psf_object(psf_model.psf_type())
 
     psf_params = psf_model.get_parameters()
@@ -1054,7 +1053,7 @@ def fit_star_existing_model_with_kernel(setup, data, x_cen, y_cen, psf_radius,
 
     Y_data, X_data = np.indices(stamps.shape)
 
-    sky_bkgd = sky_model.background_model(X_data, Y_data,
+    sky_bkgd = sky_model.background_model(Y_data, X_data,
                                           sky_model.get_parameters())
 
     if centroiding:
@@ -1683,11 +1682,12 @@ def subtract_companions_from_psf_stamps(setup, reduction_metadata, log,
                     # Otherwise it will need to be extracted for the specific 
                     # region of the full image
                     Y_grid, X_grid = np.indices(s.data.shape)
-                    sky_model_bkgd = sky_bkgd = sky_model.background_model(Y_grid.shape,
+
+                    sky_model_bkgd =  sky_model.background_model(Y_grid,X_grid,
                                                                            sky_model.get_parameters())
+
                     
                     s.data[corners[2]:corners[3],corners[0]:corners[1]] = sky_model_bkgd[corners[2]:corners[3],corners[0]:corners[1]]
-                    
                     (comp_psf,good_fit) = fit_star_existing_model(setup, s.data,
                                                         pars[2], pars[1],
                                                         psf_diameter, 
@@ -1695,7 +1695,7 @@ def subtract_companions_from_psf_stamps(setup, reduction_metadata, log,
                                                         sky_model_bkgd,
                                                         centroiding=False,
                                                         diagnostics=False)
-                            
+                    
                     #logs.ifverbose(log,setup,' -> Fitted PSF parameters for companion '+
                     #        str(star_data[0]+1)+': '+repr(comp_psf.get_parameters())+' Good fit? '+repr(good_fit))
                     
