@@ -18,13 +18,15 @@ from pyDANDIA import psf
 
 
 def background_fit(image1, master_mask = []):
-
-    from pyDANDIA import psf
-    y, x = np.indices(image1.shape)
-    fit = psf.fit_background(image1, y, x, ~master_mask, background_model='Gradient')
-    background_model = psf.GradientBackground()
-    background = background_model.background_model(y, x, fit[0])
-
+    try:
+        from pyDANDIA import psf
+        y, x = np.indices(image1.shape)
+        fit = psf.fit_background(image1, y, x, ~master_mask, background_model='Gradient')
+        background_model = psf.GradientBackground()
+        background = background_model.background_model(y, x, fit[0])
+    except:
+	print('Background fit impossible, report median')
+	background = np.median(image1)
 
     return background
 
