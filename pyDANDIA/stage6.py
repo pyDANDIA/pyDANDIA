@@ -178,6 +178,7 @@ def run_stage6(setup):
             return status, report
 
         date = []
+
         diffim_directory = os.path.join(reduction_metadata.data_architecture[1]['OUTPUT_DIRECTORY'].data[0], 'diffim')
 
 
@@ -209,8 +210,7 @@ def run_stage6(setup):
             exposures_id.append(image_id)
 
             log.info('Starting difference photometry of ' + new_image)
-            import pdb;
-            pdb.set_trace()
+
 
             for stamp in list_of_stamps:
 
@@ -244,11 +244,15 @@ def run_stage6(setup):
                                                                               ref_exposure_time,idx)
                     psf_model.update_psf_parameters(psf_parameters)
 
-                    commit_image_photometry_matching(conn, image_params, reduction_metadata, matched_stars, phot_table, log)
+
+
+
+                    #commit_image_photometry_matching(conn, image_params, reduction_metadata, matched_stars, phot_table, log)
 
                 else:
                     log.info('No difference image available, so no photometry performed.')
-        
+        import pdb;
+        pdb.set_trace()
         output_txt_files = False
         if output_txt_files:
             

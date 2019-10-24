@@ -1686,7 +1686,9 @@ def subtract_companions_from_psf_stamps(setup, reduction_metadata, log,
                     sky_model_bkgd =  sky_model.background_model(Y_grid,X_grid,
                                                                            sky_model.get_parameters())
 
-                    
+                    if sky_model_bkgd.ndim == 1:
+                        import pdb;
+                        pdb.set_trace()
                     s.data[corners[2]:corners[3],corners[0]:corners[1]] = sky_model_bkgd[corners[2]:corners[3],corners[0]:corners[1]]
                     (comp_psf,good_fit) = fit_star_existing_model(setup, s.data,
                                                         pars[2], pars[1],
@@ -1695,7 +1697,7 @@ def subtract_companions_from_psf_stamps(setup, reduction_metadata, log,
                                                         sky_model_bkgd,
                                                         centroiding=False,
                                                         diagnostics=False)
-                    
+
                     #logs.ifverbose(log,setup,' -> Fitted PSF parameters for companion '+
                     #        str(star_data[0]+1)+': '+repr(comp_psf.get_parameters())+' Good fit? '+repr(good_fit))
                     

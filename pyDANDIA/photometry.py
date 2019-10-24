@@ -75,7 +75,7 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
     
     Y_image, X_image = np.indices(data.shape)
     
-    sky_bkgd = sky_model.background_model(Y_data,X_data,sky_model.get_parameters())
+    sky_bkgd = sky_model.background_model(Y_image,X_image,sky_model.get_parameters())
     
     residuals = np.copy(data)
     
@@ -104,14 +104,13 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
         
         (sky_section, sky_x, sky_y) = psf.extract_image_section(sky_bkgd,
                                                             xstar,ystar,corners)
-        
-        (fitted_model,good_fit) = psf.fit_star_existing_model(setup, data_section, 
+        (fitted_model,good_fit) = psf.fit_star_existing_model(setup, data_section,
                                                sec_xstar, sec_ystar, 
                                                psf_diameter, psf_model, 
                                                sky_section, 
                                                centroiding=centroiding,
                                                diagnostics=False)
-        
+
         if diagnostics:
             logs.ifverbose(log, setup,' -> Star '+str(j)+
                             ' fitted model parameters = '+
@@ -522,8 +521,8 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
     list_align_x = []
     list_align_y = []
 
-    phot_scale_factor = (np.sum(kernel))
-    error_phot_scale_factor = (phot_scale_factor*0.1)
+    phot_scale_factor = np.sum(kernel)
+    error_phot_scale_factor = np.sum(kernel_error**2)**0.5
 
     control_size = 50
     control_count = 0
@@ -536,7 +535,8 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
     use_image = check_fwhm(reduction_metadata, image_id, log)
     
     if use_image:
-        
+
+        mask = difference_image == 0
         radius = psf_diameter/2.0
         apertures = CircularAperture(positions, r=radius)
         
@@ -544,6 +544,9 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
         sigma_clip = SigmaClip(sigma=3.)
         bkg_estimator = MedianBackground()
         bkg = Background2D(difference_image, (50, 50),  filter_size=(3, 3), sigma_clip=sigma_clip, bkg_estimator=bkg_estimator)
+        bkg.background[mask] = 0
+        bkg.background_rms[mask] = 0
+
         error = calc_total_error(difference_image, bkg.background_rms, 1) 
        
 
@@ -659,7 +662,8 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
                     flux_err = phot_table[j][4]
                     
                     flux_tot = ref_flux*ref_exposure_time - flux
-                    flux_err_tot = (error_ref_flux ** 2*ref_exposure_time + flux_err**2/phot_scale_factor**2) ** 0.5
+                    flux_err_tot = (error_ref_flux ** 2*ref_exposure_time + flux_err**2/phot_scale_factor**2+
+                                    (flux*error_phot_scale_factor/phot_scale_factor**2)**2) ** 0.5
  
                     #flux2 = phot_table2[j][3]/phot_scale_factor
                     #flux_err2 = phot_table2[j][4]
@@ -668,7 +672,8 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
                     #flux_err_tot2 = (error_ref_flux ** 2*ref_exposure_time + flux_err2**2/phot_scale_factor**2) ** 0.5
                     #if j == 2695:
                     #       import pdb; pdb.set_trace()
-                    if flux_tot > 0.0 and flux_err_tot > 0.0:
+                    if (flux_tot > 0.0) and (flux_err_tot > 0.0) and (difference_image[int(positions[j][1]),int(positions[j][0])] != 0) \
+                            and (bkg.background[int(positions[j][1]),int(positions[j][0])]!=0) and (flux!=0) and (flux_err!=0):
                         
                         list_delta_flux.append(flux)
                         list_delta_flux_error.append(flux_err)
@@ -700,8 +705,9 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
                         
                         #list_align_x.append(xstar)
                         #list_align_y.append(ystar)
-                        back = bkg.background[int(np.round(ystar)),int(np.round(xstar))]
-                        back_err = bkg.background_rms[int(np.round(ystar)),int(np.round(xstar))]
+
+                        back = bkg.background[int(positions[j][1]),int(positions[j][0])]
+                        back_err = bkg.background_rms[int(positions[j][1]),int(positions[j][0])]
 
                         list_background.append(back)
                         list_background_error.append(back_err)

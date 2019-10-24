@@ -698,9 +698,11 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
 
                 pts_reference2 = np.copy(pts_reference)
 
-                model_robust, inliers = ransac((pts_reference2[:5000, :2] , pts_data[:5000, :2] ), tf.AffineTransform, min_samples=min(50, int(0.1 * len(pts_data[:5000]))),  residual_threshold=0.05, max_trials=1000)
+                model_robust, inliers = ransac((pts_reference2[:5000, :2] , pts_data[:5000, :2] ), tf.AffineTransform,
+                                               min_samples=min(50, int(0.1 * len(pts_data[:5000]))),
+                                               residual_threshold=0.05, max_trials=1000)
 
-                if len(pts_data[inliers])<10:
+                if len(pts_data[:5000][inliers])<10:
                     raise ValueError("Not enough matching stars! Switching to translation")
                 model_final = np.dot(original_matrix, model_robust.params)
                 print('Using Affine Transformation')
@@ -715,7 +717,7 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
 
 
                 shifted = tf.warp(data_image, inverse_map=model_final, output_shape=data_image.shape, order=5,mode='constant', cval=0, clip=True, preserve_range=True)
-                shifted_mask = tf.warp(mask_image, inverse_map=model_final, output_shape=data_image.shape, order=0, mode='constant', cval=1, clip=True, preserve_range=True)
+                shifted_mask = tf.warp(mask_image, inverse_map=model_final, output_shape=data_image.shape, order=1, mode='constant', cval=1, clip=True, preserve_range=True)
 
                 corr = np.corrcoef(reference_image[~shifted_mask.astype(bool)], shifted[~shifted_mask.astype(bool)])[0, 1]
 
@@ -762,17 +764,19 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
                 model_stamp, inliers = ransac((pts_reference[:5000, :2] , pts_data[:5000, :2] ),
                                            tf.AffineTransform, min_samples=min(50, int(0.1 * len(pts_data[:5000]))),
                                            residual_threshold=0.05, max_trials=1000)
-                shifted_stamp = tf.warp(img, inverse_map=model_stamp, output_shape=img.shape, order=0,
+                shifted_stamp = tf.warp(img, inverse_map=model_stamp, output_shape=img.shape, order=5,
                                   mode='constant', cval=0, clip=True, preserve_range=True)
 
+                shifted_stamp_mask = tf.warp(stamp_mask, inverse_map=model_stamp, output_shape=img.shape, order=1,
+                                        mode='constant', cval=1, clip=True, preserve_range=True)
 
 
-                #shifted_stamp = shifted
 
             except:
 
                 shifted_stamp = img
 
+            #master_mask[stamp_mask] += shifted_stamp_mask
             resampled_stamp_hdu = fits.PrimaryHDU([shifted_stamp,shifted_mask[ymin:ymax, xmin:xmax]])
             resampled_stamp_hdu.writeto(os.path.join(resample_directory, 'resample_stamp_' + str(stamp) + '.fits')
                                             , overwrite=True)

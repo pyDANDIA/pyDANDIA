@@ -111,7 +111,7 @@ def run_stage5(setup):
     for percentile in kernel_percentile:
 
         kernel_size_tmp = int(
-            1.0*float(reduction_metadata.reduction_parameters[1]['KER_RAD'][0]) * np.percentile(fwhms, percentile))
+            2.0*float(reduction_metadata.reduction_parameters[1]['KER_RAD'][0]) * np.percentile(fwhms, percentile))
 
         if kernel_size_tmp % 2 == 0:
             kernel_size_tmp += 1
@@ -541,7 +541,7 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
 
     log.info('Starting image subtraction with a constant kernel')
 
-    grow_kernel = 1.0* float(reduction_metadata.reduction_parameters[1]['KER_RAD'][0])
+    grow_kernel = 2.0* float(reduction_metadata.reduction_parameters[1]['KER_RAD'][0])
     pixscale = reduction_metadata.reduction_parameters[1]['PIX_SCALE'][0]
 
     list_of_stamps = reduction_metadata.stamps[1]['PIXEL_INDEX'].tolist()
