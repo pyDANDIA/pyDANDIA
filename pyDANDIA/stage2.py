@@ -142,7 +142,7 @@ def run_stage2(setup, empirical_ranking=False, n_stack = 1):
 
     else:
         for stats_entry in reduction_metadata.images_stats[1]:
-            if stats_entry[9] == 1:
+            if stats_entry[9] == 1 and empirical_ranking == False:
                 image_filename = stats_entry[0]
                 row_idx = np.where(reduction_metadata.images_stats[1]['IM_NAME'] == image_filename)[0][0]
                 moon_status = 'dark'
@@ -165,7 +165,7 @@ def run_stage2(setup, empirical_ranking=False, n_stack = 1):
     if reference_ranking == [] or empirical_ranking:
         log.info('No meaningful automatic selection can be made. Assigning empirical reference.')
         for stats_entry in reduction_metadata.images_stats[1]:
-            if stats_entry[9] >= 0:
+            if stats_entry[9] == 1:
                 image_filename = stats_entry[0]
                 row_idx = np.where(reduction_metadata.images_stats[1]['IM_NAME'] == image_filename)[0][0]
                 moon_status = 'dark'
@@ -178,7 +178,7 @@ def run_stage2(setup, empirical_ranking=False, n_stack = 1):
                 mean, median, std = sigma_clipped_stats(data, sigma=3.0)
                 fraction_3sig = float(len(np.where(data>3.*std+median)[1]))/data.size
                 hl_data.close()
-                ranking_key = 1/(1/(fraction_3sig**2) +fwhm_value**2)
+                ranking_key = 1/(1/(fraction_3sig**2) +fwhm_value**2 )
                 reference_ranking.append([image_filename, ranking_key])
                 entry = [image_filename, moon_status, ranking_key]
                 reduction_metadata.add_row_to_layer(key_layer='reference_inventory',
