@@ -63,6 +63,9 @@ def run_stage3_db_ingest(setup, primary_ref=False):
     reduction_metadata.load_a_layer_from_file( setup.red_dir, 
                                           'pyDANDIA_metadata.fits', 
                                           'star_catalog' )
+    reduction_metadata.load_a_layer_from_file(setup.red_dir,
+                                              'pyDANDIA_metadata.fits',
+                                              'stamps')
     
     dataset_params = harvest_stage3_parameters(setup,reduction_metadata)
     
@@ -74,12 +77,34 @@ def run_stage3_db_ingest(setup, primary_ref=False):
     
     query = 'SELECT code_id FROM software WHERE version ="'+dataset_params['version']+'"'
     dataset_params['software'] = phot_db.query_to_astropy_table(conn, query, args=())['code_id'][0]
-    
+
     query = 'SELECT filter_id FROM filters WHERE filter_name ="'+dataset_params['filter_name']+'"'
     dataset_params['filter'] = phot_db.query_to_astropy_table(conn, query, args=())['filter_id'][0]
-    
+
     phot_db.check_before_commit(conn, dataset_params, 'images', image_keys, 'filename')
-    
+
+
+    #ingest the stamps in db
+    list_of_stamps = reduction_metadata.stamps[1]['PIXEL_INDEX'].tolist()
+    stamps_params = {}
+    stamp_keys = define_stamp_keys()
+    for stamp in list_of_stamps:
+        stamp_row = np.where(reduction_metadata.stamps[1]['PIXEL_INDEX'] == stamp)[0][0]
+        xmin = int(reduction_metadata.stamps[1][stamp_row]['X_MIN'])
+        xmax = int(reduction_metadata.stamps[1][stamp_row]['X_MAX'])
+        ymin = int(reduction_metadata.stamps[1][stamp_row]['Y_MIN'])
+        ymax = int(reduction_metadata.stamps[1][stamp_row]['Y_MAX'])
+
+        stamps_params['stamp_index'] = str(stamp)
+        stamps_params['xmin'] = str(xmin)
+        stamps_params['xmax'] = str(xmax)
+        stamps_params['ymin'] = str(ymin)
+        stamps_params['ymax'] = str(ymax)
+
+
+        phot_db.check_before_commit(conn, stamps_params, 'stamps', stamp_keys, 'stamp_index')
+    import pdb;
+    pdb.set_trace()
     ref_id_list = phot_db.find_reference_image_for_dataset(conn,dataset_params)
     
     if ref_id_list != None and len(ref_id_list) > 0:
@@ -147,7 +172,11 @@ def define_table_keys():
                      'delta_x','delta_y']
                      
     return facility_keys, software_keys, image_keys
-    
+def define_stamp_keys():
+
+    stamp_keys = ['stamp_index','xmin','xmax','ymin','ymax']
+
+    return stamp_keys
 def configure_setup(log=None):
 
     params = {'datasets': [('red_dir_gp', 1), ('red_dir_rp', 2), ('red_dir_ip',3)],

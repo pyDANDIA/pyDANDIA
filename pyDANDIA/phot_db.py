@@ -99,6 +99,22 @@ class Software(TableDef):
     c_020_stage = 'TEXT'
     c_030_version = 'TEXT'
 
+
+
+
+class Stamps(TableDef):
+    """Photometry database table describing the stamps used for the reduction
+    """
+
+    c_000_stamp_id = 'INTEGER PRIMARY KEY'
+    c_010_reference_image = 'INTEGER REFERENCES reference_images(refimg_id) ON DELETE CASCADE'
+    c_110_stamp_index = 'INTEGER'
+    c_120_xmin = 'INTEGER'
+    c_130_xmax = 'INTEGER'
+    c_140_ymin = 'INTEGER'
+    c_150_ymax = 'INTEGER'
+
+
 class Images(TableDef):
     """Photometry database table describing the properties of a single image.
     """
@@ -228,26 +244,27 @@ class PhotometryPoints(TableDef):
     c_010_star_id = 'INTEGER REFERENCES stars(star_id)'
     c_020_reference_image = 'INTEGER REFERENCES reference_images(refimg_id) ON DELETE CASCADE'
     c_030_image = 'INTEGER REFERENCES images(img_id) ON DELETE CASCADE'
-    c_040_facility = 'INTEGER REFERENCES facilities(facility_id)'
-    c_050_filter = 'INTEGER REFERENCES filters(filter_id)'
-    c_060_software = 'INTEGER REFERENCES software(code_id)'
-    c_070_x = 'REAL'
-    c_075_y = 'REAL'
-    c_080_hjd = 'DOUBLE PRECISION'
-    c_090_radius = 'REAL'
-    c_100_magnitude = 'REAL'
-    c_105_magnitude_err = 'REAL'
-    c_110_calibrated_mag = 'REAL'
-    c_115_calibrated_mag_err = 'REAL'
-    c_120_flux = 'REAL'
-    c_125_flux_err = 'REAL'
-    c_130_calibrated_flux = 'REAL'
-    c_135_calibrated_flux_err = 'REAL'
-    c_140_phot_scale_factor = 'REAL'
-    c_145_phot_scale_factor_err = 'REAL'
-    c_150_local_background = 'REAL'
-    c_155_local_background_err = 'REAL'
-    c_160_phot_type = 'TEXT'
+    c_040_stamp = 'INTEGER REFERENCES stamps(stamp_id)'
+    c_050_facility = 'INTEGER REFERENCES facilities(facility_id)'
+    c_060_filter = 'INTEGER REFERENCES filters(filter_id)'
+    c_070_software = 'INTEGER REFERENCES software(code_id)'
+    c_080_x = 'REAL'
+    c_085_y = 'REAL'
+    c_090_hjd = 'DOUBLE PRECISION'
+    c_100_radius = 'REAL'
+    c_110_magnitude = 'REAL'
+    c_115_magnitude_err = 'REAL'
+    c_120_calibrated_mag = 'REAL'
+    c_125_calibrated_mag_err = 'REAL'
+    c_130_flux = 'REAL'
+    c_135_flux_err = 'REAL'
+    c_140_calibrated_flux = 'REAL'
+    c_145_calibrated_flux_err = 'REAL'
+    c_150_phot_scale_factor = 'REAL'
+    c_155_phot_scale_factor_err = 'REAL'
+    c_160_local_background = 'REAL'
+    c_165_local_background_err = 'REAL'
+    c_170_phot_type = 'TEXT'
 
     pc_000_datesindex = (
         'CREATE INDEX IF NOT EXISTS phot_objs ON phot (star_id)')
@@ -357,6 +374,8 @@ PHOTOMETRY_TD = PhotometryPoints("phot")
 DETREND_TD = DetrendingParameters("detrend")
 STARCOLOURS_TD = StarColours("star_colours")
 STARVARIABILITY_TD = StarVariability("star_var")
+STAMPS_TD = Stamps("stamps")
+
 
 def ensure_table(conn, table_def):
     """makes sure the TableDef instance table_def exists on the database.
@@ -402,7 +421,8 @@ def get_connection(dsn=database_file_path):
                   REFERENCE_COMPONENTS_TD,
                   REFERENCE_IMAGES_TD,
                   STARS_TD,
-                  PHOTOMETRY_TD)
+                  PHOTOMETRY_TD,
+                  STAMPS_TD)
 
     populate_db_defaults(conn)
 
@@ -417,7 +437,7 @@ def populate_db_defaults(conn):
     query = 'SELECT filter_name FROM filters'
     filters_table = query_to_astropy_table(conn, query, args=())
 
-    for f in ['gp', 'rp', 'ip']:
+    for f in ['gp', 'rp', 'ip','I','V']:
 
         if f not in filters_table['filter_name']:
 

@@ -486,6 +486,8 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
         
     psf_diameter = reduction_metadata.psf_dimensions[1]['psf_radius'][0]*2.0
     half_psf = int(psf_diameter)
+    gain = reduction_metadata.get_gain()
+    ron = reduction_metadata.reduction_parameters[1]['RON']
 
     size_stamp = int(2 * half_psf) + 1
     if size_stamp % 2 == 0:
@@ -547,8 +549,8 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
         bkg.background[mask] = 0
         bkg.background_rms[mask] = 0
 
-        error = calc_total_error(difference_image, bkg.background_rms, 1) 
-       
+        error = calc_total_error(difference_image, bkg.background_rms, gain)
+        error = (error**2+ron**2/gain**2)**0.5
 
         try:
             phot_table = aperture_photometry(difference_image-bkg.background, apertures, method='subpixel',

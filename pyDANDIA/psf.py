@@ -103,7 +103,7 @@ class Moffat2D(PSFModel):
         # gamma, alpha
         return [2.0, 2.0]
 
-    def get_FWHM(self, gamma, alpha, pix_scale):
+    def get_FWHM(self, gamma, alpha, pix_scale=1):
 
         fwhm = gamma * 2 * (2 ** (1 / alpha) - 1) ** 0.5 * pix_scale
         return fwhm
@@ -257,7 +257,7 @@ class Gaussian2D(PSFModel):
         # width_x, width_y
         return [1.0, 1.0]
 
-    def get_FWHM(self, width_x, width_y, pixel_scale):
+    def get_FWHM(self, width_x, width_y, pixel_scale=1):
 
         # fwhm = (width_x + width_y) / 2 * 2 * (2 * np.log(2))**0.5 * pixel_scale
         fwhm = (width_x + width_y) * 1.1774100225154747 * pixel_scale
@@ -342,10 +342,10 @@ class BivariateNormal(PSFModel):
         # width_x, width_y, corr_xy
         return [1.0, 1.0, 0.7]
 
-    def get_FWHM(self, width_x, width_y, pixel_scale):
+    def get_FWHM(self, width_x, width_y, pixel_scale=1):
 
-        # fwhm = (width_x + width_y) / 2 * 2 * (2 * np.log(2))**0.5 * pixel_scale
-        fwhm = (width_x + width_y) * 1.1774100225154747 * pixel_scale
+        fwhm = (width_x + width_y) / 2 * 2 * (2 * np.log(2))**0.5 * pixel_scale
+
 
         return fwhm
 
@@ -422,7 +422,7 @@ class Lorentzian2D(PSFModel):
         # width_x
         return [1.0]
 
-    def get_FWHM(self, gamma, pixel_scale):
+    def get_FWHM(self, gamma, pixel_scale=1):
 
         fwhm = 2 * gamma * pixel_scale
 
@@ -742,9 +742,11 @@ class Image(object):
         return [np.array(intensities), np.array(y_centers), np.array(x_centers)]
 
 def calc_fwhm_from_psf_sigma(sigma_x,sigma_y):
-    
-    fwhm = np.sqrt(sigma_x*sigma_x + sigma_y*sigma_y) * 2.355
-    
+
+
+    #fwhm = np.sqrt(sigma_x*sigma_x + sigma_y*sigma_y) * 2.355
+    bivariate = BivariateNormal()
+    fwhm = bivariate.get_FWHM(sigma_x,sigma_y)
     return fwhm
 
 def fit_background(data, Y_data, X_data, mask, background_model='Constant'):

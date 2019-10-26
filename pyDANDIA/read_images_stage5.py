@@ -20,12 +20,12 @@ from pyDANDIA import psf
 def background_fit(image1, master_mask = []):
 
     from pyDANDIA import psf
-    y, x = np.indices(image1.shape)
-    fit = psf.fit_background(image1, y, x, ~master_mask, background_model='Gradient')
-    background_model = psf.GradientBackground()
-    background = background_model.background_model(y, x, fit[0])
+    #y, x = np.indices(image1.shape)
+    #fit = psf.fit_background(image1, y, x, ~master_mask, background_model='Constant')
+    #background_model = psf.ConstantBackground()
+    #background = background_model.background_model(y, x, fit[0])
 
-
+    background = np.median(image1[master_mask])
     return background
 
 def background_mesh_perc(image1,perc=30,box_guess=300, master_mask = []):
@@ -166,8 +166,7 @@ def open_data_image(setup, data_image_directory, data_image_name, reference_mask
     if sigma_smooth > 0:
         data_image = gaussian_filter(data_image, sigma=sigma_smooth)
 
-   
-
+    #data_image,data_mask = cosmicray_lacosmic(data_image,sigclip=7, objlim = 7., satlevel = max_adu)
     #bkg_image = background_mesh_perc(data_image, master_mask =  reference_mask[kernel_size:-kernel_size,kernel_size:-kernel_size])
     #bkg_image = np.median(data_image[~reference_mask[kernel_size:-kernel_size,kernel_size:-kernel_size]])
     bkg_image = background_fit(data_image, master_mask = reference_mask[kernel_size:-kernel_size,kernel_size:-kernel_size])
@@ -212,6 +211,8 @@ def open_reference(setup, ref_image_directory, ref_image_name, kernel_size, max_
     
 
     ref_image = np.copy(ref_image[ref_extension].data)
+    #ref_image,ref_mask  = cosmicray_lacosmic(ref_image,sigclip=7, objlim = 7., satlevel = max_adu)
+
 
 
     #bkg_image = background_mesh_perc(ref_image,master_mask = master_mask)
@@ -226,7 +227,8 @@ def open_reference(setup, ref_image_directory, ref_image_name, kernel_size, max_
             print('format mismatch (noise model construction)')
     else:
         noise_image = np.copy(ref_image)
-    
+
+
     #noise_image = gaussian_filter(noise_image, sigma=kernel_size/2)
     ref_image = ref_image - bkg_image
 

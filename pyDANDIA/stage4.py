@@ -209,6 +209,9 @@ def run_stage4(setup):
     resample_image_stamps(new_images, reference_image_name, reference_image_directory, reduction_metadata, setup,
                    data_image_directory, resampled_directory_path, ref_row_index, px_scale, log=log,
                    mask_extension_in=-1)
+
+    reduction_metadata.update_reduction_metadata_reduction_status(new_images, stage_number=4, status=1, log=log)
+
     reduction_metadata.save_updated_metadata(
         reduction_metadata.data_architecture[1]['OUTPUT_DIRECTORY'][0],
         reduction_metadata.data_architecture[1]['METADATA_NAME'][0],

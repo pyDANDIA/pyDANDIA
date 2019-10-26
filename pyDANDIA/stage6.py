@@ -214,6 +214,8 @@ def run_stage6(setup):
 
             for stamp in list_of_stamps:
 
+                image_params['stamp'] = stamp
+
                 stamp_row = np.where(reduction_metadata.stamps[1]['PIXEL_INDEX'] == stamp)[0][0]
                 xmin = int(reduction_metadata.stamps[1][stamp_row]['X_MIN'])
                 xmax = int(reduction_metadata.stamps[1][stamp_row]['X_MAX'])
@@ -244,9 +246,8 @@ def run_stage6(setup):
                                                                               ref_exposure_time,idx)
                     psf_model.update_psf_parameters(psf_parameters)
 
-
-
-
+                    commit_stamp_photometry_matching(conn, image_params, reduction_metadata, matched_stars, phot_table,
+                                                     log)
                     #commit_image_photometry_matching(conn, image_params, reduction_metadata, matched_stars, phot_table, log)
 
                 else:
@@ -784,4 +785,102 @@ def commit_image_photometry_matching(conn, params, reduction_metadata,
         log.info('No photometry to be ingested')
         
     log.info('Completed ingest of photometry for '+str(len(matched_stars.cat1_index))+' stars')
+
+
+def commit_stamp_photometry_matching(conn, params, reduction_metadata,
+                                     matched_stars, phot_table, log):
+    log.info('Starting database ingest')
+
+    query = 'SELECT facility_id, facility_code FROM facilities WHERE facility_code="' + params['facility_code'] + '"'
+    facility = db_phot.query_to_astropy_table(conn, query, args=())
+
+    query = 'SELECT filter_id, filter_name FROM filters WHERE filter_name="' + params['filter_name'] + '"'
+    f = db_phot.query_to_astropy_table(conn, query, args=())
+
+    query = 'SELECT code_id, version FROM software WHERE version="' + params['version'] + '"'
+    code = db_phot.query_to_astropy_table(conn, query, args=())
+
+    query = 'SELECT refimg_id, filename FROM reference_images WHERE filename ="' + params['ref_filename'] + '"'
+    refimage = db_phot.query_to_astropy_table(conn, query, args=())
+
+    if len(refimage) == 0:
+        raise ValueError(
+            'No Stage 3 results for this reference image available in photometry DB.  Stage3_db_ingest needs to be run for this dataset first.')
+
+    query = 'SELECT img_id, filename FROM images WHERE filename ="' + params['filename'] + '"'
+    image = db_phot.query_to_astropy_table(conn, query, args=())
+
+    query = 'SELECT stamp_id, filename FROM images WHERE index ="' + params['stamp'] + '"'
+    stamp = db_phot.query_to_astropy_table(conn, query, args=())
+
+
+    log.info('Extracted dataset identifiers from database')
+
+    key_list = ['star_id', 'reference_image', 'image','stamp',
+                'facility', 'filter', 'software',
+                'x', 'y', 'hjd', 'radius', 'magnitude', 'magnitude_err',
+                'calibrated_mag', 'calibrated_mag_err',
+                'flux', 'flux_err',
+                'calibrated_flux', 'calibrated_flux_err',
+                'phot_scale_factor', 'phot_scale_factor_err',
+                'local_background', 'local_background_err',
+                'phot_type']
+
+    wildcards = ','.join(['?'] * len(key_list))
+
+    n_stars = len(phot_table)
+
+    entries = []
+
+    log.info('Building database entries array')
+
+    for i in range(0, matched_stars.n_match, 1):
+        j_cat = matched_stars.cat1_index[i]  # Starlist index in DB
+        j_new = matched_stars.cat2_index[i]  # Star detected in image
+
+        x = str(phot_table['residual_x'][j_new])
+        y = str(phot_table['residual_y'][j_new])
+        radius = str(phot_table['radius'][j_new])
+        mag = str(phot_table['magnitude'][j_new])
+        mag_err = str(phot_table['magnitude_err'][j_new])
+        cal_mag = str(phot_table['cal_magnitude'][j_new])
+        cal_mag_err = str(phot_table['cal_magnitude_err'][j_new])
+        flux = str(phot_table['flux'][j_new])
+        flux_err = str(phot_table['flux_err'][j_new])
+        cal_flux = str(phot_table['cal_flux'][j_new])
+        cal_flux_err = str(phot_table['cal_flux_err'][j_new])
+        ps = str(phot_table['phot_scale_factor'][j_new])
+        ps_err = str(phot_table['phot_scale_factor_err'][j_new])
+        bkgd = str(phot_table['local_background'][j_new])
+        bkgd_err = str(phot_table['local_background_err'][j_new])
+
+        entry = (str(int(j_cat)), str(refimage['refimg_id'][0]), str(image['img_id'][0]),str(stamp['stamp_id'][0]),
+                 str(facility['facility_id'][0]), str(f['filter_id'][0]), str(code['code_id'][0]),
+                 x, y, str(params['hjd']), radius,
+                 mag, mag_err, cal_mag, cal_mag_err,
+                 flux, flux_err, cal_flux, cal_flux_err,
+                 ps, ps_err,  # No phot scale factor for PSF fitting photometry
+                 bkgd, bkgd_err,  # No background measurements propageted
+                 'DIA')
+
+        entries.append(entry)
+
+    if len(entries) > 0:
+
+        log.info('Ingesting data to phot_db')
+
+        command = 'INSERT OR REPLACE INTO phot(' + ','.join(key_list) + \
+                  ') VALUES (' + wildcards + ')'
+
+        cursor = conn.cursor()
+
+        cursor.executemany(command, entries)
+
+        conn.commit()
+
+    else:
+
+        log.info('No photometry to be ingested')
+
+    log.info('Completed ingest of photometry for ' + str(len(matched_stars.cat1_index)) + ' stars')
 

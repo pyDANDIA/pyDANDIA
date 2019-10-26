@@ -431,9 +431,9 @@ def calc_image_coordinates_astropy(setup, image_wcs, catalog_sources,log):
         positions.append([s.ra.deg, s.dec.deg])
         
     dpositions =  image_wcs.wcs_world2pix(np.array(positions),1)
-    
+
     # Now apply the known image rotation, if required:
-    if image_wcs.wcs.cd[0,0] < 0.0:
+    if image_wcs.wcs.cd[0,0] < -99:
         
         log.info('Applying WCS CD transform parameters')
         
@@ -578,7 +578,12 @@ def match_stars_world_coords(detected_sources,catalog_sources,log,catalog_name,
     and those extracted from a catalog, using image world postions."""
         
     log.info('Matching detected and '+catalog_name+' catalog sources via their world coordinates')
-    
+
+
+    if catalog_sources is None:
+
+        return None
+
     tol = 1.0/3600.0
     dra = 30.0/3600.0
     ddec = 30.0/3600.0
@@ -726,9 +731,9 @@ def match_stars_pixel_coords(detected_sources,catalog_sources,log,
     
     log.info('Matching detected and catalog sources via their pixel coordinates')
     
-    tol = 1.5
+    #tol = 1.5
     dpix = 10.0
-    
+
     if radius != None:
         
         dx = catalog_sources['x1'].data - x_centre
@@ -793,7 +798,7 @@ def match_stars_pixel_coords(detected_sources,catalog_sources,log,
                     log.info(' -> Completed cross-match of '+str(percentage)+\
                                 '% ('+str(j)+' of catalog stars out of '+\
                                 str(len(catalog_sources))+')')
-    
+
     log.info(' -> Matched '+str(matched_stars.n_match)+' stars')
 
     log.info('Completed star match in world coordinates')
@@ -1173,15 +1178,15 @@ def build_ref_source_catalog(detected_sources,gaia_sources,vphas_sources,\
         data[idx1,7] = validate_entry(gaia_sources['phot_bp_mean_flux_error'][idx2])
         data[idx1,8] = validate_entry(gaia_sources['phot_rp_mean_flux'][idx2])
         data[idx1,9] = validate_entry(gaia_sources['phot_rp_mean_flux_error'][idx2])
-    
+
     for j in range(0,len(matched_stars_vphas.cat1_index),1):
 
         jdx1 = int(matched_stars_vphas.cat1_index[j])
         jdx2 = int(matched_stars_vphas.cat2_index[j])
-        
+
         #source_ids[jdx1,1] = vphas_sources['source_id'][jdx2]
         vphas_source_ids[jdx1] = vphas_sources['source_id'][jdx2]
-        
+
         data[jdx1,10] = validate_entry(vphas_sources['ra'][jdx2])
         data[jdx1,11] = validate_entry(vphas_sources['dec'][jdx2])
         data[jdx1,12] = validate_entry(vphas_sources['gmag'][jdx2])
@@ -1191,7 +1196,8 @@ def build_ref_source_catalog(detected_sources,gaia_sources,vphas_sources,\
         data[jdx1,16] = validate_entry(vphas_sources['imag'][jdx2])
         data[jdx1,17] = validate_entry(vphas_sources['imag_error'][jdx2])
         data[jdx1,18] = validate_entry(vphas_sources['clean'][jdx2])
-        
+
+
     table_data = [ table.Column(name='index', data=detected_sources['index'].data),
                       table.Column(name='x', data=detected_sources['x'].data),
                       table.Column(name='y', data=detected_sources['y'].data),

@@ -93,8 +93,8 @@ def run_stage5(setup):
         if abs(float(stats_entry['SHIFT_Y'])) > shift_max:
             shift_max = abs(float(stats_entry['SHIFT_Y']))
 
-        fwhms.append(((float(stats_entry['SIGMA_Y'])) ** 2 + (float(stats_entry['SIGMA_Y'])) ** 2) ** 0.5)  # arcsec
-
+       # fwhms.append(((float(stats_entry['SIGMA_Y'])) ** 2 + (float(stats_entry['SIGMA_Y'])) ** 2) ** 0.5)  # arcsec
+        fwhms.append(float(stats_entry['FWHM']))  # arcsec
     fwhms = np.array(fwhms)
     mask = np.isnan(fwhms)
     fwhms[mask] = 99
@@ -111,8 +111,13 @@ def run_stage5(setup):
     for percentile in kernel_percentile:
 
         kernel_size_tmp = int(
-            2.0*float(reduction_metadata.reduction_parameters[1]['KER_RAD'][0]) * np.percentile(fwhms, percentile))
+            1.0*float(reduction_metadata.reduction_parameters[1]['KER_RAD'][0]) * np.percentile(fwhms, percentile))
 
+        try:
+            if kernel_size_tmp == kernel_size_array[-1]:
+                kernel_size_tmp += 1
+        except:
+            pass
         if kernel_size_tmp % 2 == 0:
             kernel_size_tmp += 1
 
@@ -159,10 +164,10 @@ def run_stage5(setup):
         ref_row_index = np.where(reduction_metadata.images_stats[1]['IM_NAME'] == str(
             reduction_metadata.data_architecture[1]['REF_IMAGE'][0]))[0][0]
 
-        ref_fwhm_x = reduction_metadata.images_stats[1][ref_row_index]['SIGMA_X']
-        ref_fwhm_y = reduction_metadata.images_stats[1][ref_row_index]['SIGMA_Y']
-        ref_sigma_x = ref_fwhm_x / (2. * (2. * np.log(2.)) ** 0.5)
-        ref_sigma_y = ref_fwhm_y / (2. * (2. * np.log(2.)) ** 0.5)
+        ref_sigma_x = reduction_metadata.images_stats[1][ref_row_index]['SIGMA_X']
+        ref_sigma_y = reduction_metadata.images_stats[1][ref_row_index]['SIGMA_Y']
+        ref_fwhm_x = reduction_metadata.images_stats[1][ref_row_index]['FWHM']
+        ref_fwhm_y = reduction_metadata.images_stats[1][ref_row_index]['FWHM']
         ref_stats = [ref_fwhm_x, ref_fwhm_y, ref_sigma_x, ref_sigma_y]
 
         logs.ifverbose(log, setup, 'Using reference image:' + reference_image_name)
@@ -541,7 +546,7 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
 
     log.info('Starting image subtraction with a constant kernel')
 
-    grow_kernel = 2.0* float(reduction_metadata.reduction_parameters[1]['KER_RAD'][0])
+    grow_kernel = 1.0* float(reduction_metadata.reduction_parameters[1]['KER_RAD'][0])
     pixscale = reduction_metadata.reduction_parameters[1]['PIX_SCALE'][0]
 
     list_of_stamps = reduction_metadata.stamps[1]['PIXEL_INDEX'].tolist()
@@ -557,20 +562,8 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
 
             master_mask = master_mask[0].data > 0
 
-           # import scipy.ndimage as sn
-           # import pdb;
-           # pdb.set_trace()
-            ##master_mask = sn.morphology.binary_dilation(master_mask, iterations=10,
-             #                                           structure=sn.generate_binary_structure(2, 2)).astype(int)
-
-            #master_mask = master_mask > 0
         except:
             master_mask = []
-
-        try:
-            resampled_median_image = resampled_median_stack(setup, reduction_metadata, new_images, log)
-        except:
-            resampled_median_image = np.zeros(np.shape(master_mask))
 
         kernel_size_max = max(kernel_size_array)
         reference_images = []
@@ -651,13 +644,9 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
         log.info(new_image + ' quality metrics:')
 
         row_index = np.where(reduction_metadata.images_stats[1]['IM_NAME'] == new_image)[0][0]
+        fwhm_val = reduction_metadata.images_stats[1][row_index]['FWHM'] * grow_kernel
         ref_fwhm_x, ref_fwhm_y, ref_sigma_x, ref_sigma_y = ref_stats
-        x_fwhm, y_fwhm = reduction_metadata.images_stats[1][row_index]['SIGMA_X'],  \
-            reduction_metadata.images_stats[1][row_index]['SIGMA_Y']
-        try:
-            fwhm_val = int(grow_kernel * (float(x_fwhm) ** 2 + float(y_fwhm) ** 2) ** 0.5)
-        except:
-            fwhm_val = 999
+
 
         umatrix_index = int(np.digitize(fwhm_val, np.array(kernel_size_array)))
         umatrix_index = min(umatrix_index, len(kernel_size_array) - 1)
@@ -1325,7 +1314,8 @@ def kernel_solution(u_matrix, b_vector, kernel_size, circular=True):
 
     output_kernel_2 = np.flip(np.flip(output_kernel, 0), 1)
     err_kernel_2 = np.flip(np.flip(err_kernel, 0), 1)
-
+    import pdb;
+    pdb.set_trace()
     return output_kernel_2, a_vector[-1], err_kernel_2
 
 
