@@ -168,7 +168,7 @@ def open_data_image(setup, data_image_directory, data_image_name, reference_mask
     if sigma_smooth > 0:
         data_image = gaussian_filter(data_image, sigma=sigma_smooth)
 
-    #data_image,data_mask = cosmicray_lacosmic(data_image,sigclip=7, objlim = 7., satlevel = max_adu)
+    data_image,data_mask = cosmicray_lacosmic(data_image,sigclip=7, objlim = 7., satlevel = max_adu)
     #bkg_image = background_mesh_perc(data_image, master_mask =  reference_mask[kernel_size:-kernel_size,kernel_size:-kernel_size])
     #bkg_image = np.median(data_image[~reference_mask[kernel_size:-kernel_size,kernel_size:-kernel_size]])
     bkg_image = background_fit(data_image, master_mask = reference_mask[kernel_size:-kernel_size,kernel_size:-kernel_size])
@@ -213,7 +213,7 @@ def open_reference(setup, ref_image_directory, ref_image_name, kernel_size, max_
     
 
     ref_image = np.copy(ref_image[ref_extension].data)
-    #ref_image,ref_mask  = cosmicray_lacosmic(ref_image,sigclip=7, objlim = 7., satlevel = max_adu)
+    ref_image,ref_mask  = cosmicray_lacosmic(ref_image,sigclip=7, objlim = 7., satlevel = max_adu)
 
 
 

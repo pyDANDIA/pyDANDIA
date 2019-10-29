@@ -121,7 +121,7 @@ def fetch_catalog_sources_for_field(setup,field,header,image_wcs,log,
                              field+'_'+catalog_name+'_catalog.fits')
     
     catalog_sources = catalog_utils.read_vizier_catalog(catalog_file,catalog_name)
-    
+
     if catalog_sources != None:
         
         log.info('Read data for '+str(len(catalog_sources))+\
@@ -133,8 +133,8 @@ def fetch_catalog_sources_for_field(setup,field,header,image_wcs,log,
         log.info('Querying ViZier for '+catalog_name+' sources within the field of view...')
     
         diagonal = np.sqrt(header['NAXIS1']*header['NAXIS1'] + header['NAXIS2']*header['NAXIS2'])
-        radius = diagonal*header['PIXSCALE']/60.0/2.0
-        
+        radius = diagonal*header['PIXSCALE']/60.0/2.0 #arcminutes
+
         ra = image_wcs.wcs.crval[0]
         dec = image_wcs.wcs.crval[1]
         
@@ -433,27 +433,36 @@ def calc_image_coordinates_astropy(setup, image_wcs, catalog_sources,log):
     dpositions =  image_wcs.wcs_world2pix(np.array(positions),1)
 
     # Now apply the known image rotation, if required:
-    if image_wcs.wcs.cd[0,0] < -99:
-        
-        log.info('Applying WCS CD transform parameters')
-        
-        dpositions[:,0] = dpositions[:,0] - image_wcs.wcs.crpix[0]
-        dpositions[:,1] = dpositions[:,1] - image_wcs.wcs.crpix[1]
-        
-        theta = np.pi
-        R = np.zeros((2,2))
-        R[0,0] = np.cos(theta)
-        R[0,1] = -np.sin(theta)
-        R[1,0] = np.sin(theta)
-        R[1,1] = np.cos(theta)
-        
-        positions = np.dot(dpositions, R)
-        
-        positions[:,0] += image_wcs.wcs.crpix[0]
-        positions[:,1] += image_wcs.wcs.crpix[1]
-    
-    else:
+    area = np.sum(np.array(image_wcs._naxis)**2)*np.pi/4*(np.abs(image_wcs.pixel_scale_matrix[0,0])*60)**2
+    density = len(catalog_sources)/area  # sources/arcmin**2
+
+    if density<100:
+
         positions = dpositions
+
+    else:
+
+        if image_wcs.wcs.cd[0,0] < 0:
+
+            log.info('Applying WCS CD transform parameters')
+
+            dpositions[:,0] = dpositions[:,0] - image_wcs.wcs.crpix[0]
+            dpositions[:,1] = dpositions[:,1] - image_wcs.wcs.crpix[1]
+
+            theta = np.pi
+            R = np.zeros((2,2))
+            R[0,0] = np.cos(theta)
+            R[0,1] = -np.sin(theta)
+            R[1,0] = np.sin(theta)
+            R[1,1] = np.cos(theta)
+
+            positions = np.dot(dpositions, R)
+
+            positions[:,0] += image_wcs.wcs.crpix[0]
+            positions[:,1] += image_wcs.wcs.crpix[1]
+
+        else:
+            positions = dpositions
             
     if 'x' in catalog_sources.colnames:
         catalog_sources['x'] = positions[:,0]

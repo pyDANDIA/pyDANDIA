@@ -214,7 +214,7 @@ def run_stage6(setup):
 
             for stamp in list_of_stamps:
 
-                image_params['stamp'] = stamp
+                image_params['stamp'] = str(stamp)
 
                 stamp_row = np.where(reduction_metadata.stamps[1]['PIXEL_INDEX'] == stamp)[0][0]
                 xmin = int(reduction_metadata.stamps[1][stamp_row]['X_MIN'])
@@ -226,7 +226,10 @@ def run_stage6(setup):
                              (ref_star_catalog[:,2].astype(float) < ymax) & (ref_star_catalog[:,2].astype(float) > ymin)
 
 
-                stamp_star_catalog = ref_star_catalog[stamp_mask]
+                stamp_star_catalog = np.copy(ref_star_catalog[stamp_mask])
+                stamp_star_catalog[:,1] =  (stamp_star_catalog[:,1].astype(float)-xmin).astype(str)
+                stamp_star_catalog[:,2] =  (stamp_star_catalog[:,2].astype(float)-ymin).astype(str)
+
 
                 kernel_image, kernel_error, kernel_bkg = find_the_associated_kernel_stamp(setup, kernels_directory, new_image,stamp)
 
@@ -252,8 +255,7 @@ def run_stage6(setup):
 
                 else:
                     log.info('No difference image available, so no photometry performed.')
-        import pdb;
-        pdb.set_trace()
+
         output_txt_files = False
         if output_txt_files:
             
@@ -810,7 +812,7 @@ def commit_stamp_photometry_matching(conn, params, reduction_metadata,
     query = 'SELECT img_id, filename FROM images WHERE filename ="' + params['filename'] + '"'
     image = db_phot.query_to_astropy_table(conn, query, args=())
 
-    query = 'SELECT stamp_id, filename FROM images WHERE index ="' + params['stamp'] + '"'
+    query = 'SELECT stamp_id FROM stamps WHERE stamp_index ="' + params['stamp'] + '"'
     stamp = db_phot.query_to_astropy_table(conn, query, args=())
 
 
@@ -834,37 +836,42 @@ def commit_stamp_photometry_matching(conn, params, reduction_metadata,
 
     log.info('Building database entries array')
 
-    for i in range(0, matched_stars.n_match, 1):
-        j_cat = matched_stars.cat1_index[i]  # Starlist index in DB
-        j_new = matched_stars.cat2_index[i]  # Star detected in image
+    for i in range(0, len(phot_table), 1):
+        try:
+            star_id = int(float(phot_table[i]['star_id']))-1
 
-        x = str(phot_table['residual_x'][j_new])
-        y = str(phot_table['residual_y'][j_new])
-        radius = str(phot_table['radius'][j_new])
-        mag = str(phot_table['magnitude'][j_new])
-        mag_err = str(phot_table['magnitude_err'][j_new])
-        cal_mag = str(phot_table['cal_magnitude'][j_new])
-        cal_mag_err = str(phot_table['cal_magnitude_err'][j_new])
-        flux = str(phot_table['flux'][j_new])
-        flux_err = str(phot_table['flux_err'][j_new])
-        cal_flux = str(phot_table['cal_flux'][j_new])
-        cal_flux_err = str(phot_table['cal_flux_err'][j_new])
-        ps = str(phot_table['phot_scale_factor'][j_new])
-        ps_err = str(phot_table['phot_scale_factor_err'][j_new])
-        bkgd = str(phot_table['local_background'][j_new])
-        bkgd_err = str(phot_table['local_background_err'][j_new])
+            j_cat = matched_stars.cat1_index[star_id]  # Starlist index in DB
+            j_new = matched_stars.cat2_index[star_id]  # Star detected in image
 
-        entry = (str(int(j_cat)), str(refimage['refimg_id'][0]), str(image['img_id'][0]),str(stamp['stamp_id'][0]),
-                 str(facility['facility_id'][0]), str(f['filter_id'][0]), str(code['code_id'][0]),
-                 x, y, str(params['hjd']), radius,
-                 mag, mag_err, cal_mag, cal_mag_err,
-                 flux, flux_err, cal_flux, cal_flux_err,
-                 ps, ps_err,  # No phot scale factor for PSF fitting photometry
-                 bkgd, bkgd_err,  # No background measurements propageted
-                 'DIA')
+            x = str(phot_table['residual_x'][i])
+            y = str(phot_table['residual_y'][i])
+            radius = str(phot_table['radius'][i])
+            mag = str(phot_table['magnitude'][i])
+            mag_err = str(phot_table['magnitude_err'][i])
+            cal_mag = str(phot_table['cal_magnitude'][i])
+            cal_mag_err = str(phot_table['cal_magnitude_err'][i])
+            flux = str(phot_table['flux'][i])
+            flux_err = str(phot_table['flux_err'][i])
+            cal_flux = str(phot_table['cal_flux'][i])
+            cal_flux_err = str(phot_table['cal_flux_err'][i])
+            ps = str(phot_table['phot_scale_factor'][i])
+            ps_err = str(phot_table['phot_scale_factor_err'][i])
+            bkgd = str(phot_table['local_background'][i])
+            bkgd_err = str(phot_table['local_background_err'][i])
 
-        entries.append(entry)
+            entry = (str(int(j_cat)), str(refimage['refimg_id'][0]), str(image['img_id'][0]),str(stamp['stamp_id'][0]),
+                     str(facility['facility_id'][0]), str(f['filter_id'][0]), str(code['code_id'][0]),
+                     x, y, str(params['hjd']), radius,
+                     mag, mag_err, cal_mag, cal_mag_err,
+                     flux, flux_err, cal_flux, cal_flux_err,
+                     ps, ps_err,  # No phot scale factor for PSF fitting photometry
+                     bkgd, bkgd_err,  # No background measurements propageted
+                     'DIA')
 
+            entries.append(entry)
+        except:
+            import pdb;
+            pdb.set_trace()
     if len(entries) > 0:
 
         log.info('Ingesting data to phot_db')

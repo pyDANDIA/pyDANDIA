@@ -856,8 +856,8 @@ class MetaData:
         
         psf_factors = self.psf_dimensions[1]['psf_factor'].data
         
-        psf_radii = psf_factors * fwhm_ref * 0.6731
-        
+        #psf_radii = psf_factors * fwhm_ref * 0.6731
+        psf_radii = psf_factors * fwhm_ref/2
         self.psf_dimensions[1]['psf_radius'] = psf_radii
         
         

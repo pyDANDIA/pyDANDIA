@@ -1314,8 +1314,7 @@ def kernel_solution(u_matrix, b_vector, kernel_size, circular=True):
 
     output_kernel_2 = np.flip(np.flip(output_kernel, 0), 1)
     err_kernel_2 = np.flip(np.flip(err_kernel, 0), 1)
-    import pdb;
-    pdb.set_trace()
+
     return output_kernel_2, a_vector[-1], err_kernel_2
 
 

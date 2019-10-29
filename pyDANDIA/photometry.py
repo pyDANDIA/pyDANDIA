@@ -485,7 +485,7 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
         return 0
         
     psf_diameter = reduction_metadata.psf_dimensions[1]['psf_radius'][0]*2.0
-    half_psf = int(psf_diameter)
+    half_psf = int(psf_diameter/2)
     gain = reduction_metadata.get_gain()
     ron = reduction_metadata.reduction_parameters[1]['RON']
 
@@ -621,43 +621,15 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
                 
             else:
                 good_fit = True
-            
+            if (positions[j][0]<0) | (positions[j][1]<0) | (positions[j][0]>difference_image.shape[1]) | \
+                    (positions[j][1]>difference_image.shape[0]):
+
+                good_fit = False
+
+
             if good_fit == True:
 
                 if ref_flux >= 0.0 and error_ref_flux > 0.0:
-            
-                    # logs.ifverbose(log, setup, ' -> Star ' + str(j) +
-                    #              ' subtracted from the residuals')
-                    
-                     
-                    
-                    #weight1 = (0.5 + np.abs(data + 0.25) ** 0.5)
-                    #weight2 = (-0.5 + np.abs(data + 0.25) ** 0.5)
-                    #weight = (weight1 ** 2 + weight2 ** 2)
-                    #poids = weight**0.5
-                    
-                    
-                    
-                    #intensities, cov = np.polyfit(psf_fit.ravel(), data.ravel(), 1, w=1/poids.ravel(), cov=True)
-                    
-                    #(flux,flux_err) = (intensities[0], cov[0][0] ** 0.5)
-                    #(back, back_err) = (intensities[1], cov[1][1] ** 0.5)
-                    
-                    #flux = np.sum(flux*psf_image)
-                    
-                    #flux2 = np.sum(data.ravel())
-                    
-                    
-                    
-                    #SNR = flux2/len(data)**2
-                    #flux = flux2/phot_scale_factor
-                    #flux_err = flux/SNR
-                    
-                    
-                    #residus = data - psf_fit * intensities[0]-back
-                    
-                    
-                    #flux_err = (flux_err**2+np.mean(residus**2))**0.5
                     
 
                     flux = phot_table[j][3]/phot_scale_factor
@@ -667,16 +639,11 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
                     flux_err_tot = (error_ref_flux ** 2*ref_exposure_time + flux_err**2/phot_scale_factor**2+
                                     (flux*error_phot_scale_factor/phot_scale_factor**2)**2) ** 0.5
  
-                    #flux2 = phot_table2[j][3]/phot_scale_factor
-                    #flux_err2 = phot_table2[j][4]
-                    
-                    #flux_tot2 = ref_flux*ref_exposure_time - flux2
-                    #flux_err_tot2 = (error_ref_flux ** 2*ref_exposure_time + flux_err2**2/phot_scale_factor**2) ** 0.5
-                    #if j == 2695:
-                    #       import pdb; pdb.set_trace()
+
+
                     if (flux_tot > 0.0) and (flux_err_tot > 0.0) and (difference_image[int(positions[j][1]),int(positions[j][0])] != 0) \
-                            and (bkg.background[int(positions[j][1]),int(positions[j][0])]!=0) and (flux!=0) and (flux_err!=0):
-                        
+                                and (bkg.background[int(positions[j][1]),int(positions[j][0])]!=0) and (flux!=0) and (flux_err!=0):
+
                         list_delta_flux.append(flux)
                         list_delta_flux_error.append(flux_err)
                         

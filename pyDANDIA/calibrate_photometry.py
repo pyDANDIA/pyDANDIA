@@ -61,7 +61,11 @@ def calibrate_photometry(setup, reduction_metadata, log, cl_params=None):
         star_catalog = apply_phot_calib(star_catalog,fit,log)
     
         output_to_metadata(setup, params, fit, star_catalog, reduction_metadata, log)
-    
+    else:
+
+        fit = [0,1]
+        output_to_metadata(setup, params, fit, star_catalog, reduction_metadata, log)
+
     return reduction_metadata
     
 def get_args():

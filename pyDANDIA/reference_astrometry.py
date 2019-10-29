@@ -76,8 +76,9 @@ def run_reference_astrometry(setup):
         vphas_sources = phot_catalog_objects_in_reference_image(setup, header, fov,
                                                                 image_wcs, log)
 
+        radius = 0.1 #degrees
         (bright_central_detected_stars, bright_central_gaia_stars) = \
-            wcs.extract_bright_central_stars(setup,detected_sources, gaia_sources, image_wcs, log, radius=0.1)
+            wcs.extract_bright_central_stars(setup,detected_sources, gaia_sources, image_wcs, log, radius=radius)
         
         wcs.plot_overlaid_sources(os.path.join(setup.red_dir,'ref'),
                       bright_central_detected_stars, bright_central_gaia_stars, interactive=False)
@@ -94,12 +95,20 @@ def run_reference_astrometry(setup):
             
             if it == 1 and method in ['histogram', 'ransac']:
                 log.info('Calculating transformation using the histogram method, iteration '+str(it))
-                #transform = calc_coord_offsets.calc_offset_pixels(setup,bright_central_detected_stars,
-                #                                      bright_central_gaia_stars,
-                #                                      log,
-                #                                      diagnostics=True)
-                transform = calc_coord_offsets.calc_offset_pixels(setup, detected_sources, gaia_sources,
+
+                area =  (0.1*60)**2*np.pi #arcmins
+                density = len( bright_central_gaia_stars) / area  # sources/arcmin**2
+
+                if density < 100:
+
+                    transform = calc_coord_offsets.calc_offset_pixels(setup, detected_sources, gaia_sources,
                                                                   log, diagnostics=True)
+                else:
+
+                    transform = calc_coord_offsets.calc_offset_pixels(setup,bright_central_detected_stars,
+                                                      bright_central_gaia_stars,
+                                                      log,
+                                                      diagnostics=True)
 
                 matched_stars = match_utils.StarMatchIndex()
                 
@@ -248,7 +257,7 @@ def phot_catalog_objects_in_reference_image(setup, header, fov, image_wcs, log):
     ra = image_wcs.wcs.crval[0]
     dec = image_wcs.wcs.crval[1]
     diagonal = np.sqrt(header['NAXIS1']*header['NAXIS1'] + header['NAXIS2']*header['NAXIS2'])
-    radius = diagonal*header['PIXSCALE']/3600.0/2.0
+    radius = diagonal*header['PIXSCALE']/60.0/2.0 #arcminutes
 
     log.info('VPHAS+ catalog search parameters: ')
     log.info('RA = '+str(ra)+', Dec = '+str(dec))
@@ -256,18 +265,34 @@ def phot_catalog_objects_in_reference_image(setup, header, fov, image_wcs, log):
     
     vphas_sources = vizier_tools.search_vizier_for_sources(ra, dec, radius, 'VPHAS+', coords='degrees')
 
+    if len(vphas_sources)>0:
 
-    table_data = [ table.Column(name='source_id', data=vphas_sources['sourceID'].data),
-                  table.Column(name='ra', data=vphas_sources['_RAJ2000'].data),
-                  table.Column(name='dec', data=vphas_sources['_DEJ2000'].data),
-                  table.Column(name='gmag', data=vphas_sources['gmag'].data),
-                  table.Column(name='gmag_error', data=vphas_sources['e_gmag'].data),
-                  table.Column(name='rmag', data=vphas_sources['rmag'].data),
-                  table.Column(name='rmag_error', data=vphas_sources['e_rmag'].data),
-                  table.Column(name='imag', data=vphas_sources['imag'].data),
-                  table.Column(name='imag_error', data=vphas_sources['e_imag'].data),
-                  table.Column(name='clean', data=vphas_sources['clean'].data),
-                  ]
+        table_data = [ table.Column(name='source_id', data=vphas_sources['sourceID'].data),
+                      table.Column(name='ra', data=vphas_sources['_RAJ2000'].data),
+                      table.Column(name='dec', data=vphas_sources['_DEJ2000'].data),
+                      table.Column(name='gmag', data=vphas_sources['gmag'].data),
+                      table.Column(name='gmag_error', data=vphas_sources['e_gmag'].data),
+                      table.Column(name='rmag', data=vphas_sources['rmag'].data),
+                      table.Column(name='rmag_error', data=vphas_sources['e_rmag'].data),
+                      table.Column(name='imag', data=vphas_sources['imag'].data),
+                      table.Column(name='imag_error', data=vphas_sources['e_imag'].data),
+                      table.Column(name='clean', data=vphas_sources['clean'].data),
+                      ]
+
+    else:
+
+        table_data = [table.Column(name='source_id', data=np.array([])),
+                      table.Column(name='ra', data=np.array([])),
+                      table.Column(name='dec', data=np.array([])),
+                      table.Column(name='gmag', data=np.array([])),
+                      table.Column(name='gmag_error', data=np.array([])),
+                      table.Column(name='rmag', data=np.array([])),
+                      table.Column(name='rmag_error', data=np.array([])),
+                      table.Column(name='imag', data=np.array([])),
+                      table.Column(name='imag_error', data=np.array([])),
+                      table.Column(name='clean', data=np.array([])),
+                      ]
+
     vphas_sources = table.Table(data=table_data)
     log.info('VPHAS+ search returned ' + str(len(vphas_sources)) + ' entries')
 

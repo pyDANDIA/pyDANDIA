@@ -108,7 +108,7 @@ class Stamps(TableDef):
 
     c_000_stamp_id = 'INTEGER PRIMARY KEY'
     c_010_reference_image = 'INTEGER REFERENCES reference_images(refimg_id) ON DELETE CASCADE'
-    c_110_stamp_index = 'INTEGER'
+    c_110_stamp_index = 'TEXT'
     c_120_xmin = 'INTEGER'
     c_130_xmax = 'INTEGER'
     c_140_ymin = 'INTEGER'

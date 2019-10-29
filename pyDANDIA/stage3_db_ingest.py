@@ -103,8 +103,7 @@ def run_stage3_db_ingest(setup, primary_ref=False):
 
 
         phot_db.check_before_commit(conn, stamps_params, 'stamps', stamp_keys, 'stamp_index')
-    import pdb;
-    pdb.set_trace()
+
     ref_id_list = phot_db.find_reference_image_for_dataset(conn,dataset_params)
     
     if ref_id_list != None and len(ref_id_list) > 0:
