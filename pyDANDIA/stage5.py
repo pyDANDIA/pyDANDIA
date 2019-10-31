@@ -558,9 +558,7 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
 
             master_mask = fits.open(
                 os.path.join(reduction_metadata.data_architecture[1]['REF_PATH'][0], 'master_mask.fits'))
-            # master_mask = np.where(master_mask[0].data > 0.85 * np.max(master_mask[0].data))
-
-            master_mask = master_mask[0].data > 0
+            master_mask = master_mask[0].data > int(np.max(master_mask[0].data)*0.2)
 
         except:
             master_mask = []
