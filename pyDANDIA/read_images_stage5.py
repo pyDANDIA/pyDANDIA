@@ -21,13 +21,13 @@ def background_fit(image1, master_mask = []):
 
 
     from pyDANDIA import psf
-    #y, x = np.indices(image1.shape)
-    #fit = psf.fit_background(image1, y, x, ~master_mask, background_model='Constant')
-    #background_model = psf.ConstantBackground()
-    #background = background_model.background_model(y, x, fit[0])
+    y, x = np.indices(image1.shape)
+    fit = psf.fit_background(image1, y, x, ~master_mask, background_model='Gradient')
+    background_model = psf.GradientBackground()
+    background = background_model.background_model(y, x, fit[0])
 
 
-    background = np.median(image1[master_mask])
+    #background = np.median(image1[master_mask])
     return background
 
 def background_mesh_perc(image1,perc=30,box_guess=300, master_mask = []):

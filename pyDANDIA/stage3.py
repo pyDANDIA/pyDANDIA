@@ -91,7 +91,7 @@ def run_stage3(setup):
                                             ref_star_catalog, sky_model,
                                             psf_diameter,
                                             diagnostics=True)
-        
+
         if use_naylor_phot:
             ref_star_catalog = photometry.run_psf_photometry_naylor(setup, 
                                              reduction_metadata, 

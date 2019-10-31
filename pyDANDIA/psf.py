@@ -87,6 +87,22 @@ class Moffat2D(PSFModel):
 
         return model
 
+    def psf_model_deriv1(self, Y_star, X_star, parameters):
+
+        self.update_psf_parameters(parameters)
+
+        rr_gg = ((X_star - self.psf_parameters.x_center) ** 2 + (Y_star -  self.psf_parameters.y_center) ** 2) /  self.psf_parameters.gamma ** 2
+        d_A = (1 + rr_gg) ** (-self.psf_parameters.alpha)
+        d_x_0 = 2 * self.psf_parameters.intensity  *self.psf_parameters.alpha * d_A * (X_star - self.psf_parameters.x_center) /(self.psf_parameters.gamma ** 2 * (1 + rr_gg))
+        d_y_0 = 2 * self.psf_parameters.intensity * self.psf_parameters.alpha * d_A * (Y_star- self.psf_parameters.y_center) / (self.psf_parameters.gamma ** 2 * (1 + rr_gg))
+        d_alpha = -self.psf_parameters.intensity * d_A * np.log(1 + rr_gg)
+        d_gamma = (2 * self.psf_parameters.intensity * self.psf_parameters.alpha * d_A * rr_gg /
+                   (self.psf_parameters.gamma ** 3 * (1 + rr_gg)))
+
+
+        return [d_A, d_y_0, d_x_0, d_gamma, d_alpha]
+
+
     def psf_model_star(self, Y_star, X_star, star_params=[]):
 
         params = self.get_parameters()
@@ -209,7 +225,164 @@ class Moffat2D(PSFModel):
         flux_err = np.sqrt( var_psf + flux )
         
         return flux, flux_err, Fij
-        
+
+
+class BivariateMoffat(PSFModel):
+
+    def psf_type(self):
+
+        return 'BivariateMoffat'
+
+    def define_psf_parameters(self):
+
+        self.model = ['intensity', 'y_center', 'x_center', 'gamma_1','gamma_2', 'phi','alpha']
+
+        self.psf_parameters = collections.namedtuple('parameters', self.model)
+
+        for index, key in enumerate(self.model):
+            setattr(self.psf_parameters, key, None)
+
+    def update_psf_parameters(self, parameters):
+
+        for index, key in enumerate(self.model):
+            setattr(self.psf_parameters, key, parameters[index])
+
+    def psf_model(self, Y_star, X_star, parameters):
+
+        self.update_psf_parameters(parameters)
+
+        #A =
+
+        model = self.psf_parameters.intensity * (1 + ((X_star - self.psf_parameters.x_center) ** 2 + \
+                                                      (
+                                                                  Y_star - self.psf_parameters.y_center) ** 2) / self.psf_parameters.gamma ** 2) ** (
+                    -self.psf_parameters.alpha)
+
+        return model
+
+    def psf_model_star(self, Y_star, X_star, star_params=[]):
+
+        params = self.get_parameters()
+
+        for i in range(0, len(star_params), 1):
+            params[i] = star_params[i]
+
+        model = self.psf_model(Y_star, X_star, params)
+
+        return model
+
+    def psf_guess(self):
+
+        # gamma, alpha
+        return [2.0, 2.0]
+
+    def get_FWHM(self, gamma, alpha, pix_scale=1):
+
+        fwhm = gamma * 2 * (2 ** (1 / alpha) - 1) ** 0.5 * pix_scale
+        return fwhm
+
+    def get_parameters(self):
+
+        params = []
+
+        for par in self.model:
+            params.append(getattr(self.psf_parameters, par))
+
+        return params
+
+    def calc_flux(self, Y_star, X_star):
+
+        model = self.psf_model_star(Y_star, X_star)
+
+        flux = model.sum()
+
+        if flux > 0:
+
+            flux_err = np.sqrt(flux)
+
+        else:
+
+            flux_err = -99.999
+
+        return flux, flux_err
+
+    def calc_flux_with_kernel(self, Y_star, X_star, kernel):
+
+        model = self.psf_model_star(Y_star, X_star)
+
+        model_with_kernel = convolution.convolve_image_with_a_psf(model, kernel, fourrier_transform_psf=None,
+                                                                  fourrier_transform_image=None,
+                                                                  correlate=None, auto_correlation=None)
+        flux = model_with_kernel.sum()
+
+        flux_err = np.sqrt(flux)
+
+        return flux, flux_err
+
+    def normalize_psf(self, psf_diameter):
+
+        Y_data, X_data = np.indices((int(psf_diameter), int(psf_diameter)))
+
+        (f_total, ferr) = self.calc_flux(Y_data, X_data)
+
+        self.psf_parameters.intensity = self.psf_parameters.intensity / f_total
+
+    def calc_optimized_flux(self, ref_flux, var_sky, y_star, x_star,
+                            Y_star, X_star, gain,
+                            residuals):
+        """Method to compute the flux and flux error in a star's PSF fit,
+        following the method of Naylor (1997).
+
+        :param float ref_flux: Reference flux for the image
+        :param float var_sky: Varience in the sky background for the image
+        :param float x_star, ystar: Centroid of the star in the X_star, Y_star
+                                    grid coordinates
+        :param np.indices X_star,Y_star: Indices of the pixel size of the PSF
+        :param float gain: Detector gain in e-/ADU
+        :param array residuals: Data SECTION - sky background SECTION
+
+        Note the input data and sky model arrays should be pre-cut to match the
+        size of the PSF
+
+        Returns:
+        :param float flux: Flux measure for the star
+        :param float flux_err: Uncertainty on the flux measurement
+        """
+
+        hdu = fits.PrimaryHDU(residuals)
+        hdulist = fits.HDUList([hdu])
+        hdulist.writeto('optimize_flux_input_data.fits', overwrite=True)
+
+        Pij = self.psf_model_star(Y_star, X_star)
+
+        hdu = fits.PrimaryHDU(Pij)
+        hdulist = fits.HDUList([hdu])
+        hdulist.writeto('optimize_flux_Pij.fits', overwrite=True)
+
+        Vij = var_sky + (ref_flux * Pij) / np.sqrt(gain)
+
+        hdu = fits.PrimaryHDU(Vij)
+        hdulist = fits.HDUList([hdu])
+        hdulist.writeto('optimize_flux_Vij.fits', overwrite=True)
+
+        Wij = (Pij / Vij) / ((Pij * Pij) / Vij).sum()
+
+        hdu = fits.PrimaryHDU(Wij)
+        hdulist = fits.HDUList([hdu])
+        hdulist.writeto('optimize_flux_Wij.fits', overwrite=True)
+
+        Fij = (Wij * residuals)
+        flux = Fij.sum()
+
+        hdu = fits.PrimaryHDU(Fij)
+        hdulist = fits.HDUList([hdu])
+        hdulist.writeto('optimize_flux_fluximage.fits', overwrite=True)
+
+        var_psf = (Wij * Wij * Vij).sum()
+        flux_err = np.sqrt(var_psf + flux)
+
+        return flux, flux_err, Fij
+
 class Gaussian2D(PSFModel):
 
     def psf_type(self):
@@ -292,7 +465,7 @@ class Gaussian2D(PSFModel):
         self.psf_parameters.intensity = self.psf_parameters.intensity / f_total
         
 class BivariateNormal(PSFModel):
-    def psf_type():
+    def psf_type(self):
 
         return 'BivariateNormal'
 
@@ -774,9 +947,92 @@ def error_background_fit_function(params, data, background, Y_data, X_data, mask
     back_params = params
 
     back_model = background.background_model(Y_data, X_data, back_params)
-    
-    residuals = ((data - back_model)/np.abs(data)**0.5)[mask]
-    return residuals**2
+    weight = 1/np.abs(data)**0.5
+    weight[np.isnan(weight)] = 0
+    residuals = ((data - back_model)*weight)[mask]
+
+    return residuals
+
+
+def fit_the_stamps(stamps,psf_model='Moffat2D', background_model='Constant'):
+    psf_model = get_psf_object(psf_model)
+
+    if background_model == 'Constant':
+        back_model = ConstantBackground()
+    datasets = []
+    for stamp in stamps:
+
+        if stamp is not None:
+
+            y,x = np.indices(stamp.shape)
+            datasets.append(stamp)
+
+    guess_psf = [1]*len(datasets)+[y[int(len(y[:, 0]) / 2), 0],
+                 x[0, int(len(x[0, :]) / 2)]] + psf_model.psf_guess()
+
+    guess_back = back_model.background_guess()
+
+    guess = guess_psf + guess_back
+
+    import pdb;
+    pdb.set_trace()
+    fit = optimize.minimize(error_stamp_function, guess, args=(
+        datasets, psf_model, back_model,y,x),jac = Jacobi_stamp)
+
+def Jacobi_stamp(params, stamps, psf, background, Y_data, X_data):
+
+    back_params = params[-1]
+    back_model = background.background_model(Y_data, X_data, parameters=[back_params])
+    jacobi = np.zeros(len(params))
+    for i,stamp in enumerate(stamps):
+        if stamp is not None:
+
+            psf_params = np.r_[params[i] , params[-5:-1]]
+            psf_model = psf.psf_model(Y_data, X_data, psf_params)
+            weight = 1 / np.abs(stamp.data)
+            weight[np.isnan(weight)] = 0
+
+            data = stamp.data - back_model
+
+
+            derivs = psf.psf_model_deriv1(Y_data,X_data,psf_params)
+            residuals = -2*(data - psf_model)  * weight
+            jacobi[i] +=  np.sum(residuals*derivs[0])
+            jacobi[-5] += np.sum(residuals*derivs[1])
+            jacobi[-4] += np.sum(residuals*derivs[2])
+            jacobi[-3] += np.sum(residuals*derivs[3])
+            jacobi[-2] += np.sum(residuals*derivs[4])
+            jacobi[-1] += np.sum(residuals * weight)
+
+        else:
+            jacobi[i] += 0
+            jacobi[-5] += 0
+            jacobi[-4] += 0
+            jacobi[-3] += 0
+            jacobi[-2] += 0
+            jacobi[-1] += 0
+
+    return jacobi
+def error_stamp_function(params, stamps, psf, background, Y_data, X_data):
+
+
+    back_params = params[-1]
+    residuals = 0
+    back_model = background.background_model(Y_data, X_data, parameters=[back_params])
+
+    for i,stamp in enumerate(stamps):
+        if stamp is not None:
+            psf_params =  np.r_[params[i] , params[-5:-1]]
+            psf_model = psf.psf_model(Y_data, X_data, psf_params)
+
+            weight = 1 / np.abs(stamp.data)
+            weight[np.isnan(weight)] = 0
+            data = stamp.data - back_model
+            residuals += np.sum((data - psf_model )**2*weight)
+
+    print(residuals)
+
+    return residuals
 
 def fit_star(data, Y_data, X_data, psf_model='Moffat2D', background_model='Constant'):
     psf_model = get_psf_object(psf_model)
@@ -803,10 +1059,14 @@ def error_star_fit_function(params, data, psf, background, Y_data, X_data):
 
     psf_model = psf.psf_model(Y_data, X_data, psf_params)
     back_model = background.background_model(Y_data, X_data, parameters=back_params)
+    weight = 1 / np.abs(data) ** 0.5
+    weight[np.isnan(weight)] = 0
+    residuals = np.ravel((data - psf_model - back_model)*weight)
 
-    residuals = np.ravel(data - psf_model - back_model)
 
     return residuals
+
+
 
 
 def fit_existing_psf_stamp(setup, x_cen, y_cen, psf_radius, 
@@ -940,6 +1200,7 @@ def fit_star_existing_model(setup, data, x_cen, y_cen, psf_radius,
         init_par = [ psf_model.get_parameters()[0], y_cen, x_cen ]
     else:
         init_par = [ psf_model.get_parameters()[0] ]
+
     fit = optimize.leastsq(error_star_fit_existing_model, init_par,
         args=(data, psf_model, psf_sky_bkgd, Y_data, X_data), 
         full_output=1)
@@ -1098,9 +1359,11 @@ def error_star_fit_existing_model(params, data, psf_model, sky_bkgd,
                                    [pars[2],pars[1]])
     
     sky_subtracted_data = data - sky_bkgd
-    
-    residuals = np.ravel((sky_subtracted_data - psf_image))
-    
+
+    weight = 1 / np.abs(data) ** 0.5
+    weight[np.isnan(weight)] = 0
+    residuals = np.ravel((sky_subtracted_data - psf_image)* weight)
+
     return residuals
 
 
@@ -1208,12 +1471,15 @@ def build_psf(setup, reduction_metadata, log, image, ref_star_catalog,
                            os.path.join(setup.red_dir, 'ref',
                                         'initial_psf_master_stamp.png'))
 
+
+
     # Build an initial PSF: fit a PSF model to the high S/N stamp
     init_psf_model = fit_psf_model(setup,log,psf_model_type, psf_diameter,
                                    sky_model.background_type(),
                                     master_stamp, diagnostics=False)
     init_psf_model.normalize_psf(psf_diameter)
-    
+
+
     if diagnostics:
         psf_image = generate_psf_image(init_psf_model.psf_type(),
                                        init_psf_model.get_parameters(),
@@ -1233,6 +1499,8 @@ def build_psf(setup, reduction_metadata, log, image, ref_star_catalog,
     # high S/N stamp
     master_stamp = coadd_stamps(setup, clean_stamps, log,
                                 diagnostics=False)
+    #fit_the_stamps(clean_stamps)
+
 
     if diagnostics:
         output_fits(master_stamp.data, 
@@ -1456,13 +1724,17 @@ def coadd_stamps(setup, stamps, log, diagnostics=True):
 
     xc = coadd.shape[1] / 2
     yc = coadd.shape[0] / 2
-
+    coadd2 = 0
+    coadd3 = 0
     for i, s in enumerate(stamps):
 
         if s != None:
             coadd += s.data
-
-    master_stamp = Cutout2D(coadd, (xc, yc), coadd.shape, copy=True)
+            weight =  1/np.abs(s.data) ** 0.5
+            weight[np.isnan(weight)] = 0
+            coadd2 += s.data*weight
+            coadd3 += weight
+    master_stamp = Cutout2D(coadd2/coadd3, (xc, yc), coadd.shape, copy=True)
 
     log.info('Co-added ' + str(len(stamps)) + ' to produce a master_stamp')
 
@@ -1691,6 +1963,7 @@ def subtract_companions_from_psf_stamps(setup, reduction_metadata, log,
                     if sky_model_bkgd.ndim == 1:
                         import pdb;
                         pdb.set_trace()
+
                     s.data[corners[2]:corners[3],corners[0]:corners[1]] = sky_model_bkgd[corners[2]:corners[3],corners[0]:corners[1]]
                     (comp_psf,good_fit) = fit_star_existing_model(setup, s.data,
                                                         pars[2], pars[1],

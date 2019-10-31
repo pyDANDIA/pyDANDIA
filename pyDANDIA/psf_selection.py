@@ -27,7 +27,7 @@ def psf_star_selection(setup,reduction_metadata,log,ref_star_catalog,
                                             star in the ref_star_catalog is 
                                             selected.  
     """
-    
+
     psf_stars_idx = np.ones(len(ref_star_catalog))
     
     # Exclude brightest and faintest 10% of star list
@@ -92,30 +92,20 @@ def id_mid_range_stars(setup,reduction_metadata,log,ref_star_catalog,psf_stars_i
     '%  of a star catalog of '+str(len(ref_star_catalog))+' stars')
     
     stars_bright_ordered = ref_star_catalog[:,7].argsort()
-    
-    brightest = ref_star_catalog[:,7].min()
-    faintest = ref_star_catalog[:,7].max()
-    
+    mask = ref_star_catalog[:,7]>0
+    brightest = ref_star_catalog[mask,7].min()
+    faintest = ref_star_catalog[mask,7].max()
+
     log.info('Brightness range of stars: '+str(brightest)+' - '+str(faintest))
     
-    nstar_cut = int(float(len(ref_star_catalog)) * (psf_range_thresh/100.0))
-    istart = nstar_cut
-    iend = len(ref_star_catalog) - nstar_cut
 
-    log.info('Deselecting '+str(nstar_cut)+' stars from the catalog')
-    log.info('Selecting '+str(istart)+' to '+str(iend)+\
-            ' ('+str(iend-istart+1)+') stars from the catalog')
-    
-    selected_idx = stars_bright_ordered[istart:iend]
-    
-    deselect = np.array([True]*len(ref_star_catalog))
-    deselect[selected_idx] = False
-    
-    psf_stars_idx[deselect] = 0
-    
-    star_index = np.where(psf_stars_idx == 1)[0]
-    
-    log.info(str(len(star_index))+' stars selected as candidates following brightness tests')
+    mask_brightness = (ref_star_catalog[:, 7] < np.percentile(ref_star_catalog[:, 7][mask], 80)) & (
+                ref_star_catalog[:, 7] > np.percentile(ref_star_catalog[:, 7][mask], 20))
+
+
+    psf_stars_idx[mask_brightness] = 1
+    psf_stars_idx[~mask_brightness] = 0
+    log.info(str(len(psf_stars_idx[mask_brightness]))+' stars selected as candidates following brightness tests')
     
     return psf_stars_idx
     
@@ -147,7 +137,7 @@ def id_crowded_stars(setup,reduction_metadata,log,
     log.info('Excluding stars with companions of flux ratio greater than '+\
             str(psf_comp_flux))
     log.info('that are within '+str(sep_thresh)+' pixels')
-        
+
     for j in star_index:
         
         xstar = ref_star_catalog[j,1]
@@ -233,20 +223,24 @@ def apply_psf_star_limit(reduction_metadata,ref_star_catalog,psf_stars_idx,log):
     stars selected is respected"""
     
     max_psf_stars = reduction_metadata.reduction_parameters[1]['MAX_PSF_STARS'][0]
-    
+
     stars_bright_ordered = ref_star_catalog[:,7].argsort()
-    
-    if len(stars_bright_ordered) > max_psf_stars:
-        
-        deselect = stars_bright_ordered[max_psf_stars:]
-        select = stars_bright_ordered[:max_psf_stars]
-        
-        psf_stars_idx[deselect] = 0
-        psf_stars_idx[select] = 1
-        
-        idx = np.where(psf_stars_idx == 1)
-        
-        log.info('Limited the number of PSF stars selected to configured maximum of '+\
+    max_stars = 0
+
+    for i in stars_bright_ordered:
+
+        if ref_star_catalog[i,7] !=0 :
+
+            psf_stars_idx[i] = 1.0
+            max_stars += 1
+
+        else:
+            psf_stars_idx[i] = 0
+
+
+        if max_stars>max_psf_stars:
+            psf_stars_idx[i] = 0
+    log.info('Limited the number of PSF stars selected to configured maximum of '+\
                     str(max_psf_stars)+', length psf star index '+str(len(psf_stars_idx)))
         
     return psf_stars_idx
