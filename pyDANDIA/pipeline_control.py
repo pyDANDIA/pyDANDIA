@@ -44,7 +44,7 @@ def get_args():
         params['base_dir'] = input('Please enter the path to the base directory: ')
         params['phot_db_path'] = input('Please enter the path to the database file: ')
         print('''Please enter the required reduction mode out of:
-        {data_preparation, added_data_preparation, reference_analysis, image_analysis, stage3_db_ingest}''')
+        {data_preparation, added_data_preparation, reference_analysis, image_analysis, stage3_db_ingest, stage6}''')
         params['red_mode'] = input('Reduction mode: ')
 
     else:
@@ -197,7 +197,7 @@ def trigger_single_reduction(setup,dataset_dir,data_status):
 
     else:
         raise TypeError('Can only trigger a single reduction for stage3_db_ingest or stage6')
-        
+
     return pid
 
 
