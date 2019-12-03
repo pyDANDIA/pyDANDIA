@@ -77,7 +77,7 @@ def run_reference_astrometry(setup):
         vphas_sources = phot_catalog_objects_in_reference_image(setup, header, fov,
                                                                 image_wcs, log)
 
-        selection_radius = 0.03 #degrees
+        selection_radius = 0.05 #degrees
         (bright_central_detected_stars, bright_central_gaia_stars, selection_radius) = \
             wcs.extract_bright_central_stars(setup,detected_sources, gaia_sources,
                                              image_wcs, log, radius=selection_radius)
