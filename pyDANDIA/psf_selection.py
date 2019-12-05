@@ -34,7 +34,7 @@ def psf_star_selection(setup,reduction_metadata,log,ref_star_catalog,
     psf_stars_idx = id_mid_range_stars(setup,reduction_metadata,log,
                                        ref_star_catalog,psf_stars_idx)
 
-    # Exclude stars with neighbours within proximity threshold that
+    # Exclude stars with neighbours within proPrestonManorximity threshold that
     # also exceed the flux ratio threshold:
     psf_stars_idx = id_crowded_stars(setup,reduction_metadata,log,
                                       ref_star_catalog,psf_stars_idx)
@@ -45,24 +45,13 @@ def psf_star_selection(setup,reduction_metadata,log,ref_star_catalog,
                                          psf_stars_idx,log)
 
     ref_star_catalog[:,11] = psf_stars_idx
-    idx = np.where(ref_star_catalog[:,11] == 1.0)
-
-    psf_idx = ref_star_catalog[idx[0],0]
+    psf_idx = np.where(ref_star_catalog[:,11] == 1.0)[0]
 
     if setup.verbosity >= 1:
 
         if diagnostics:
-            logs.ifverbose(log,setup,'Selected PSF stars: ')
-
-            for i in range(0,len(psf_idx),1):
-
-                j = int(psf_idx[i])
-
-                logs.ifverbose(log,setup,str(j)+' at ('+
-                str(ref_star_catalog[i,1])+', '+str(ref_star_catalog[i,2])+')')
-
-        else:
-            logs.ifverbose(log,setup,'Selected '+str(len(psf_idx))+' PSF stars')
+            output_psf_star_index(psf_stars_idx, ref_star_catalog, log, final=True)
+            log.info('Selected '+str(len(psf_idx))+' PSF stars')
 
     # [Optionally] plot selection
     if diagnostics == True:
@@ -72,7 +61,8 @@ def psf_star_selection(setup,reduction_metadata,log,ref_star_catalog,
 
     return ref_star_catalog
 
-def id_mid_range_stars(setup,reduction_metadata,log,ref_star_catalog,psf_stars_idx):
+def id_mid_range_stars(setup,reduction_metadata,log,ref_star_catalog,
+        psf_stars_idx,diagnostics=False):
     """Function to identify those stars which fall in the middle of the
     brightness range of those detected in the reference image.  That is the
     list of stars excluding the brightest and faintest ends of the range.
@@ -87,25 +77,32 @@ def id_mid_range_stars(setup,reduction_metadata,log,ref_star_catalog,psf_stars_i
     log.info(str(len(star_index))+' stars selected as candidates at the start')
 
     psf_range_thresh = reduction_metadata.reduction_parameters[1]['PSF_RANGE_THRESH'][0]
+    psf_range_thresh_lower = 30.0
+    psf_range_thresh_upper = 1.0
 
     log.info('Excluding top and bottom '+str(psf_range_thresh)+\
     '%  of a star catalog of '+str(len(ref_star_catalog))+' stars')
 
     stars_bright_ordered = ref_star_catalog[:,5].argsort()
-    mask = ref_star_catalog[:,5]>10.0
-    brightest = ref_star_catalog[mask,5].min()
-    faintest = ref_star_catalog[mask,5].max()
+    mask = (ref_star_catalog[:,5]>10.0) & (psf_stars_idx == 1)
+    #brightest = ref_star_catalog[mask,5].min()
+    #faintest = ref_star_catalog[mask,5].max()
+    brightest = np.percentile(ref_star_catalog[:, 5][mask], 100-psf_range_thresh_upper)
+    faintest = np.percentile(ref_star_catalog[:, 5][mask], psf_range_thresh_lower)
 
-    log.info('Brightness range of stars: '+str(brightest)+' - '+str(faintest))
+    log.info('Allowed flux range of stars: '+str(faintest)+' - '+str(brightest))
 
 
-    mask_brightness = (ref_star_catalog[:, 5] < np.percentile(ref_star_catalog[:, 5][mask], 80)) & (
-                ref_star_catalog[:, 5] > np.percentile(ref_star_catalog[:, 5][mask], 20))
+    mask_brightness = (ref_star_catalog[:, 5] < brightest) & (
+                ref_star_catalog[:, 5] > faintest) & (psf_stars_idx == 1)
 
 
     psf_stars_idx[mask_brightness] = 1
     psf_stars_idx[~mask_brightness] = 0
     log.info(str(len(psf_stars_idx[mask_brightness]))+' stars selected as candidates following brightness tests')
+
+    if diagnostics:
+        output_psf_star_index(psf_stars_idx, ref_star_catalog, log)
 
     return psf_stars_idx
 
@@ -216,32 +213,39 @@ def id_crowded_stars(setup,reduction_metadata,log,
 
     log.info(str(len(star_index))+' stars selected as candidates following crowding tests')
 
+
+    if diagnostics:
+        output_psf_star_index(psf_stars_idx, ref_star_catalog, log)
+
     return psf_stars_idx
 
-def apply_psf_star_limit(reduction_metadata,ref_star_catalog,psf_stars_idx,log):
+def apply_psf_star_limit(reduction_metadata,ref_star_catalog,psf_stars_idx,log,
+    diagnostics=False):
     """Function to ensure that the configured limit to the number of PSF
     stars selected is respected"""
 
     max_psf_stars = reduction_metadata.reduction_parameters[1]['MAX_PSF_STARS'][0]
 
-    stars_bright_ordered = ref_star_catalog[:,5].argsort()
-    max_stars = 0
+    psf_idx = np.where(psf_stars_idx == 1)[0]
 
-    for i in stars_bright_ordered:
+    if len(psf_idx) > max_psf_stars:
+        mask = []
+        while len(mask) < max_psf_stars:
+            i = np.random.randint(0,len(psf_idx))
+            if i not in mask:
+                mask.append(i)
 
-        if ref_star_catalog[i,5] > 10.0 :
+        psf_idx = psf_idx[mask]
 
-            psf_stars_idx[i] = 1.0
-            max_stars += 1
+        psf_stars_idx = np.zeros(len(ref_star_catalog))
+        psf_stars_idx[psf_idx] = 1
 
-        else:
-            psf_stars_idx[i] = 0
-
-
-        if max_stars>max_psf_stars:
-            psf_stars_idx[i] = 0
-    log.info('Limited the number of PSF stars selected to configured maximum of '+\
+        log.info('Limited the number of PSF stars via random selection to configured maximum of '+\
                     str(max_psf_stars)+', length psf star index '+str(len(psf_stars_idx)))
+
+
+    if diagnostics:
+        output_psf_star_index(psf_stars_idx, ref_star_catalog, log)
 
     return psf_stars_idx
 
@@ -296,3 +300,21 @@ def mag_to_flux(zp,mag):
     flux = 10**((zp - mag)/-2.5)
 
     return flux
+
+def output_psf_star_index(psf_stars_idx, ref_star_catalog, log, final=False):
+
+    if not final:
+        log.info('Current PSF star selection:')
+    else:
+        log.info('Final selection of PSF stars:')
+
+    for i in range(0,len(psf_stars_idx),1):
+        if psf_stars_idx[i] == 1.0:
+            j = int(i)
+            log.info(str(j+1)+' at ('+
+            str(ref_star_catalog[j,1])+', '+str(ref_star_catalog[j,2])+
+            '), ref_flux='+str(ref_star_catalog[j,5]))
+
+    npsf = len(np.where(psf_stars_idx == 1.0)[0])
+    log.info(str(npsf)+' PSF stars selected')
+    log.info('Length of psf_star_idx: '+str(len(psf_stars_idx)))
