@@ -15,6 +15,8 @@ from pyDANDIA import  metadata
 from pyDANDIA import  starfind
 from pyDANDIA import  pipeline_setup
 from pyDANDIA import  wcs
+from pyDANDIA import  psf
+from pyDANDIA import  stage0
 from pyDANDIA import  stage3
 from pyDANDIA import  catalog_utils
 from pyDANDIA import  calc_coord_offsets
@@ -156,7 +158,7 @@ def run_reference_astrometry(setup):
                 bright_central_gaia_stars = update_catalog_image_coordinates(setup, image_wcs,
                                                             bright_central_gaia_stars, log,
                                                             'catalog_stars_bright_revised_'+str(it)+'.reg',
-                                                            transform)
+                                                            transform, radius=selection_radius)
 
             if it >= max_it or (abs(transform.translation[0]) < 0.5 and abs(transform.translation[1]) < 0.5\
                 and transform.translation[0] != 0.0 and transform.translation[1] != 0.0) or \
@@ -170,7 +172,7 @@ def run_reference_astrometry(setup):
 
         gaia_sources = update_catalog_image_coordinates(setup, image_wcs,
                                                         gaia_sources, log, 'catalog_stars_full_revised_'+str(it)+'.reg',
-                                                        transform)
+                                                        transform, radius=None)
 
         transform = calc_coord_offsets.calc_world_transform(setup,
                                                 bright_central_detected_stars[matched_stars.cat1_index],
@@ -215,11 +217,30 @@ def run_reference_astrometry(setup):
 def detect_objects_in_reference_image(setup, reduction_metadata, meta_pars,
                                       image_wcs, log):
 
-    scidata = fits.getdata(meta_pars['ref_image_path'])
+    scidata = stage0.open_an_image(setup, os.path.join(setup.red_dir,'ref'),
+                               os.path.basename(meta_pars['ref_image_path']),
+                               log,  image_index=0)
+
+    image_bpm = stage0.open_an_image(setup, os.path.join(setup.red_dir,'ref'),
+                               os.path.basename(meta_pars['ref_image_path']),
+                               log,  image_index=2)
+    if image_bpm == None:
+        image_bpm = open_an_image(setup, os.path.join(setup.red_dir,'ref'),
+                                   os.path.basename(meta_pars['ref_image_path']),
+                                   log,  image_index=1)
+
+    scidata = scidata.data - meta_pars['ref_sky_bkgd']
+    idx = np.where(image_bpm.data != 0)
+    image_bpm.data[idx] = reduction_metadata.reduction_parameters[1]['MAXVAL'][0]
+    scidata = scidata + image_bpm.data
+
+    maskref = os.path.join(setup.red_dir,'ref','masked_ref_image.fits')
+
+    psf.output_fits(scidata, maskref)
 
     detected_objects = starfind.detect_sources(setup, reduction_metadata,
                                     meta_pars['ref_image_path'],
-                                    (scidata-meta_pars['ref_sky_bkgd']),
+                                    scidata,
                                     log,
                                     diagnostics=False)
 
@@ -305,10 +326,11 @@ def phot_catalog_objects_in_reference_image(setup, header, fov, image_wcs, log):
 
 
 def update_catalog_image_coordinates(setup, image_wcs, gaia_sources,
-                                     log, filename, transform=None):
+                                     log, filename, transform=None, radius=None):
 
     gaia_sources = wcs.calc_image_coordinates_astropy(setup, image_wcs,
-                                                      gaia_sources,log)
+                                                      gaia_sources,log,
+                                                      radius=radius)
 
     if transform != None:
         gaia_sources = calc_coord_offsets.transform_coordinates(setup, gaia_sources,

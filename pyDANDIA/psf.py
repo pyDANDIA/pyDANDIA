@@ -696,10 +696,13 @@ class ConstantBackground(BackgroundModel):
 
         return model
 
-    def background_guess(self):
+    def background_guess(self, guess=None):
 
         # background constant
-        return [1000]
+        if guess is None:
+            return [1000]
+        else:
+            return [guess]
 
     def get_parameters(self):
 
@@ -754,12 +757,15 @@ class GradientBackground(BackgroundModel):
 
         return model
 
-    def background_guess(self):
+    def background_guess(self, guess=None):
         """Method to return an initial estimate of the parameters of a 2D
         gradient sky background model.  The parameters returned represent
         a flat, constant background of zero."""
 
-        return [1000.0, 0.0, 0.0]
+        if guess is None:
+            return [1000.0, 0.0, 0.0]
+        else:
+            return [guess, 0.0, 0.0]
 
     def get_parameters(self):
 
@@ -816,12 +822,15 @@ class QuadraticBackground(BackgroundModel):
 
         return model
 
-    def background_guess(self):
+    def background_guess(self, guess=None):
         """Method to return an initial estimate of the parameters of a 2D
         gradient sky background model.  The parameters returned represent
         a flat, constant background of zero."""
 
-        return [1000.0, 0.0, 0.0, 0.0, 0.0,0.0]
+        if guess is None:
+            return [1000.0, 0.0, 0.0, 0.0, 0.0,0.0]
+        else:
+            return [guess, 0.0, 0.0, 0.0, 0.0,0.0]
 
     def get_parameters(self):
 
@@ -1057,13 +1066,14 @@ def fit_star(data, Y_data, X_data, psf_model='Moffat2D',
     return fit
 
 
-def error_star_fit_function(params, data, psf, background, Y_data, X_data, weights):
+def error_star_fit_function(params, data, psf, background, Y_data, X_data, weights=None):
     psf_params = params[:len(psf.psf_parameters._fields)]
     back_params = params[len(psf.psf_parameters._fields):]
 
     psf_model = psf.psf_model(Y_data, X_data, psf_params)
     back_model = background.background_model(Y_data, X_data, parameters=back_params)
-    #weights = 1 / np.abs(data) ** 0.5
+    if weights is None:
+        weights = 1 / np.abs(data) ** 0.5
     weights[np.isnan(weights)] = 0
     residuals = np.ravel((data - psf_model - back_model)*weights)
 
@@ -1537,6 +1547,13 @@ def build_psf(setup, reduction_metadata, log, image, ref_star_catalog,
                 os.path.join(setup.red_dir,'ref','psf_model_residuals.fits'))
 
     psf_model.normalize_psf(psf_diameter)
+
+    psf_image = generate_psf_image(psf_model.psf_type(),
+                               psf_model.get_parameters(),
+                                stamp_dims, psf_diameter)
+
+    output_fits_model(psf_image,header,
+                os.path.join(setup.red_dir,'ref','psf_model_normalized.fits'))
 
     log.info('Completed build of PSF model with status '+status)
 

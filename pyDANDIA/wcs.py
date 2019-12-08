@@ -418,9 +418,11 @@ def calc_image_coordinates(setup, image_path, catalog_sources,log):
 
     return catalog_sources
 
-def calc_image_coordinates_astropy(setup, image_wcs, catalog_sources,log):
+def calc_image_coordinates_astropy(setup, image_wcs, catalog_sources,log,
+                                    radius=None):
 
     log.info('Calculating the predicted image pixel positions for catalog stars')
+    log.info('Current image_wcs: '+repr(image_wcs))
 
     positions = []
     jidx = None
@@ -434,32 +436,46 @@ def calc_image_coordinates_astropy(setup, image_wcs, catalog_sources,log):
     dpositions =  image_wcs.wcs_world2pix(np.array(positions),1)
 
     # Now apply the known image rotation, if required:
-    density = utilities.stellar_density_wcs(catalog_sources,image_wcs)
+    if radius is None:
+        density = utilities.stellar_density_wcs(catalog_sources,image_wcs)
+    else:
+        density = utilities.stellar_density(catalog_sources,radius)
+
+    log.info('Calculated stellar density is '+str(density))
 
     if density<utilities.stellar_density_threshold():
 
+        log.info('Since stellar density is low (< '+\
+            str(utilities.stellar_density_threshold())+\
+            '), assuming WCS in correct orientation')
         positions = dpositions
 
     else:
 
-        if image_wcs.wcs.cd[0,0] < 0:
+        log.info('Since stellar density is high (> '+\
+            str(utilities.stellar_density_threshold())+\
+            '), assuming WCS needs rotating')
 
-            log.info('Applying WCS CD transform parameters')
+        invert = True
+        if invert:
+            if image_wcs.wcs.cd[0,0] < 0:
 
-            dpositions[:,0] = dpositions[:,0] - image_wcs.wcs.crpix[0]
-            dpositions[:,1] = dpositions[:,1] - image_wcs.wcs.crpix[1]
+                log.info('Applying WCS CD transform parameters')
 
-            theta = np.pi
-            R = np.zeros((2,2))
-            R[0,0] = np.cos(theta)
-            R[0,1] = -np.sin(theta)
-            R[1,0] = np.sin(theta)
-            R[1,1] = np.cos(theta)
+                dpositions[:,0] = dpositions[:,0] - image_wcs.wcs.crpix[0]
+                dpositions[:,1] = dpositions[:,1] - image_wcs.wcs.crpix[1]
 
-            positions = np.dot(dpositions, R)
+                theta = np.pi
+                R = np.zeros((2,2))
+                R[0,0] = np.cos(theta)
+                R[0,1] = -np.sin(theta)
+                R[1,0] = np.sin(theta)
+                R[1,1] = np.cos(theta)
 
-            positions[:,0] += image_wcs.wcs.crpix[0]
-            positions[:,1] += image_wcs.wcs.crpix[1]
+                positions = np.dot(dpositions, R)
+
+                positions[:,0] += image_wcs.wcs.crpix[0]
+                positions[:,1] += image_wcs.wcs.crpix[1]
 
         else:
             positions = dpositions

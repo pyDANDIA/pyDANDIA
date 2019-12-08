@@ -76,12 +76,12 @@ def id_mid_range_stars(setup,reduction_metadata,log,ref_star_catalog,
 
     log.info(str(len(star_index))+' stars selected as candidates at the start')
 
-    psf_range_thresh = reduction_metadata.reduction_parameters[1]['PSF_RANGE_THRESH'][0]
-    psf_range_thresh_lower = 30.0
-    psf_range_thresh_upper = 1.0
+    psf_range_thresh_lower = reduction_metadata.reduction_parameters[1]['PSF_RANGE_THRESH_LOWER'][0]
+    psf_range_thresh_upper = reduction_metadata.reduction_parameters[1]['PSF_RANGE_THRESH_UPPER'][0]
 
-    log.info('Excluding top and bottom '+str(psf_range_thresh)+\
-    '%  of a star catalog of '+str(len(ref_star_catalog))+' stars')
+    log.info('Excluding top '+str(psf_range_thresh_upper)+\
+            ' and bottom '+str(psf_range_thresh_lower)+\
+            '%  of a star catalog of '+str(len(ref_star_catalog))+' stars')
 
     stars_bright_ordered = ref_star_catalog[:,5].argsort()
     mask = (ref_star_catalog[:,5]>10.0) & (psf_stars_idx == 1)
