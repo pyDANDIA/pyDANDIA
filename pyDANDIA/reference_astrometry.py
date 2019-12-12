@@ -65,6 +65,8 @@ def run_reference_astrometry(setup):
 
         field = header['OBJECT']
         fov = reduction_metadata.reduction_parameters[1]['FOV'][0]
+        stellar_density_threshold = reduction_metadata.reduction_parameters[1]['STAR_DENSITY_THRESH'][0]
+        rotate_wcs = reduction_metadata.reduction_parameters[1]['ROTATE_WCS'][0]
 
         # Calculates initial RA,Dec from image WCS
         detected_sources = detect_objects_in_reference_image(setup,
@@ -72,9 +74,15 @@ def run_reference_astrometry(setup):
                                                              meta_pars,
                                                              image_wcs, log)
 
+        stellar_density = utilities.stellar_density_wcs(detected_sources,
+                                                        image_wcs)
+
         # Calculates initial x,y from image WCS, initializes (x,y) -> (x1,y1)
         gaia_sources = catalog_objects_in_reference_image(setup, header,
-                                                          image_wcs, log)
+                                                          image_wcs, log,
+                                                          stellar_density,
+                                                          rotate_wcs,
+                                                          stellar_density_threshold)
 
         vphas_sources = phot_catalog_objects_in_reference_image(setup, header, fov,
                                                                 image_wcs, log)
@@ -100,16 +108,16 @@ def run_reference_astrometry(setup):
             if it == 1 and method in ['histogram', 'ransac']:
                 log.info('Calculating transformation using the histogram method, iteration '+str(it))
 
-                density = utilities.stellar_density(bright_central_gaia_stars,
+                stellar_density = utilities.stellar_density(bright_central_gaia_stars,
                                                     selection_radius)
 
-                if density < utilities.stellar_density_threshold():
-                    log.info('Stellar density is low, '+str(round(density,2))+' sources/arcmin**2, so using whole catalog to calculate transformation')
+                if stellar_density < stellar_density_threshold:
+                    log.info('Stellar density is low, '+str(round(stellar_density,2))+' sources/arcmin**2, so using whole catalog to calculate transformation')
                     transform = calc_coord_offsets.calc_offset_pixels(setup, detected_sources, gaia_sources,
                                                                   log, diagnostics=True)
                 else:
 
-                    log.info('Stellar density is high, '+str(round(density,2))+' sources/arcmin**2, so using bright central stars to calculate transformation')
+                    log.info('Stellar density is high, '+str(round(stellar_density,2))+' sources/arcmin**2, so using bright central stars to calculate transformation')
                     transform = calc_coord_offsets.calc_offset_pixels(setup,bright_central_detected_stars,
                                                       bright_central_gaia_stars,
                                                       log,
@@ -158,7 +166,9 @@ def run_reference_astrometry(setup):
                 bright_central_gaia_stars = update_catalog_image_coordinates(setup, image_wcs,
                                                             bright_central_gaia_stars, log,
                                                             'catalog_stars_bright_revised_'+str(it)+'.reg',
-                                                            transform, radius=selection_radius)
+                                                            stellar_density, rotate_wcs,
+                                                            stellar_density_threshold,
+                                                            transform=transform, radius=selection_radius)
 
             if it >= max_it or (abs(transform.translation[0]) < 0.5 and abs(transform.translation[1]) < 0.5\
                 and transform.translation[0] != 0.0 and transform.translation[1] != 0.0) or \
@@ -172,7 +182,9 @@ def run_reference_astrometry(setup):
 
         gaia_sources = update_catalog_image_coordinates(setup, image_wcs,
                                                         gaia_sources, log, 'catalog_stars_full_revised_'+str(it)+'.reg',
-                                                        transform, radius=None)
+                                                        stellar_density, rotate_wcs,
+                                                        stellar_density_threshold,
+                                                        transform=transform, radius=None)
 
         transform = calc_coord_offsets.calc_world_transform(setup,
                                                 bright_central_detected_stars[matched_stars.cat1_index],
@@ -255,7 +267,9 @@ def detect_objects_in_reference_image(setup, reduction_metadata, meta_pars,
 
     return detected_sources
 
-def catalog_objects_in_reference_image(setup, header, image_wcs, log):
+def catalog_objects_in_reference_image(setup, header, image_wcs, log,
+                                        stellar_density, rotate_wcs,
+                                        stellar_density_threshold):
 
     field = header['OBJECT']
 
@@ -263,7 +277,9 @@ def catalog_objects_in_reference_image(setup, header, image_wcs, log):
                                                       image_wcs,log,'Gaia')
 
     gaia_sources = wcs.calc_image_coordinates_astropy(setup, image_wcs,
-                                                      gaia_sources,log)
+                                                      gaia_sources, log,
+                                                      stellar_density, rotate_wcs,
+                                                      stellar_density_threshold)
 
     gaia_sources.add_column( table.Column(name='x1', data=np.copy(gaia_sources['x'])) )
     gaia_sources.add_column( table.Column(name='y1', data=np.copy(gaia_sources['y'])) )
@@ -326,10 +342,15 @@ def phot_catalog_objects_in_reference_image(setup, header, fov, image_wcs, log):
 
 
 def update_catalog_image_coordinates(setup, image_wcs, gaia_sources,
-                                     log, filename, transform=None, radius=None):
+                                     log, filename,
+                                     stellar_density, rotate_wcs,
+                                     stellar_density_threshold,
+                                     transform=None, radius=None):
 
     gaia_sources = wcs.calc_image_coordinates_astropy(setup, image_wcs,
                                                       gaia_sources,log,
+                                                      stellar_density, rotate_wcs,
+                                                      stellar_density_threshold,
                                                       radius=radius)
 
     if transform != None:

@@ -298,5 +298,17 @@
         "value": 5,
 	"format":"int",
 	"unit":""
-    }
+  },
+    "star_density_thresh": {
+      "comment": "star_density_thresh - FLOAT - Density of stars in the image, used to determine WCS algorithm (Default value = 10.0).",
+      "value": 10.0,
+"format":"float",
+"unit":"stars/sq. deg."
+  },
+  "rotate_wcs": {
+    "comment": "rotate_wcs - INT - Switch to rotate image axis during WCS fit (Default value = 1 (true)).",
+    "value": 1,
+  "format":"int",
+  "unit":""
+  }
 }

@@ -419,6 +419,8 @@ def calc_image_coordinates(setup, image_path, catalog_sources,log):
     return catalog_sources
 
 def calc_image_coordinates_astropy(setup, image_wcs, catalog_sources,log,
+                                    stellar_density, rotate_wcs,
+                                    stellar_density_threshold,
                                     radius=None):
 
     log.info('Calculating the predicted image pixel positions for catalog stars')
@@ -436,14 +438,14 @@ def calc_image_coordinates_astropy(setup, image_wcs, catalog_sources,log,
     dpositions =  image_wcs.wcs_world2pix(np.array(positions),1)
 
     # Now apply the known image rotation, if required:
-    if radius is None:
-        density = utilities.stellar_density_wcs(catalog_sources,image_wcs)
-    else:
-        density = utilities.stellar_density(catalog_sources,radius)
+    #if radius is None:
+    #    density = utilities.stellar_density_wcs(catalog_sources,image_wcs)
+    #else:
+    #    density = utilities.stellar_density(catalog_sources,radius)
 
-    log.info('Calculated stellar density is '+str(density))
+    #log.info('Calculated stellar density is '+str(density))
 
-    if density<utilities.stellar_density_threshold():
+    if stellar_density < stellar_density_threshold:
 
         log.info('Since stellar density is low (< '+\
             str(utilities.stellar_density_threshold())+\
@@ -452,12 +454,12 @@ def calc_image_coordinates_astropy(setup, image_wcs, catalog_sources,log,
 
     else:
 
-        log.info('Since stellar density is high (> '+\
-            str(utilities.stellar_density_threshold())+\
-            '), assuming WCS needs rotating')
+        if rotate_wcs:
 
-        invert = True
-        if invert:
+            log.info('Since stellar density is high (> '+\
+                        str(utilities.stellar_density_threshold())+\
+                        '), and the image rotation flag is set to TRUE in the pipeline configuration, applying image rotation.')
+
             if image_wcs.wcs.cd[0,0] < 0:
 
                 log.info('Applying WCS CD transform parameters')
@@ -478,6 +480,11 @@ def calc_image_coordinates_astropy(setup, image_wcs, catalog_sources,log,
                 positions[:,1] += image_wcs.wcs.crpix[1]
 
         else:
+
+            log.info('The stellar density is high (> '+\
+                        str(utilities.stellar_density_threshold())+\
+                        '), but the image rotation flag is switched OFF in the pipeline configuration, so not applying image rotation.')
+
             positions = dpositions
 
     if 'x' in catalog_sources.colnames:
