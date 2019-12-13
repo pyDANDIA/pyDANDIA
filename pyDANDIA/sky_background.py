@@ -50,6 +50,8 @@ def model_sky_background(setup,reduction_metadata,log,ref_star_catalog,image_pat
     idx = list(set(idx1).intersection(set(idx2)))
     jdx = np.where(delta_bin_counts[idx] == delta_bin_counts[idx].max())
     bkgd_value = delta_bins[idx][jdx[0]]
+    if len(bkgd_value) > 1:
+        bkgd_value = [bkgd_value[0]]
     log.info('Floor of most frequent pixel value curve '+str(bkgd_value))
 
 

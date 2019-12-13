@@ -683,6 +683,10 @@ class ConstantBackground(BackgroundModel):
         self.background_parameters = collections.namedtuple(
             'parameters', self.model)
 
+        if type(parameters[0]) == type([]) and \
+            len(parameters[0]) > 0:
+            parameters = ( parameters[0] )
+
         for index, key in enumerate(self.model):
             setattr(self.background_parameters, key, parameters[index])
 
