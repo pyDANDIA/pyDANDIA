@@ -115,10 +115,10 @@ def load_masked_image(setup, reduction_metadata, log, image_path=None):
         image_path = str(reduction_metadata.data_architecture[1]['REF_PATH'][0]) +'/'+ str(reduction_metadata.data_architecture[1]['REF_IMAGE'][0])
     scidata = fits.getdata(image_path)
 
-    image_bpm = stage0.open_an_image(setup, path.join(setup.red_dir,'ref'),
+    image_bpm = stage0.open_an_image(setup, path.dirname(image_path),
                                path.basename(image_path), log,  image_index=2)
     if image_bpm == None:
-        image_bpm = open_an_image(setup, os.path.join(setup.red_dir,'ref'),
+        image_bpm = open_an_image(setup, path.dirname(image_path),
                                 path.basename(image_path),log,  image_index=1)
 
     scidata = scidata.data
