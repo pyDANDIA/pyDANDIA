@@ -16,7 +16,7 @@ from astropy.io import fits
 from scipy.signal import convolve2d
 from scipy.stats import skew, kurtosis
 from scipy.ndimage.filters import gaussian_filter
-from pyDANDIA.read_images_stage5 import open_reference, open_images, open_data_image
+from pyDANDIA.read_images_stage5 import open_reference, open_images, open_data_image,mask_the_image
 from pyDANDIA.stage0 import open_an_image
 from pyDANDIA.subtract_subimages import subtract_images, subtract_subimage
 from multiprocessing import Pool
@@ -30,6 +30,8 @@ from pyDANDIA import config_utils
 from pyDANDIA import metadata
 from pyDANDIA import logs
 from pyDANDIA import psf
+from pyDANDIA import stage4
+
 import matplotlib.pyplot as plt
 
 
@@ -463,7 +465,7 @@ def subtract_with_constant_kernel(new_images, reference_image_name, reference_im
             kernel_matrix, bkg_kernel, kernel_uncertainty = kernel_solution(umatrix, b_vector, kernel_size,
                                                                             circular=False)
             # res = so.minimize(fit_kernel,kernel_matrix.ravel(),args=(data_image,reference_image,bright_reference_mask))
-            # import pdb; pdb.set_trace()
+            
             pscale = np.sum(kernel_matrix)
             pscale_err = np.sum(kernel_uncertainty ** 2) ** 0.5
             np.save(os.path.join(kernel_directory_path, 'kernel_' + new_image + '.npy'), [kernel_matrix, bkg_kernel])
@@ -558,7 +560,7 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
 
             master_mask = fits.open(
                 os.path.join(reduction_metadata.data_architecture[1]['REF_PATH'][0], 'master_mask.fits'))
-            master_mask = master_mask[0].data > int(np.max(master_mask[0].data)*0.2)
+            master_mask = master_mask[0].data > 0
 
         except:
             master_mask = []
@@ -652,19 +654,26 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
         umatrix_grid = umatrices_grid[umatrix_index]
         kernel_size = kernel_size_array[umatrix_index]
         reference_image, bright_reference_mask, reference_image_unmasked, noise_image = reference_images[umatrix_index]
+     
+
         x_shift, y_shift = 0, 0
 
         log.info('Smoothing the data if the reference is not as sharp as a data image')
         smoothing = smoothing_2sharp_images(reduction_metadata, ref_fwhm_x, ref_fwhm_y, ref_sigma_x, ref_sigma_y,
                                             row_index)
 
+
+        image_directory = reduction_metadata.data_architecture[1]['IMAGES_PATH'][0]
+        data_image = fits.open(os.path.join(image_directory, new_image))[0].data
+
+        stamps_directory = os.path.join(data_image_directory, new_image)
+
+        warp_matrix =  np.load(os.path.join(stamps_directory, 'warp_matrice_image.npy'))
+        resample_image = stage4.warp_image(data_image,warp_matrix)
+
         try:
 
-            #data_image, data_image_unmasked = open_data_image(setup, data_image_directory, new_image,
-            #                                                  bright_reference_mask, kernel_size, max_adu,
-            #                                                  xshift=x_shift, yshift=y_shift, sigma_smooth=smoothing,
-            #                                                  central_crop=maxshift)
-
+           
 
             pscales = []
             pscales_err = []
@@ -674,7 +683,7 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
             kurtosises_quality = []
             skewes_quality = []
 
-            stamps_directory = os.path.join(data_image_directory, new_image)
+
 
             for stamp in list_of_stamps:
 
@@ -688,6 +697,10 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
                 ref = reference_image[kernel_size:-kernel_size, kernel_size:-kernel_size][ymin:ymax, xmin:xmax]
 
                 ref_unmasked = reference_image_unmasked[ymin:ymax, xmin:xmax]
+           
+
+                img = resample_image[ymin:ymax, xmin:xmax]
+
 
                 ref_extended = np.zeros((ref.shape[0]+2*kernel_size,ref.shape[1]+2*kernel_size))
                 ref_extended[kernel_size:-kernel_size, kernel_size:-kernel_size] = ref
@@ -704,10 +717,16 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
                 #img = fits.open(os.path.join(stamps_directory, 'resample__stamp_' + str(stamp) + '.fits'))[0].data
                 #img_unmasked = np.copy(img)
 
-                img, img_unmasked = open_data_image(setup,stamps_directory, 'resample_stamp_'+str(stamp)+'.fits',
-                                                              bal_mask_extended, kernel_size, max_adu,
-                                                              xshift=x_shift, yshift=y_shift, sigma_smooth=smoothing,
-                                                              central_crop=maxshift)
+                #img, img_unmasked = open_data_image(setup,stamps_directory, 'resample_stamp_'+str(stamp)+'.fits',
+                #                                              bal_mask_extended, kernel_size, max_adu,
+                #                                              xshift=x_shift, yshift=y_shift, sigma_smooth=smoothing,
+                #                                              central_crop=maxshift)
+
+                warp_matrix =  np.load(os.path.join(stamps_directory, 'warp_matrice_stamp_'+str(stamp)+'.npy'))
+                img = stage4.warp_image(img,warp_matrix)
+
+                data_image, data_image_unmasked = mask_the_image(img,max_adu,bal_mask_extended,kernel_size)
+
 
 
                 noisy = noise_image[kernel_size:-kernel_size, kernel_size:-kernel_size][ymin:ymax, xmin:xmax]
@@ -716,7 +735,7 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
 
 
                 umatrix = umatrix_grid[stamp_row]
-                b_vector = bvector_constant(ref_extended,img, kernel_size, noise)
+                b_vector = bvector_constant(ref_extended,data_image, kernel_size, noise)
 
                 kernel_matrix, bkg_kernel, kernel_uncertainty = kernel_solution(umatrix, b_vector, kernel_size,
                                                                             circular=False)
@@ -733,12 +752,12 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
                 hdu_kernel_err.writeto(os.path.join(kernel_directory, 'kernel_err_stamp_' + str(stamp) + '.fits'), overwrite=True)
                 # Particle data group formatting
                 pscale_formatted = round_unc(pscale, pscale_err)
-                difference_image = subtract_images(img_unmasked, ref_unmasked, kernel_matrix,
+                difference_image = subtract_images(data_image_unmasked, ref_unmasked, kernel_matrix,
                                                kernel_size, bkg_kernel)
 
                 # unmasked subtraction (for quality stats)
                 mean_sky, median_sky, std_sky = sigma_clipped_stats(ref_unmasked, sigma=5.0)
-                difference_image_um = subtract_images(img, ref_extended, kernel_matrix, kernel_size, bkg_kernel)
+                difference_image_um = subtract_images(data_image, ref_extended, kernel_matrix, kernel_size, bkg_kernel)
                 mask = ref_extended != 0
                 ngood = len(difference_image_um[mask])
                 kurtosis_quality = kurtosis(difference_image_um[mask])
@@ -756,6 +775,10 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
                 new_header['KURTOSIS'] = kurtosis_quality
                 new_header['SKEW'] = skew_quality
                 difference_image_hdu = fits.PrimaryHDU(difference_image, header=new_header)
+                try:
+                    os.mkdir(diffim_directory)
+                except:
+                    pass
                 difference_image_hdu.writeto(os.path.join(diffim_directory, 'diff_stamp_' + str(stamp) + '.fits'), overwrite=True)
 
                 pscales.append(pscale)

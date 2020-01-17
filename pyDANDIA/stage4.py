@@ -712,7 +712,7 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
 
             except:
 
-                model_final = tf.SimilarityTransform(translation=(x_shift, y_shift))
+                model_final = tf.SimilarityTransform(translation=(x_shift, y_shift)).params
                 print('Using XY shifts')
             try:
 
@@ -730,7 +730,6 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
                 print('Similarity Transform has failed to produce parameters')
 
             iteration += 1
-
 
         mask = np.abs(shifted_mask) < 10 ** -5
         shifted_mask[mask] = 0
@@ -767,28 +766,34 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
                 model_stamp, inliers = ransac((pts_reference[:5000, :2] , pts_data[:5000, :2] ),
                                            tf.AffineTransform, min_samples=min(50, int(0.1 * len(pts_data[:5000]))),
                                            residual_threshold=0.05, max_trials=1000)
-                shifted_stamp = tf.warp(img, inverse_map=model_stamp, output_shape=img.shape, order=5,
-                                  mode='constant', cval=0, clip=True, preserve_range=True)
-
-                shifted_stamp_mask = tf.warp(stamp_mask, inverse_map=model_stamp, output_shape=img.shape, order=1,
-                                        mode='constant', cval=1, clip=True, preserve_range=True)
-
-
+                
+                #save the warp matrices instead of images
+                np.save(os.path.join(resample_directory, 'warp_matrice_stamp_' + str(stamp) + '.npy'), model_stamp.params)
 
             except:
 
-                shifted_stamp = img
+               model_stamp = tf.SimilarityTransform(translation=(0,0))
+               np.save(os.path.join(resample_directory, 'warp_matrice_stamp_' + str(stamp) + '.npy'), model_stamp.params)
 
-            #master_mask[stamp_mask] += shifted_stamp_mask
-            resampled_stamp_hdu = fits.PrimaryHDU([shifted_stamp,shifted_mask[ymin:ymax, xmin:xmax]])
-            resampled_stamp_hdu.writeto(os.path.join(resample_directory, 'resample_stamp_' + str(stamp) + '.fits')
-                                            , overwrite=True)
-        resampled_image_hdu = fits.PrimaryHDU([shifted,shifted_mask])
-        resampled_image_hdu.writeto(os.path.join(resample_directory, new_image), overwrite=True)
+
+
+            
+        #save the warp matrices instead of images
+        np.save(os.path.join(resample_directory, 'warp_matrice_image.npy'), model_final)
         data_image_hdu.close()
 
     master_mask_hdu = fits.PrimaryHDU(master_mask)
     master_mask_hdu.writeto(os.path.join(reference_image_directory, 'master_mask.fits'), overwrite=True)
+
+
+
+
+def warp_image(image_to_warp,warp_matrix):
+
+    warp_image = tf.warp(image_to_warp, inverse_map=warp_matrix, output_shape=image_to_warp.shape, order=5,
+                                  mode='constant', cval=0, clip=True, preserve_range=True)
+
+    return warp_image
 
 def reformat_catalog(idx_match, dist2d, ref_sources, data_sources, central_region_x, distance_threshold=1.5,
                      max_points=2000):

@@ -163,14 +163,23 @@ def open_data_image(setup, data_image_directory, data_image_name, reference_mask
     if subset != None and data_image1 != None:
         data_image = fits.HDUList(fits.PrimaryHDU(data_image1[data_extension].data[subset[0]:subset[1],subset[2]:subset[3]]))
 
-    data_image = np.copy(data_image[data_extension].data[0])
+    data_image = np.copy(data_image[data_extension].data)
     data_image_unmasked = np.copy(data_image)
     if sigma_smooth > 0:
-        data_image = gaussian_filter(data_image, sigma=sigma_smooth)
+        data_image = gaussian_filter(data_image, sigma=sigma_smooth) 
 
+
+
+    data_extended, data_image_unmasked = mask_the_image(data_image,max_adu,reference_mask,kernel_size)
+
+
+    return data_extended, data_image_unmasked
+
+
+def mask_the_image(data_image,max_adu,reference_mask,kernel_size):
+    
     data_image,data_mask = cosmicray_lacosmic(data_image,sigclip=7, objlim = 7., satlevel = max_adu)
-    #bkg_image = background_mesh_perc(data_image, master_mask =  reference_mask[kernel_size:-kernel_size,kernel_size:-kernel_size])
-    #bkg_image = np.median(data_image[~reference_mask[kernel_size:-kernel_size,kernel_size:-kernel_size]])
+   
     bkg_image = background_fit(data_image, master_mask = reference_mask[kernel_size:-kernel_size,kernel_size:-kernel_size])
 
     data_image = data_image-bkg_image #- background_mesh_perc(data_image[data_extension].data,master_mask = reference_mask[kernel_size:-kernel_size,kernel_size:-kernel_size])
@@ -183,12 +192,6 @@ def open_data_image(setup, data_image_directory, data_image_name, reference_mask
     data_extended = np.zeros((np.shape(data_image)[0] + 2 * kernel_size, np.shape(data_image)[1] + 2 * kernel_size))
     data_extended[kernel_size:-kernel_size, kernel_size:-
                  kernel_size] = np.array(data_image, float)
-    
-
-
-
-
-
 
     return data_extended, data_image_unmasked
 
