@@ -479,6 +479,12 @@ def calc_image_coordinates_astropy(setup, image_wcs, catalog_sources,log,
                 positions[:,0] += image_wcs.wcs.crpix[0]
                 positions[:,1] += image_wcs.wcs.crpix[1]
 
+            else:
+
+                log.info('The image WCS parameters suggest this image has already been rotated appropriately, so NO futher rotation will be made')
+
+                positions = dpositions
+                
         else:
 
             log.info('The stellar density is high (> '+\
