@@ -51,7 +51,7 @@ def run_stage5(setup):
     try:
         from umatrix_routine import umatrix_construction, umatrix_bvector_construction, bvector_construction
         from umatrix_routine import umatrix_construction_nobkg, bvector_construction_nobkg
-        from umatrix_routine import umatrix_construction_clean, bvector_construction_clean
+        #from umatrix_routine import umatrix_construction_clean, bvector_construction_clean
 
     except ImportError:
         log.info('Uncompiled cython code, please run setup.py: e.g.\n python setup.py build_ext --inplace')
