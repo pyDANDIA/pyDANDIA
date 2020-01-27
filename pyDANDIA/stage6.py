@@ -846,41 +846,42 @@ def commit_stamp_photometry_matching(conn, params, reduction_metadata,
     log.info('Building database entries array')
 
     for i in range(0, len(phot_table), 1):
-        try:
-            star_id = int(float(phot_table[i]['star_id']))-1
+        #try:
+        star_id = int(float(phot_table[i]['star_id']))-1
 
-            j_cat = matched_stars.cat1_index[star_id]  # Starlist index in DB
-            j_new = matched_stars.cat2_index[star_id]  # Star detected in image
+        j_cat = matched_stars.cat1_index[star_id]  # Starlist index in DB
+        j_new = matched_stars.cat2_index[star_id]  # Star detected in image
 
-            x = str(phot_table['residual_x'][i])
-            y = str(phot_table['residual_y'][i])
-            radius = str(phot_table['radius'][i])
-            mag = str(phot_table['magnitude'][i])
-            mag_err = str(phot_table['magnitude_err'][i])
-            cal_mag = str(phot_table['cal_magnitude'][i])
-            cal_mag_err = str(phot_table['cal_magnitude_err'][i])
-            flux = str(phot_table['flux'][i])
-            flux_err = str(phot_table['flux_err'][i])
-            cal_flux = str(phot_table['cal_flux'][i])
-            cal_flux_err = str(phot_table['cal_flux_err'][i])
-            ps = str(phot_table['phot_scale_factor'][i])
-            ps_err = str(phot_table['phot_scale_factor_err'][i])
-            bkgd = str(phot_table['local_background'][i])
-            bkgd_err = str(phot_table['local_background_err'][i])
+        x = str(phot_table['residual_x'][i])
+        y = str(phot_table['residual_y'][i])
+        radius = str(phot_table['radius'][i])
+        mag = str(phot_table['magnitude'][i])
+        mag_err = str(phot_table['magnitude_err'][i])
+        cal_mag = str(phot_table['cal_magnitude'][i])
+        cal_mag_err = str(phot_table['cal_magnitude_err'][i])
+        flux = str(phot_table['flux'][i])
+        flux_err = str(phot_table['flux_err'][i])
+        cal_flux = str(phot_table['cal_flux'][i])
+        cal_flux_err = str(phot_table['cal_flux_err'][i])
+        ps = str(phot_table['phot_scale_factor'][i])
+        ps_err = str(phot_table['phot_scale_factor_err'][i])
+        bkgd = str(phot_table['local_background'][i])
+        bkgd_err = str(phot_table['local_background_err'][i])
 
-            entry = (str(int(j_cat)), str(refimage['refimg_id'][0]), str(image['img_id'][0]),str(stamp['stamp_id'][0]),
-                     str(facility['facility_id'][0]), str(f['filter_id'][0]), str(code['code_id'][0]),
-                     x, y, str(params['hjd']), radius,
-                     mag, mag_err, cal_mag, cal_mag_err,
-                     flux, flux_err, cal_flux, cal_flux_err,
-                     ps, ps_err,  # No phot scale factor for PSF fitting photometry
-                     bkgd, bkgd_err,  # No background measurements propageted
-                     'DIA')
+        entry = (str(int(j_cat)), str(refimage['refimg_id'][0]), str(image['img_id'][0]),str(stamp['stamp_id'][0]),
+                 str(facility['facility_id'][0]), str(f['filter_id'][0]), str(code['code_id'][0]),
+                 x, y, str(params['hjd']), radius,
+                 mag, mag_err, cal_mag, cal_mag_err,
+                 flux, flux_err, cal_flux, cal_flux_err,
+                 ps, ps_err,  # No phot scale factor for PSF fitting photometry
+                 bkgd, bkgd_err,  # No background measurements propageted
+                 'DIA')
 
-            entries.append(entry)
-        except:
-            import pdb;
-            pdb.set_trace()
+        entries.append(entry)
+        #except:
+        #    import pdb;
+        #    pdb.set_trace()
+        
     if len(entries) > 0:
 
         log.info('Ingesting data to phot_db')
