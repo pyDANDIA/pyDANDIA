@@ -29,9 +29,14 @@ from skimage.transform import AffineTransform
 
 VERSION = 'pyDANDIA_reference_astrometry_v0.1'
 
-def run_reference_astrometry(setup):
+def run_reference_astrometry(setup, force_rotate_ref=False):
     """Driver function to perform the object detection and astrometric analysis
-    of the reference frame from a given dataset"""
+    of the reference frame from a given dataset.
+
+    The optional flag force_rotate_ref allows an override of the default
+    pipeline configuration, in the event that the reference image for a specific
+    dataset requires it.
+    """
 
     log = logs.start_stage_log( setup.red_dir, 'reference_astrometry', version=VERSION )
 
@@ -81,7 +86,7 @@ def run_reference_astrometry(setup):
         gaia_sources = catalog_objects_in_reference_image(setup, header,
                                                           image_wcs, log,
                                                           stellar_density,
-                                                          rotate_wcs,
+                                                          rotate_wcs, force_rotate_ref,
                                                           stellar_density_threshold)
 
         vphas_sources = phot_catalog_objects_in_reference_image(setup, header, fov,
@@ -166,7 +171,7 @@ def run_reference_astrometry(setup):
                 bright_central_gaia_stars = update_catalog_image_coordinates(setup, image_wcs,
                                                             bright_central_gaia_stars, log,
                                                             'catalog_stars_bright_revised_'+str(it)+'.reg',
-                                                            stellar_density, rotate_wcs,
+                                                            stellar_density, rotate_wcs, force_rotate_ref,
                                                             stellar_density_threshold,
                                                             transform=transform, radius=selection_radius)
 
@@ -182,7 +187,7 @@ def run_reference_astrometry(setup):
 
         gaia_sources = update_catalog_image_coordinates(setup, image_wcs,
                                                         gaia_sources, log, 'catalog_stars_full_revised_'+str(it)+'.reg',
-                                                        stellar_density, rotate_wcs,
+                                                        stellar_density, rotate_wcs, force_rotate_ref,
                                                         stellar_density_threshold,
                                                         transform=transform, radius=None)
 
@@ -269,6 +274,7 @@ def detect_objects_in_reference_image(setup, reduction_metadata, meta_pars,
 
 def catalog_objects_in_reference_image(setup, header, image_wcs, log,
                                         stellar_density, rotate_wcs,
+                                        force_rotate_ref,
                                         stellar_density_threshold):
 
     field = header['OBJECT']
@@ -278,7 +284,8 @@ def catalog_objects_in_reference_image(setup, header, image_wcs, log,
 
     gaia_sources = wcs.calc_image_coordinates_astropy(setup, image_wcs,
                                                       gaia_sources, log,
-                                                      stellar_density, rotate_wcs,
+                                                      stellar_density,
+                                                      rotate_wcs, force_rotate_ref,
                                                       stellar_density_threshold)
 
     gaia_sources.add_column( table.Column(name='x1', data=np.copy(gaia_sources['x'])) )
@@ -343,13 +350,14 @@ def phot_catalog_objects_in_reference_image(setup, header, fov, image_wcs, log):
 
 def update_catalog_image_coordinates(setup, image_wcs, gaia_sources,
                                      log, filename,
-                                     stellar_density, rotate_wcs,
+                                     stellar_density, rotate_wcs, force_rotate_ref,
                                      stellar_density_threshold,
                                      transform=None, radius=None):
 
     gaia_sources = wcs.calc_image_coordinates_astropy(setup, image_wcs,
                                                       gaia_sources,log,
-                                                      stellar_density, rotate_wcs,
+                                                      stellar_density,
+                                                      rotate_wcs, force_rotate_ref,
                                                       stellar_density_threshold,
                                                       radius=radius)
 

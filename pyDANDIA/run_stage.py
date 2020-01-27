@@ -63,8 +63,12 @@ def run_stage_stand_alone():
 
     elif params['stage'] == 'reference_astrometry':
 
-        (status, report) = reference_astrometry.run_reference_astrometry(setup)
-
+        if params['rotate_ref']:
+            (status, report) = reference_astrometry.run_reference_astrometry(setup,
+                                                    force_rotate_ref=True)
+        else:
+            (status, report) = reference_astrometry.run_reference_astrometry(setup)
+            
     elif params['stage'] == 'stage3':
 
         (status, report) = stage3.run_stage3(setup)
@@ -93,7 +97,7 @@ def run_stage_stand_alone():
     elif params['stage'] == 'image_coadd':
 
         (status, report) = image_coadd.run_coadd(setup)
-        
+
     else:
 
         print('ERROR: Unsupported stage name given')
@@ -150,37 +154,30 @@ def get_args():
         params['db_file_path'] = argv[3]
 
 
-
     if '-primary-ref' in argv or '-primary_ref' in argv:
-
         params['primary_ref'] = True
-
     else:
-
         params['primary_ref'] = False
 
     if '-empirical-ref' in argv or '-empirical_ref' in argv:
-
         params['empirical_ref'] = True
-
     else:
-
         params['empirical_ref'] = False
 
     if '-stack_ref' in argv or '-stack-ref' in argv:
-
         params['stack_ref'] = 10
-
     else:
         params['stack_ref'] = 1
 
     if '-v' in argv:
-
         idx = argv.index('-v')
-
         if len(argv) >= idx + 1:
-
             params['verbosity'] = int(argv[idx+1])
+
+    if '-force-ref-rotation' in argv:
+        params['rotate_ref'] = True
+    else:
+        params['rotate_ref'] = False
 
     if str(params['db_file_path']).split('.')[-1] != 'db':
         raise ValueError(params['db_file_path']+' does not end in .db.  Is this a database file path?')
