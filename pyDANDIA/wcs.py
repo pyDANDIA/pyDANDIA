@@ -434,7 +434,8 @@ def calc_image_coordinates_astropy(setup, image_wcs, catalog_sources,log,
                                      frame='icrs', unit=(units.deg, units.deg))
 
         positions.append([s.ra.deg, s.dec.deg])
-
+        
+    positions = np.array(positions)
     dpositions =  image_wcs.wcs_world2pix(np.array(positions),1)
 
     # Now apply the known image rotation, if required:
