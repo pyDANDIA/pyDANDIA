@@ -24,7 +24,7 @@ import matplotlib.pyplot as plt
 
 VERSION = 'calibrate_photometry_0.3'
 
-def calibrate_photometry_catalog(setup, cl_params=None):
+def calibrate_photometry_catalog(setup, cl_params={}):
     """Function to calculate the photometric transform between the instrumental
     magnitudes produced by the pyDANDIA pipeline and catalog data."""
 
@@ -43,7 +43,7 @@ def calibrate_photometry_catalog(setup, cl_params=None):
 
     return status, report
 
-def calibrate_photometry(setup, reduction_metadata, log, cl_params=None):
+def calibrate_photometry(setup, reduction_metadata, log, cl_params={}):
     """Function to perform a photometric calibration where the cross-matching
     with the VPHAS catalog has already been performed"""
 
@@ -117,14 +117,13 @@ def assign_parameters(setup,cl_params,log):
                'metadata': os.path.join(setup.red_dir,'pyDANDIA_metadata.fits'),
                'log_dir': setup.log_dir }
 
-    if cl_params != None:
-        for key, value in cl_params.items():
-            params[key] = value
+    for key, value in cl_params.items():
+        params[key] = value
 
     log.info('Configured parameters:')
     for key, value in cl_params.items():
         log.info(key+': '+str(value))
-        
+
     return params
 
 def fetch_metadata(setup,params,log):
