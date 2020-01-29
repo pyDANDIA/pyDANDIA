@@ -36,6 +36,8 @@ def extract_star_lightcurves_on_position(params):
 
         star_idx = np.where(results['separation'] == results['separation'].min())
 
+        print('Identifed nearest star as '+str(results['star_id'][star_idx][0]))
+        
         query = 'SELECT filter, facility, hjd, calibrated_mag, calibrated_mag_err FROM phot WHERE star_id="'+str(results['star_id'][star_idx][0])+\
                     '" AND software="'+str(code_id)+'"'
 
@@ -95,7 +97,7 @@ def identify_unique_datasets(phot_table,facilities,filters):
         datasets[dataset_code] =  setlist
 
     print('Found '+str(len(datasets))+' lightcurve datasets')
-    
+
     return datasets
 
 if __name__ == '__main__':
