@@ -85,6 +85,9 @@ def extract_reference_instrument_calibrated_photometry(conn,log):
 
     query = 'SELECT facility_id, facility_code FROM facilities WHERE facility_code="'+facility_code+'"'
     t = phot_db.query_to_astropy_table(conn, query, args=())
+    if len(t) == 0:
+        raise IOError('No photometry for primary reference facility '+facility_code+' found in phot_db')
+        
     facility_id = t['facility_id'][0]
 
     stars = phot_db.fetch_stars_table(conn)
