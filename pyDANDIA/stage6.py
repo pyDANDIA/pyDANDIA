@@ -537,6 +537,7 @@ def find_the_associated_kernel_stamp(setup, kernels_directory, image_name, stamp
 
     except FileNotFoundError:
         log.info('WARNING: No kernel found for stamp '+kernel_name+', skipping.')
+        log.info('Looked for '+os.path.join(kernel_directory, kernel_name)+' and '+os.path.join(kernel_directory, kernel_err))
 
         return None, None, None
 
