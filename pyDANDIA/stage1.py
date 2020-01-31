@@ -20,21 +20,22 @@ from pyDANDIA import  metadata
 from pyDANDIA import  logs
 from pyDANDIA import  quality_control
 from pyDANDIA import  psf
+from astropy.io import fits
 
 def run_stage1(setup, rerun_all=None):
     """
-    Main driver function to run stage 1 of pyDANDIA: measurement of image 
-    properties. This stage populates the metadata with the FWHM, sky 
+    Main driver function to run stage 1 of pyDANDIA: measurement of image
+    properties. This stage populates the metadata with the FWHM, sky
     background, correlation coefficient, number of stars detected and fraction
 	of saturated pixels for each image. Updates the 'images_stats' layer in the
     metadata file.
 
     :param object setup: this is an instance of the ReductionSetup class. See
                          reduction_control.py
-    :param boolean rerun_all: Do you want stage1 to rerun on all images? 
+    :param boolean rerun_all: Do you want stage1 to rerun on all images?
                              [True/False]
 
-    :return status, report: two strings reporting whether the stage was 
+    :return status, report: two strings reporting whether the stage was
                             completed successfully
     :rtype string, string
     """
@@ -96,23 +97,34 @@ def run_stage1(setup, rerun_all=None):
     log.info('Running starfind on all images')
 
     # For the set of given images, set the metadata information
+    image_red_status = []
 
     for im in full_path_to_images:
+
+        image_header = fits.getheader(im)
+
         (status, report, params) = starfind.starfind(setup, im, reduction_metadata,
                                                      plot_it=False, log=log)
 
         params['fwhm'] = psf.calc_fwhm_from_psf_sigma(params['sigma_x'],
                                                       params['sigma_y'])
-        
+
         # The name of the image
 
         imname = im.split('/')[-1]
-       
+
 
         logs.ifverbose(log, setup, 'Processing image %s' % imname)
 
-        (use_phot,use_ref,report) = quality_control.assess_image(reduction_metadata, params, log)
-        
+        (use_phot,use_ref,use_image,report) = quality_control.assess_image(reduction_metadata,
+                                                                 params,
+                                                                 image_header,
+                                                                 log)
+        if use_image:
+            image_red_status.append(1)
+        else:
+            image_red_status.append(-1)
+            
         # Add a new row to the images_stats layer
         # (if it doesn't already exist)
 
@@ -131,8 +143,8 @@ def run_stage1(setup, rerun_all=None):
 
     # Update the REDUCTION_STATUS table in metadata for stage 1
 
-    reduction_metadata.update_reduction_metadata_reduction_status(images,
-                                                                  stage_number=1, status=1, log=log)
+    reduction_metadata.update_reduction_metadata_reduction_status_list(images, image_red_status,
+                                                                  stage_number=1, log=log)
 
     # Save updated metadata
 
@@ -141,8 +153,8 @@ def run_stage1(setup, rerun_all=None):
                                              log=log)
 
     (status,report) = quality_control.verify_stage1_output(setup,log)
-    
-    
+
+
     logs.close_log(log)
-    
+
     return status, report

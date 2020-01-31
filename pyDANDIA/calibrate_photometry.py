@@ -250,6 +250,10 @@ def select_calibration_stars(star_catalog,params,log):
 
         max_err = 2.0 * med
 
+        if 'cat_merr_max' in params.keys():
+            if params['cat_merr_max'] > max_err:
+                max_err = params['cat_merr_max']
+        
         log.info('Median photometric uncertainty ('+f+'-band) of catalog stars: '+str(med))
         log.info('Excluding catalog stars ('+f+'-band) with uncertainty > '+str(max_err))
 

@@ -90,6 +90,7 @@ def run_stage2(setup, empirical_ranking=False, n_stack = 1):
     ]
 
     all_images = reduction_metadata.find_all_images(setup, reduction_metadata, os.path.join(setup.red_dir, 'data'), log=log)
+    image_red_status = reduction_metadata.fetch_image_status(2)
 
     reduction_metadata.create_a_new_layer(layer_name='reference_inventory',
                                           data_structure=table_structure,
@@ -117,7 +118,7 @@ def run_stage2(setup, empirical_ranking=False, n_stack = 1):
     empirical_psf_flag = False
 
     if empirical_psf_flag == True:
-    
+
         for stats_entry in reduction_metadata.images_stats[1]:
             if stats_entry[9] == 1:
                 image_filename = stats_entry[0]
@@ -126,9 +127,9 @@ def run_stage2(setup, empirical_ranking=False, n_stack = 1):
                 # to be reactivated as soon as it is part of metadata
                 if 'MOONFKEY' in reduction_metadata.headers_summary[1].keys() and 'MOONDKEY' in reduction_metadata.headers_summary[1].keys():
                     moon_status = moon_brightness_header(reduction_metadata.headers_summary[1],row_idx)
-    
-                fwhm_arcsec = float(stats_entry['FWHM']) * float(reduction_metadata.reduction_parameters[1]['PIX_SCALE']) 
-                
+
+                fwhm_arcsec = float(stats_entry['FWHM']) * float(reduction_metadata.reduction_parameters[1]['PIX_SCALE'])
+
                 # extract data inventory row for image and calculate sorting key
                 # if a sufficient number of stars has been detected at s1 (40)
                 if int(stats_entry['NSTARS'])>34 and fwhm_arcsec<3. and (not 'bright' in moon_status):
@@ -149,9 +150,9 @@ def run_stage2(setup, empirical_ranking=False, n_stack = 1):
                 # to be reactivated as soon as it is part of metadata
                 if 'MOONFKEY' in reduction_metadata.headers_summary[1].keys() and 'MOONDKEY' in reduction_metadata.headers_summary[1].keys():
                     moon_status = moon_brightness_header(reduction_metadata.headers_summary[1],row_idx)
-    
-                fwhm_arcsec = float(stats_entry['FWHM']) * float(reduction_metadata.reduction_parameters[1]['PIX_SCALE']) 
-                
+
+                fwhm_arcsec = float(stats_entry['FWHM']) * float(reduction_metadata.reduction_parameters[1]['PIX_SCALE'])
+
                 # extract data inventory row for image and calculate sorting key
                 # if a sufficient number of stars has been detected at s1 (40)
                 if int(stats_entry['NSTARS'])>34 and fwhm_arcsec<3. and (not 'bright' in moon_status):
@@ -169,7 +170,7 @@ def run_stage2(setup, empirical_ranking=False, n_stack = 1):
                 image_filename = stats_entry[0]
                 row_idx = np.where(reduction_metadata.images_stats[1]['IM_NAME'] == image_filename)[0][0]
                 moon_status = 'dark'
-          
+
                 # extract data inventory row for image and calculate sorting key
                 fwhm_value = float(stats_entry['FWHM'])
                 data_directory_path = os.path.join(setup.red_dir, 'data')
@@ -205,7 +206,7 @@ def run_stage2(setup, empirical_ranking=False, n_stack = 1):
             copyfile(reduction_metadata.data_architecture[1]['IMAGES_PATH'][0]+'/'+best_image[0],ref_directory_path+'/'+best_image[0])
         except:
             print('copy ref failed: ',best_image[0])
-            
+
         if not 'REF_PATH' in reduction_metadata.data_architecture[1].keys():
             reduction_metadata.add_column_to_layer('data_architecture',
                                                    'REF_PATH', [ref_directory_path],
@@ -222,10 +223,12 @@ def run_stage2(setup, empirical_ranking=False, n_stack = 1):
             reduction_metadata.update_a_cell_to_layer('data_architecture', 0,'REF_IMAGE', os.path.basename(ref_img_path))
         # Update the REDUCTION_STATUS table in metadata for stage 2
 
-        reduction_metadata.calc_psf_radii()       
-        
-        reduction_metadata.update_reduction_metadata_reduction_status(all_images,
-                                                          stage_number=1, status=1, log=log)
+        reduction_metadata.calc_psf_radii()
+
+        image_red_status = metadata.set_image_red_status(image_red_status,'1')
+
+        reduction_metadata.update_reduction_metadata_reduction_status_list(all_images, image_red_status,
+                                                          stage_number=2, log=log)
         reduction_metadata.save_updated_metadata(metadata_directory=setup.red_dir,
                                                  metadata_name='pyDANDIA_metadata.fits')
 
@@ -236,7 +239,7 @@ def run_stage2(setup, empirical_ranking=False, n_stack = 1):
         logs.close_log(log)
 
 
-        return status, report  
+        return status, report
 
     if reference_ranking != [] and n_stack > 1 :
         best_image = sorted(reference_ranking, key=itemgetter(1))[-1]
@@ -274,8 +277,8 @@ def run_stage2(setup, empirical_ranking=False, n_stack = 1):
         ref_hdu.writeto(os.path.join(reduction_metadata.data_architecture[1]['IMAGES_PATH'][0],'ref.fits'),overwrite = True)
         ref_hdu.writeto(os.path.join(ref_directory_path,'ref.fits'),overwrite = True)
         ref_hdu.close()
-        
-        
+
+
         if not 'REF_PATH' in reduction_metadata.data_architecture[1].keys():
             reduction_metadata.add_column_to_layer('data_architecture',
                                                'REF_PATH', [ref_directory_path],
@@ -288,28 +291,31 @@ def run_stage2(setup, empirical_ranking=False, n_stack = 1):
             reduction_metadata.add_column_to_layer('data_architecture',
                                                'REF_IMAGE', ['ref.fits'],
                                                 new_column_format=None,
-                                               new_column_unit=None)      
+                                               new_column_unit=None)
         else:
             reduction_metadata.update_a_cell_to_layer('data_architecture', 0,'REF_IMAGE', 'ref.fits')
         # Update the REDUCTION_STATUS table in metadata for stage 2
 
-        
+
         reduction_metadata.calc_psf_radii()
-        
-        reduction_metadata.update_reduction_metadata_reduction_status(all_images,
-                                                          stage_number=1, status=1, log=log)
+
+
+        image_red_status = metadata.set_image_red_status(image_red_status,'1')
+
+        reduction_metadata.update_reduction_metadata_reduction_status_list(all_images, image_red_status,
+                                                          stage_number=2, log=log)
         reduction_metadata.save_updated_metadata(metadata_directory=setup.red_dir,
-                                                 metadata_name='pyDANDIA_metadata.fits')     
+                                                 metadata_name='pyDANDIA_metadata.fits')
 
         #tbd: update status of the coadded image
-        
+
 
         status = 'OK'
         report = 'Completed successfully'
         log.info('Updating metadata with info on new images...')
         logs.close_log(log)
 
-        
+
         (status_s0, report_s0, reduction_metadata_s0) = stage0.run_stage0(setup)
         print(status_s0, report_s0)
         (status_s1, report_s1) = stage1.run_stage1(setup)
@@ -326,8 +332,6 @@ def run_stage2(setup, empirical_ranking=False, n_stack = 1):
 
         return status, report
 
-
-
 def find_shift(reference_image, target_image):
     """
     Using a reference image and a target image
@@ -341,7 +345,7 @@ def find_shift(reference_image, target_image):
     x_shift, y_shift = np.unravel_index(np.argmax(correlation), correlation.shape)
     good_shift_y = y_shift - y_center
     good_shift_x = x_shift - x_center
-    return good_shift_y, good_shift_x      
+    return good_shift_y, good_shift_x
 
 def moon_brightness_header(header,row_idx):
     """
@@ -403,7 +407,7 @@ def add_stage1_rank_sharpest(reduction_metadata, image_stats_entry):
     header_idx = list(reduction_metadata.headers_summary[1]['IMAGES']).index(
         image_stats_entry['IM_NAME'])
     fwhm_avg = float(image_stats_entry['FWHM'])
-    
+
     return 1./fwhm_avg
 
 def electrons_per_second_sinistro(mag, magzero_electrons):
@@ -419,6 +423,6 @@ def electrons_per_second_sinistro(mag, magzero_electrons):
 def check_header_thresholds(moon_status, stage1_entry):
     """
     Check for images that cannot be used as reference image
-    however small the FWHM was. 
+    however small the FWHM was.
     """
     criteria = [moon_brightness_header != 'bright']
