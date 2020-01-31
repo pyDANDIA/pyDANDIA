@@ -42,8 +42,6 @@ from pyDANDIA import metadata
 from pyDANDIA import logs
 from pyDANDIA import convolution
 from pyDANDIA import psf
-from pystackreg import StackReg
-import astroalign
 from skimage.feature import register_translation
 
 from skimage.feature import (ORB, match_descriptors,
@@ -65,11 +63,11 @@ def polyfit2d(x, y, z, order=3,errors=None):
     for j in range(order+1):
         for i in range(j+1):
             G[:,k] = x**(j-i) * y**i
-            k+=1 
+            k+=1
 
     if errors is not None:
         G *= 1/errors[:,np.newaxis]
-        Z = z*1/errors  
+        Z = z*1/errors
     else:
         Z=z
     m, _, _, _ = np.linalg.lstsq(G, Z)
@@ -167,7 +165,7 @@ def run_stage4(setup):
 
         if ('SHIFT_X' in reduction_metadata.images_stats[1].keys()) and (
                 'SHIFT_Y' in reduction_metadata.images_stats[1].keys()):
-           
+
             for index in range(len(data)):
                 target_image = data[index][0]
                 x_shift = data[index][1]
@@ -296,7 +294,7 @@ def find_x_y_shifts_from_the_reference_image(setup, reference_image, target_imag
     reduce_template = reference_image
     from skimage.feature import register_translation
     shifts, errors, phasediff = register_translation(reduce_template, reduce_image, 10)
-   
+
     x_shift = shifts[1]
     y_shift = shifts[0]
 
@@ -543,7 +541,7 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
 
         iteration = 0
         corr_ini = np.corrcoef(reference_image.ravel(), shifted.ravel())[0, 1]
-        
+
         while iteration < 1:
 
 
@@ -582,7 +580,7 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
                 model_final = tf.SimilarityTransform(translation=(-x_shift, -y_shift))
                 print('Using XY shifts')
             try:
-               
+
 
                 model_params = np.dot(original_matrix,model_robust.params)
                 model_final = model_robust
@@ -594,18 +592,18 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
                 #                 mode='constant', cval=np.median(data_image), clip=False, preserve_range=False)
                 #shifted_mask = tf.warp(mask_image,inverse_map=model_final.inverse, output_shape=data_image.shape, order=3,
                 #                 mode='constant', cval=1, clip=False, preserve_range=False)
-                #import astroalign as aa
+                #import astroalign as aa - REMOVED
                 #model_final, (s_list, t_list) = aa.find_transform(reference_image,data_image)
-                
+
                 #res = so.minimize(quick_pos_fit2,model_final.params.ravel(), args = ( reference_image, data_image, mask_image, model_final),method='Powell')
-                #model_final.params = res['x'].reshape(3,3) 
+                #model_final.params = res['x'].reshape(3,3)
                 #model_final.params[0,2] = model_final.params[0,2] + (model_final.params[0,0]+model_final.params[0,1])*center
                 #model_final.params[1,2] = model_final.params[1,2] + (model_final.params[1,0]+model_final.params[1,1])*center
                 shifted = tf.warp(data_image, inverse_map=model_final, output_shape=data_image.shape, order=1,
                                  mode='constant', cval=0, clip=True, preserve_range=True)
                 shifted_mask = tf.warp(mask_image,inverse_map=model_final, output_shape=data_image.shape, order=1,
                                  mode='constant', cval=1, clip=False, preserve_range=False)
-               
+
                 #shifted = manual_transformation(model_final.params,[center,center], data_image)
                 #shifted_mask = manual_transformation(model_final.params,[center,center], mask_image)
                 corr = np.corrcoef(reference_image[~shifted_mask.astype(bool)],shifted[~shifted_mask.astype(bool)])[0,1]
@@ -619,7 +617,7 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
             #print(iteration,len(pts_data[inliers]),corr_ini,corr)
 
             iteration += 1
-        #import astroalign as aa
+        #import astroalign as aa - REMOVED
         #aligned_image, footprint = aa.register(data_image, reference_image)
         #transf, (s_list, t_list) = aa.find_transform(data_image, reference_image)
         #corr2 = np.corrcoef(reference_image[~shifted_mask.astype(bool)],aligned_image[~shifted_mask.astype(bool)])[0,1]
@@ -627,7 +625,7 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
         #shifted = ird.similarity(reference_image,data_image, numiter=3)['timg']
         #shifted[shifted_mask.astype(bool)]=0
        #res = so.minimize(quick_pos_fit2,model_final.params.ravel(), args = ( reference_image, data_image, mask_image, model_final),method='Powell')
-     
+
         mask = np.abs(shifted_mask)<10**-5
         shifted_mask[mask] = 0
         master_mask += shifted_mask
@@ -766,7 +764,7 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
                 model_stamp, inliers = ransac((pts_reference[:5000, :2] , pts_data[:5000, :2] ),
                                            tf.AffineTransform, min_samples=min(50, int(0.1 * len(pts_data[:5000]))),
                                            residual_threshold=0.05, max_trials=1000)
-                
+
                 #save the warp matrices instead of images
                 np.save(os.path.join(resample_directory, 'warp_matrice_stamp_' + str(stamp) + '.npy'), model_stamp.params)
 
@@ -777,7 +775,7 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
 
 
 
-            
+
         #save the warp matrices instead of images
         np.save(os.path.join(resample_directory, 'warp_matrice_image.npy'), model_final)
         data_image_hdu.close()
@@ -872,7 +870,7 @@ def manual_transformation(matrix, center, data_image):
      [scale_x * np.sin(rot), scale_y * np.cos(rot + shear), -center[1]],
      [0, 0, 1]])
 
-   
+
     good_matrix[0:2, 2] = translation
     ##matrix_center = np.array([
     ## [1,0,center[0]],
@@ -884,5 +882,5 @@ def manual_transformation(matrix, center, data_image):
     # i#mport matplotlib.pyplot as plt
     # plt.imshow(rr)
     # plt.show()
-  
+
     return model
