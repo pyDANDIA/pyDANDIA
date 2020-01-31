@@ -97,9 +97,11 @@ def get_args():
         params['log_dir'] = input('Please enter the path to the log directory: ')
         params['det_mags_max'] = input('Please enter the faintest instrumental magnitude bin to use in calibration (or none to accept the defaults): ')
         params['det_mags_min'] = input('Please enter the brightest instrumental magnitude bin to use in calibration (or none to accept the defaults): ')
+        params['cat_mags_max'] = input('Please enter the faintest catalog magnitude (or none to accept the defaults): ')
         params['cat_merr_max'] = input('Please enter the maximum allowed photometric uncertainty for a catalog measurement (or none to accept the defaults): ')
 
-    for key in ['det_mags_max', 'det_mags_min', 'cat_merr_max']:
+    for key in ['det_mags_max', 'det_mags_min', 'cat_merr_max', \
+                'cat_mags_max', 'cat_mags_min']:
         if key in params.keys() and 'none' not in str(params[key]).lower():
             params[key] = float(params[key])
         else:
@@ -236,6 +238,9 @@ def select_calibration_stars(star_catalog,params,log):
     if params['filter'] == 'gp': limit_mag = 22.0
     if params['filter'] == 'rp': limit_mag = 18.0
 
+    if 'cat_mags_max' in params.keys() and params['cat_mags_max'] > limit_mag:
+        limit_mag = params['cat_mags_max']
+
     log.info('Using limiting mag '+str(limit_mag)+\
                     ' for catalog selection for filter '+params['filter'])
 
@@ -253,7 +258,7 @@ def select_calibration_stars(star_catalog,params,log):
         if 'cat_merr_max' in params.keys():
             if params['cat_merr_max'] > max_err:
                 max_err = params['cat_merr_max']
-        
+
         log.info('Median photometric uncertainty ('+f+'-band) of catalog stars: '+str(med))
         log.info('Excluding catalog stars ('+f+'-band) with uncertainty > '+str(max_err))
 
