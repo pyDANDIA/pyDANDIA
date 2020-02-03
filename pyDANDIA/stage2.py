@@ -227,17 +227,15 @@ def run_stage2(setup, empirical_ranking=False, n_stack = 1):
 
         image_red_status = metadata.set_image_red_status(image_red_status,'1')
 
-        reduction_metadata.update_reduction_metadata_reduction_status_list(all_images, image_red_status,
+        reduction_metadata.update_reduction_metadata_reduction_status_dict(image_red_status,
                                                           stage_number=2, log=log)
         reduction_metadata.save_updated_metadata(metadata_directory=setup.red_dir,
                                                  metadata_name='pyDANDIA_metadata.fits')
-
 
         status = 'OK'
         report = 'Completed successfully'
         log.info('Updating metadata with info on new images...')
         logs.close_log(log)
-
 
         return status, report
 
@@ -299,10 +297,9 @@ def run_stage2(setup, empirical_ranking=False, n_stack = 1):
 
         reduction_metadata.calc_psf_radii()
 
-
         image_red_status = metadata.set_image_red_status(image_red_status,'1')
 
-        reduction_metadata.update_reduction_metadata_reduction_status_list(all_images, image_red_status,
+        reduction_metadata.update_reduction_metadata_reduction_status_dict(image_red_status,
                                                           stage_number=2, log=log)
         reduction_metadata.save_updated_metadata(metadata_directory=setup.red_dir,
                                                  metadata_name='pyDANDIA_metadata.fits')

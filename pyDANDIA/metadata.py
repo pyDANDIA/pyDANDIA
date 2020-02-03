@@ -756,12 +756,17 @@ class MetaData:
         return new_images
 
     def fetch_image_status(self,stage_number):
-        """Method to return the reduction status of all images"""
+        """Method to return a dictionary of the reduction status of all images"""
 
         layer = self.reduction_status
-        column_name = 'STAGE_'+str(stage_number)
+        image_list = layer[1]['IMAGES'].data
+        data = layer[1]['STAGE_'+str(stage_number)].data
 
-        return layer[1][column_name].data
+        image_stat = {}
+        for i in range(0,len(image_list),1):
+            image_stat[image_list[i]] = data[i]
+
+        return image_stat
 
     def update_a_cell_to_layer(self, key_layer, row_index, column_name, new_value):
         '''
@@ -848,6 +853,32 @@ class MetaData:
         if log != None:
             log.info('Updated the reduction status layer')
 
+    def update_reduction_metadata_reduction_status_dict(self, image_status,
+                                                    stage_number=0, log = None):
+        '''
+        Update the reduction_status layer with all images of the stage set to status
+
+        :param object reduction_metadata: the metadata object
+        :param list image_status: list of string with the new image names
+        :param int stage_number: [optional]
+        :param log object: Open log
+        '''
+
+        layer = self.reduction_status
+        column_name = 'STAGE_'+str(stage_number)
+
+        for image, stat in image_status.items():
+                if image in layer[1]['IMAGES'] :
+                    index_image = np.where(layer[1]['IMAGES'] == image)[0][0]
+                    self.update_a_cell_to_layer('reduction_status', index_image,
+                                                column_name, stat)
+
+                else:
+                    raise IOError('Attempt to update the status of an image unknown to the metadata reduction status table: '+image)
+
+        if log != None:
+            log.info('Updated the reduction status layer')
+
     def set_all_reduction_status_to_0(self, log=None):
         '''
             Update the reduction_status layer with all images of the stage set to status
@@ -928,11 +959,14 @@ def set_reduction_paths(self, red_dir):
 
 def set_image_red_status(image_red_status, status):
 
-    image_red_status = np.array(image_red_status)
-    idx = np.where(image_red_status != '-1')[0]
-    image_red_status[idx] = status
+    # Long-hand list handling implemented when array selection failed
+    for image,stat in image_red_status.items():
+        if stat != '-1':
+            image_red_status[image] = status
+        else:
+            image_red_status[image] = '-1'
 
-    return list(image_red_status)
+    return image_red_status
 
 def write(self):
     """Method to output the reduction metadata in the pyDANDIA
