@@ -101,7 +101,7 @@ def get_args():
         params['cat_merr_max'] = input('Please enter the maximum allowed photometric uncertainty for a catalog measurement (or none to accept the defaults): ')
 
     for key in ['det_mags_max', 'det_mags_min', 'cat_merr_max', \
-                'cat_mags_max', 'cat_mags_min']:
+                'cat_mags_max']:
         if key in params.keys() and 'none' not in str(params[key]).lower():
             params[key] = float(params[key])
         else:
