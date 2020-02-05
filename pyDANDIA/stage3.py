@@ -138,8 +138,11 @@ def run_stage3(setup):
                                                 'software', log=log)
 
         image_red_status = metadata.set_image_red_status(image_red_status,'1')
-        reduction_metadata.update_reduction_metadata_reduction_status_list(all_images, image_red_status,
+
+        reduction_metadata.update_reduction_metadata_reduction_status_dict(image_red_status,
                                                           stage_number=3, log=log)
+        reduction_metadata.save_updated_metadata(metadata_directory=setup.red_dir,
+                                        metadata_name='pyDANDIA_metadata.fits')
 
         status = 'OK'
         report = 'Completed successfully'

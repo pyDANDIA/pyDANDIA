@@ -99,6 +99,7 @@ def run_stage4(setup):
 
     new_images = reduction_metadata.find_images_need_to_be_process(setup, all_images,
                                                                    stage_number=4, rerun_all=True, log=log)
+    image_red_status = reduction_metadata.fetch_image_status(4)
 
     if len(all_images) > 0:
         try:
@@ -198,7 +199,9 @@ def run_stage4(setup):
                                                    new_column_format=column_format,
                                                    new_column_unit=column_unit)
 
-    reduction_metadata.update_reduction_metadata_reduction_status(new_images, stage_number=4, status=1, log=log)
+    image_red_status = metadata.set_image_red_status(image_red_status,'1',image_list=new_images)
+    reduction_metadata.update_reduction_metadata_reduction_status_dict(image_red_status,
+                                                    stage_number=4, log=log)
 
     px_scale = float(reduction_metadata.reduction_parameters[1]['PIX_SCALE'])
     #resample_image(new_images, reference_image_name, reference_image_directory, reduction_metadata, setup,

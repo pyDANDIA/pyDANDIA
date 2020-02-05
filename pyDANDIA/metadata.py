@@ -957,10 +957,14 @@ def set_reduction_paths(self, red_dir):
     self.red_code = path.basename(self.red_dir)
     self.metadata_file = path.join(self.red_dir, self.red_code + '_meta.fits')
 
-def set_image_red_status(image_red_status, status):
+def set_image_red_status(image_red_status, status, image_list=None):
+
+    if image_list == None:
+        image_list = image_red_status.keys()
 
     # Long-hand list handling implemented when array selection failed
-    for image,stat in image_red_status.items():
+    for image in image_list:
+        stat = image_red_status[image]
         if stat != '-1':
             image_red_status[image] = status
         else:
