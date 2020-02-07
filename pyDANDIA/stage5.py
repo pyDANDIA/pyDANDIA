@@ -41,7 +41,7 @@ def run_stage5(setup):
     image
     :param object setup : an instance of the ReductionSetup class. See reduction_control.py
 
-    :return: [status, report, reduction_metadata], stage5 status, report, 
+    :return: [status, report, reduction_metadata], stage5 status, report,
      metadata file
     :rtype: array_like
     """
@@ -138,6 +138,7 @@ def run_stage5(setup):
 
     new_images = reduction_metadata.find_images_need_to_be_process(setup, all_images,
                                                                    stage_number=5, rerun_all=True, log=log)
+    image_red_status = reduction_metadata.fetch_image_status(5)
 
     kernel_directory_path = os.path.join(setup.red_dir, 'kernel')
     diffim_directory_path = os.path.join(setup.red_dir, 'diffim')
@@ -150,7 +151,7 @@ def run_stage5(setup):
 
     reduction_metadata.update_column_to_layer('data_architecture', 'KERNEL_PATH', kernel_directory_path)
 
-    # difference images are written for verbosity level > 0 
+    # difference images are written for verbosity level > 0
     reduction_metadata.update_column_to_layer('data_architecture', 'DIFFIM_PATH', diffim_directory_path)
     data_image_directory = os.path.join(setup.red_dir, 'resampled')
     ref_directory_path = '.'
@@ -259,6 +260,7 @@ def run_stage5(setup):
                                                new_column_unit=column_unit)
 
     log.info('Updating metadata')
+    image_red_status = metadata.set_image_red_status(image_red_status,'1',image_list=new_images)
     reduction_metadata.update_reduction_metadata_reduction_status(new_images, stage_number=5, status=1, log=log)
     reduction_metadata.save_updated_metadata(
         reduction_metadata.data_architecture[1]['OUTPUT_DIRECTORY'][0],
@@ -465,7 +467,7 @@ def subtract_with_constant_kernel(new_images, reference_image_name, reference_im
             kernel_matrix, bkg_kernel, kernel_uncertainty = kernel_solution(umatrix, b_vector, kernel_size,
                                                                             circular=False)
             # res = so.minimize(fit_kernel,kernel_matrix.ravel(),args=(data_image,reference_image,bright_reference_mask))
-            
+
             pscale = np.sum(kernel_matrix)
             pscale_err = np.sum(kernel_uncertainty ** 2) ** 0.5
             np.save(os.path.join(kernel_directory_path, 'kernel_' + new_image + '.npy'), [kernel_matrix, bkg_kernel])
@@ -654,7 +656,7 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
         umatrix_grid = umatrices_grid[umatrix_index]
         kernel_size = kernel_size_array[umatrix_index]
         reference_image, bright_reference_mask, reference_image_unmasked, noise_image = reference_images[umatrix_index]
-     
+
 
         x_shift, y_shift = 0, 0
 
@@ -673,7 +675,7 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
 
         try:
 
-           
+
 
             pscales = []
             pscales_err = []
@@ -697,7 +699,7 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
                 ref = reference_image[kernel_size:-kernel_size, kernel_size:-kernel_size][ymin:ymax, xmin:xmax]
 
                 ref_unmasked = reference_image_unmasked[ymin:ymax, xmin:xmax]
-           
+
 
                 img = resample_image[ymin:ymax, xmin:xmax]
 
@@ -1176,7 +1178,7 @@ def bvector_constant_clean(reference_image, data_image, ker_size, first_b_vector
     for finding the best kernel and assumes it can be calculated
     sufficiently if the noise model either is neglected or similar on all
     model images. In order to run, it needs the largest possible kernel size
-    and carefully masked regions on both - data and reference image. 
+    and carefully masked regions on both - data and reference image.
     After an initial run, the umatrix is corrected for potential outliers
     and b vector are both updated.
 
@@ -1234,8 +1236,8 @@ def kernel_preparation_matrix(data_image, reference_image, ker_size, model_image
     the Bramich 2008 paper. The data image is indexed using i,j
     the reference image should have the same shape as the data image
     the kernel is indexed via l, m. kernel_size requires as input the edge
-    length of the kernel. The kernel matrix k_lm and a background b0 
-    k_lm, where l and m correspond to the kernel pixel indices defines 
+    length of the kernel. The kernel matrix k_lm and a background b0
+    k_lm, where l and m correspond to the kernel pixel indices defines
     The resulting vector b is obtained from the matrix U_l,m,l
 
     :param object image: data image
@@ -1287,7 +1289,7 @@ def kernel_preparation_matrix(data_image, reference_image, ker_size, model_image
 
 def kernel_solution(u_matrix, b_vector, kernel_size, circular=True):
     '''
-    reshape kernel solution for convolution and obtain uncertainty 
+    reshape kernel solution for convolution and obtain uncertainty
     from lstsq solution
 
     :param object array: u_matrix

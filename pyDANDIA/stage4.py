@@ -42,6 +42,7 @@ from pyDANDIA import metadata
 from pyDANDIA import logs
 from pyDANDIA import convolution
 from pyDANDIA import psf
+from pyDANDIA import quality_control
 from skimage.feature import register_translation
 
 from skimage.feature import (ORB, match_descriptors,
@@ -98,7 +99,7 @@ def run_stage4(setup):
                                                     os.path.join(setup.red_dir, 'data'), log=log)
 
     new_images = reduction_metadata.find_images_need_to_be_process(setup, all_images,
-                                                                   stage_number=4, rerun_all=True, log=log)
+                                                                   stage_number=4, rerun_all=False, log=log)
     image_red_status = reduction_metadata.fetch_image_status(4)
 
     if len(all_images) > 0:
@@ -152,7 +153,7 @@ def run_stage4(setup):
 
                 data.append([new_image, x_shift, y_shift])
                 logs.ifverbose(log, setup,
-                               'I found the image translation to the reference for frame:' + new_image)
+                               'I found the image translation ('+str(x_shift)+','+str(y_shift)+') to the reference for frame:' + new_image)
 
             except:
 
@@ -180,15 +181,16 @@ def run_stage4(setup):
             logs.ifverbose(log, setup,
                            'I have to construct SHIFT_X and SHIFT_Y columns')
 
-            sorted_data = np.copy(data)
+            #sorted_data = np.copy(data)
+
+            sorted_data = [['None',0,0]]*len(image_red_status)
 
             for index in range(len(data)):
                 target_image = data[index][0]
-
-                row_index = np.where(reduction_metadata.images_stats[1]['IM_NAME'].data == new_image)[0][0]
-
+                row_index = np.where(reduction_metadata.images_stats[1]['IM_NAME'].data == target_image)[0][0]
                 sorted_data[row_index] = data[index]
 
+            sorted_data = np.array(sorted_data)
             column_format = 'float'
             column_unit = 'pix'
             reduction_metadata.add_column_to_layer('images_stats', 'SHIFT_X', sorted_data[:, 1],
@@ -199,19 +201,20 @@ def run_stage4(setup):
                                                    new_column_format=column_format,
                                                    new_column_unit=column_unit)
 
-    image_red_status = metadata.set_image_red_status(image_red_status,'1',image_list=new_images)
-    reduction_metadata.update_reduction_metadata_reduction_status_dict(image_red_status,
+        (new_images, image_red_status) = quality_control.verify_image_shifts(new_images,
+                                                    data, image_red_status)
+
+        px_scale = float(reduction_metadata.reduction_parameters[1]['PIX_SCALE'])
+        #resample_image(new_images, reference_image_name, reference_image_directory, reduction_metadata, setup,
+        #               data_image_directory, resampled_directory_path, ref_row_index, px_scale, log=log,
+        #               mask_extension_in=3)
+        resample_image_stamps(new_images, reference_image_name, reference_image_directory, reduction_metadata, setup,
+                       data_image_directory, resampled_directory_path, ref_row_index, px_scale, log=log,
+                       mask_extension_in=-1)
+
+        image_red_status = metadata.set_image_red_status(image_red_status,'1',image_list=new_images)
+        reduction_metadata.update_reduction_metadata_reduction_status_dict(image_red_status,
                                                     stage_number=4, log=log)
-
-    px_scale = float(reduction_metadata.reduction_parameters[1]['PIX_SCALE'])
-    #resample_image(new_images, reference_image_name, reference_image_directory, reduction_metadata, setup,
-    #               data_image_directory, resampled_directory_path, ref_row_index, px_scale, log=log,
-    #               mask_extension_in=3)
-    resample_image_stamps(new_images, reference_image_name, reference_image_directory, reduction_metadata, setup,
-                   data_image_directory, resampled_directory_path, ref_row_index, px_scale, log=log,
-                   mask_extension_in=-1)
-
-    reduction_metadata.update_reduction_metadata_reduction_status(new_images, stage_number=4, status=1, log=log)
 
     reduction_metadata.save_updated_metadata(
         reduction_metadata.data_architecture[1]['OUTPUT_DIRECTORY'][0],

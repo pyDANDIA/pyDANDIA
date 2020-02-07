@@ -873,6 +873,13 @@ class MetaData:
                     self.update_a_cell_to_layer('reduction_status', index_image,
                                                 column_name, stat)
 
+                    if '-1' in str(stat):
+                        for c in range(stage_number,8,1):
+                            self.update_a_cell_to_layer('reduction_status',
+                                                        index_image,
+                                                        'STAGE_'+str(c),
+                                                        stat)
+
                 else:
                     raise IOError('Attempt to update the status of an image unknown to the metadata reduction status table: '+image)
 

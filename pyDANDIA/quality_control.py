@@ -8,6 +8,7 @@ import os
 from astropy.io import fits
 from astropy import units as u
 from astropy.coordinates import SkyCoord
+import numpy as np
 from pyDANDIA import metadata
 
 def verify_stage0_output(setup,log):
@@ -200,3 +201,31 @@ def verify_telescope_pointing(image_header):
         return True
     else:
         return False
+
+def verify_image_shifts(new_images, shift_data, image_red_status):
+    """Function to review the measured pixel offsets of each image from the
+    reference for that dataset, and ensure that any severely offset images
+    are marked as bad.  These images are removed from the new_images list.
+
+    Inputs:
+        :param list new_images: list of image names to process
+        :param list shift_data: list of measured image shifts
+        :param dict image_red_status: Reduction status of each image for the
+                                      current reduction stage
+    Outputs:
+        :param dict image_red_status:
+    """
+
+    threshold = 100.0 # pixels
+
+    for i,entry in enumerate(shift_data):
+        image_list = np.array(new_images)
+        image = entry[0]
+        if entry[1] >= threshold or entry[2] >= threshold:
+            image_red_status[image] = '-1'
+
+            idx = np.where(image_list == image)
+            if len(idx[0]) > 0:
+                rm_image = new_images.pop(idx[0][0])
+
+    return new_images, image_red_status

@@ -50,7 +50,7 @@ def get_args():
 
     params = {}
 
-    if len(argv) < 5:
+    if len(argv) < 3:
 
         params['db_file_path'] = input('Please enter the path to the photometry database for the field: ')
         params['red_dir'] = input('Please enter the directory path for output: ')
@@ -63,6 +63,11 @@ def get_args():
         params['red_dir'] = argv[2]
         params['target_ra'] = argv[3]
         params['target_dec'] = argv[4]
+
+    if '--i' in argv or '--interactive' in argv:
+        params['interactive'] = True
+    else:
+        params['interactive'] = False
 
     return params
 
@@ -87,7 +92,7 @@ def extract_reference_instrument_calibrated_photometry(conn,log):
     t = phot_db.query_to_astropy_table(conn, query, args=())
     if len(t) == 0:
         raise IOError('No photometry for primary reference facility '+facility_code+' found in phot_db')
-        
+
     facility_id = t['facility_id'][0]
 
     stars = phot_db.fetch_stars_table(conn)
@@ -223,7 +228,7 @@ def plot_colour_mag_diagram(params, photometry, stars, RC, blue_filter, red_filt
     and indicating the position of both the target and the Red Clump centroid.
     """
 
-    add_rc_centroid = True
+    add_rc_centroid = False
 
     col_key = blue_filter+red_filter
 
@@ -268,31 +273,36 @@ def plot_colour_mag_diagram(params, photometry, stars, RC, blue_filter, red_filt
 
     plt.grid()
 
-    if red_filter == 'i' and blue_filter == 'r' and yaxis_filter == 'i':
-        plt.axis([0.5,2.0,20.2,13.5])
+    scale_axes = False
+    if scale_axes:
+        if red_filter == 'i' and blue_filter == 'r' and yaxis_filter == 'i':
+            plt.axis([0.5,2.0,20.2,13.5])
 
-    if red_filter == 'i' and blue_filter == 'r' and yaxis_filter == 'r':
-        plt.axis([0.0,1.5,21.0,13.5])
+        if red_filter == 'i' and blue_filter == 'r' and yaxis_filter == 'r':
+            plt.axis([0.0,1.5,21.0,13.5])
 
-    if red_filter == 'r' and blue_filter == 'g':
-        plt.axis([0.5,3.0,22.0,14.0])
+        if red_filter == 'r' and blue_filter == 'g':
+            plt.axis([0.5,3.0,22.0,14.0])
 
-    if red_filter == 'i' and blue_filter == 'g':
-        plt.axis([0.5,4.4,22.0,14.0])
+        if red_filter == 'i' and blue_filter == 'g':
+            plt.axis([0.5,4.4,22.0,14.0])
 
-    box = ax.get_position()
-    ax.set_position([box.x0, box.y0 + box.height * -0.025,
+        box = ax.get_position()
+        ax.set_position([box.x0, box.y0 + box.height * -0.025,
                  box.width, box.height * 0.95])
 
-    l = ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.2), ncol=2)
+        l = ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.2), ncol=2)
 
-    l.legendHandles[0]._sizes = [50]
-    l.legendHandles[1]._sizes = [50]
+        l.legendHandles[0]._sizes = [50]
+        l.legendHandles[1]._sizes = [50]
 
     plt.rcParams.update({'legend.fontsize':18})
     plt.rcParams.update({'font.size':18})
     plt.rc('xtick', labelsize=18)
     plt.rc('ytick', labelsize=18)
+
+    if params['interactive']:
+        plt.show()
 
     plt.savefig(plot_file,bbox_inches='tight')
 
@@ -358,7 +368,9 @@ def plot_colour_colour_diagram(params,photometry,RC,log):
 
     plot_file = path.join(params['red_dir'],'colour_colour_diagram.pdf')
 
-    plt.axis([-1.0,2.0,-1.0,1.0])
+    scale_axes = False
+    if scale_axes:
+        plt.axis([-1.0,2.0,-1.0,1.0])
 
     plt.grid()
 
@@ -368,23 +380,26 @@ def plot_colour_colour_diagram(params,photometry,RC,log):
     ax.set_xticks(xticks, minor=True)
     ax.set_yticks(yticks, minor=True)
 
-
-    box = ax.get_position()
-    ax.set_position([box.x0, box.y0 + box.height * -0.025,
+    if scale_axes:
+        box = ax.get_position()
+        ax.set_position([box.x0, box.y0 + box.height * -0.025,
                  box.width, box.height * 0.95])
 
-    l = ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.2), ncol=2)
+        l = ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.2), ncol=2)
 
-    try:
-        l.legendHandles[2]._sizes = [50]
-        l.legendHandles[3]._sizes = [50]
-    except IndexError:
-        pass
+        try:
+            l.legendHandles[2]._sizes = [50]
+            l.legendHandles[3]._sizes = [50]
+        except IndexError:
+            pass
 
     plt.rcParams.update({'legend.fontsize':18})
     plt.rcParams.update({'font.size':18})
     plt.rc('xtick', labelsize=18)
     plt.rc('ytick', labelsize=18)
+
+    if params['interactive']:
+        plt.show()
 
     plt.savefig(plot_file,bbox_inches='tight')
 
