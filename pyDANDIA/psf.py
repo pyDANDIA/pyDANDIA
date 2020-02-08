@@ -960,7 +960,10 @@ def error_background_fit_function(params, data, background, Y_data, X_data, mask
     back_params = params
 
     back_model = background.background_model(Y_data, X_data, back_params)
-    weight = 1/np.abs(data)**0.5
+    if not np.all(data==0.0):
+        weight = 1/np.abs(data)**0.5
+    else:
+        weight = np.zeros(data.shape)
     weight[np.isnan(weight)] = 0
     residuals = ((data - back_model)*weight)[mask]
 

@@ -261,7 +261,8 @@ def run_stage5(setup):
 
     log.info('Updating metadata')
     image_red_status = metadata.set_image_red_status(image_red_status,'1',image_list=new_images)
-    reduction_metadata.update_reduction_metadata_reduction_status(new_images, stage_number=5, status=1, log=log)
+    reduction_metadata.update_reduction_metadata_reduction_status_dict(image_red_status,
+                                                stage_number=5, log=log)
     reduction_metadata.save_updated_metadata(
         reduction_metadata.data_architecture[1]['OUTPUT_DIRECTORY'][0],
         reduction_metadata.data_architecture[1]['METADATA_NAME'][0],
@@ -298,10 +299,17 @@ def round_unc(val, err):
 
     :return: formatted uncertainty
     '''
-    digs = abs(int(np.log10(err / val)))
-    val_round = round(val, digs)
-    unc_round = round(err, digs)
-    return "{0} +/- {1}".format(val_round, unc_round)
+    if val == 0.0 and err == 0.0:
+        return "0.0 +/- 0.0"
+    else:
+        try:
+            digs = abs(int(np.log10(err / abs(val))))
+        except ValueError:
+            print('ERROR in round_unc, inputs: ',err, val)
+            exit()
+        val_round = round(val, digs)
+        unc_round = round(err, digs)
+        return "{0} +/- {1}".format(val_round, unc_round)
 
 
 def smoothing_2sharp_images(reduction_metadata, ref_fwhm_x, ref_fwhm_y, ref_sigma_x, ref_sigma_y, row_index):
