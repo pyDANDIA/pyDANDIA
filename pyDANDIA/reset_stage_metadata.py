@@ -7,7 +7,7 @@ def reset_red_status_for_stage(red_dir,stage_number):
     Note that the status for all images will be set to zero (process) except
     for entries that were flagged as -1 (do not process) by the PREVIOUS
     stage"""
-    
+
     reduction_metadata = metadata.MetaData()
     reduction_metadata.load_all_metadata(red_dir, 'pyDANDIA_metadata.fits')
 
@@ -31,4 +31,6 @@ if __name__ == '__main__':
         red_dir = sys.argv[1]
         stage_number = sys.argv[2]
 
+    stage_number = int(stage_number)
+    
     reset_red_status_for_stage(red_dir,stage_number)
