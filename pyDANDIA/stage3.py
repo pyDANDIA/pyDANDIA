@@ -39,27 +39,6 @@ def run_stage3(setup):
     log.info('Applying Naylors photometric algorithm? '+repr(use_naylor_phot))
 
     reduction_metadata = metadata.MetaData()
-#    reduction_metadata.load_a_layer_from_file( setup.red_dir,
-#                                              'pyDANDIA_metadata.fits',
-#                                              'reduction_parameters' )
-#    reduction_metadata.load_a_layer_from_file( setup.red_dir,
-#                                              'pyDANDIA_metadata.fits',
-#                                              'reduction_status' )
-#    reduction_metadata.load_a_layer_from_file( setup.red_dir,
-#                                              'pyDANDIA_metadata.fits',
-#                                              'headers_summary' )
-#    reduction_metadata.load_a_layer_from_file( setup.red_dir,
-#                                              'pyDANDIA_metadata.fits',
-#                                              'images_stats' )
-#    reduction_metadata.load_a_layer_from_file( setup.red_dir,
-#                                              'pyDANDIA_metadata.fits',
-#                                              'data_architecture' )
-#    reduction_metadata.load_a_layer_from_file( setup.red_dir,
-#                                              'pyDANDIA_metadata.fits',
-#                                              'star_catalog' )
-#    reduction_metadata.load_a_layer_from_file( setup.red_dir,
-#                                              'pyDANDIA_metadata.fits',
-#                                              'psf_dimensions' )
     reduction_metadata.load_all_metadata(metadata_directory=setup.red_dir,
                                          metadata_name='pyDANDIA_metadata.fits')
     image_red_status = reduction_metadata.fetch_image_status(3)
