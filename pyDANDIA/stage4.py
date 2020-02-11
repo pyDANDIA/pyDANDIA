@@ -786,6 +786,8 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
         np.save(os.path.join(resample_directory, 'warp_matrice_image.npy'), model_final)
         data_image_hdu.close()
 
+    mask = np.abs(master_mask) < 1.0
+    master_mask[mask] = 0
     master_mask_hdu = fits.PrimaryHDU(master_mask)
     master_mask_hdu.writeto(os.path.join(reference_image_directory, 'master_mask.fits'), overwrite=True)
 
