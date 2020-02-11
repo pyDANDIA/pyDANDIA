@@ -137,7 +137,7 @@ def run_stage5(setup):
                                                     os.path.join(setup.red_dir, 'data'), log=log)
 
     new_images = reduction_metadata.find_images_need_to_be_process(setup, all_images,
-                                                                   stage_number=5, rerun_all=True, log=log)
+                                                                   stage_number=5, log=log)
     image_red_status = reduction_metadata.fetch_image_status(5)
 
     kernel_directory_path = os.path.join(setup.red_dir, 'kernel')
