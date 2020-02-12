@@ -228,7 +228,7 @@ def run_stage5(setup):
 
     else:
         log.info('Constructing quality metrics columns in metadata')
-        sorted_data = stage5.sort_quality_metrics(quality_metrics, reduction_metadata)
+        sorted_data = sort_quality_metrics(quality_metrics, reduction_metadata)
 
         column_format = 'float'
         column_unit = ''
@@ -325,7 +325,7 @@ def sort_quality_metrics(quality_metrics, reduction_metadata):
         sorted_data.append([image, 0.0, 0.0, 0.0, 0.0, 0, 0.0, 0.0])
     sorted_data = np.array(sorted_data)
 
-    new_images = list(quality_metrics[:,0])
+    new_images = list(np.array(quality_metrics)[:,0])
     for i,target_image in enumerate(image_list):
         try:
             new_index = new_images.index( str(target_image) )
