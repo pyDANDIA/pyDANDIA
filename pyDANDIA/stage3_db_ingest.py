@@ -808,8 +808,11 @@ def match_all_entries_with_starlist(setup,conn,params,starlist,reduction_metadat
     log.info('Match tolerance: '+str(tol)+' pixels')
 
     matched_stars = match_utils.StarMatchIndex()
+    unmatched_stars = match_utils.StarMatchIndex()
 
     query = 'SELECT code_id FROM software WHERE stage="stage3"'
+    t = phot_db.query_to_astropy_table(conn, query, args=())['code_id']
+    print(t)
     software = phot_db.query_to_astropy_table(conn, query, args=())['code_id'][0]
 
     query = 'SELECT phot_id,star_id,x,y,image,filter,software FROM phot WHERE reference_image="'+str(refimg_id)+\
@@ -851,4 +854,21 @@ def match_all_entries_with_starlist(setup,conn,params,starlist,reduction_metadat
             if verbose:
                 log.info(matched_stars.summarize_last())
 
-    return matched_stars
+    for j in range(0,len(reduction_metadata.star_catalog[1]),1):
+
+        if j not in matched_stars.cat2_index.keys():
+            unp = {'cat1_index': -1,
+                 'cat1_ra': -9999.9999,
+                 'cat1_dec': -9999.9999,
+                 'cat1_x': -9999.9999,
+                 'cat1_y': -9999.9999,
+                 'cat2_index': -1,
+                 'cat2_ra': reduction_metadata.star_catalog[1]['ra'][jdx[0]],
+                 'cat2_dec': reduction_metadata.star_catalog[1]['dec'][jdx[0]],
+                 'cat2_x': reduction_metadata.star_catalog[1]['x'][jdx[0]],
+                 'cat2_y': reduction_metadata.star_catalog[1]['y'][jdx[0]],
+                 'separation': separation[jdx[0]]}
+
+            unmatched_stars.add_match(unp)
+
+    return matched_stars, unmatched_stars
