@@ -228,12 +228,7 @@ def run_stage5(setup):
 
     else:
         log.info('Constructing quality metrics columns in metadata')
-        sorted_data = np.copy(quality_metrics)
-
-        for index in range(len(quality_metrics)):
-            target_image = data[index][0]
-            row_index = np.where(reduction_metadata.images_stats[1]['IM_NAME'].data == target_image)[0][0]
-            sorted_data[row_index] = quality_metrics[index]
+        sorted_data = stage5.sort_quality_metrics(quality_metrics, reduction_metadata)
 
         column_format = 'float'
         column_unit = ''
@@ -311,6 +306,34 @@ def round_unc(val, err):
         unc_round = round(err, digs)
         return "{0} +/- {1}".format(val_round, unc_round)
 
+def sort_quality_metrics(quality_metrics, reduction_metadata):
+    """Function to sort the quality metrics array into the same order as
+    the metadata's image_stat table.
+
+    Inputs:
+        :param array quality_metrics: QC indices per NEW image
+        :param metadata reduction_metadata: Metadata for the current dataset
+
+    Output:
+        :param array sorted_data: Sorted quality_metrics list
+    """
+
+    image_list = reduction_metadata.images_stats[1]['IM_NAME']
+
+    sorted_data = []
+    for image in image_list:
+        sorted_data.append([image, 0.0, 0.0, 0.0, 0.0, 0, 0.0, 0.0])
+    sorted_data = np.array(sorted_data)
+
+    new_images = list(quality_metrics[:,0])
+    for i,target_image in enumerate(image_list):
+        try:
+            new_index = new_images.index( str(target_image) )
+            sorted_data[i] = quality_metrics[new_index]
+        except ValueError:
+            sorted_data[i] = [target_image, -1.0, -1.0, -1.0, -1.0, 0, -1.0, -1.0]
+
+    return sorted_data
 
 def smoothing_2sharp_images(reduction_metadata, ref_fwhm_x, ref_fwhm_y, ref_sigma_x, ref_sigma_y, row_index):
     smoothing = 0.
