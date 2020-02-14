@@ -547,7 +547,11 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
 
         sigma_clip = SigmaClip(sigma=3.)
         bkg_estimator = MedianBackground()
-        bkg = Background2D(difference_image, (50, 50),  filter_size=(3, 3), sigma_clip=sigma_clip, bkg_estimator=bkg_estimator)
+        try:
+            bkg = Background2D(difference_image, (50, 50),  filter_size=(3, 3), sigma_clip=sigma_clip, bkg_estimator=bkg_estimator)
+        except ValueError:
+            sigma_clip = SigmaClip(sigma=10.)
+            bkg = Background2D(difference_image, (50, 50),  filter_size=(3, 3), sigma_clip=sigma_clip, bkg_estimator=bkg_estimator)
         bkg.background[mask] = 0
         bkg.background_rms[mask] = 0
 
