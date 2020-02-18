@@ -61,6 +61,8 @@ def run_stage6(setup):
     conn = db_phot.get_connection(dsn=setup.phot_db_path)
     conn.execute('pragma synchronous=OFF')
 
+    sane = check_stage3_ingest_complete(conn,params)
+    
     (facility_keys, software_keys, image_keys) = stage3_db_ingest.define_table_keys()
 
     db_phot.check_before_commit(conn, dataset_params, 'facilities', facility_keys, 'facility_code')
@@ -676,6 +678,19 @@ def harvest_stage6_parameters(setup,reduction_metadata,version):
     dataset_params['code_name'] = 'stage6.py'
 
     return dataset_params
+
+def check_stage3_ingest_complete(conn,params):
+    """Function to verify whether the ingest of stage 3 results has taken
+    place, a pre-requiste before stage 6 results can be ingested."""
+
+    query = 'SELECT refimg_id, filename FROM reference_images WHERE filename ="' + params['ref_filename'] + '"'
+    refimage = db_phot.query_to_astropy_table(conn, query, args=())
+
+    if len(refimage) == 0:
+        raise ValueError(
+            'No Stage 3 results for this reference image available in photometry DB.  Stage3_db_ingest needs to be run for this dataset first.')
+    else:
+        return True
 
 def match_dataset_with_field_primary_reference(setup,conn,dataset_params,
                                                reduction_metadata,log):
