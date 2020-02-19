@@ -229,3 +229,23 @@ def verify_image_shifts(new_images, shift_data, image_red_status):
                 rm_image = new_images.pop(idx[0][0])
 
     return new_images, image_red_status
+
+def verify_mask_statistics(mask_data, log=None):
+    """Function to calculate basic statistical properties of a mask image
+    to verify that they are within tolerances"""
+
+    if log!=None:
+        idx = np.where(mask_data != 0)
+        npix = mask_data.shape[0]*mask_data.shape[1]
+        nbad = (float(len(idx[0]))/float(npix))*100.0
+        log.info('BPM has '+str(len(idx[0]))+' pixels flagged as bad, '+str(round(nbad,1))+'%')
+
+    (hist,bins) = np.histogram(mask_data)
+
+    jdx = np.where(bins < 1.0)
+    j1 = jdx[0][-1]
+
+    if log!=None:
+        log.info('BPM has '+str(hist[j1])+' pixels flagged as 1')
+
+    return True
