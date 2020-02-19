@@ -61,8 +61,8 @@ def run_stage6(setup):
     conn = db_phot.get_connection(dsn=setup.phot_db_path)
     conn.execute('pragma synchronous=OFF')
 
-    sane = check_stage3_ingest_complete(conn,params)
-    
+    sane = check_stage3_ingest_complete(conn,dataset_params)
+
     (facility_keys, software_keys, image_keys) = stage3_db_ingest.define_table_keys()
 
     db_phot.check_before_commit(conn, dataset_params, 'facilities', facility_keys, 'facility_code')
