@@ -230,9 +230,12 @@ def verify_image_shifts(new_images, shift_data, image_red_status):
 
     return new_images, image_red_status
 
-def verify_mask_statistics(mask_data, log=None):
+def verify_mask_statistics(image_name, mask_data, log=None):
     """Function to calculate basic statistical properties of a mask image
     to verify that they are within tolerances"""
+
+    if log!=None:
+        log.info('Verifying BPM for image '+image_name+':')
 
     if log!=None:
         idx = np.where(mask_data != 0)

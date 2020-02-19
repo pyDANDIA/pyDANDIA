@@ -679,7 +679,7 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
 
         mask_image = np.array(data_image_hdu[mask_extension_in].data, dtype=float)
 
-        mask_status = quality_control.verify_mask_statistics(mask_image, log)
+        mask_status = quality_control.verify_mask_statistics(new_image,mask_image, log)
 
         shifted_mask = np.copy(mask_image)
         shifted = np.copy(data_image)
@@ -741,8 +741,8 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
         shifted_mask[mask] = 0
         master_mask += shifted_mask
 
-        mask_status = quality_control.verify_mask_statistics(shifted_mask, log)
-        
+        mask_status = quality_control.verify_mask_statistics(new_image,shifted_mask, log)
+
         #resample the stamps
         resample_directory = os.path.join(resampled_directory_path, new_image)
         try:

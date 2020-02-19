@@ -132,12 +132,12 @@ def test_verify_mask_statistics():
     hdu = fits.open(os.path.join(params['red_dir'], 'data', test_image), memmap=True)
     mask_data = np.array(hdu[-1].data, dtype=float)
 
-    mask_status = quality_control.verify_mask_statistics(mask_data, log)
+    mask_status = quality_control.verify_mask_statistics(test_image, mask_data, log)
 
     logs.close_log(log)
 
     assert type(mask_status) == type(True)
-    
+
 if __name__ == '__main__':
 
     #test_verify_stage0_output()
