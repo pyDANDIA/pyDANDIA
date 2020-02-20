@@ -134,9 +134,16 @@ def test_verify_mask_statistics():
 
     mask_status = quality_control.verify_mask_statistics(test_image, mask_data, log)
 
-    logs.close_log(log)
-
     assert type(mask_status) == type(True)
+    assert mask_status == True
+
+    mask_data = np.ones(hdu[-1].data.shape, dtype=float)
+
+    mask_status = quality_control.verify_mask_statistics(test_image, mask_data, log)
+
+    assert mask_status == False
+
+    logs.close_log(log)
 
 if __name__ == '__main__':
 

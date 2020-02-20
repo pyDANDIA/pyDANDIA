@@ -234,21 +234,24 @@ def verify_mask_statistics(image_name, mask_data, log=None):
     """Function to calculate basic statistical properties of a mask image
     to verify that they are within tolerances"""
 
-    if log!=None:
-        log.info('Verifying BPM for image '+image_name+':')
+    threshold = 10.0 # % of pixels in the frame
 
-    if log!=None:
-        idx = np.where(mask_data != 0)
-        npix = mask_data.shape[0]*mask_data.shape[1]
-        nbad = (float(len(idx[0]))/float(npix))*100.0
-        log.info('BPM has '+str(len(idx[0]))+' pixels flagged as bad, '+str(round(nbad,1))+'%')
+    idx = np.where(mask_data != 0)
+    npix = mask_data.shape[0]*mask_data.shape[1]
+    percent_bad = (float(len(idx[0]))/float(npix))*100.0
 
     (hist,bins) = np.histogram(mask_data)
-
     jdx = np.where(bins < 1.0)
     j1 = jdx[0][-1]
 
     if log!=None:
+        log.info('Verifying BPM for image '+image_name+':')
+        log.info('BPM has '+str(len(idx[0]))+' pixels flagged as bad, '+str(round(percent_bad,1))+'%')
         log.info('BPM has '+str(hist[j1])+' pixels flagged as 1')
 
-    return True
+    if percent_bad < threshold:
+        return True
+    else:
+        if log!=None:
+            log.info('--> WARNING: Mask statistics indicate a problem')
+        return False
