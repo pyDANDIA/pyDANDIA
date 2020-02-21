@@ -102,7 +102,7 @@ def run_reference_astrometry(setup, force_rotate_ref=False):
 
         transform = AffineTransform()
         it = 0
-        max_it = 3
+        max_it = 5
         iterate = True
         method = 'ransac'
         old_n_match = 0
