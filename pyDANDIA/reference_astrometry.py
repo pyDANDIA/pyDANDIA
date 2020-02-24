@@ -29,7 +29,7 @@ from skimage.transform import AffineTransform
 
 VERSION = 'pyDANDIA_reference_astrometry_v0.1'
 
-def run_reference_astrometry(setup, force_rotate_ref=False):
+def run_reference_astrometry(setup, force_rotate_ref=False, dx=0.0, dy=0.0):
     """Driver function to perform the object detection and astrometric analysis
     of the reference frame from a given dataset.
 
@@ -100,7 +100,16 @@ def run_reference_astrometry(setup, force_rotate_ref=False):
         wcs.plot_overlaid_sources(os.path.join(setup.red_dir,'ref'),
                       bright_central_detected_stars, bright_central_gaia_stars, interactive=False)
 
-        transform = AffineTransform()
+        # Apply initial transform, if any
+        transform = AffineTransform(translation=(dx, dy))
+        stellar_density = utilities.stellar_density(bright_central_gaia_stars,
+                                            selection_radius)
+        bright_central_gaia_stars = update_catalog_image_coordinates(setup, image_wcs,
+                                                    bright_central_gaia_stars, log,
+                                                    'catalog_stars_bright_initial_'+str(it)+'.reg',
+                                                    stellar_density, rotate_wcs, force_rotate_ref,
+                                                    stellar_density_threshold,
+                                                    transform=transform, radius=selection_radius)
         it = 0
         max_it = 5
         iterate = True

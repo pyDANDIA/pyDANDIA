@@ -63,12 +63,11 @@ def run_stage_stand_alone():
 
     elif params['stage'] == 'reference_astrometry':
 
-        if params['rotate_ref']:
-            (status, report) = reference_astrometry.run_reference_astrometry(setup,
-                                                    force_rotate_ref=True)
-        else:
-            (status, report) = reference_astrometry.run_reference_astrometry(setup)
-            
+        (status, report) = reference_astrometry.run_reference_astrometry(setup,
+                                                    force_rotate_ref=params['rotate_ref'],
+                                                    dx=params['dx'],
+                                                    dy=params['dy'])
+
     elif params['stage'] == 'stage3':
 
         (status, report) = stage3.run_stage3(setup)
@@ -178,6 +177,14 @@ def get_args():
         params['rotate_ref'] = True
     else:
         params['rotate_ref'] = False
+
+    params['dx'] = 0.0
+    params['dy'] = 0.0
+    for a in argv:
+        if '-dx' in a:
+            params['dx'] = float(str(a).split('=')[-1])
+        if '-dy' in a:
+            params['dy'] = float(str(a).split('=')[-1])
 
     if str(params['db_file_path']).split('.')[-1] != 'db':
         raise ValueError(params['db_file_path']+' does not end in .db.  Is this a database file path?')
