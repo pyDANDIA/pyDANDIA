@@ -101,6 +101,7 @@ def run_reference_astrometry(setup, force_rotate_ref=False, dx=0.0, dy=0.0):
                       bright_central_detected_stars, bright_central_gaia_stars, interactive=False)
 
         # Apply initial transform, if any
+        log.info('Applying initial transformation of catalog positions, dx='+str(dx)+', dy='+str(dy)+' pixels')
         transform = AffineTransform(translation=(dx, dy))
         stellar_density = utilities.stellar_density(bright_central_gaia_stars,
                                             selection_radius)
