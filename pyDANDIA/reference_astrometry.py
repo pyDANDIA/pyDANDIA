@@ -27,7 +27,7 @@ from pyDANDIA import  match_utils
 from pyDANDIA import  utilities
 from skimage.transform import AffineTransform
 
-VERSION = 'pyDANDIA_reference_astrometry_v0.1'
+VERSION = 'pyDANDIA_reference_astrometry_v0.2'
 
 def run_reference_astrometry(setup, force_rotate_ref=False, dx=0.0, dy=0.0):
     """Driver function to perform the object detection and astrometric analysis
@@ -117,7 +117,7 @@ def run_reference_astrometry(setup, force_rotate_ref=False, dx=0.0, dy=0.0):
                 stellar_density = utilities.stellar_density(bright_central_gaia_stars,
                                                     selection_radius)
                 matched_stars = match_utils.StarMatchIndex()
-            
+
             elif it == 1 and method in ['histogram', 'ransac']:
                 log.info('Calculating transformation using the histogram method, iteration '+str(it))
 
