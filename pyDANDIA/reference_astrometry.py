@@ -101,16 +101,7 @@ def run_reference_astrometry(setup, force_rotate_ref=False, dx=0.0, dy=0.0):
                       bright_central_detected_stars, bright_central_gaia_stars, interactive=False)
 
         # Apply initial transform, if any
-        log.info('Applying initial transformation of catalog positions, dx='+str(dx)+', dy='+str(dy)+' pixels')
-        transform = AffineTransform(translation=(dx, dy))
-        stellar_density = utilities.stellar_density(bright_central_gaia_stars,
-                                            selection_radius)
-        bright_central_gaia_stars = update_catalog_image_coordinates(setup, image_wcs,
-                                                    bright_central_gaia_stars, log,
-                                                    'catalog_stars_bright_initial_'+str(it)+'.reg',
-                                                    stellar_density, rotate_wcs, force_rotate_ref,
-                                                    stellar_density_threshold,
-                                                    transform=transform, radius=selection_radius)
+        transform = AffineTransform()
         it = 0
         max_it = 5
         iterate = True
@@ -120,7 +111,14 @@ def run_reference_astrometry(setup, force_rotate_ref=False, dx=0.0, dy=0.0):
         while iterate:
             it += 1
 
-            if it == 1 and method in ['histogram', 'ransac']:
+            if it == 1 and (dx != 0.0 or dy != 0.0):
+                log.info('Applying initial transformation of catalog positions, dx='+str(dx)+', dy='+str(dy)+' pixels')
+                transform = AffineTransform(translation=(dx, dy))
+                stellar_density = utilities.stellar_density(bright_central_gaia_stars,
+                                                    selection_radius)
+                matched_stars = match_utils.StarMatchIndex()
+            
+            elif it == 1 and method in ['histogram', 'ransac']:
                 log.info('Calculating transformation using the histogram method, iteration '+str(it))
 
                 stellar_density = utilities.stellar_density(bright_central_gaia_stars,
