@@ -127,7 +127,8 @@ def run_stage3_db_ingest(setup, primary_ref=False):
         matched_stars = match_catalog_entries_with_starlist(conn,dataset_params,
                                                             starlist,
                                                             reduction_metadata,
-                                                            primary_refimg_id,log)
+                                                            primary_refimg_id,log,
+                                                            verbose=True)
 
         transform = calc_transform_to_primary_ref(setup,matched_stars,log)
 
@@ -771,7 +772,7 @@ def match_catalog_entries_with_starlist(conn,params,starlist,reduction_metadata,
                  'cat1_dec': star['dec'],
                  'cat1_x': phot_data['x'][0],
                  'cat1_y': phot_data['y'][0],
-                 'cat2_index': jdx[kdx[0]],
+                 'cat2_index': jdx[kdx[0]]+1,
                  'cat2_ra': reduction_metadata.star_catalog[1]['ra'][jdx[kdx[0]]][0],
                  'cat2_dec': reduction_metadata.star_catalog[1]['dec'][jdx[kdx[0]]][0],
                  'cat2_x': reduction_metadata.star_catalog[1]['x'][jdx[kdx[0]]][0],
@@ -838,7 +839,7 @@ def match_all_entries_with_starlist(setup,conn,params,starlist,reduction_metadat
              'cat1_dec': starlist['dec'][j],
              'cat1_x': phot_data['x'][j],
              'cat1_y': phot_data['y'][j],
-             'cat2_index': jdx[0],
+             'cat2_index': jdx[0]+1,
              'cat2_ra': reduction_metadata.star_catalog[1]['ra'][jdx[0]],
              'cat2_dec': reduction_metadata.star_catalog[1]['dec'][jdx[0]],
              'cat2_x': reduction_metadata.star_catalog[1]['x'][jdx[0]],

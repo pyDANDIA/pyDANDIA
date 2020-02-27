@@ -708,14 +708,15 @@ def match_dataset_with_field_primary_reference(setup,conn,dataset_params,
     matched_stars = stage3_db_ingest.match_catalog_entries_with_starlist(conn,dataset_params,
                                                         starlist,
                                                         reduction_metadata,
-                                                        primary_refimg_id,log)
+                                                        primary_refimg_id,log,
+                                                        verbose=True)
 
     transform = stage3_db_ingest.calc_transform_to_primary_ref(setup,matched_stars,log)
 
     matched_stars = stage3_db_ingest.match_all_entries_with_starlist(setup,conn,dataset_params,
                                                     starlist,reduction_metadata,
                                                     primary_refimg_id,transform,log,
-                                                    verbose=False)
+                                                    verbose=True)
 
     return transform, matched_stars
 
