@@ -767,6 +767,8 @@ def match_catalog_entries_with_starlist(conn,params,starlist,reduction_metadata,
             dy = phot_data['y'] - reduction_metadata.star_catalog[1]['y'][jdx[kdx[0]]]
             separation = np.sqrt( dx*dx + dy*dy )
 
+            print(jdx[kdx[0]])
+            exit()
             p = {'cat1_index': star['star_id'],
                  'cat1_ra': star['ra'],
                  'cat1_dec': star['dec'],
