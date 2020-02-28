@@ -256,7 +256,7 @@ def run_stage6(setup):
                         psf_model.update_psf_parameters(psf_parameters)
 
                         commit_stamp_photometry_matching(conn, image_params, reduction_metadata, matched_stars, phot_table,
-                                                         log, verbose=True)
+                                                         log, verbose=False)
                         #commit_image_photometry_matching(conn, image_params, reduction_metadata, matched_stars, phot_table, log)
 
                     else:
