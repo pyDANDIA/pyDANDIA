@@ -34,6 +34,21 @@ FIELD_HALF_HEIGHT = (( naxis1 * pixel_scale ) / 3600.0) / 2.0 # Deg
 def plot_all_fields(data_dir):
 
     fig = plt.figure(1)
+    fig.patch.set_facecolor('black')
+
+    ax = plt.subplot(111)
+    plt.subplots_adjust(left=0.125, right=0.9, top=0.85, bottom=0.2)
+    ax.set_facecolor('black')
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.spines["bottom"].set_visible(False)
+    plot_ranges = calc_survey_boundaries()
+
+    ax.set_autoscaley_on(False)
+    ax.set_autoscalex_on(False)
+    ax.axis('equal')
+    ax.set_xlim([plot_ranges[0], plot_ranges[1]])
+    ax.set_ylim([plot_ranges[2], plot_ranges[3]])
 
     for field_id,field_data in ROME_FIELDS.items():
 
@@ -42,16 +57,67 @@ def plot_all_fields(data_dir):
         if path.isfile(file_name):
 
             image = plt.imread(file_name)
-            extend = [ field_data[0] - FIELD_HALF_WIDTH,
+            image = np.fliplr(image)
+            image = np.flipud(image)
+
+            extent = [ field_data[0] - FIELD_HALF_WIDTH,
                         field_data[0] + FIELD_HALF_WIDTH,
                         field_data[1] - FIELD_HALF_HEIGHT,
                         field_data[1] + FIELD_HALF_HEIGHT ]
 
             plt.imshow(image, extent=extent)
 
+    plt.grid(linestyle='--',c='gray', linewidth=0.5)
+    ax.tick_params(axis='x', colors='gray')
+    ax.tick_params(axis='y', colors='gray')
+    ax.yaxis.label.set_color('gray')
+    ax.xaxis.label.set_color('gray')
+    plt.xlabel('RA [deg]')
+    plt.ylabel('Dec [deg]')
+
+    ax.title.set_color('white')
+    figure_title = 'ROME Survey of the Galactic Bulge'
+    plt.text(0.5, 1.08, figure_title,
+        horizontalalignment='center',
+        fontsize=20, c='gray',
+        transform = ax.transAxes)
+
+    plt.text(0.5, -0.2, '1 million stars    3 colors    3 years',
+        horizontalalignment='center',
+        fontsize=14, c='gray',
+        transform = ax.transAxes)
+
+
+    ax2 = fig.add_axes([0.8, 0.8, 0.2, 0.2], anchor='NE', zorder=-1)
+    ax2.imshow(im)
+    ax2.axis('off')
+
     plt.draw()
-    plt.savefig(path.join(data_dir, 'ROME_survey_colour.png'), dpi=300)
-    
+    plt.savefig(path.join(data_dir, 'ROME_survey_colour.png'), dpi=300,
+                        facecolor=fig.get_facecolor(), edgecolor='none')
+
+def calc_survey_boundaries():
+
+    ra_min = 1000.0
+    ra_max = -1000.0
+    dec_min = 1000.0
+    dec_max = -1000.0
+
+    for field_id, field_data in ROME_FIELDS.items():
+        if field_data[0] < ra_min: ra_min = field_data[0]
+        if field_data[0] > ra_max: ra_max = field_data[0]
+        if field_data[1] < dec_min: dec_min = field_data[1]
+        if field_data[1] > dec_max: dec_max = field_data[1]
+
+    ra_min = ra_min * 0.99
+    ra_max = ra_max * 1.01
+    dec_min = dec_min * 1.01
+    dec_max = dec_max * 0.99
+
+    print('Survey boundaries RA='+str(ra_min)+' - '+str(ra_max)+\
+            ', Dec='+str(dec_min)+' - '+str(dec_max))
+
+    return [ra_min, ra_max, dec_min, dec_max]
 
 if __name__ == '__main__':
 
