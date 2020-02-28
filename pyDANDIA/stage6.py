@@ -256,7 +256,7 @@ def run_stage6(setup):
                         psf_model.update_psf_parameters(psf_parameters)
 
                         commit_stamp_photometry_matching(conn, image_params, reduction_metadata, matched_stars, phot_table,
-                                                         log)
+                                                         log, verbose=True)
                         #commit_image_photometry_matching(conn, image_params, reduction_metadata, matched_stars, phot_table, log)
 
                     else:
@@ -816,7 +816,8 @@ def commit_image_photometry_matching(conn, params, reduction_metadata,
 
 
 def commit_stamp_photometry_matching(conn, params, reduction_metadata,
-                                     matched_stars, phot_table, log):
+                                     matched_stars, phot_table, log,
+                                     verbose=False):
     log.info('Starting database ingest')
 
     query = 'SELECT facility_id, facility_code FROM facilities WHERE facility_code="' + params['facility_code'] + '"'
@@ -863,11 +864,11 @@ def commit_stamp_photometry_matching(conn, params, reduction_metadata,
     log.info('Building database entries array')
 
     for i in range(0, len(phot_table), 1):
-        star_id = int(float(phot_table[i]['star_id']))-1
+        star_dataset_id = int(float(phot_table[i]['star_id']))
+        star_match_idx = matched_stars.find_star_match_index('cat2_index',star_dataset_id)
 
-        if star_id < len(matched_stars.cat1_index):
-            j_cat = matched_stars.cat1_index[star_id]  # Starlist index in DB
-            j_new = matched_stars.cat2_index[star_id]  # Star detected in image
+        if star_match_idx > 0:
+            j_cat = matched_stars.cat1_index[star_match_idx]  # Starlist index in DB
 
             x = str(phot_table['residual_x'][i])
             y = str(phot_table['residual_y'][i])
@@ -895,6 +896,9 @@ def commit_stamp_photometry_matching(conn, params, reduction_metadata,
                      'DIA')
 
             entries.append(entry)
+
+            if verbose:
+                log.info(str(entry))
 
     if len(entries) > 0:
 

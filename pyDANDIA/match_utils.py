@@ -116,3 +116,25 @@ class StarMatchIndex:
                     '), separation '+str(self.separation[j])+' pixels\n'
 
         return output
+
+    def find_star_match_index(self, catalog_index, cat2_star_id):
+        """Method to find the array index of a star entry in the matched stars list,
+        based on it's star ID number from either catalog.
+
+        Inputs:
+        :param str catalog_index: Name of catalog index attribute to search
+                                    one of {cat1_index, cat2_index}
+        :param int cat2_star_id: Star ID index to search for
+
+        Outputs:
+        :param int idx: Array index of star or -1 if not found
+        """
+
+        catalog_star_index = getattr(self,catalog_index)
+
+        try:
+            idx = catalog_star_index.index(cat2_star_id)
+        except ValueError:
+            idx = -1
+
+        return idx
