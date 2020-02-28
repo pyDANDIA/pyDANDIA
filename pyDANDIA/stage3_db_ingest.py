@@ -137,7 +137,9 @@ def run_stage3_db_ingest(setup, primary_ref=False):
                                                         primary_refimg_id,transform,log,
                                                         verbose=True)
 
-        commit_photometry_matching(conn, dataset_params, reduction_metadata, matched_stars, log)
+        commit_photometry_matching(conn, dataset_params, reduction_metadata,
+                                                        matched_stars, log,
+                                                        verbose=True)
 
     conn.close()
 
@@ -651,7 +653,8 @@ def commit_photometry(conn, params, reduction_metadata, star_ids, log):
 
     log.info('Completed ingest of photometry for '+str(len(star_ids))+' stars')
 
-def commit_photometry_matching(conn, params, reduction_metadata, matched_stars, log):
+def commit_photometry_matching(conn, params, reduction_metadata, matched_stars,
+                                log, verbose=False):
 
     log.info('Extracting dataset descriptors for ingest of matching photometry')
 
@@ -694,21 +697,24 @@ def commit_photometry_matching(conn, params, reduction_metadata, matched_stars, 
     values = []
     for i in range(0,matched_stars.n_match,1):
 
-        j_cat = matched_stars.cat1_index[i]     # Starlist index in DB
-        j_new = matched_stars.cat2_index[i]     # Star detected in image
+        j_cat = matched_stars.cat1_index[i]     # Starlist index in DB -> array index
+        j_new = matched_stars.cat2_index[i]     # Star detected in image catalog index
+        jj = j_new - 1
 
-        x = str(reduction_metadata.star_catalog[1]['x'][j_new])
-        y = str(reduction_metadata.star_catalog[1]['y'][j_new])
-        mag = str(reduction_metadata.star_catalog[1]['ref_mag'][j_new])
-        mag_err = str(reduction_metadata.star_catalog[1]['ref_mag_error'][j_new])
-        cal_mag = str(reduction_metadata.star_catalog[1]['cal_ref_mag'][j_new])
-        cal_mag_err = str(reduction_metadata.star_catalog[1]['cal_ref_mag_error'][j_new])
-        flux = str(reduction_metadata.star_catalog[1]['ref_flux'][j_new])
-        flux_err = str(reduction_metadata.star_catalog[1]['ref_flux_error'][j_new])
-        cal_flux = str(reduction_metadata.star_catalog[1]['cal_ref_flux'][j_new])
-        cal_flux_err = str(reduction_metadata.star_catalog[1]['cal_ref_flux_error'][j_new])
-        sky = str(reduction_metadata.star_catalog[1]['sky_background'][j_new])
-        sky_err = str(reduction_metadata.star_catalog[1]['sky_background_error'][j_new])
+        # j_new index refers to star number in catalogue
+        # jj index refers to array index
+        x = str(reduction_metadata.star_catalog[1]['x'][jj])
+        y = str(reduction_metadata.star_catalog[1]['y'][jj])
+        mag = str(reduction_metadata.star_catalog[1]['ref_mag'][jj])
+        mag_err = str(reduction_metadata.star_catalog[1]['ref_mag_error'][jj])
+        cal_mag = str(reduction_metadata.star_catalog[1]['cal_ref_mag'][jj])
+        cal_mag_err = str(reduction_metadata.star_catalog[1]['cal_ref_mag_error'][jj])
+        flux = str(reduction_metadata.star_catalog[1]['ref_flux'][jj])
+        flux_err = str(reduction_metadata.star_catalog[1]['ref_flux_error'][jj])
+        cal_flux = str(reduction_metadata.star_catalog[1]['cal_ref_flux'][jj])
+        cal_flux_err = str(reduction_metadata.star_catalog[1]['cal_ref_flux_error'][jj])
+        sky = str(reduction_metadata.star_catalog[1]['sky_background'][jj])
+        sky_err = str(reduction_metadata.star_catalog[1]['sky_background_error'][jj])
 
         entry = (str(int(j_cat)), str(refimage['refimg_id'][0]), str(image['img_id'][0]),
                    str(facility['facility_id'][0]), str(f['filter_id'][0]), str(code['code_id'][0]),
@@ -721,6 +727,9 @@ def commit_photometry_matching(conn, params, reduction_metadata, matched_stars, 
 
         values.append(entry)
 
+        if verbose:
+            log.info(str(entry))
+            
     command = 'INSERT OR REPLACE INTO phot('+','.join(key_list)+\
                 ') VALUES ('+wildcards+')'
 
@@ -767,24 +776,24 @@ def match_catalog_entries_with_starlist(conn,params,starlist,reduction_metadata,
             dy = phot_data['y'] - reduction_metadata.star_catalog[1]['y'][jdx[kdx[0]]]
             separation = np.sqrt( dx*dx + dy*dy )
 
-            print(jdx[kdx[0]])
-            exit()
+            jj = jdx[kdx[0]][0]
+
             p = {'cat1_index': star['star_id'],
                  'cat1_ra': star['ra'],
                  'cat1_dec': star['dec'],
                  'cat1_x': phot_data['x'][0],
                  'cat1_y': phot_data['y'][0],
-                 'cat2_index': jdx[kdx[0]][0]+1,
-                 'cat2_ra': reduction_metadata.star_catalog[1]['ra'][jdx[kdx[0]]][0],
-                 'cat2_dec': reduction_metadata.star_catalog[1]['dec'][jdx[kdx[0]]][0],
-                 'cat2_x': reduction_metadata.star_catalog[1]['x'][jdx[kdx[0]]][0],
-                 'cat2_y': reduction_metadata.star_catalog[1]['y'][jdx[kdx[0]]][0],
+                 'cat2_index': jj+1,
+                 'cat2_ra': reduction_metadata.star_catalog[1]['ra'][jj],
+                 'cat2_dec': reduction_metadata.star_catalog[1]['dec'][jj],
+                 'cat2_x': reduction_metadata.star_catalog[1]['x'][jj],
+                 'cat2_y': reduction_metadata.star_catalog[1]['y'][jj],
                  'separation': separation[0]}
 
             matched_stars.add_match(p)
 
             if verbose:
-                log.info(matched_stars.summarize_last(units='pixel'))
+                log.info(matched_stars.summarize_last(units='both'))
 
     return matched_stars
 
@@ -852,6 +861,6 @@ def match_all_entries_with_starlist(setup,conn,params,starlist,reduction_metadat
             matched_stars.add_match(p)
 
             if verbose:
-                log.info(matched_stars.summarize_last())
+                log.info(matched_stars.summarize_last(units='both'))
 
     return matched_stars
