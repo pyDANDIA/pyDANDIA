@@ -872,7 +872,7 @@ def commit_stamp_photometry_matching(conn, params, reduction_metadata,
             if verbose:
                 log.info('Dataset star '+str(star_dataset_id)+\
                 ' photometry being associated with primary reference star '+str(j_cat))
-                
+
             x = str(phot_table['residual_x'][i])
             y = str(phot_table['residual_y'][i])
             radius = str(phot_table['radius'][i])
