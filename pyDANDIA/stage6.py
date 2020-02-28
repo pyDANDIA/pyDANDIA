@@ -869,7 +869,10 @@ def commit_stamp_photometry_matching(conn, params, reduction_metadata,
 
         if star_match_idx > 0:
             j_cat = matched_stars.cat1_index[star_match_idx]  # Starlist index in DB
-
+            if verbose:
+                log.info('Dataset star '+str(star_dataset_id)+\
+                ' photometry being associated with primary reference star '+str(j_cat))
+                
             x = str(phot_table['residual_x'][i])
             y = str(phot_table['residual_y'][i])
             radius = str(phot_table['radius'][i])
