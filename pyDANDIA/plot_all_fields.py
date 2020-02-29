@@ -33,11 +33,11 @@ FIELD_HALF_HEIGHT = (( naxis1 * pixel_scale ) / 3600.0) / 2.0 # Deg
 
 def plot_all_fields(data_dir):
 
-    fig = plt.figure(1)
+    fig = plt.figure(1,(39,27))
     fig.patch.set_facecolor('black')
 
     ax = plt.subplot(111)
-    plt.subplots_adjust(left=0.125, right=0.9, top=0.85, bottom=0.2)
+    plt.subplots_adjust(left=0.075, right=0.95, top=0.85, bottom=0.15)
     ax.set_facecolor('black')
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
@@ -72,24 +72,28 @@ def plot_all_fields(data_dir):
     ax.tick_params(axis='y', colors='gray')
     ax.yaxis.label.set_color('gray')
     ax.xaxis.label.set_color('gray')
-    plt.xlabel('RA [deg]')
-    plt.ylabel('Dec [deg]')
+    plt.xlabel('RA [deg]', fontsize=30)
+    plt.ylabel('Dec [deg]', fontsize=30)
+    for tick in ax.xaxis.get_major_ticks():
+        tick.label.set_fontsize(30)
+    for tick in ax.yaxis.get_major_ticks():
+        tick.label.set_fontsize(30)
 
     ax.title.set_color('white')
     figure_title = 'ROME Survey of the Galactic Bulge'
     plt.text(0.5, 1.08, figure_title,
         horizontalalignment='center',
-        fontsize=20, c='gray',
+        fontsize=100, c='gray',
         transform = ax.transAxes)
 
-    plt.text(0.5, -0.2, '1 million stars    3 colors    3 years',
+    plt.text(0.5, -0.16, '1 million stars  $\\bullet$  3 filters  $\\bullet$  3 years',
         horizontalalignment='center',
-        fontsize=14, c='gray',
+        fontsize=80, c='gray',
         transform = ax.transAxes)
 
-
-    ax2 = fig.add_axes([0.8, 0.8, 0.2, 0.2], anchor='NE', zorder=-1)
-    ax2.imshow(im)
+    image = plt.imread(path.join(data_dir,'LCO_new_logo_lightgrey.png'))
+    ax2 = fig.add_axes([0.875, -0.01, 0.1, 0.1], anchor='NE')
+    ax2.imshow(image)
     ax2.axis('off')
 
     plt.draw()
