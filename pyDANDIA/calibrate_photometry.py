@@ -234,9 +234,9 @@ def select_calibration_stars(star_catalog,params,log):
     jdx = np.where(star_catalog['vphas_source_id'] != 'None')
     log.info('VPHAS+ data available for '+str(len(jdx[0]))+' stars in total')
 
-    limit_mag = 17.5
-    if params['filter'] == 'gp': limit_mag = 22.0
-    if params['filter'] == 'rp': limit_mag = 18.0
+    limit_mag = 22.0
+    #if params['filter'] == 'gp': limit_mag = 22.0
+    #if params['filter'] == 'rp': limit_mag = 18.0
 
     if 'cat_mags_max' in params.keys() and params['cat_mags_max'] > limit_mag:
         limit_mag = params['cat_mags_max']
@@ -549,15 +549,15 @@ def model_phot_transform(params,star_catalog,vphas_cat,match_index,fit,
 def set_calibration_limits(params,log):
     """Function to use the parameters given or set defaults"""
 
-    defaults = {'gp': {'det_mags_max': 20.0,
-                       'det_mags_min': 10.0,
-                       'cat_merr_max': 0.04},
-                'rp': {'det_mags_max': 20.0,
-                       'det_mags_min': 10.0,
-                       'cat_merr_max': 0.04},
-                'ip': {'det_mags_max': 20.0,
-                       'det_mags_min': 15.5,
-                       'cat_merr_max': 0.04}}
+    defaults = {'gp': {'det_mags_max': 21.0,
+                       'det_mags_min': 15.0,
+                       'cat_merr_max': 0.03},
+                'rp': {'det_mags_max': 21.0,
+                       'det_mags_min': 15.0,
+                       'cat_merr_max': 0.03},
+                'ip': {'det_mags_max': 21.0,
+                       'det_mags_min': 15.0,
+                       'cat_merr_max': 0.03}}
 
     def_params = defaults[params['filter']]
 
