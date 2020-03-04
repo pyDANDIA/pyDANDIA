@@ -861,7 +861,7 @@ def commit_stamp_photometry_matching(conn, params, reduction_metadata,
 
     entries = []
 
-    log.info('Building database entries array')
+    log.info('Building database entries array for '+str(len(phot_table))+' stars in stamp')
 
     for i in range(0, len(phot_table), 1):
         star_dataset_id = int(float(phot_table[i]['star_id']))
@@ -903,6 +903,8 @@ def commit_stamp_photometry_matching(conn, params, reduction_metadata,
             if verbose:
                 log.info(str(entry))
 
+    log.info('Starting database ingest for '+str(len(entries))+' array')
+
     if len(entries) > 0:
 
         log.info('Ingesting data to phot_db')
@@ -920,4 +922,4 @@ def commit_stamp_photometry_matching(conn, params, reduction_metadata,
 
         log.info('No photometry to be ingested')
 
-    log.info('Completed ingest of photometry for ' + str(len(matched_stars.cat1_index)) + ' stars')
+    log.info('Completed ingest of photometry for ' + str(len(entries)) + ' stars')
