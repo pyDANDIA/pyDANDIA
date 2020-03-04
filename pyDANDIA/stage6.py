@@ -859,8 +859,6 @@ def commit_stamp_photometry_matching(conn, params, reduction_metadata,
 
     n_stars = len(phot_table)
 
-    entries = []
-
     log.info('Building database entries array for '+str(len(phot_table))+' stars in stamp')
 
     for i in range(0, len(phot_table), 1):
@@ -889,37 +887,28 @@ def commit_stamp_photometry_matching(conn, params, reduction_metadata,
             bkgd = str(phot_table['local_background'][i])
             bkgd_err = str(phot_table['local_background_err'][i])
 
-            entry = (str(int(j_cat)), str(refimage['refimg_id'][0]), str(image['img_id'][0]),str(stamp['stamp_id'][0]),
+            entry = [str(int(j_cat)), str(refimage['refimg_id'][0]), str(image['img_id'][0]),str(stamp['stamp_id'][0]),
                      str(facility['facility_id'][0]), str(f['filter_id'][0]), str(code['code_id'][0]),
                      x, y, str(params['hjd']), radius,
                      mag, mag_err, cal_mag, cal_mag_err,
                      flux, flux_err, cal_flux, cal_flux_err,
                      ps, ps_err,  # No phot scale factor for PSF fitting photometry
                      bkgd, bkgd_err,  # No background measurements propageted
-                     'DIA')
-
-            entries.append(entry)
+                     'DIA']
 
             if verbose:
                 log.info(str(entry))
 
-    log.info('Starting database ingest for '+str(len(entries))+' array')
+            command = 'INSERT OR REPLACE INTO phot ('+','.join(key_list)+') VALUES ("'
+            command += '","'.join(entry) + '")'
 
-    if len(entries) > 0:
+            cursor = conn.cursor()
 
-        log.info('Ingesting data to phot_db')
+            cursor.execute(command)
 
-        command = 'INSERT OR REPLACE INTO phot(' + ','.join(key_list) + \
-                  ') VALUES (' + wildcards + ')'
+            conn.commit()
 
-        cursor = conn.cursor()
+            if verbose:
+                log.info('Completed database ingest for '+str(len(entries))+' array')
 
-        cursor.executemany(command, entries)
-
-        conn.commit()
-
-    else:
-
-        log.info('No photometry to be ingested')
-
-    log.info('Completed ingest of photometry for ' + str(len(entries)) + ' stars')
+    log.info('Completed ingest of photometry for dataset star ' + str(star_dataset_id) + '=='+str(star_match_id))
