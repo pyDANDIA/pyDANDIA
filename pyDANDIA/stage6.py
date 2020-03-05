@@ -909,6 +909,6 @@ def commit_stamp_photometry_matching(conn, params, reduction_metadata,
             conn.commit()
 
             if verbose:
-                log.info('Completed database ingest for '+str(len(entries))+' array')
+                log.info('Completed database ingest for dataset star '+str(star_dataset_id))
 
-    log.info('Completed ingest of photometry for dataset star ' + str(star_dataset_id) + '=='+str(star_match_id))
+    log.info('Completed ingest of photometry for stars in stamp')

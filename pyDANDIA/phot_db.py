@@ -266,11 +266,11 @@ class PhotometryPoints(TableDef):
     c_165_local_background_err = 'REAL'
     c_170_phot_type = 'TEXT'
 
-    pc_000_datesindex = (
-        'CREATE INDEX IF NOT EXISTS phot_objs ON phot (star_id)')
+    #pc_000_datesindex = (
+    #    'CREATE INDEX IF NOT EXISTS phot_objs ON phot (star_id)')
 
-    pc_001_photindex = (
-        'CREATE UNIQUE INDEX phot_entry ON phot(star_id, reference_image, image, facility, filter, software)')
+    #pc_001_photindex = (
+    #    'CREATE UNIQUE INDEX phot_entry ON phot(star_id, reference_image, image, facility, filter, software)')
 
 class DetrendingParameters(TableDef):
     """Photometry database table describing the detrending parameters applied"""
