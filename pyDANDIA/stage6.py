@@ -35,6 +35,7 @@ from pyDANDIA import sky_background
 from pyDANDIA import psf
 from pyDANDIA import photometry
 from pyDANDIA import stage3_db_ingest
+from pyDANDIA import hd5_utils
 
 def run_stage6(setup):
     """Main driver function to run stage 6: image substraction and photometry.
