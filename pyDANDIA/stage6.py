@@ -136,7 +136,7 @@ def run_stage6(setup):
     exposures_id = []
     photometric_table = []
 
-    photometry_data = build_photometry_array(setup,len(all_images),len(starlist),log)
+    (matched_photometry_data, unmatched_photometry_data) = build_photometry_array(setup,len(all_images),len(starlist),log)
 
     log.info('Starting photometry of difference images')
 
@@ -262,8 +262,9 @@ def run_stage6(setup):
                         #                                 log, verbose=False)
                         #commit_image_photometry_matching(conn, image_params, reduction_metadata, matched_stars, phot_table, log)
 
-                        photometry_data = store_stamp_photometry_to_array(conn, params, reduction_metadata,
-                                                            photometry_data, phot_table, matched_stars,
+                        (matched_photometry_data, unmatched_photometry_data) = store_stamp_photometry_to_array(conn, params, reduction_metadata,
+                                                            matched_photometry_data, unmatched_photometry_data,
+                                                            phot_table, matched_stars,
                                                             new_image, log)
 
                     else:
@@ -295,7 +296,7 @@ def run_stage6(setup):
             reduction_metadata.data_architecture[1]['METADATA_NAME'][0],
             log=log)
 
-    hd5_utils.write_phot_hd5(setup,photometry_data,log=log)
+    hd5_utils.write_phot_hd5(setup,matched_photometry_data,unmatched_photometry_data,log=log)
 
     conn.close()
     logs.close_log(log)
@@ -943,28 +944,42 @@ def build_photometry_array(setup,nimages,nstars,log):
     """
 
     # Number of columns of measurements per star in the photometry table
-    ncolumns = 23
+    ncolumns_matched = 23
+    ncolumns_unmatched = 22
 
-    existing_phot = hd5_utils.read_phot_hd5(setup,log=log)
-    if len(existing_phot) > 0 and existing_phot.shape[2] != ncolumns:
-        raise IOError('Existing photometry array has '+\
-                        str(existing_phot.shape[2])+
+    (matched_existing_phot, unmatched_existing_phot) = hd5_utils.read_phot_hd5(setup,log=log)
+
+    if len(matched_existing_phot) > 0 and matched_existing_phot.shape[2] != ncolumns_matched:
+        raise IOError('Existing matched photometry array has '+\
+                        str(matched_existing_phot.shape[2])+
                         ' which is incompatible with the expected '+\
                         str(ncolumns)+' columns')
 
-    photometry_data = np.zeros((nstars,nimages,ncolumns))
+    if len(unmatched_existing_phot) > 0 and unmatched_existing_phot.shape[2] != ncolumns_unmatched:
+        raise IOError('Existing unmatched photometry array has '+\
+                        str(unmatched_existing_phot.shape[2])+
+                        ' which is incompatible with the expected '+\
+                        str(ncolumns_unmatched)+' columns')
 
-    # If available, transfer the existing photometry into the data array
-    if len(existing_phot) > 0:
-        for i in existing_phot[:,2]:
-            photometry[:,i,:] = existing_phot[:,i,:]
+    matched_photometry_data = np.zeros((nstars,nimages,ncolumns))
+    unmatched_photometry_data = np.zeros((nstars,nimages,ncolumns))
+
+    # If available, transfer the existing photometry into the data arrays
+    if len(matched_existing_phot) > 0:
+        for i in matched_existing_phot[:,2]:
+            matched_photometry_data[:,i,:] = matched_existing_phot[:,i,:]
+
+    if len(unmatched_existing_phot) > 0:
+        for i in unmatched_existing_phot[:,2]:
+            unmatched_photometry_data[:,i,:] = unmatched_existing_phot[:,i,:]
 
     log.info('Completed build of the photometry array')
 
-    return photometry_data
+    return matched_photometry_data, unmatched_photometry_data
 
 def store_stamp_photometry_to_array(conn, params, reduction_metadata,
-                                    photometry_data, phot_table, matched_stars,
+                                    matched_photometry_data, unmatched_photometry_data,
+                                    phot_table, matched_stars,
                                     new_image, log):
     """Function to store photometry data from a stamp to the main
     photometry array"""
@@ -1003,27 +1018,27 @@ def store_stamp_photometry_to_array(conn, params, reduction_metadata,
         star_dataset_id = int(float(phot_table[i]['star_id']))
         star_match_idx = matched_stars.find_star_match_index('cat2_index',star_dataset_id)
 
+        x = phot_table['residual_x'][i]
+        y = phot_table['residual_y'][i]
+        radius = phot_table['radius'][i]
+        mag = phot_table['magnitude'][i]
+        mag_err = phot_table['magnitude_err'][i]
+        cal_mag = phot_table['cal_magnitude'][i]
+        cal_mag_err = phot_table['cal_magnitude_err'][i]
+        flux = phot_table['flux'][i]
+        flux_err = phot_table['flux_err'][i]
+        cal_flux = phot_table['cal_flux'][i]
+        cal_flux_err = phot_table['cal_flux_err'][i]
+        ps = phot_table['phot_scale_factor'][i]
+        ps_err = phot_table['phot_scale_factor_err'][i]
+        bkgd = phot_table['local_background'][i]
+        bkgd_err = phot_table['local_background_err'][i]
+
         if star_match_idx > 0:
             j_cat = matched_stars.cat1_index[star_match_idx]  # Starlist index in DB
             if verbose:
                 log.info('Dataset star '+str(star_dataset_id)+\
                 ' photometry being associated with primary reference star '+str(j_cat))
-
-            x = phot_table['residual_x'][i]
-            y = phot_table['residual_y'][i]
-            radius = phot_table['radius'][i]
-            mag = phot_table['magnitude'][i]
-            mag_err = phot_table['magnitude_err'][i]
-            cal_mag = phot_table['cal_magnitude'][i]
-            cal_mag_err = phot_table['cal_magnitude_err'][i]
-            flux = phot_table['flux'][i]
-            flux_err = phot_table['flux_err'][i]
-            cal_flux = phot_table['cal_flux'][i]
-            cal_flux_err = phot_table['cal_flux_err'][i]
-            ps = phot_table['phot_scale_factor'][i]
-            ps_err = phot_table['phot_scale_factor_err'][i]
-            bkgd = phot_table['local_background'][i]
-            bkgd_err = phot_table['local_background_err'][i]
 
             entry = np.array([str(int(j_cat)), str(refimage['refimg_id'][0]), str(image['img_id'][0]),str(stamp['stamp_id'][0]),
                      str(facility['facility_id'][0]), str(f['filter_id'][0]), str(code['code_id'][0]),
@@ -1033,11 +1048,29 @@ def store_stamp_photometry_to_array(conn, params, reduction_metadata,
                      ps, ps_err,  # No phot scale factor for PSF fitting photometry
                      bkgd, bkgd_err])  # No background measurements propageted
 
-            photometry_data[star_dataset_id,image_dataset_id,:] = entry
+            matched_photometry_data[star_dataset_id,image_dataset_id,:] = entry
+
+            if verbose:
+                log.info(str(entry))
+
+        else:
+            if verbose:
+                log.info('Dataset star '+str(star_dataset_id)+\
+                ' is unmatched with the primary reference catalogue')
+
+            entry = np.array([str(refimage['refimg_id'][0]), str(image['img_id'][0]),str(stamp['stamp_id'][0]),
+                     str(facility['facility_id'][0]), str(f['filter_id'][0]), str(code['code_id'][0]),
+                     x, y, str(params['hjd']), radius,
+                     mag, mag_err, cal_mag, cal_mag_err,
+                     flux, flux_err, cal_flux, cal_flux_err,
+                     ps, ps_err,  # No phot scale factor for PSF fitting photometry
+                     bkgd, bkgd_err])  # No background measurements propageted
+
+            unmatched_photometry_data[star_dataset_id,image_dataset_id,:] = entry
 
             if verbose:
                 log.info(str(entry))
 
     log.info('Completed build of the photometry array')
 
-    return photometry_data
+    return matched_photometry_data, unmatched_photometry_data
