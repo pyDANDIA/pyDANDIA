@@ -118,7 +118,7 @@ def load_masked_image(setup, reduction_metadata, log, image_path=None):
     image_bpm = stage0.open_an_image(setup, path.dirname(image_path),
                                path.basename(image_path), log,  image_index=2)
     if image_bpm == None:
-        image_bpm = open_an_image(setup, path.dirname(image_path),
+        image_bpm = stage0.open_an_image(setup, path.dirname(image_path),
                                 path.basename(image_path),log,  image_index=1)
 
     scidata = scidata.data
