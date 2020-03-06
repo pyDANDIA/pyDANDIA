@@ -1,5 +1,6 @@
 import os
 import h5py
+import numpy as np
 
 def write_phot_hd5(setup, matched_dataset_phot_data,
                             unmatched_dataset_phot_data, log=None):
@@ -10,10 +11,12 @@ def write_phot_hd5(setup, matched_dataset_phot_data,
     with h5py.File(output_path, "w") as f:
         dset = f.create_dataset('matched_dataset_photometry',
                                     matched_dataset_phot_data.shape,
-                                    dtype='float64')
+                                    dtype='float64',
+                                    data=matched_dataset_phot_data)
         dset2 = f.create_dataset('unmatched_dataset_photometry',
                                     unmatched_dataset_phot_data.shape,
-                                    dtype='float64')
+                                    dtype='float64',
+                                    data=unmatched_dataset_phot_data)
     f.close()
 
     if log:

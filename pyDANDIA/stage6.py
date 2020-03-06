@@ -961,17 +961,17 @@ def build_photometry_array(setup,nimages,nstars,log):
                         ' which is incompatible with the expected '+\
                         str(ncolumns_unmatched)+' columns')
 
-    matched_photometry_data = np.zeros((nstars,nimages,ncolumns))
-    unmatched_photometry_data = np.zeros((nstars,nimages,ncolumns))
+    matched_photometry_data = np.zeros((nstars,nimages,ncolumns_matched))
+    unmatched_photometry_data = np.zeros((nstars,nimages,ncolumns_unmatched))
 
     # If available, transfer the existing photometry into the data arrays
     if len(matched_existing_phot) > 0:
-        for i in matched_existing_phot[:,2]:
-            matched_photometry_data[:,i,:] = matched_existing_phot[:,i,:]
+        for i in range(0,matched_existing_phot.shape[1],1):
+            matched_photometry_data[:,int(i),:] = matched_existing_phot[:,int(i),:]
 
     if len(unmatched_existing_phot) > 0:
-        for i in unmatched_existing_phot[:,2]:
-            unmatched_photometry_data[:,i,:] = unmatched_existing_phot[:,i,:]
+        for i in range(0,matched_existing_phot.shape[1],1):
+            unmatched_photometry_data[:,int(i),:] = unmatched_existing_phot[:,int(i),:]
 
     log.info('Completed build of the photometry array')
 
@@ -1015,24 +1015,24 @@ def store_stamp_photometry_to_array(conn, params, reduction_metadata,
     log.info('Extracted dataset identifiers from database')
 
     for j in range(0, len(phot_table), 1):
-        star_dataset_id = int(float(phot_table[i]['star_id']))
+        star_dataset_id = int(float(phot_table[j]['star_id']))
         star_match_idx = matched_stars.find_star_match_index('cat2_index',star_dataset_id)
 
-        x = phot_table['residual_x'][i]
-        y = phot_table['residual_y'][i]
-        radius = phot_table['radius'][i]
-        mag = phot_table['magnitude'][i]
-        mag_err = phot_table['magnitude_err'][i]
-        cal_mag = phot_table['cal_magnitude'][i]
-        cal_mag_err = phot_table['cal_magnitude_err'][i]
-        flux = phot_table['flux'][i]
-        flux_err = phot_table['flux_err'][i]
-        cal_flux = phot_table['cal_flux'][i]
-        cal_flux_err = phot_table['cal_flux_err'][i]
-        ps = phot_table['phot_scale_factor'][i]
-        ps_err = phot_table['phot_scale_factor_err'][i]
-        bkgd = phot_table['local_background'][i]
-        bkgd_err = phot_table['local_background_err'][i]
+        x = phot_table['residual_x'][j]
+        y = phot_table['residual_y'][j]
+        radius = phot_table['radius'][j]
+        mag = phot_table['magnitude'][j]
+        mag_err = phot_table['magnitude_err'][j]
+        cal_mag = phot_table['cal_magnitude'][j]
+        cal_mag_err = phot_table['cal_magnitude_err'][j]
+        flux = phot_table['flux'][j]
+        flux_err = phot_table['flux_err'][j]
+        cal_flux = phot_table['cal_flux'][j]
+        cal_flux_err = phot_table['cal_flux_err'][j]
+        ps = phot_table['phot_scale_factor'][j]
+        ps_err = phot_table['phot_scale_factor_err'][j]
+        bkgd = phot_table['local_background'][j]
+        bkgd_err = phot_table['local_background_err'][j]
 
         if star_match_idx > 0:
             j_cat = matched_stars.cat1_index[star_match_idx]  # Starlist index in DB
