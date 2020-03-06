@@ -48,7 +48,7 @@ def test_build_photometry_array():
     assert matched_phot[:,-1,:].all() == 0.0
     assert unmatched_phot[:,0,:].all() == 1.0
     assert unmatched_phot[:,-1,:].all() == 0.0
-    
+
     logs.close_log(log)
 
 
