@@ -136,7 +136,7 @@ def run_stage6(setup):
     exposures_id = []
     photometric_table = []
 
-    photometry_data = build_photometry_array(setup,nimages,nstars,log)
+    photometry_data = build_photometry_array(setup,len(all_images),len(starlist),log)
 
     log.info('Starting photometry of difference images')
 
