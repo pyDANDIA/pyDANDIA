@@ -243,7 +243,7 @@ def verify_mask_statistics(image_name, mask_data, log=None):
 
     (hist,bins) = np.histogram(mask_data)
     jdx = np.where(bins < 1.0)
-    j1 = jdx[0][-1]
+    j1 = jdx[0][-2]
 
     if log!=None:
         log.info('Verifying BPM for image '+image_name+':')
