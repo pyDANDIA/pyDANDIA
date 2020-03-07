@@ -1034,7 +1034,7 @@ def get_entry_db_indices(conn, params, new_image, log):
 def store_stamp_photometry_to_array(conn, params, reduction_metadata,
                                     matched_photometry_data, unmatched_photometry_data,
                                     phot_table, matched_stars,
-                                    new_image, log, verbose=False:
+                                    new_image, log, verbose=False):
     """Function to store photometry data from a stamp to the main
     photometry array"""
 
