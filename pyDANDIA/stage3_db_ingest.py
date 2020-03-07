@@ -83,26 +83,7 @@ def run_stage3_db_ingest(setup, primary_ref=False):
 
     phot_db.check_before_commit(conn, dataset_params, 'images', image_keys, 'filename')
 
-
-    #ingest the stamps in db
-    list_of_stamps = reduction_metadata.stamps[1]['PIXEL_INDEX'].tolist()
-    stamps_params = {}
-    stamp_keys = define_stamp_keys()
-    for stamp in list_of_stamps:
-        stamp_row = np.where(reduction_metadata.stamps[1]['PIXEL_INDEX'] == stamp)[0][0]
-        xmin = int(reduction_metadata.stamps[1][stamp_row]['X_MIN'])
-        xmax = int(reduction_metadata.stamps[1][stamp_row]['X_MAX'])
-        ymin = int(reduction_metadata.stamps[1][stamp_row]['Y_MIN'])
-        ymax = int(reduction_metadata.stamps[1][stamp_row]['Y_MAX'])
-
-        stamps_params['stamp_index'] = str(stamp)
-        stamps_params['xmin'] = str(xmin)
-        stamps_params['xmax'] = str(xmax)
-        stamps_params['ymin'] = str(ymin)
-        stamps_params['ymax'] = str(ymax)
-
-
-        phot_db.check_before_commit(conn, stamps_params, 'stamps', stamp_keys, 'stamp_index')
+    commit_stamps_to_db(conn, reduction_metadata)
 
     ref_id_list = phot_db.find_reference_image_for_dataset(conn,dataset_params)
 
@@ -174,11 +155,33 @@ def define_table_keys():
                      'delta_x','delta_y']
 
     return facility_keys, software_keys, image_keys
+    
 def define_stamp_keys():
 
     stamp_keys = ['stamp_index','xmin','xmax','ymin','ymax']
 
     return stamp_keys
+
+def commit_stamps_to_db(conn, reduction_metadata):
+
+    list_of_stamps = reduction_metadata.stamps[1]['PIXEL_INDEX'].tolist()
+    stamps_params = {}
+    stamp_keys = define_stamp_keys()
+    for stamp in list_of_stamps:
+        stamp_row = np.where(reduction_metadata.stamps[1]['PIXEL_INDEX'] == stamp)[0][0]
+        xmin = int(reduction_metadata.stamps[1][stamp_row]['X_MIN'])
+        xmax = int(reduction_metadata.stamps[1][stamp_row]['X_MAX'])
+        ymin = int(reduction_metadata.stamps[1][stamp_row]['Y_MIN'])
+        ymax = int(reduction_metadata.stamps[1][stamp_row]['Y_MAX'])
+
+        stamps_params['stamp_index'] = str(stamp)
+        stamps_params['xmin'] = str(xmin)
+        stamps_params['xmax'] = str(xmax)
+        stamps_params['ymin'] = str(ymin)
+        stamps_params['ymax'] = str(ymax)
+
+        phot_db.check_before_commit(conn, stamps_params, 'stamps', stamp_keys, 'stamp_index')
+
 def configure_setup(log=None):
 
     params = {'datasets': [('red_dir_gp', 1), ('red_dir_rp', 2), ('red_dir_ip',3)],
@@ -729,7 +732,7 @@ def commit_photometry_matching(conn, params, reduction_metadata, matched_stars,
 
         if verbose:
             log.info(str(entry))
-            
+
     command = 'INSERT OR REPLACE INTO phot('+','.join(key_list)+\
                 ') VALUES ('+wildcards+')'
 

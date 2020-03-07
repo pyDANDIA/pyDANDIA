@@ -262,7 +262,7 @@ def run_stage6(setup):
                         #                                 log, verbose=False)
                         #commit_image_photometry_matching(conn, image_params, reduction_metadata, matched_stars, phot_table, log)
 
-                        (matched_photometry_data, unmatched_photometry_data) = store_stamp_photometry_to_array(conn, params, reduction_metadata,
+                        (matched_photometry_data, unmatched_photometry_data) = store_stamp_photometry_to_array(conn, image_params, reduction_metadata,
                                                             matched_photometry_data, unmatched_photometry_data,
                                                             phot_table, matched_stars,
                                                             new_image, log)
@@ -977,36 +977,70 @@ def build_photometry_array(setup,nimages,nstars,log):
 
     return matched_photometry_data, unmatched_photometry_data
 
+def get_entry_db_indices(conn, params, new_image, log):
+
+    log.info('Extracting the photometry DB pk indices for '+new_image)
+
+    db_pk = {}
+
+    query = 'SELECT facility_id, facility_code FROM facilities WHERE facility_code="' + params['facility_code'] + '"'
+    result = db_phot.query_to_astropy_table(conn, query, args=())
+    if len(result) > 0:
+        db_pk['facility'] = result['facility_id'][0]
+    else:
+        raise IOError('Facility '+params['facility_code']+' unknown to phot_db')
+
+    query = 'SELECT filter_id, filter_name FROM filters WHERE filter_name="' + params['filter_name'] + '"'
+    result = db_phot.query_to_astropy_table(conn, query, args=())
+    if len(result) > 0:
+        db_pk['filter'] = result['filter_id'][0]
+    else:
+        raise IOError('Filter '+params['filter_name']+' unknown to phot_db')
+
+    query = 'SELECT code_id, version FROM software WHERE version="' + params['version'] + '"'
+    result = db_phot.query_to_astropy_table(conn, query, args=())
+    if len(result) > 0:
+        db_pk['code'] = result['code_id'][0]
+    else:
+        raise IOError('Software '+params['version']+' unknown to phot_db')
+
+    query = 'SELECT refimg_id, filename FROM reference_images WHERE filename ="' + params['ref_filename'] + '"'
+    result = db_phot.query_to_astropy_table(conn, query, args=())
+    if len(result) > 0:
+        db_pk['refimage'] = result['refimg_id'][0]
+    else:
+        raise ValueError(
+            'No Stage 3 results for this reference image available in photometry DB.  Stage3_db_ingest needs to be run for this dataset first.')
+
+    query = 'SELECT img_id, filename FROM images WHERE filename ="' + params['filename'] + '"'
+    result = db_phot.query_to_astropy_table(conn, query, args=())
+    if len(result) > 0:
+        db_pk['image'] = result['img_id'][0]
+    else:
+        raise IOError('Image '+params['filename']+' unknown to phot_db')
+
+    query = 'SELECT stamp_id FROM stamps WHERE stamp_index ="' + params['stamp'] + '"'
+    result = db_phot.query_to_astropy_table(conn, query, args=())
+    if len(result) > 0:
+        db_pk['stamp'] = result['stamp_id'][0]
+    else:
+        raise IOError('Stamp '+params['stamp']+' unknown to phot_db')
+
+    log.info('Extracted dataset identifiers from database')
+
+    return db_pk
+
+
 def store_stamp_photometry_to_array(conn, params, reduction_metadata,
                                     matched_photometry_data, unmatched_photometry_data,
                                     phot_table, matched_stars,
-                                    new_image, log):
+                                    new_image, log, verbose=False:
     """Function to store photometry data from a stamp to the main
     photometry array"""
 
     log.info('Starting to store photometry for image '+new_image)
 
-    query = 'SELECT facility_id, facility_code FROM facilities WHERE facility_code="' + params['facility_code'] + '"'
-    facility = db_phot.query_to_astropy_table(conn, query, args=())
-
-    query = 'SELECT filter_id, filter_name FROM filters WHERE filter_name="' + params['filter_name'] + '"'
-    f = db_phot.query_to_astropy_table(conn, query, args=())
-
-    query = 'SELECT code_id, version FROM software WHERE version="' + params['version'] + '"'
-    code = db_phot.query_to_astropy_table(conn, query, args=())
-
-    query = 'SELECT refimg_id, filename FROM reference_images WHERE filename ="' + params['ref_filename'] + '"'
-    refimage = db_phot.query_to_astropy_table(conn, query, args=())
-
-    if len(refimage) == 0:
-        raise ValueError(
-            'No Stage 3 results for this reference image available in photometry DB.  Stage3_db_ingest needs to be run for this dataset first.')
-
-    query = 'SELECT img_id, filename FROM images WHERE filename ="' + params['filename'] + '"'
-    image = db_phot.query_to_astropy_table(conn, query, args=())
-
-    query = 'SELECT stamp_id FROM stamps WHERE stamp_index ="' + params['stamp'] + '"'
-    stamp = db_phot.query_to_astropy_table(conn, query, args=())
+    db_pk = get_entry_db_indices(conn, params, new_image, log)
 
     # The index of the data from a given image corresponds to the index of that
     # image in the metadata
@@ -1040,8 +1074,8 @@ def store_stamp_photometry_to_array(conn, params, reduction_metadata,
                 log.info('Dataset star '+str(star_dataset_id)+\
                 ' photometry being associated with primary reference star '+str(j_cat))
 
-            entry = np.array([str(int(j_cat)), str(refimage['refimg_id'][0]), str(image['img_id'][0]),str(stamp['stamp_id'][0]),
-                     str(facility['facility_id'][0]), str(f['filter_id'][0]), str(code['code_id'][0]),
+            entry = np.array([str(int(j_cat)), str(db_pk['refimage']), str(db_pk['image']),str(db_pk['stamp']),
+                     str(db_pk['facility']), str(db_pk['filter']), str(db_pk['code']),
                      x, y, str(params['hjd']), radius,
                      mag, mag_err, cal_mag, cal_mag_err,
                      flux, flux_err, cal_flux, cal_flux_err,
@@ -1058,8 +1092,8 @@ def store_stamp_photometry_to_array(conn, params, reduction_metadata,
                 log.info('Dataset star '+str(star_dataset_id)+\
                 ' is unmatched with the primary reference catalogue')
 
-            entry = np.array([str(refimage['refimg_id'][0]), str(image['img_id'][0]),str(stamp['stamp_id'][0]),
-                     str(facility['facility_id'][0]), str(f['filter_id'][0]), str(code['code_id'][0]),
+            entry = np.array([str(refimage['refimg_id'][0]), str(db_pk['image']),str(db_pk['stamp']),
+                     str(db_pk['facility']), str(db_pk['filter']), str(db_pk['code']),
                      x, y, str(params['hjd']), radius,
                      mag, mag_err, cal_mag, cal_mag_err,
                      flux, flux_err, cal_flux, cal_flux_err,
