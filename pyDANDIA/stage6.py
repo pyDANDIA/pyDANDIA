@@ -1082,7 +1082,7 @@ def store_stamp_photometry_to_array(conn, params, reduction_metadata,
                      ps, ps_err,  # No phot scale factor for PSF fitting photometry
                      bkgd, bkgd_err])  # No background measurements propageted
 
-            matched_photometry_data[star_dataset_id,image_dataset_id,:] = entry
+            matched_photometry_data[star_dataset_id-1,image_dataset_id-1,:] = entry
 
             if verbose:
                 log.info(str(entry))
@@ -1092,7 +1092,7 @@ def store_stamp_photometry_to_array(conn, params, reduction_metadata,
                 log.info('Dataset star '+str(star_dataset_id)+\
                 ' is unmatched with the primary reference catalogue')
 
-            entry = np.array([str(refimage['refimg_id'][0]), str(db_pk['image']),str(db_pk['stamp']),
+            entry = np.array([str(db_pk['refimage']), str(db_pk['image']),str(db_pk['stamp']),
                      str(db_pk['facility']), str(db_pk['filter']), str(db_pk['code']),
                      x, y, str(params['hjd']), radius,
                      mag, mag_err, cal_mag, cal_mag_err,
@@ -1100,7 +1100,7 @@ def store_stamp_photometry_to_array(conn, params, reduction_metadata,
                      ps, ps_err,  # No phot scale factor for PSF fitting photometry
                      bkgd, bkgd_err])  # No background measurements propageted
 
-            unmatched_photometry_data[star_dataset_id,image_dataset_id,:] = entry
+            unmatched_photometry_data[star_dataset_id-1,image_dataset_id-1,:] = entry
 
             if verbose:
                 log.info(str(entry))

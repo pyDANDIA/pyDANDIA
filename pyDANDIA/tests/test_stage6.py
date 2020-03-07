@@ -8,6 +8,9 @@ import pipeline_setup
 import logs
 import hd5_utils
 import test_phot_db
+import metadata
+import match_utils
+from astropy.table import Table, Column
 
 TEST_DIR = os.path.join(cwd,'data','proc',
                         'ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip')
@@ -73,6 +76,8 @@ def test_get_entry_db_indices():
 
 def test_store_stamp_photometry_to_array():
 
+    setup = pipeline_setup.pipeline_setup({'red_dir': TEST_DIR})
+
     log = logs.start_stage_log( cwd, 'test_photometry' )
 
     (conn,params,ref_image_name) = test_phot_db.setup_test_phot_db(log)
@@ -82,10 +87,29 @@ def test_store_stamp_photometry_to_array():
 
     nstars = 100
     nimages = 50
-    matched_dataset_phot_data = np.zeros((nstars,nimages,ncolumns_matched))
-    unmatched_dataset_phot_data = np.zeros((nstars,nimages,ncolumns_unmatched))
+    matched_phot_data = np.zeros((nstars,nimages,ncolumns_matched))
+    unmatched_phot_data = np.zeros((nstars,nimages,ncolumns_unmatched))
 
-    phot_table = np.ones((nstars,ncolumns_matched))
+    table_data = [Column(name='star_id', data=np.arange(1.0,nstars+1.0,1.0)),
+                  Column(name='diff_flux', data=np.ones((nstars))),
+                  Column(name='diff_flux_err', data=np.ones((nstars))),
+                  Column(name='magnitude', data=np.ones((nstars))),
+                  Column(name='magnitude_err', data=np.ones((nstars))),
+                  Column(name='cal_magnitude', data=np.ones((nstars))),
+                  Column(name='cal_magnitude_err', data=np.ones((nstars))),
+                  Column(name='flux', data=np.ones((nstars))),
+                  Column(name='flux_err', data=np.ones((nstars))),
+                  Column(name='cal_flux', data=np.ones((nstars))),
+                  Column(name='cal_flux_err', data=np.ones((nstars))),
+                  Column(name='phot_scale_factor', data=np.ones((nstars))),
+                  Column(name='phot_scale_factor_err', data=np.ones((nstars))),
+                  Column(name='local_background', data=np.ones((nstars))),
+                  Column(name='local_background_err', data=np.ones((nstars))),
+                  Column(name='residual_x', data=np.ones((nstars))),
+                  Column(name='residual_y', data=np.ones((nstars))),
+                  Column(name='radius', data=np.ones((nstars)))]
+
+    phot_table = Table(data=table_data)
 
     matched_stars = match_utils.StarMatchIndex()
     for j in range(0,nstars,1):
@@ -97,15 +121,21 @@ def test_store_stamp_photometry_to_array():
         matched_stars.add_match(star)
 
     new_image = 'lsc1m005-fl15-20170610-0096-e91_cropped.fits'
+    image_dataset_id = np.where(new_image == meta.headers_summary[1]['IMAGES'].data)[0][0]
 
-    stage6.store_stamp_photometry_to_array(conn, params, meta,
-                                        matched_photometry_data, unmatched_photometry_data,
+    (matched_phot_data, unmatched_phot_data) = stage6.store_stamp_photometry_to_array(conn, params, meta,
+                                        matched_phot_data, unmatched_phot_data,
                                         phot_table, matched_stars,
-                                        new_image, log)
+                                        new_image, log, verbose=True)
+
+    for col in range(10,22,1):
+        assert matched_phot_data[0:-1,image_dataset_id-1,col].all() == 1.0
+    assert unmatched_phot_data.all() == 0.0
 
     logs.close_log(log)
 
 if __name__ == '__main__':
 
     #test_build_photometry_array()
-    test_get_entry_db_indices()
+    #test_get_entry_db_indices()
+    test_store_stamp_photometry_to_array()
