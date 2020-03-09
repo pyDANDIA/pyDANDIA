@@ -1111,7 +1111,9 @@ def store_stamp_photometry_to_array(conn, params, reduction_metadata,
     image_dataset_id = np.where(new_image == reduction_metadata.headers_summary[1]['IMAGES'].data)[0][0]
     image_dataset_index = image_dataset_id - 1
 
-    star_dataset_ids = np.array(phot_table['star_id'].data, dtype='int')
+    star_dataset_ids = np.array(phot_table['star_id'].data)
+    star_dataset_ids = star_dataset_ids.astype('float')
+    star_dataset_ids = star_dataset_ids.astype('int')
     star_dataset_index = star_dataset_ids - 1
 
     log.info('Starting match index search for '+str(len(star_dataset_ids))+'stars')
