@@ -1127,22 +1127,22 @@ def store_stamp_photometry_to_array(conn, params, reduction_metadata,
     photometry_data[star_dataset_index,image_dataset_index,4] = db_pk['facility']
     photometry_data[star_dataset_index,image_dataset_index,5] = db_pk['filter']
     photometry_data[star_dataset_index,image_dataset_index,6] = db_pk['code']
-    photometry_data[star_dataset_index,image_dataset_index,7] = phot_table['residual_x'][star_dataset_index]
-    photometry_data[star_dataset_index,image_dataset_index,8] = phot_table['residual_y'][star_dataset_index]
+    photometry_data[star_dataset_index,image_dataset_index,7] = phot_table['residual_x'][star_dataset_index].astype('float')
+    photometry_data[star_dataset_index,image_dataset_index,8] = phot_table['residual_y'][star_dataset_index].astype('float')
     photometry_data[star_dataset_index,image_dataset_index,9] = params['hjd']
-    photometry_data[star_dataset_index,image_dataset_index,10] = phot_table['radius'][star_dataset_index]
-    photometry_data[star_dataset_index,image_dataset_index,11] = phot_table['magnitude'][star_dataset_index]
-    photometry_data[star_dataset_index,image_dataset_index,12] = phot_table['magnitude_err'][star_dataset_index]
-    photometry_data[star_dataset_index,image_dataset_index,13] = phot_table['cal_magnitude'][star_dataset_index]
-    photometry_data[star_dataset_index,image_dataset_index,14] = phot_table['cal_magnitude_err'][star_dataset_index]
-    photometry_data[star_dataset_index,image_dataset_index,15] = phot_table['flux'][star_dataset_index]
-    photometry_data[star_dataset_index,image_dataset_index,16] = phot_table['flux_err'][star_dataset_index]
-    photometry_data[star_dataset_index,image_dataset_index,17] = phot_table['cal_flux'][star_dataset_index]
-    photometry_data[star_dataset_index,image_dataset_index,18] = phot_table['cal_flux_err'][star_dataset_index]
-    photometry_data[star_dataset_index,image_dataset_index,19] = phot_table['phot_scale_factor'][star_dataset_index]
-    photometry_data[star_dataset_index,image_dataset_index,20] = phot_table['phot_scale_factor_err'][star_dataset_index]
-    photometry_data[star_dataset_index,image_dataset_index,21] = phot_table['local_background'][star_dataset_index]
-    photometry_data[star_dataset_index,image_dataset_index,22] = phot_table['local_background_err'][star_dataset_index]
+    photometry_data[star_dataset_index,image_dataset_index,10] = phot_table['radius'][star_dataset_index].astype('float')
+    photometry_data[star_dataset_index,image_dataset_index,11] = phot_table['magnitude'][star_dataset_index].astype('float')
+    photometry_data[star_dataset_index,image_dataset_index,12] = phot_table['magnitude_err'][star_dataset_index].astype('float')
+    photometry_data[star_dataset_index,image_dataset_index,13] = phot_table['cal_magnitude'][star_dataset_index].astype('float')
+    photometry_data[star_dataset_index,image_dataset_index,14] = phot_table['cal_magnitude_err'][star_dataset_index].astype('float')
+    photometry_data[star_dataset_index,image_dataset_index,15] = phot_table['flux'][star_dataset_index].astype('float')
+    photometry_data[star_dataset_index,image_dataset_index,16] = phot_table['flux_err'][star_dataset_index].astype('float')
+    photometry_data[star_dataset_index,image_dataset_index,17] = phot_table['cal_flux'][star_dataset_index].astype('float')
+    photometry_data[star_dataset_index,image_dataset_index,18] = phot_table['cal_flux_err'][star_dataset_index].astype('float')
+    photometry_data[star_dataset_index,image_dataset_index,19] = phot_table['phot_scale_factor'][star_dataset_index].astype('float')
+    photometry_data[star_dataset_index,image_dataset_index,20] = phot_table['phot_scale_factor_err'][star_dataset_index].astype('float')
+    photometry_data[star_dataset_index,image_dataset_index,21] = phot_table['local_background'][star_dataset_index].astype('float')
+    photometry_data[star_dataset_index,image_dataset_index,22] = phot_table['local_background_err'][star_dataset_index].astype('float')
 
     log.info('Completed build of the photometry array')
 
