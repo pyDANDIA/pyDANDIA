@@ -22,10 +22,9 @@ def test_write_phot_hd5():
     log = logs.start_stage_log( cwd, 'test_photometry' )
 
     matched_dataset_phot_data = np.ones((200000,300,17))
-    unmatched_dataset_phot_data = np.ones((200000,300,17))
+    #unmatched_dataset_phot_data = np.ones((200000,300,17))
 
-    hd5_utils.write_phot_hd5(setup,matched_dataset_phot_data,
-                                    unmatched_dataset_phot_data,log=log)
+    hd5_utils.write_phot_hd5(setup,matched_dataset_phot_data,log=log)
 
     assert os.path.isfile(test_output_file)
 
@@ -40,15 +39,14 @@ def test_read_phot_hd5():
     test_dataset_shape = (200000,300,17)
     dataset_phot_data = np.ones(test_dataset_shape)
 
-    hd5_utils.write_phot_hd5(setup,dataset_phot_data,dataset_phot_data,log=log)
+    hd5_utils.write_phot_hd5(setup,dataset_phot_data,log=log)
 
-    (dataset1,dataset2) = hd5_utils.read_phot_hd5(setup)
+    dataset = hd5_utils.read_phot_hd5(setup)
 
-    assert(dataset1.shape == test_dataset_shape)
-    assert(dataset2.shape == test_dataset_shape)
+    assert(dataset.shape == test_dataset_shape)
 
     logs.close_log(log)
 
 if __name__ == '__main__':
-    #test_write_phot_hd5()
+    test_write_phot_hd5()
     test_read_phot_hd5()

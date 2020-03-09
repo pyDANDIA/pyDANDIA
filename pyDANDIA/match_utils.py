@@ -4,6 +4,7 @@ Created on Thu Mar 21 13:49:31 2019
 
 @author: rstreet
 """
+import numpy as np
 
 class StarMatchIndex:
 
@@ -138,3 +139,40 @@ class StarMatchIndex:
             idx = -1
 
         return idx
+
+    def find_starlist_match_ids(self, catalog_index, star_ids):
+        """Method to find the array index of a star entry in the matched stars list,
+        based on it's star ID number from either catalog.
+
+        Inputs:
+        :param str catalog_index: Name of catalog index attribute to search
+                                    one of {cat1_index, cat2_index}
+        :param list star_ids: Star ID indices to search for (from catalog_index)
+
+        Outputs:
+        :param array idx: Array index of star or -1 if not found
+        """
+
+        search_catalog_index = np.array( getattr(self,catalog_index) )
+        if catalog_index == 'cat1_index':
+            result_catalog = 'cat2_index'
+        else:
+            result_catalog = 'cat1_index'
+
+        result_catalog_index = np.array( getattr(self,result_catalog))
+
+        present = np.isin(star_ids, search_catalog_index)
+        entries = np.where(np.isin(search_catalog_index, star_ids))[0]
+
+        result_star_index = np.zeros(len(star_ids), dtype='int')
+        result_star_index.fill(-1)
+        result_star_index[present] = result_catalog_index[entries]
+
+#        for j in star_ids:
+#            try:
+#                idx = catalog_star_index.index(j)
+#                star_cat_ids.append(catalog_star_index[idx])
+#            except ValueError:
+#                star_cat_ids.append(-1)
+
+        return result_star_index

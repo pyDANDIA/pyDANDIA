@@ -17,8 +17,7 @@ TEST_DIR = os.path.join(cwd,'data','proc',
 DB_FILE = 'test.db'
 db_file_path = os.path.join(TEST_DIR, '..', DB_FILE)
 
-ncolumns_matched = 23
-ncolumns_unmatched = 22
+ncolumns = 23
 
 def test_build_photometry_array():
 
@@ -35,26 +34,21 @@ def test_build_photometry_array():
         os.remove(test_output_file)
 
     print('Testing array building with no pre-existing photometry')
-    (matched_phot, unmatched_phot) = stage6.build_photometry_array(setup,nimages1,nstars,log)
+    matched_phot = stage6.build_photometry_array(setup,nimages1,nstars,log)
 
-    assert matched_phot.shape == (nstars,nimages1,ncolumns_matched)
-    assert unmatched_phot.shape == (nstars,nimages1,ncolumns_unmatched)
+    assert matched_phot.shape == (nstars,nimages1,ncolumns)
 
     print('Testing array building with pre-existing photometry')
-    matched_dataset_phot_data = np.ones((nstars,nimages1,ncolumns_matched))
-    unmatched_dataset_phot_data = np.ones((nstars,nimages1,ncolumns_unmatched))
-    hd5_utils.write_phot_hd5(setup,matched_dataset_phot_data,
-                                    unmatched_dataset_phot_data,log=log)
+    matched_dataset_phot_data = np.ones((nstars,nimages1,ncolumns))
 
-    (matched_phot, unmatched_phot) = stage6.build_photometry_array(setup,nimages2,nstars,log)
+    hd5_utils.write_phot_hd5(setup,matched_dataset_phot_data, log=log)
 
-    assert matched_phot.shape == (nstars,nimages2,ncolumns_matched)
-    assert unmatched_phot.shape == (nstars,nimages2,ncolumns_unmatched)
+    matched_phot = stage6.build_photometry_array(setup,nimages2,nstars,log)
+
+    assert matched_phot.shape == (nstars,nimages2,ncolumns)
 
     assert matched_phot[:,0,:].all() == 1.0
     assert matched_phot[:,-1,:].all() == 0.0
-    assert unmatched_phot[:,0,:].all() == 1.0
-    assert unmatched_phot[:,-1,:].all() == 0.0
 
     logs.close_log(log)
 
@@ -85,10 +79,10 @@ def test_store_stamp_photometry_to_array():
     meta = metadata.MetaData()
     meta.load_all_metadata(setup.red_dir, 'pyDANDIA_metadata.fits')
 
-    nstars = 100
-    nimages = 50
-    matched_phot_data = np.zeros((nstars,nimages,ncolumns_matched))
-    unmatched_phot_data = np.zeros((nstars,nimages,ncolumns_unmatched))
+    nstars = 200000
+    nimages = 300
+    matched_phot_data = np.zeros((nstars,nimages,ncolumns))
+    unmatched_phot_data = np.zeros((nstars,nimages,ncolumns-1))
 
     table_data = [Column(name='star_id', data=np.arange(1.0,nstars+1.0,1.0)),
                   Column(name='diff_flux', data=np.ones((nstars))),
@@ -123,14 +117,23 @@ def test_store_stamp_photometry_to_array():
     new_image = 'lsc1m005-fl15-20170610-0096-e91_cropped.fits'
     image_dataset_id = np.where(new_image == meta.headers_summary[1]['IMAGES'].data)[0][0]
 
-    (matched_phot_data, unmatched_phot_data) = stage6.store_stamp_photometry_to_array(conn, params, meta,
+    log.info('Starting test of original array storage function')
+    (matched_phot_data, unmatched_phot_data) = stage6.store_stamp_photometry_to_array_starloop(conn, params, meta,
                                         matched_phot_data, unmatched_phot_data,
                                         phot_table, matched_stars,
-                                        new_image, log, verbose=True)
+                                        new_image, log, verbose=False)
+    log.info('Completed test of original function')
 
     for col in range(10,22,1):
         assert matched_phot_data[0:-1,image_dataset_id-1,col].all() == 1.0
     assert unmatched_phot_data.all() == 0.0
+
+    log.info('Starting test of new array storage function')
+    phot_data = stage6.store_stamp_photometry_to_array(conn, params, meta,
+                                        matched_phot_data,
+                                        phot_table, matched_stars,
+                                        new_image, log, verbose=True)
+    log.info('Completed test of new function')
 
     logs.close_log(log)
 
