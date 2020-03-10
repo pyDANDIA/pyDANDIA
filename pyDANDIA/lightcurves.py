@@ -48,17 +48,17 @@ def extract_star_lightcurves_on_position(params):
 
         #datasets = identify_unique_datasets(phot_table,facilities,filters)
 
-        photometry_data = fetch_photometry_for_dataset(params, star_field_id, log)
+        photometry_data = fetch_photometry_for_dataset(params, star_field_id)
 
         setname = path.basename(params['red_dir']).split('_')[1]
 
         datafile = open(path.join(params['output_dir'],'star_'+str(star_field_id)+'_'+setname+'.dat'),'w')
 
-        for i in range(0,photometry_data.shape[1],1):
+        for i in range(0,len(photometry_data),1):
 
-            datafile.write(str(photometry['hjd'][i])+'  '+\
-                            str(phot_table['instrumental_mag'][j])+'  '+str(phot_table['instrumental_mag_err'][j])+\)
-                            str(phot_table['calibrated_mag'][j])+'  '+str(phot_table['calibrated_mag_err'][j])+'\n')
+            datafile.write(str(photometry_data['hjd'][i])+'  '+\
+                            str(photometry_data['instrumental_mag'][i])+'  '+str(photometry_data['instrumental_mag_err'][i])+'  '+\
+                            str(photometry_data['calibrated_mag'][i])+'  '+str(photometry_data['calibrated_mag_err'][i])+'\n')
 
         datafile.close()
         print('-> Output dataset '+setname)
@@ -107,27 +107,26 @@ def identify_unique_datasets(phot_table,facilities,filters):
 
     return datasets
 
-def fetch_photometry_for_dataset(params, star_field_id, log):
+def fetch_photometry_for_dataset(params, star_field_id):
 
     setup = pipeline_setup.pipeline_setup({'red_dir': params['red_dir']})
 
-    dataset_photometry = hd5_utils.read_phot_hd5(setup,log=log)
+    dataset_photometry = hd5_utils.read_phot_hd5(setup)
 
-    jdx = np.where(dataset_photometry[:,:,0] == star_field_id and dataset_photometry[:,:,0] != -1)
+    jdx = np.where(dataset_photometry[:,:,0] == star_field_id)
 
-    idlist = = np.unique(dataset_photometry[jdx,0])
+    index_list = np.unique(jdx[0])
+    star_dataset_index = index_list[0]
 
-    star_dataset_id = idlist[0]
+    print('Star array index: '+str(star_dataset_index))
 
-    photometry_data = dataset_photometry[star_dataset_id,:,:]
+    photometry_data = dataset_photometry[star_dataset_index,:,:]
 
-    table.Column(name='x', data=matched_stars.cat1_x)
-
-    photometry_data = table.Table( [ table.Column(name='hjd', data=dataset_photometry[star_dataset_id,:,9]),
-                                     table.Column(name='instrumental_mag', data=dataset_photometry[star_dataset_id,:,11]),
-                                     table.Column(name='instrumental_mag_err', data=dataset_photometry[star_dataset_id,:,12]),
-                                      table.Column(name='calibrated_mag', data=dataset_photometry[star_dataset_id,:,13]),
-                                      table.Column(name='calibrated_mag_err', data=dataset_photometry[star_dataset_id,:,14]),
+    photometry_data = table.Table( [ table.Column(name='hjd', data=dataset_photometry[star_dataset_index,:,9]),
+                                     table.Column(name='instrumental_mag', data=dataset_photometry[star_dataset_index,:,11]),
+                                     table.Column(name='instrumental_mag_err', data=dataset_photometry[star_dataset_index,:,12]),
+                                      table.Column(name='calibrated_mag', data=dataset_photometry[star_dataset_index,:,13]),
+                                      table.Column(name='calibrated_mag_err', data=dataset_photometry[star_dataset_index,:,14]),
                                       ] )
 
     return photometry_data
