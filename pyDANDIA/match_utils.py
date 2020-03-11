@@ -140,7 +140,8 @@ class StarMatchIndex:
 
         return idx
 
-    def find_starlist_match_ids(self, catalog_index, star_ids):
+    def find_starlist_match_ids(self, catalog_index, star_ids, verbose=False,
+                                expand_star_ids = False):
         """Method to find the array index of a star entry in the matched stars list,
         based on it's star ID number from either catalog.
 
@@ -153,26 +154,58 @@ class StarMatchIndex:
         :param array idx: Array index of star or -1 if not found
         """
 
+        if verbose:
+            print('Searching for '+str(len(star_ids))+' stars in index '+catalog_index)
+
         search_catalog_index = np.array( getattr(self,catalog_index) )
         if catalog_index == 'cat1_index':
             result_catalog = 'cat2_index'
         else:
             result_catalog = 'cat1_index'
 
-        result_catalog_index = np.array( getattr(self,result_catalog))
+        result_catalog_index = np.array( getattr(self,result_catalog) )
 
+        # Rows in the list of star IDs where the star is present in the catalog
         present = np.isin(star_ids, search_catalog_index)
+
+        if verbose:
+            print('Stars present in search index: '+str(len(np.where(present)[0])))
+            print(len(present))
+        # Indicies in the matched index of the sought-after stars
         entries = np.where(np.isin(search_catalog_index, star_ids))[0]
+
+        if verbose:
+            print('Identified '+str(len(entries))+' array entries in the search index for these stars')
+
+        # Identify any non-unique entries:
+        (unique_search_ids, unique_search_index) = np.unique(search_catalog_index,return_index=True)
+        non_unique_search_ids = np.delete(search_catalog_index, unique_search_index)
+
+        if verbose:
+            print('Found the following non-unique entries in the matched_stars index: ',non_unique_search_ids)
+
+        non_unique_present = np.isin(star_ids, non_unique_search_ids)
+        non_unique_star_id_entries = np.where(non_unique_present == True)[0]
+
+        if len(non_unique_star_id_entries) > 0 and expand_star_ids:
+            new_star_ids = np.array(star_ids.tolist() + non_unique_star_id_entries.tolist())
+            new_present = np.array([True]*len(new_star_ids))
+            print(new_present)
+            new_present[0:len(present)] = present
+            new_present[len(present)+1:] = True
+            print(new_present, len(new_present))
+
+            star_ids = new_star_ids
+            present = new_present
+        elif len(non_unique_star_id_entries) > 0 and not expand_star_ids:
+            raise IOError('Identified the following'+str(len(non_unique_search_ids))+\
+                            ' non-unique entries in matched index: \n'+\
+                            repr(non_unique_search_ids))
 
         result_star_index = np.zeros(len(star_ids), dtype='int')
         result_star_index.fill(-1)
+        print(len(result_star_index))
+
         result_star_index[present] = result_catalog_index[entries]
 
-#        for j in star_ids:
-#            try:
-#                idx = catalog_star_index.index(j)
-#                star_cat_ids.append(catalog_star_index[idx])
-#            except ValueError:
-#                star_cat_ids.append(-1)
-
-        return result_star_index
+        return star_ids, result_star_index
