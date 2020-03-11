@@ -155,7 +155,7 @@ def define_table_keys():
                      'delta_x','delta_y']
 
     return facility_keys, software_keys, image_keys
-    
+
 def define_stamp_keys():
 
     stamp_keys = ['stamp_index','xmin','xmax','ymin','ymax']
@@ -838,7 +838,7 @@ def match_all_entries_with_starlist(setup,conn,params,starlist,reduction_metadat
     refframe_coords = calc_coord_offsets.transform_coordinates(setup, refframe_coords, transform, coords='pixel')
 
     log.info('Transformed star coordinates from the reference image')
-    log.info('Matching all stars against field starlist:')
+    log.info('Matching all stars against field starlist of '+str(len(phot_data))+':')
 
     for j in range(0,len(phot_data),1):
 
@@ -865,5 +865,7 @@ def match_all_entries_with_starlist(setup,conn,params,starlist,reduction_metadat
 
             if verbose:
                 log.info(matched_stars.summarize_last(units='both'))
+
+    log.info('Matched '+str(matched_stars.n_match)+' stars')
 
     return matched_stars
