@@ -218,6 +218,9 @@ class StarMatchIndex:
             entries = np.delete(entries,non_unique_search_index)
             log.info('Removed entries '+repr(non_unique_search_index)+' from result catalog index')
 
+            log.info('Resulting length of present array: '+str(len(present)))
+            log.info('Resulting length of entries array: '+str(len(entries)))
+            
         result_star_index = np.zeros(len(star_ids), dtype='int')
         result_star_index.fill(-1)
 
