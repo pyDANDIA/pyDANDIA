@@ -187,7 +187,7 @@ class StarMatchIndex:
         non_unique_search_index = np.delete(np.arange(0,len(search_catalog_index),1), unique_search_index)
 
         if len(non_unique_search_ids) > 0:
-            log.info('Found the following non-unique entries in the matched_stars index: '+repr(non_unique_search_ids))
+            log.info('Found '+str(len(non_unique_search_ids))+' non-unique entries in the matched_stars index: '+repr(non_unique_search_ids))
             log.info('at array positions in the matched_stars index: '+repr(non_unique_search_index))
         else:
             log.info('Found no duplicates in the matched_stars index')
@@ -220,7 +220,7 @@ class StarMatchIndex:
 
             log.info('Resulting length of present array: '+str(len(present)))
             log.info('Resulting length of entries array: '+str(len(entries)))
-            
+
         result_star_index = np.zeros(len(star_ids), dtype='int')
         result_star_index.fill(-1)
 
