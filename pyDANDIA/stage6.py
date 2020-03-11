@@ -1117,7 +1117,7 @@ def store_stamp_photometry_to_array(conn, params, reduction_metadata,
     star_dataset_index = star_dataset_ids - 1
 
     log.info('Starting match index search for '+str(len(star_dataset_ids))+' stars')
-    star_field_ids = matched_stars.find_starlist_match_ids('cat2_index', star_dataset_ids)
+    (star_dataset_ids, star_field_ids) = matched_stars.find_starlist_match_ids('cat2_index', star_dataset_ids, log)
 
     log.info('Starting to array data transfer')
     photometry_data[star_dataset_index,image_dataset_index,0] = star_field_ids
