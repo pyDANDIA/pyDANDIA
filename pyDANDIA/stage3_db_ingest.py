@@ -601,7 +601,7 @@ def commit_photometry(conn, params, reduction_metadata, star_ids, log):
     image = phot_db.query_to_astropy_table(conn, query, args=())
     error_wrong_number_entries(image,params['filename'])
 
-    key_list = ['star_id', 'reference_image', 'image',
+    key_list = ['star_id', 'star_dataset_id', 'reference_image', 'image',
                 'facility', 'filter', 'software',
                 'x', 'y', 'hjd', 'radius', 'magnitude', 'magnitude_err',
                 'calibrated_mag', 'calibrated_mag_err',
@@ -633,7 +633,7 @@ def commit_photometry(conn, params, reduction_metadata, star_ids, log):
         sky = str(reduction_metadata.star_catalog[1]['sky_background'][j])
         sky_err = str(reduction_metadata.star_catalog[1]['sky_background_error'][j])
 
-        entry = (str(int(star_ids[j])), str(refimage['refimg_id'][0]), str(image['img_id'][0]),
+        entry = (str(int(star_ids[j])), str(int(star_ids[j])), str(refimage['refimg_id'][0]), str(image['img_id'][0]),
                    str(facility['facility_id'][0]), str(f['filter_id'][0]), str(code['code_id'][0]),
                     x, y, str(params['hjd']),
                     params['psf_radius'],
@@ -681,7 +681,7 @@ def commit_photometry_matching(conn, params, reduction_metadata, matched_stars,
     image = phot_db.query_to_astropy_table(conn, query, args=())
     error_wrong_number_entries(image,params['filename'])
 
-    key_list = ['star_id', 'reference_image', 'image',
+    key_list = ['star_id', 'star_dataset_id', 'reference_image', 'image',
                 'facility', 'filter', 'software',
                 'x', 'y', 'hjd', 'magnitude', 'magnitude_err',
                 'calibrated_mag', 'calibrated_mag_err',
@@ -719,7 +719,7 @@ def commit_photometry_matching(conn, params, reduction_metadata, matched_stars,
         sky = str(reduction_metadata.star_catalog[1]['sky_background'][jj])
         sky_err = str(reduction_metadata.star_catalog[1]['sky_background_error'][jj])
 
-        entry = (str(int(j_cat)), str(refimage['refimg_id'][0]), str(image['img_id'][0]),
+        entry = (str(int(j_cat)), str(int(j_new)), str(refimage['refimg_id'][0]), str(image['img_id'][0]),
                    str(facility['facility_id'][0]), str(f['filter_id'][0]), str(code['code_id'][0]),
                     x, y, str(params['hjd']),
                     mag, mag_err, cal_mag, cal_mag_err,
