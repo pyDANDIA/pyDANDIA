@@ -262,7 +262,7 @@ def run_stage6(setup):
                         #                                 log, verbose=False)
                         #commit_image_photometry_matching(conn, image_params, reduction_metadata, matched_stars, phot_table, log)
 
-                        photometry_data = store_stamp_photometry_to_array(conn, image_params, reduction_metadata,
+                        photometry_data = store_stamp_photometry_to_array(setup, conn, image_params, reduction_metadata,
                                                             photometry_data,
                                                             phot_table, matched_stars,
                                                             new_image, log)
@@ -1095,7 +1095,7 @@ def store_stamp_photometry_to_array_starloop(conn, params, reduction_metadata,
 
     return matched_photometry_data, unmatched_photometry_data
 
-def store_stamp_photometry_to_array(conn, params, reduction_metadata,
+def store_stamp_photometry_to_array(setup, conn, params, reduction_metadata,
                                     photometry_data,
                                     phot_table, matched_stars,
                                     new_image, log, verbose=False):
@@ -1103,6 +1103,8 @@ def store_stamp_photometry_to_array(conn, params, reduction_metadata,
     photometry array"""
 
     log.info('Starting to store photometry for image '+new_image)
+
+    matched_stars.output_match_list(path.join(setup.red_dir,'matched_stars.txt'))
 
     db_pk = get_entry_db_indices(conn, params, new_image, log)
 
@@ -1116,6 +1118,11 @@ def store_stamp_photometry_to_array(conn, params, reduction_metadata,
     star_dataset_ids = star_dataset_ids.astype('int')
     star_dataset_index = star_dataset_ids - 1
 
+    f = open(path.join(setup.red_dir, 'star_dataset_ids.txt'),'w')
+    for s in star_dataset_ids:
+        f.write(str(s)+'\n')
+    f.close()
+    
     log.info('Starting match index search for '+str(len(star_dataset_ids))+' stars')
     (star_dataset_ids, star_field_ids) = matched_stars.find_starlist_match_ids('cat2_index', star_dataset_ids, log,
                                                                                 verbose=True)

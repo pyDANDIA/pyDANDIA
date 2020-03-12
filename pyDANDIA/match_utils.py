@@ -140,6 +140,21 @@ class StarMatchIndex:
 
         return idx
 
+    def output_match_list(self, file_path):
+
+        f = open(file_path,'w')
+        f.write('Total stars matched: '+str(self.n_match)+'\n')
+        f.write('# CAT1_INDEX  CAT1_X  CAT1_Y  CAT1_RA  CAT1_DEC  CAT2_INDEX  CAT2_X  CAT2_Y  CAT2_RA  CAT2_DEC  SEP[deg]\n')
+        for j in range(0,self.n_match,1):
+            f.write(str(self.cat1_index[j])+' '+\
+                    str(self.cat1_ra[j])+' '+str(self.cat1_dec[j])+'  '+\
+                    str(self.cat1_x[j])+' '+str(self.cat1_y[j])+\
+                    ' '+str(self.cat2_index[j])+' '+\
+                    str(self.cat2_ra[j])+', '+str(self.cat2_dec[j])+' '+\
+                    str(self.cat2_x[j])+', '+str(self.cat2_y[j])+\
+                    '  '+str(self.separation[j])+'\n')
+        f.close()
+
     def find_starlist_match_ids(self, catalog_index, star_ids, log,
                                 verbose=False, expand_star_ids = False):
         """Method to find the array index of a star entry in the matched stars list,
