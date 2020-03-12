@@ -25,15 +25,27 @@ class StarMatchIndex:
 
     def add_match(self,params):
 
-        for key, value in params.items():
+        add_star = True
 
-            l = getattr(self,key)
+        # Check for duplicated entries. Select the entry with the smallest
+        # separation:
+        if params['cat1_index'] in self.cat1_index:
+            idx = self.cat1_index.index(params['cat1_index'])
+            if params['separation'] < self.separation[idx]:
+                self.remove_match(idx)
+            else:
+                add_star = False
 
-            l.append(value)
+        if add_star:
+            for key, value in params.items():
 
-            setattr(self,key,l)
+                l = getattr(self,key)
 
-        self.n_match += 1
+                l.append(value)
+
+                setattr(self,key,l)
+
+            self.n_match += 1
 
     def remove_match(self,entry_index):
 

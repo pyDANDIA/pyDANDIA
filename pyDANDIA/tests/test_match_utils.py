@@ -6,6 +6,34 @@ import match_utils
 import numpy as np
 import logs
 
+def test_add_match():
+
+    nstars = 10
+
+    matched_stars = match_utils.StarMatchIndex()
+    for j in range(1,nstars+1,1):
+        star = {'cat1_index': j,
+                'cat1_ra': 260.0, 'cat1_dec': -19.0, 'cat1_x': j, 'cat1_y': j,
+                'cat2_index': j,
+                'cat2_ra': 260.0, 'cat2_dec': -19.0, 'cat2_x': j, 'cat2_y': j,
+                'separation': 0.1}
+        matched_stars.add_match(star)
+
+    assert matched_stars.n_match == nstars
+
+    new_star_id = 1
+    new_separation = 0.01
+    new_star = {'cat1_index': new_star_id,
+            'cat1_ra': 260.0, 'cat1_dec': -19.0, 'cat1_x': j, 'cat1_y': j,
+            'cat2_index': new_star_id,
+            'cat2_ra': 260.0, 'cat2_dec': -19.0, 'cat2_x': j, 'cat2_y': j,
+            'separation': new_separation}
+    matched_stars.add_match(new_star)
+
+    assert matched_stars.n_match == nstars
+    idx = matched_stars.cat1_index.index(new_star_id)
+    assert matched_stars.separation[idx] == new_separation
+
 def test_find_starlist_match_index():
 
     log = logs.start_stage_log( cwd, 'test_match_utils' )
@@ -83,4 +111,5 @@ def test_find_starlist_match_index():
 
 if __name__ == '__main__':
 
-    test_find_starlist_match_index()
+    #test_find_starlist_match_index()
+    test_add_match()
