@@ -120,7 +120,7 @@ def run_stage3_db_ingest(setup, primary_ref=False):
 
         commit_photometry_matching(conn, dataset_params, reduction_metadata,
                                                         matched_stars, log,
-                                                        verbose=True)
+                                                        verbose=False)
 
     conn.close()
 
