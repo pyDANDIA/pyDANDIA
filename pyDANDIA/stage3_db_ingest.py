@@ -695,7 +695,7 @@ def commit_photometry_matching(conn, params, reduction_metadata, matched_stars,
 
     n_stars = len(reduction_metadata.star_catalog[1])
 
-    log.info('Starting ingest of photometry data for '+str(n_stars)+' stars')
+    log.info('Starting ingest of photometry data for '+str(n_stars)+' detected stars in this dataset')
 
     values = []
     for i in range(0,matched_stars.n_match,1):
@@ -742,7 +742,8 @@ def commit_photometry_matching(conn, params, reduction_metadata, matched_stars,
 
     conn.commit()
 
-    log.info('Completed ingest of photometry for '+str(len(matched_stars.cat1_index))+' stars')
+    log.info('Completed ingest of photometry for '+str(len(matched_stars.cat1_index))+\
+            ' stars from this dataset matched with the field reference catalog')
 
 def fetch_field_starlist(conn,params,log):
 
