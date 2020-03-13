@@ -23,18 +23,19 @@ class StarMatchIndex:
         self.separation = []
         self.n_match = 0
 
-    def add_match(self,params):
+    def add_match(self,params, log=None, verbose=False):
 
         add_star = True
 
-        # Check for duplicated entries. Select the entry with the smallest
-        # separation:
-        if params['cat1_index'] in self.cat1_index:
-            idx = self.cat1_index.index(params['cat1_index'])
+        duplicates = self.check_for_duplicates(params,log=log)
+
+        for idx in duplicates:
             if params['separation'] < self.separation[idx]:
-                self.remove_match(idx)
+                self.remove_match(idx,log=log)
             else:
                 add_star = False
+                if log!=None:
+                    log.info('Star proposed for match index duplicates a closer-matching star already in the index.  Match rejected.')
 
         if add_star:
             for key, value in params.items():
@@ -47,7 +48,28 @@ class StarMatchIndex:
 
             self.n_match += 1
 
-    def remove_match(self,entry_index):
+            if log!=None:
+                log.info('Star '+str(params['cat1_index'])+'='+str(params['cat2_index'])+' added to matched stars index')
+
+    def check_for_duplicates(self,params, log=None):
+
+        duplicates = []
+
+        if params['cat1_index'] in self.cat1_index:
+            idx = self.cat1_index.index(params['cat1_index'])
+            duplicates.append(idx)
+
+        if params['cat2_index'] in self.cat2_index:
+            idx = self.cat2_index.index(params['cat2_index'])
+            duplicates.append(idx)
+
+        if log!=None:
+            log.info('Found '+str(len(duplicates))+' duplicates with the input star already in the match index at array entries: ')
+            log.info(repr(duplicates))
+
+        return duplicates
+
+    def remove_match(self,entry_index, log=None):
 
         def pop_entry(attribute,index):
 
@@ -75,6 +97,9 @@ class StarMatchIndex:
         pop_entry('separation',entry_index)
 
         self.n_match -= 1
+
+        if log!=None:
+            log.info('Removed star entry '+str(entry_index)+' from matched stars index')
 
     def summary(self,units='deg'):
 
