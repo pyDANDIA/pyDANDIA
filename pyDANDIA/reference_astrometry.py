@@ -250,7 +250,7 @@ def detect_objects_in_reference_image(setup, reduction_metadata, meta_pars,
                                os.path.basename(meta_pars['ref_image_path']),
                                log,  image_index=2)
     if image_bpm == None:
-        image_bpm = open_an_image(setup, os.path.join(setup.red_dir,'ref'),
+        image_bpm = stage0.open_an_image(setup, os.path.join(setup.red_dir,'ref'),
                                    os.path.basename(meta_pars['ref_image_path']),
                                    log,  image_index=1)
 

@@ -83,26 +83,7 @@ def run_stage3_db_ingest(setup, primary_ref=False):
 
     phot_db.check_before_commit(conn, dataset_params, 'images', image_keys, 'filename')
 
-
-    #ingest the stamps in db
-    list_of_stamps = reduction_metadata.stamps[1]['PIXEL_INDEX'].tolist()
-    stamps_params = {}
-    stamp_keys = define_stamp_keys()
-    for stamp in list_of_stamps:
-        stamp_row = np.where(reduction_metadata.stamps[1]['PIXEL_INDEX'] == stamp)[0][0]
-        xmin = int(reduction_metadata.stamps[1][stamp_row]['X_MIN'])
-        xmax = int(reduction_metadata.stamps[1][stamp_row]['X_MAX'])
-        ymin = int(reduction_metadata.stamps[1][stamp_row]['Y_MIN'])
-        ymax = int(reduction_metadata.stamps[1][stamp_row]['Y_MAX'])
-
-        stamps_params['stamp_index'] = str(stamp)
-        stamps_params['xmin'] = str(xmin)
-        stamps_params['xmax'] = str(xmax)
-        stamps_params['ymin'] = str(ymin)
-        stamps_params['ymax'] = str(ymax)
-
-
-        phot_db.check_before_commit(conn, stamps_params, 'stamps', stamp_keys, 'stamp_index')
+    commit_stamps_to_db(conn, reduction_metadata)
 
     ref_id_list = phot_db.find_reference_image_for_dataset(conn,dataset_params)
 
@@ -139,7 +120,7 @@ def run_stage3_db_ingest(setup, primary_ref=False):
 
         commit_photometry_matching(conn, dataset_params, reduction_metadata,
                                                         matched_stars, log,
-                                                        verbose=True)
+                                                        verbose=False)
 
     conn.close()
 
@@ -174,11 +155,33 @@ def define_table_keys():
                      'delta_x','delta_y']
 
     return facility_keys, software_keys, image_keys
+
 def define_stamp_keys():
 
     stamp_keys = ['stamp_index','xmin','xmax','ymin','ymax']
 
     return stamp_keys
+
+def commit_stamps_to_db(conn, reduction_metadata):
+
+    list_of_stamps = reduction_metadata.stamps[1]['PIXEL_INDEX'].tolist()
+    stamps_params = {}
+    stamp_keys = define_stamp_keys()
+    for stamp in list_of_stamps:
+        stamp_row = np.where(reduction_metadata.stamps[1]['PIXEL_INDEX'] == stamp)[0][0]
+        xmin = int(reduction_metadata.stamps[1][stamp_row]['X_MIN'])
+        xmax = int(reduction_metadata.stamps[1][stamp_row]['X_MAX'])
+        ymin = int(reduction_metadata.stamps[1][stamp_row]['Y_MIN'])
+        ymax = int(reduction_metadata.stamps[1][stamp_row]['Y_MAX'])
+
+        stamps_params['stamp_index'] = str(stamp)
+        stamps_params['xmin'] = str(xmin)
+        stamps_params['xmax'] = str(xmax)
+        stamps_params['ymin'] = str(ymin)
+        stamps_params['ymax'] = str(ymax)
+
+        phot_db.check_before_commit(conn, stamps_params, 'stamps', stamp_keys, 'stamp_index')
+
 def configure_setup(log=None):
 
     params = {'datasets': [('red_dir_gp', 1), ('red_dir_rp', 2), ('red_dir_ip',3)],
@@ -598,7 +601,7 @@ def commit_photometry(conn, params, reduction_metadata, star_ids, log):
     image = phot_db.query_to_astropy_table(conn, query, args=())
     error_wrong_number_entries(image,params['filename'])
 
-    key_list = ['star_id', 'reference_image', 'image',
+    key_list = ['star_id', 'star_dataset_id', 'reference_image', 'image',
                 'facility', 'filter', 'software',
                 'x', 'y', 'hjd', 'radius', 'magnitude', 'magnitude_err',
                 'calibrated_mag', 'calibrated_mag_err',
@@ -630,7 +633,7 @@ def commit_photometry(conn, params, reduction_metadata, star_ids, log):
         sky = str(reduction_metadata.star_catalog[1]['sky_background'][j])
         sky_err = str(reduction_metadata.star_catalog[1]['sky_background_error'][j])
 
-        entry = (str(int(star_ids[j])), str(refimage['refimg_id'][0]), str(image['img_id'][0]),
+        entry = (str(int(star_ids[j])), str(int(star_ids[j])), str(refimage['refimg_id'][0]), str(image['img_id'][0]),
                    str(facility['facility_id'][0]), str(f['filter_id'][0]), str(code['code_id'][0]),
                     x, y, str(params['hjd']),
                     params['psf_radius'],
@@ -678,7 +681,7 @@ def commit_photometry_matching(conn, params, reduction_metadata, matched_stars,
     image = phot_db.query_to_astropy_table(conn, query, args=())
     error_wrong_number_entries(image,params['filename'])
 
-    key_list = ['star_id', 'reference_image', 'image',
+    key_list = ['star_id', 'star_dataset_id', 'reference_image', 'image',
                 'facility', 'filter', 'software',
                 'x', 'y', 'hjd', 'magnitude', 'magnitude_err',
                 'calibrated_mag', 'calibrated_mag_err',
@@ -692,7 +695,7 @@ def commit_photometry_matching(conn, params, reduction_metadata, matched_stars,
 
     n_stars = len(reduction_metadata.star_catalog[1])
 
-    log.info('Starting ingest of photometry data for '+str(n_stars)+' stars')
+    log.info('Starting ingest of photometry data for '+str(n_stars)+' detected stars in this dataset')
 
     values = []
     for i in range(0,matched_stars.n_match,1):
@@ -716,7 +719,7 @@ def commit_photometry_matching(conn, params, reduction_metadata, matched_stars,
         sky = str(reduction_metadata.star_catalog[1]['sky_background'][jj])
         sky_err = str(reduction_metadata.star_catalog[1]['sky_background_error'][jj])
 
-        entry = (str(int(j_cat)), str(refimage['refimg_id'][0]), str(image['img_id'][0]),
+        entry = (str(int(j_cat)), str(int(j_new)), str(refimage['refimg_id'][0]), str(image['img_id'][0]),
                    str(facility['facility_id'][0]), str(f['filter_id'][0]), str(code['code_id'][0]),
                     x, y, str(params['hjd']),
                     mag, mag_err, cal_mag, cal_mag_err,
@@ -729,7 +732,7 @@ def commit_photometry_matching(conn, params, reduction_metadata, matched_stars,
 
         if verbose:
             log.info(str(entry))
-            
+
     command = 'INSERT OR REPLACE INTO phot('+','.join(key_list)+\
                 ') VALUES ('+wildcards+')'
 
@@ -739,7 +742,8 @@ def commit_photometry_matching(conn, params, reduction_metadata, matched_stars,
 
     conn.commit()
 
-    log.info('Completed ingest of photometry for '+str(len(matched_stars.cat1_index))+' stars')
+    log.info('Completed ingest of photometry for '+str(len(matched_stars.cat1_index))+\
+            ' stars from this dataset matched with the field reference catalog')
 
 def fetch_field_starlist(conn,params,log):
 
@@ -835,7 +839,7 @@ def match_all_entries_with_starlist(setup,conn,params,starlist,reduction_metadat
     refframe_coords = calc_coord_offsets.transform_coordinates(setup, refframe_coords, transform, coords='pixel')
 
     log.info('Transformed star coordinates from the reference image')
-    log.info('Matching all stars against field starlist:')
+    log.info('Matching all stars against field starlist of '+str(len(phot_data))+':')
 
     for j in range(0,len(phot_data),1):
 
@@ -862,5 +866,7 @@ def match_all_entries_with_starlist(setup,conn,params,starlist,reduction_metadat
 
             if verbose:
                 log.info(matched_stars.summarize_last(units='both'))
+
+    log.info('Matched '+str(matched_stars.n_match)+' stars')
 
     return matched_stars

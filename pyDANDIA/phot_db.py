@@ -242,6 +242,7 @@ class PhotometryPoints(TableDef):
 
     c_000_phot_id = 'INTEGER PRIMARY KEY'
     c_010_star_id = 'INTEGER REFERENCES stars(star_id)'
+    c_015_star_dataset_id = 'INTEGER'
     c_020_reference_image = 'INTEGER REFERENCES reference_images(refimg_id) ON DELETE CASCADE'
     c_030_image = 'INTEGER REFERENCES images(img_id) ON DELETE CASCADE'
     c_040_stamp = 'INTEGER REFERENCES stamps(stamp_id)'

@@ -35,6 +35,7 @@ from pyDANDIA import sky_background
 from pyDANDIA import psf
 from pyDANDIA import photometry
 from pyDANDIA import stage3_db_ingest
+from pyDANDIA import hd5_utils
 
 def run_stage6(setup):
     """Main driver function to run stage 6: image substraction and photometry.
@@ -134,6 +135,8 @@ def run_stage6(setup):
     time = []
     exposures_id = []
     photometric_table = []
+
+    photometry_data = build_photometry_array(setup,len(all_images),len(starlist),log)
 
     log.info('Starting photometry of difference images')
 
@@ -255,9 +258,14 @@ def run_stage6(setup):
                                                                                   ref_exposure_time,idx)
                         psf_model.update_psf_parameters(psf_parameters)
 
-                        commit_stamp_photometry_matching(conn, image_params, reduction_metadata, matched_stars, phot_table,
-                                                         log, verbose=False)
+                        #commit_stamp_photometry_matching(conn, image_params, reduction_metadata, matched_stars, phot_table,
+                        #                                 log, verbose=False)
                         #commit_image_photometry_matching(conn, image_params, reduction_metadata, matched_stars, phot_table, log)
+
+                        photometry_data = store_stamp_photometry_to_array(setup, conn, image_params, reduction_metadata,
+                                                            photometry_data,
+                                                            phot_table, matched_stars,
+                                                            new_image, log)
 
                     else:
                         log.info('No difference image available, so no photometry performed.')
@@ -287,6 +295,8 @@ def run_stage6(setup):
             reduction_metadata.data_architecture[1]['OUTPUT_DIRECTORY'][0],
             reduction_metadata.data_architecture[1]['METADATA_NAME'][0],
             log=log)
+
+    hd5_utils.write_phot_hd5(setup,photometry_data,log=log)
 
     conn.close()
     logs.close_log(log)
@@ -923,3 +933,227 @@ def commit_stamp_photometry_matching(conn, params, reduction_metadata,
         log.info('No photometry to be ingested')
 
     log.info('Completed ingest of photometry for ' + str(len(entries)) + ' stars')
+
+def build_photometry_array(setup,nimages,nstars,log):
+    """Function to construct an array to receive the photometry data.
+    This loads pre-existing photometry from earlier pipeline reductions,
+    if available.
+    Note that the photometry_data array is listed by the dataset's star index,
+    but includes the photometry database index for the primary reference for
+    each star.
+    """
+
+    # Number of columns of measurements per star in the photometry table
+    ncolumns = 23
+
+    existing_phot = hd5_utils.read_phot_hd5(setup,log=log)
+
+    if len(existing_phot) > 0 and existing_phot.shape[2] != ncolumns:
+        raise IOError('Existing matched photometry array has '+\
+                        str(matched_existing_phot.shape[2])+
+                        ' which is incompatible with the expected '+\
+                        str(ncolumns)+' columns')
+
+    photometry_data = np.zeros((nstars,nimages,ncolumns))
+
+    # If available, transfer the existing photometry into the data arrays
+    if len(existing_phot) > 0:
+        for i in range(0,existing_phot.shape[1],1):
+            photometry_data[:,int(i),:] = existing_phot[:,int(i),:]
+
+    log.info('Completed build of the photometry array')
+
+    return photometry_data
+
+def get_entry_db_indices(conn, params, new_image, log):
+
+    log.info('Extracting the photometry DB pk indices for '+new_image)
+
+    db_pk = {}
+
+    query = 'SELECT facility_id, facility_code FROM facilities WHERE facility_code="' + params['facility_code'] + '"'
+    result = db_phot.query_to_astropy_table(conn, query, args=())
+    if len(result) > 0:
+        db_pk['facility'] = result['facility_id'][0]
+    else:
+        raise IOError('Facility '+params['facility_code']+' unknown to phot_db')
+
+    query = 'SELECT filter_id, filter_name FROM filters WHERE filter_name="' + params['filter_name'] + '"'
+    result = db_phot.query_to_astropy_table(conn, query, args=())
+    if len(result) > 0:
+        db_pk['filter'] = result['filter_id'][0]
+    else:
+        raise IOError('Filter '+params['filter_name']+' unknown to phot_db')
+
+    query = 'SELECT code_id, version FROM software WHERE version="' + params['version'] + '"'
+    result = db_phot.query_to_astropy_table(conn, query, args=())
+    if len(result) > 0:
+        db_pk['code'] = result['code_id'][0]
+    else:
+        raise IOError('Software '+params['version']+' unknown to phot_db')
+
+    query = 'SELECT refimg_id, filename FROM reference_images WHERE filename ="' + params['ref_filename'] + '"'
+    result = db_phot.query_to_astropy_table(conn, query, args=())
+    if len(result) > 0:
+        db_pk['refimage'] = result['refimg_id'][0]
+    else:
+        raise ValueError(
+            'No Stage 3 results for this reference image available in photometry DB.  Stage3_db_ingest needs to be run for this dataset first.')
+
+    query = 'SELECT img_id, filename FROM images WHERE filename ="' + params['filename'] + '"'
+    result = db_phot.query_to_astropy_table(conn, query, args=())
+    if len(result) > 0:
+        db_pk['image'] = result['img_id'][0]
+    else:
+        raise IOError('Image '+params['filename']+' unknown to phot_db')
+
+    query = 'SELECT stamp_id FROM stamps WHERE stamp_index ="' + params['stamp'] + '"'
+    result = db_phot.query_to_astropy_table(conn, query, args=())
+    if len(result) > 0:
+        db_pk['stamp'] = result['stamp_id'][0]
+    else:
+        raise IOError('Stamp '+params['stamp']+' unknown to phot_db')
+
+    log.info('Extracted dataset identifiers from database')
+
+    return db_pk
+
+
+def store_stamp_photometry_to_array_starloop(conn, params, reduction_metadata,
+                                    matched_photometry_data, unmatched_photometry_data,
+                                    phot_table, matched_stars,
+                                    new_image, log, verbose=False):
+    """Function to store photometry data from a stamp to the main
+    photometry array"""
+
+    log.info('Starting to store photometry for image '+new_image)
+
+    db_pk = get_entry_db_indices(conn, params, new_image, log)
+
+    # The index of the data from a given image corresponds to the index of that
+    # image in the metadata
+    image_dataset_id = np.where(new_image == reduction_metadata.headers_summary[1]['IMAGES'].data)[0][0]
+
+    for j in range(0, len(phot_table), 1):
+        star_dataset_id = int(float(phot_table[j]['star_id']))
+        star_match_idx = matched_stars.find_star_match_index('cat2_index',star_dataset_id)
+
+        x = phot_table['residual_x'][j]
+        y = phot_table['residual_y'][j]
+        radius = phot_table['radius'][j]
+        mag = phot_table['magnitude'][j]
+        mag_err = phot_table['magnitude_err'][j]
+        cal_mag = phot_table['cal_magnitude'][j]
+        cal_mag_err = phot_table['cal_magnitude_err'][j]
+        flux = phot_table['flux'][j]
+        flux_err = phot_table['flux_err'][j]
+        cal_flux = phot_table['cal_flux'][j]
+        cal_flux_err = phot_table['cal_flux_err'][j]
+        ps = phot_table['phot_scale_factor'][j]
+        ps_err = phot_table['phot_scale_factor_err'][j]
+        bkgd = phot_table['local_background'][j]
+        bkgd_err = phot_table['local_background_err'][j]
+
+        if star_match_idx > 0:
+            j_cat = matched_stars.cat1_index[star_match_idx]  # Starlist index in DB
+            if verbose:
+                log.info('Dataset star '+str(star_dataset_id)+\
+                ' photometry being associated with primary reference star '+str(j_cat))
+
+            entry = np.array([str(int(j_cat)), str(db_pk['refimage']), str(db_pk['image']),str(db_pk['stamp']),
+                     str(db_pk['facility']), str(db_pk['filter']), str(db_pk['code']),
+                     x, y, str(params['hjd']), radius,
+                     mag, mag_err, cal_mag, cal_mag_err,
+                     flux, flux_err, cal_flux, cal_flux_err,
+                     ps, ps_err,  # No phot scale factor for PSF fitting photometry
+                     bkgd, bkgd_err])  # No background measurements propageted
+
+            matched_photometry_data[star_dataset_id-1,image_dataset_id-1,:] = entry
+
+            if verbose:
+                log.info(str(entry))
+
+        else:
+            if verbose:
+                log.info('Dataset star '+str(star_dataset_id)+\
+                ' is unmatched with the primary reference catalogue')
+
+            entry = np.array([str(db_pk['refimage']), str(db_pk['image']),str(db_pk['stamp']),
+                     str(db_pk['facility']), str(db_pk['filter']), str(db_pk['code']),
+                     x, y, str(params['hjd']), radius,
+                     mag, mag_err, cal_mag, cal_mag_err,
+                     flux, flux_err, cal_flux, cal_flux_err,
+                     ps, ps_err,  # No phot scale factor for PSF fitting photometry
+                     bkgd, bkgd_err])  # No background measurements propageted
+
+            unmatched_photometry_data[star_dataset_id-1,image_dataset_id-1,:] = entry
+
+            if verbose:
+                log.info(str(entry))
+
+    log.info('Completed build of the photometry array')
+
+    return matched_photometry_data, unmatched_photometry_data
+
+def store_stamp_photometry_to_array(setup, conn, params, reduction_metadata,
+                                    photometry_data,
+                                    phot_table, matched_stars,
+                                    new_image, log, verbose=False, debug=False):
+    """Function to store photometry data from a stamp to the main
+    photometry array"""
+
+    log.info('Starting to store photometry for image '+new_image)
+
+    if debug:
+        matched_stars.output_match_list(os.path.join(setup.red_dir,'matched_stars.txt'))
+
+    db_pk = get_entry_db_indices(conn, params, new_image, log)
+
+    # The index of the data from a given image corresponds to the index of that
+    # image in the metadata
+    image_dataset_id = np.where(new_image == reduction_metadata.headers_summary[1]['IMAGES'].data)[0][0]
+    image_dataset_index = image_dataset_id - 1
+
+    star_dataset_ids = np.array(phot_table['star_id'].data)
+    star_dataset_ids = star_dataset_ids.astype('float')
+    star_dataset_ids = star_dataset_ids.astype('int')
+    star_dataset_index = star_dataset_ids - 1
+
+    if debug:
+        f = open(os.path.join(setup.red_dir, 'star_dataset_ids.txt'),'w')
+        for s in star_dataset_ids:
+            f.write(str(s)+'\n')
+        f.close()
+
+    log.info('Starting match index search for '+str(len(star_dataset_ids))+' stars')
+    (star_dataset_ids, star_field_ids) = matched_stars.find_starlist_match_ids('cat2_index', star_dataset_ids, log,
+                                                                                verbose=True)
+
+    log.info('Starting to array data transfer')
+    photometry_data[star_dataset_index,image_dataset_index,0] = star_field_ids
+    photometry_data[star_dataset_index,image_dataset_index,1] = db_pk['refimage']
+    photometry_data[star_dataset_index,image_dataset_index,2] = db_pk['image']
+    photometry_data[star_dataset_index,image_dataset_index,3] = db_pk['stamp']
+    photometry_data[star_dataset_index,image_dataset_index,4] = db_pk['facility']
+    photometry_data[star_dataset_index,image_dataset_index,5] = db_pk['filter']
+    photometry_data[star_dataset_index,image_dataset_index,6] = db_pk['code']
+    photometry_data[star_dataset_index,image_dataset_index,7] = phot_table['residual_x'][:].astype('float')
+    photometry_data[star_dataset_index,image_dataset_index,8] = phot_table['residual_y'][:].astype('float')
+    photometry_data[star_dataset_index,image_dataset_index,9] = params['hjd']
+    photometry_data[star_dataset_index,image_dataset_index,10] = phot_table['radius'][:].astype('float')
+    photometry_data[star_dataset_index,image_dataset_index,11] = phot_table['magnitude'][:].astype('float')
+    photometry_data[star_dataset_index,image_dataset_index,12] = phot_table['magnitude_err'][:].astype('float')
+    photometry_data[star_dataset_index,image_dataset_index,13] = phot_table['cal_magnitude'][:].astype('float')
+    photometry_data[star_dataset_index,image_dataset_index,14] = phot_table['cal_magnitude_err'][:].astype('float')
+    photometry_data[star_dataset_index,image_dataset_index,15] = phot_table['flux'][:].astype('float')
+    photometry_data[star_dataset_index,image_dataset_index,16] = phot_table['flux_err'][:].astype('float')
+    photometry_data[star_dataset_index,image_dataset_index,17] = phot_table['cal_flux'][:].astype('float')
+    photometry_data[star_dataset_index,image_dataset_index,18] = phot_table['cal_flux_err'][:].astype('float')
+    photometry_data[star_dataset_index,image_dataset_index,19] = phot_table['phot_scale_factor'][:].astype('float')
+    photometry_data[star_dataset_index,image_dataset_index,20] = phot_table['phot_scale_factor_err'][:].astype('float')
+    photometry_data[star_dataset_index,image_dataset_index,21] = phot_table['local_background'][:].astype('float')
+    photometry_data[star_dataset_index,image_dataset_index,22] = phot_table['local_background_err'][:].astype('float')
+
+    log.info('Completed build of the photometry array')
+
+    return photometry_data

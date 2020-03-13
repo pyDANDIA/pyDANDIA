@@ -10,9 +10,11 @@ import sqlite3
 from os import getcwd, path, remove, environ
 import numpy as np
 from astropy.coordinates import SkyCoord
-from astropy import units
+from astropy import units, table
 import matplotlib.pyplot as plt
 from pyDANDIA import  phot_db
+from pyDANDIA import  hd5_utils
+from pyDANDIA import  pipeline_setup
 
 def extract_star_lightcurves_on_position(params):
     """Function to extract a lightcurve from a phot_db"""
@@ -35,26 +37,31 @@ def extract_star_lightcurves_on_position(params):
     if len(results) > 0:
 
         star_idx = np.where(results['separation'] == results['separation'].min())
+        star_field_id = results['star_id'][star_idx][0]
 
         print('Identifed nearest star as '+str(results['star_id'][star_idx][0]))
-        
-        query = 'SELECT filter, facility, hjd, calibrated_mag, calibrated_mag_err FROM phot WHERE star_id="'+str(results['star_id'][star_idx][0])+\
-                    '" AND software="'+str(code_id)+'"'
 
-        phot_table = phot_db.query_to_astropy_table(conn, query, args=())
+        #query = 'SELECT filter, facility, hjd, calibrated_mag, calibrated_mag_err FROM phot WHERE star_id="'+str(results['star_id'][star_idx][0])+\
+        #            '" AND software="'+str(code_id)+'"'
 
-        datasets = identify_unique_datasets(phot_table,facilities,filters)
+        #phot_table = phot_db.query_to_astropy_table(conn, query, args=())
 
-        for setname,setlist in datasets.items():
+        #datasets = identify_unique_datasets(phot_table,facilities,filters)
 
-            datafile = open(path.join(params['output_dir'],'star_'+str(results['star_id'][star_idx][0])+'_'+setname+'.dat'),'w')
+        photometry_data = fetch_photometry_for_dataset(params, star_field_id)
 
-            for j in setlist[2]:
+        setname = path.basename(params['red_dir']).split('_')[1]
 
-                datafile.write(str(phot_table['hjd'][j])+'  '+str(phot_table['calibrated_mag'][j])+'  '+str(phot_table['calibrated_mag_err'][j])+'\n')
+        datafile = open(path.join(params['output_dir'],'star_'+str(star_field_id)+'_'+setname+'.dat'),'w')
 
-            datafile.close()
-            print('-> Output dataset '+setname)
+        for i in range(0,len(photometry_data),1):
+
+            datafile.write(str(photometry_data['hjd'][i])+'  '+\
+                            str(photometry_data['instrumental_mag'][i])+'  '+str(photometry_data['instrumental_mag_err'][i])+'  '+\
+                            str(photometry_data['calibrated_mag'][i])+'  '+str(photometry_data['calibrated_mag_err'][i])+'\n')
+
+        datafile.close()
+        print('-> Output dataset '+setname)
 
         message = 'OK'
 
@@ -100,6 +107,30 @@ def identify_unique_datasets(phot_table,facilities,filters):
 
     return datasets
 
+def fetch_photometry_for_dataset(params, star_field_id):
+
+    setup = pipeline_setup.pipeline_setup({'red_dir': params['red_dir']})
+
+    dataset_photometry = hd5_utils.read_phot_hd5(setup)
+
+    jdx = np.where(dataset_photometry[:,:,0] == star_field_id)
+
+    index_list = np.unique(jdx[0])
+    star_dataset_index = index_list[0]
+
+    print('Star array index: '+str(star_dataset_index))
+
+    photometry_data = dataset_photometry[star_dataset_index,:,:]
+
+    photometry_data = table.Table( [ table.Column(name='hjd', data=dataset_photometry[star_dataset_index,:,9]),
+                                     table.Column(name='instrumental_mag', data=dataset_photometry[star_dataset_index,:,11]),
+                                     table.Column(name='instrumental_mag_err', data=dataset_photometry[star_dataset_index,:,12]),
+                                      table.Column(name='calibrated_mag', data=dataset_photometry[star_dataset_index,:,13]),
+                                      table.Column(name='calibrated_mag_err', data=dataset_photometry[star_dataset_index,:,14]),
+                                      ] )
+
+    return photometry_data
+
 if __name__ == '__main__':
 
     params = {}
@@ -107,6 +138,7 @@ if __name__ == '__main__':
     if len(argv) == 1:
 
         params['db_file_path'] = input('Please enter the path to the field photometric DB: ')
+        params['red_dir'] = input('Please enter the path to a dataset reduction directory: ')
         params['ra'] = input('Please enter the RA [sexigesimal]: ')
         params['dec'] = input('Please enter the Dec [sexigesimal]: ')
         params['output_dir'] = input('Please enter the path to the output directory: ')
@@ -114,9 +146,10 @@ if __name__ == '__main__':
     else:
 
         params['db_file_path'] = argv[1]
-        params['ra'] = argv[2]
-        params['dec'] = argv[3]
-        params['output_dir'] = argv[4]
+        params['red_dir'] = argv[2]
+        params['ra'] = argv[3]
+        params['dec'] = argv[4]
+        params['output_dir'] = argv[5]
 
     message = extract_star_lightcurves_on_position(params)
     print(message)
