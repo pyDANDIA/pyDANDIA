@@ -138,7 +138,7 @@ if __name__ == '__main__':
     if len(argv) == 1:
 
         params['db_file_path'] = input('Please enter the path to the field photometric DB: ')
-        params['red_dir'] = input('Please enter the top-level path to the reduced datasets: ')
+        params['red_dir'] = input('Please enter the path to a dataset reduction directory: ')
         params['ra'] = input('Please enter the RA [sexigesimal]: ')
         params['dec'] = input('Please enter the Dec [sexigesimal]: ')
         params['output_dir'] = input('Please enter the path to the output directory: ')
