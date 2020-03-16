@@ -289,7 +289,12 @@ def select_calibration_stars(star_catalog,params,log):
     idx = idx.intersection(set(idx3))
 
     log.info('Of these, identified '+str(len(list(idx)))+' detected stars with good photometry')
-
+    log.info('Selection critieria cuts:')
+    log.info('N stars with clean detected photometry: '+str(len(idx0)))
+    log.info('N stars with mag>10.0: '+str(len(idx1)))
+    log.info('N stars with mag_err>0.0: '+str(len(idx2)))
+    log.info('N stars with Gaia match: '+str(len(idx3)))
+    
     # Now selecting stars close to the nominal target coordinates.
     # These default to the centre of the field if not otherwise given.
     # THIS CODE DEATIVATED FOR NOW, SINCE NOT IN DEFAULT USE BUT MAYBE
