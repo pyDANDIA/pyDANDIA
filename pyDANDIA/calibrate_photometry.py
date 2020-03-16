@@ -283,10 +283,10 @@ def select_calibration_stars(star_catalog,params,log):
     idx0 = np.where(star_catalog['clean'] == 1.0)[0].tolist()
     idx1 = np.where(star_catalog['mag'] > 10.0)[0].tolist()
     idx2 = np.where(star_catalog['mag_err'] > 0.0)[0].tolist()
-    idx3 = np.where(star_catalog['gaia_ra'] != 0.0)[0].tolist()
+    #idx3 = np.where(star_catalog['gaia_ra'] != 0.0)[0].tolist()
     idx = set(idx0).intersection(set(idx1))
     idx = idx.intersection(set(idx2))
-    idx = idx.intersection(set(idx3))
+    #idx = idx.intersection(set(idx3))
 
     log.info('Of these, identified '+str(len(list(idx)))+' detected stars with good photometry')
     log.info('Selection critieria cuts:')
@@ -294,7 +294,7 @@ def select_calibration_stars(star_catalog,params,log):
     log.info('N stars with mag>10.0: '+str(len(idx1)))
     log.info('N stars with mag_err>0.0: '+str(len(idx2)))
     log.info('N stars with Gaia match: '+str(len(idx3)))
-    
+
     # Now selecting stars close to the nominal target coordinates.
     # These default to the centre of the field if not otherwise given.
     # THIS CODE DEATIVATED FOR NOW, SINCE NOT IN DEFAULT USE BUT MAYBE
