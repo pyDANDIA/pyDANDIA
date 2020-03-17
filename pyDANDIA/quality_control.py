@@ -191,17 +191,22 @@ def verify_telescope_pointing(image_header):
 
     threshold = (1.0/60.0) * u.deg
 
-    requested_pointing = SkyCoord(image_header['CAT-RA']+' '+image_header['CAT-DEC'],
-                                  frame='icrs', unit=(u.hourangle, u.deg))
+    if 'N/A' not in image_header['CAT-RA'] and 'N/A' not in image_header['CAT-DEC']:
+        requested_pointing = SkyCoord(image_header['CAT-RA']+' '+image_header['CAT-DEC'],
+                                      frame='icrs', unit=(u.hourangle, u.deg))
 
-    actual_pointing = SkyCoord(image_header['RA']+' '+image_header['DEC'],
-                                  frame='icrs', unit=(u.hourangle, u.deg))
+        actual_pointing = SkyCoord(image_header['RA']+' '+image_header['DEC'],
+                                      frame='icrs', unit=(u.hourangle, u.deg))
 
-    if requested_pointing.separation(actual_pointing) <= threshold:
-        return True
+        if requested_pointing.separation(actual_pointing) <= threshold:
+            return True
+        else:
+            return False
+
     else:
-        return False
-
+        # If this is true, assume the data were taken of a non-sidereal object
+        return True
+        
 def verify_image_shifts(new_images, shift_data, image_red_status):
     """Function to review the measured pixel offsets of each image from the
     reference for that dataset, and ensure that any severely offset images
