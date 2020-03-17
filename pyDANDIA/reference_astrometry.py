@@ -285,7 +285,7 @@ def catalog_objects_in_reference_image(setup, header, image_wcs, log,
                                         force_rotate_ref,
                                         stellar_density_threshold):
 
-    field = str(header['OBJECT']).replace(' ','_')
+    field = str(header['OBJECT']).replace(' ','-')
 
     gaia_sources = wcs.fetch_catalog_sources_for_field(setup, field, header,
                                                       image_wcs,log,'Gaia')

@@ -72,7 +72,7 @@ def get_image_dataset(image):
     hdr = fits.getheader(image)
 
     ds = Dataset()
-    ds.target = hdr['OBJECT'].replace('/','').replace(' ','_')
+    ds.target = hdr['OBJECT'].replace('/','').replace(' ','-')
     ds.site = hdr['SITEID'].replace('/','')
     ds.enclosure = hdr['ENCID'].replace('/','')
     ds.tel = hdr['TELESCOP'].replace('/','')
