@@ -54,6 +54,7 @@ def get_args():
 
     params['log_dir'] = path.join(params['base_dir'],'logs')
     params['pipeline_config_dir'] = path.join(params['base_dir'],'config')
+    params['verbosity'] = 0
 
     setup = pipeline_setup.pipeline_setup(params)
     setup.phot_db_path = params['phot_db_path']
