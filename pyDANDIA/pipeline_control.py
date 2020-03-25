@@ -58,7 +58,7 @@ def get_args():
 
     setup = pipeline_setup.pipeline_setup(params)
     setup.phot_db_path = params['phot_db_path']
-
+    
     return setup
 
 
