@@ -26,6 +26,7 @@ def pipeline_control():
 
     log = logs.start_pipeline_log(setup.log_dir, 'pipeline_control',
                                version=pipeline_version)
+    log.info(setup.summary())
 
     datasets = get_datasets_for_reduction(setup,log)
 
@@ -58,7 +59,7 @@ def get_args():
 
     setup = pipeline_setup.pipeline_setup(params)
     setup.phot_db_path = params['phot_db_path']
-    
+
     return setup
 
 
@@ -123,7 +124,7 @@ def run_reductions(setup,log,datasets):
         data_order = []
         if primary != None:
 
-            dsetup = copy.copy(setup)
+            dsetup = setup.duplicate()
             dsetup.red_dir = path.join(dsetup.base_dir,primary)
             dsetup.log_dir = path.join(dsetup.base_dir,primary)
 
@@ -135,12 +136,13 @@ def run_reductions(setup,log,datasets):
                 data_order.append(data_dir)
 
         for data_dir in data_order:
-            dsetup = copy.copy(setup)
+            dsetup = setup.duplicate()
             dsetup.red_dir = path.join(dsetup.base_dir,data_dir)
             dsetup.log_dir = path.join(dsetup.base_dir,data_dir)
 
             log.info('Running '+dsetup.red_mode+' for '+data_dir+' as standard dataset')
-
+            log.info(dsetup.summary())
+            
             trigger_single_reduction(dsetup, data_dir, 'non_ref')
 
     else:
