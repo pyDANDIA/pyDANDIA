@@ -129,6 +129,8 @@ def run_reductions(setup,log,datasets):
             dsetup.log_dir = path.join(dsetup.base_dir,primary)
 
             log.info('Running '+dsetup.red_mode+' for '+primary+' as primary reference')
+            log.info(dsetup.summary())
+
             trigger_single_reduction(dsetup, primary, 'primary_ref')
 
         for data_dir,data_status in datasets.items():
@@ -142,7 +144,7 @@ def run_reductions(setup,log,datasets):
 
             log.info('Running '+dsetup.red_mode+' for '+data_dir+' as standard dataset')
             log.info(dsetup.summary())
-            
+
             trigger_single_reduction(dsetup, data_dir, 'non_ref')
 
     else:
@@ -194,7 +196,7 @@ def trigger_single_reduction(setup,dataset_dir,data_status):
     if setup.red_mode == 'stage3_db_ingest' or setup.red_mode == 'stage6':
 
         command = path.join(setup.software_dir,'reduction_control.py')
-        args = ['python', command, setup.red_dir, setup.phot_db_path, setup.red_mode, data_status]
+        args = ['python', command, setup.red_dir, setup.phot_db_path, setup.red_mode, data_status, '-v 0']
 
         pid = subprocess.call(args, stdout=subprocess.PIPE)
 
