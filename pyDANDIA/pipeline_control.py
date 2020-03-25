@@ -197,7 +197,6 @@ def trigger_single_reduction(setup,dataset_dir,data_status):
 
         command = path.join(setup.software_dir,'reduction_control.py')
         args = ['python', command, setup.red_dir, setup.phot_db_path, setup.red_mode, data_status, '-v', '0']
-        print(args)
         
         pid = subprocess.call(args, stdout=subprocess.PIPE)
 
