@@ -196,7 +196,7 @@ def trigger_single_reduction(setup,dataset_dir,data_status):
     if setup.red_mode == 'stage3_db_ingest' or setup.red_mode == 'stage6':
 
         command = path.join(setup.software_dir,'reduction_control.py')
-        args = ['python', command, setup.red_dir, setup.phot_db_path, setup.red_mode, data_status, '-v 0']
+        args = ['python', command, setup.red_dir, setup.phot_db_path, setup.red_mode, data_status, '-v', '0']
 
         pid = subprocess.call(args, stdout=subprocess.PIPE)
 
