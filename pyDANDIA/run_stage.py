@@ -180,7 +180,7 @@ def get_args():
     else:
         params['rotate_ref'] = False
 
-    if '-add matched_stars' in argv:
+    if '-add-matched-stars' in argv:
         params['add_matched_stars'] = True
     else:
         params['add_matched_stars'] = False
