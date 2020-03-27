@@ -30,9 +30,6 @@ def run_stage3_db_ingest(setup, primary_ref=False, add_matched_stars=False):
     reference image(s) used to reduce the data for a given field.
     """
 
-    print(add_matched_stars)
-    exit()
-
     (facility_keys, software_keys, image_keys) = define_table_keys()
 
     log = logs.start_stage_log( setup.red_dir, 'stage3_db_ingest',
