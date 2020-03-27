@@ -78,7 +78,9 @@ def run_stage_stand_alone():
 
     elif params['stage'] == 'stage3_db_ingest':
 
-        (status, report) = stage3_db_ingest.run_stage3_db_ingest(setup, primary_ref=params['primary_ref'])
+        (status, report) = stage3_db_ingest.run_stage3_db_ingest(setup,
+                                            primary_ref=params['primary_ref'],
+                                            'add_matched_stars'=params['add_matched_stars'])
 
     elif params['stage'] == 'stage4':
 
@@ -177,6 +179,11 @@ def get_args():
         params['rotate_ref'] = True
     else:
         params['rotate_ref'] = False
+
+    if '-add matched_stars' in argv:
+        params['add_matched_stars'] = True
+    else:
+        params['add_matched_stars'] = False
 
     params['dx'] = 0.0
     params['dy'] = 0.0

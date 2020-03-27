@@ -14,6 +14,12 @@ def plot_extracted_spectrum():
 
 def plot_spectrum(data,params):
 
+    plot_params = {'axes.labelsize': 18,
+                  'axes.titlesize': 18,
+                  'xtick.labelsize':18,
+                  'ytick.labelsize':18}
+    plt.rcParams.update(plot_params)
+
     fig = plt.figure(1,(10,10))
 
     plt.plot(data[:,0], data[:,1], 'k-')
@@ -25,7 +31,7 @@ def plot_spectrum(data,params):
     if params['interactive']:
         plt.show()
     else:
-        plt.savefig(params['output_plot'])
+        plt.savefig(params['output_plot'], bbox_inches='tight')
 
 def read_goodman_spectrum_file(params):
 
@@ -41,8 +47,11 @@ def read_goodman_spectrum_file(params):
 
     l1 = header['CRVAL1']
     l2 = header['CRVAL1'] + header['NAXIS1']*header['CDELT1']
-    data[:,0] = np.arange(l1, l2, header['CDELT1'])
-
+    try:
+        data[:,0] = np.arange(l1, l2, header['CDELT1'])
+    except ValueError:
+        l2 = header['CRVAL1'] + (header['NAXIS1']-1)*header['CDELT1']
+        data[:,0] = np.arange(l1, l2, header['CDELT1'])
     return data
 
 def get_args():

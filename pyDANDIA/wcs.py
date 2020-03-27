@@ -747,7 +747,7 @@ def match_stars_world_coords(detected_sources,catalog_sources,log,catalog_name,
                     nm += 1
 
                     if verbose:
-                        log.info(matched_stars.summarize_last())
+                        log.info(matched_stars.summarize_last(units='deg'))
 
             if j%jincr == 0:
                 percentage = round((float(j)/float(len(catalog_sources)))*100.0,0)

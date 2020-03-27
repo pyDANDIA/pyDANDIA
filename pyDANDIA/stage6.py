@@ -80,8 +80,9 @@ def run_stage6(setup):
 
     # Measure the offset between the reference image for this dataset relative
     # to the primary reference for this field
-    (transform, matched_stars) = match_dataset_with_field_primary_reference(setup,conn,dataset_params,
-                                                                           reduction_metadata,log)
+    #(transform, matched_stars) = match_dataset_with_field_primary_reference(setup,conn,dataset_params,
+    #                                                                       reduction_metadata,log)
+    (transform, matched_stars) = load_matched_stars_from_metadata(reduction_metadata,log)
 
     # find the images needed to treat
     all_images = reduction_metadata.find_all_images(setup, reduction_metadata,
@@ -1157,3 +1158,9 @@ def store_stamp_photometry_to_array(setup, conn, params, reduction_metadata,
     log.info('Completed build of the photometry array')
 
     return photometry_data
+
+def load_matched_stars_from_metadata(reduction_metadata,log):
+    """Function to read the list of dataset stars matched against the field catalog
+    and the transformation between the two from the metadata"""
+    
+    return transform, matched_stars

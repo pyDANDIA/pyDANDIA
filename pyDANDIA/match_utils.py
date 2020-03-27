@@ -127,32 +127,14 @@ class StarMatchIndex:
 
         j = self.n_match - 1
 
-        if units == 'deg':
-
-            output = 'Catalog 1 star '+str(self.cat1_index[j])+' at ('+\
-                    str(self.cat1_ra[j])+', '+str(self.cat1_dec[j])+\
-                    ') matches Catalog 2 star '+str(self.cat2_index[j])+' at ('+\
-                    str(self.cat2_ra[j])+', '+str(self.cat2_dec[j])+\
-                    '), separation '+str(self.separation[j])+' deg\n'
-
-        elif units == 'both':
-
-                output = 'Catalog 1 star '+str(self.cat1_index[j])+' at RA,Dec=('+\
+        output = 'Catalog 1 star '+str(self.cat1_index[j])+' at RA,Dec=('+\
                         str(self.cat1_ra[j])+', '+str(self.cat1_dec[j])+'), x,y=('+\
                         str(self.cat1_x[j])+', '+str(self.cat1_y[j])+\
                         ') matches Catalog 2 star '+str(self.cat2_index[j])+' at RA,Dec=('+\
                         str(self.cat2_ra[j])+', '+str(self.cat2_dec[j])+'), x,y=('+\
                         str(self.cat2_x[j])+', '+str(self.cat2_y[j])+\
-                        '), separation '+str(self.separation[j])+' deg\n'
-
-        else:
-
-            output = 'Catalog 1 star '+str(self.cat1_index[j])+' at ('+\
-                    str(self.cat1_x[j])+', '+str(self.cat1_y[j])+\
-                    ') matches Catalog 2 star '+str(self.cat2_index[j])+' at ('+\
-                    str(self.cat2_x[j])+', '+str(self.cat2_y[j])+\
-                    '), separation '+str(self.separation[j])+' pixels\n'
-
+                        '), separation '+str(self.separation[j])+' '+units+'\n'
+                        
         return output
 
     def find_star_match_index(self, catalog_index, cat2_star_id):

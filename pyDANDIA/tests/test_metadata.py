@@ -10,7 +10,8 @@ cwd = getcwd()
 systempath.append(path.join(cwd, '../'))
 
 import metadata
-
+from pyDANDIA import match_utils
+from skimage.transform import AffineTransform
 
 def test_create_metadata_file():
     metad = metadata.MetaData()
@@ -189,4 +190,103 @@ def test_update_column_to_layer():
     assert metad.dummy_layer[1]['OHOHOH'][0] == '89'
     assert metad.dummy_layer[1]['OHOHOH'][1] == '-98'
 
+def build_test_match_index():
+
+    matched_stars = match_utils.StarMatchIndex()
+
+    star_ids = list(range(0,10,1))
+
+    matched_stars.cat1_index = star_ids
+    matched_stars.cat1_ra = [290.0]*len(star_ids)
+    matched_stars.cat1_dec = [-19.0]*len(star_ids)
+    matched_stars.cat1_x = [1800.0]*len(star_ids)
+    matched_stars.cat1_y = [2000.0]*len(star_ids)
+    matched_stars.cat2_index = list(np.array(star_ids) + 1)
+    matched_stars.cat2_ra = [290.0]*len(star_ids)
+    matched_stars.cat2_dec = [-19.0]*len(star_ids)
+    matched_stars.cat2_x = [1800.0]*len(star_ids)
+    matched_stars.cat2_y = [2000.0]*len(star_ids)
+    matched_stars.separation = [ 0.01 ]*len(star_ids)
+    matched_stars.n_match = len(star_ids)
+
+    return matched_stars
+
+def test_create_matched_stars_layer():
+
+    metad = metadata.MetaData()
+
+    matched_stars = build_test_match_index()
+
+    metad.create_matched_stars_layer(matched_stars)
+
+    metad.create_metadata_file('.', 'dummy_metadata.fits')
+
+    metad.save_a_layer_to_file('./', 'dummy_metadata.fits',
+                                          'matched_stars', log=None)
+
+    assert (metad.matched_stars[1]['field_star_id'] == np.array(matched_stars.cat1_index)).all()
+
+def test_load_matched_stars():
+
+    test_create_matched_stars_layer()
+    test_matched = build_test_match_index()
+
+    metad = metadata.MetaData()
+    metad.load_all_metadata('.', 'dummy_metadata.fits')
+
+    matched_stars = metad.load_matched_stars()
+
+    assert type(matched_stars) == type(test_matched)
+    assert len(matched_stars.cat1_index) > 0
+    for col in ['cat1_index', 'cat1_ra', 'cat1_dec', 'cat1_x', 'cat2_y',
+                'cat2_index', 'cat2_ra', 'cat2_dec', 'cat2_x', 'cat2_y', 'separation']:
+        print(col, getattr(matched_stars,col), getattr(test_matched,col))
+        assert ( np.array(getattr(matched_stars,col)) == np.array(getattr(test_matched,col)) ).all()
+
+def build_tranform():
+
+    matrix = np.array( [ [1.0, 2.0, 3.0],
+                            [4.0, 5.0, 6.0],
+                            [5.0, 6.0, 7.0] ] )
+    transform = AffineTransform(matrix = matrix)
+
+    return transform
+
+def test_create_transform_layer():
+
+    metad = metadata.MetaData()
+
+    transform = build_tranform()
+
+    metad.create_transform_layer(transform)
+
+    metad.create_metadata_file('.', 'dummy_metadata.fits')
+
+    metad.save_a_layer_to_file('./', 'dummy_metadata.fits',
+                                          'transformation', log=None)
+
+    assert (metad.transformation[1]['matrix_column0'] == np.array(transform.params[:,0])).all()
+    assert (metad.transformation[1]['matrix_column1'] == np.array(transform.params[:,1])).all()
+    assert (metad.transformation[1]['matrix_column2'] == np.array(transform.params[:,2])).all()
+
+def test_load_field_dataset_transform():
+
+    test_create_transform_layer()
+    test_transform = build_tranform()
+
+    metad = metadata.MetaData()
+    metad.load_all_metadata('.', 'dummy_metadata.fits')
+
+    transform = metad.load_field_dataset_transform()
+
+    assert type(transform) == type(test_transform)
+    assert (transform.params == test_transform.params).all()
+
 os.remove('./dummy_metadata.fits')
+
+
+if __name__ == '__main__':
+    #test_create_matched_stars_layer()
+    #test_load_matched_stars()
+    #test_create_transform_layer()
+    test_load_field_dataset_transform()

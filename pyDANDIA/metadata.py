@@ -10,11 +10,14 @@ from astropy.table import Table
 from astropy.table import Column
 from astropy.utils.exceptions import AstropyWarning
 from astropy import units as u
+from skimage.transform import AffineTransform
 
 import numpy as np
 import collections
 import warnings
 from pyDANDIA import  logs
+from pyDANDIA import match_utils
+
 import os
 
 
@@ -428,6 +431,33 @@ class MetaData:
 
         setattr(self, 'phot_calib', layer)
 
+    def create_matched_stars_layer(self, matched_stars):
+        """Method to output a new metadata layer tabulating the crossed-matched identifications between the
+        dataset's star IDs and those for the field"""
+
+        table_data = Table( [ Column(name='dataset_star_id', data = np.array(matched_stars.cat2_index), dtype='int'),
+                                    Column(name='dataset_ra', data = np.array(matched_stars.cat2_ra), dtype='float'),
+                                    Column(name='dataset_dec', data = np.array(matched_stars.cat2_dec), dtype='float'),
+                                    Column(name='dataset_x', data = np.array(matched_stars.cat2_x), dtype='float'),
+                                    Column(name='dataset_y', data = np.array(matched_stars.cat2_y), dtype='float'),
+                              Column(name='field_star_id', data = np.array(matched_stars.cat1_index), dtype='int'),
+                                  Column(name='field_ra', data = np.array(matched_stars.cat1_ra), dtype='float'),
+                                  Column(name='field_dec', data = np.array(matched_stars.cat1_dec), dtype='float'),
+                                  Column(name='field_x', data = np.array(matched_stars.cat1_x), dtype='float'),
+                                  Column(name='field_y', data = np.array(matched_stars.cat1_y), dtype='float'),
+                        Column(name='separation', data = np.array(matched_stars.separation), dtype='float') ] )
+
+        self.create_a_new_layer_from_table('matched_stars', table_data)
+
+    def create_transform_layer(self, transform):
+        """Method to output a new metadata layer to record the transformation between this dataset and the field reference"""
+
+        table_data = Table( [ Column(name='matrix_column0', data = transform.params[:,0], dtype='float'),
+                              Column(name='matrix_column1', data = transform.params[:,1], dtype='float'),
+                              Column(name='matrix_column2', data = transform.params[:,2], dtype='float') ] )
+
+        self.create_a_new_layer_from_table('transformation', table_data)
+
     def load_a_layer_from_file(self, metadata_directory, metadata_name, key_layer):
         '''
         Load into the metadata object the layer from the metadata file.
@@ -469,6 +499,38 @@ class MetaData:
             except:
 
                 print('No Layer with key name :' + key_layer)
+
+    def load_matched_stars(self):
+        """Method to load the matched_stars list"""
+
+        matched_stars = match_utils.StarMatchIndex()
+
+        matched_stars.cat1_index = list(self.matched_stars[1]['field_star_id'])
+        matched_stars.cat1_ra = list(self.matched_stars[1]['field_ra'])
+        matched_stars.cat1_dec = list(self.matched_stars[1]['field_dec'])
+        matched_stars.cat1_x = list(self.matched_stars[1]['field_x'])
+        matched_stars.cat1_y = list(self.matched_stars[1]['field_y'])
+        matched_stars.cat2_index = list(self.matched_stars[1]['dataset_star_id'])
+        matched_stars.cat2_ra = list(self.matched_stars[1]['dataset_ra'])
+        matched_stars.cat2_dec = list(self.matched_stars[1]['dataset_dec'])
+        matched_stars.cat2_x = list(self.matched_stars[1]['dataset_x'])
+        matched_stars.cat2_y = list(self.matched_stars[1]['dataset_y'])
+        matched_stars.separation = list(self.matched_stars[1]['separation'])
+        matched_stars.n_match = len(matched_stars.cat1_index)
+
+        return matched_stars
+
+    def load_field_dataset_transform(self):
+        """Method to load the transformation between the field and the current dataset"""
+
+        matrix = np.zeros( (3,3) )
+        matrix[:,0] = self.transformation[1]['matrix_column0']
+        matrix[:,1] = self.transformation[1]['matrix_column1']
+        matrix[:,2] = self.transformation[1]['matrix_column2']
+
+        transform = AffineTransform(matrix=matrix)
+
+        return transform
 
     def save_updated_metadata(self, metadata_directory, metadata_name, log=None):
         '''

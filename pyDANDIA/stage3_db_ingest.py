@@ -25,10 +25,13 @@ from pyDANDIA import  calc_coord_offsets
 
 VERSION = 'stage3_ingest_v1.0'
 
-def run_stage3_db_ingest(setup, primary_ref=False):
+def run_stage3_db_ingest(setup, primary_ref=False, add_matched_stars=False):
     """Function to commit the information on, and measurements from, the
     reference image(s) used to reduce the data for a given field.
     """
+
+    print(add_matched_stars)
+    exit()
 
     (facility_keys, software_keys, image_keys) = define_table_keys()
 
@@ -83,21 +86,26 @@ def run_stage3_db_ingest(setup, primary_ref=False):
 
     phot_db.check_before_commit(conn, dataset_params, 'images', image_keys, 'filename')
 
-    commit_stamps_to_db(conn, reduction_metadata)
+    if not add_matched_stars:
+        commit_stamps_to_db(conn, reduction_metadata)
 
     ref_id_list = phot_db.find_reference_image_for_dataset(conn,dataset_params)
 
-    if ref_id_list != None and len(ref_id_list) > 0:
+    if ref_id_list != None and len(ref_id_list) > 0 and not add_matched_stars:
         phot_db.cascade_delete_reference_images(conn, ref_id_list, log)
 
-    commit_reference_image(conn, dataset_params, log)
-    commit_reference_component(conn, dataset_params, log)
+    if not add_matched_stars:
+        commit_reference_image(conn, dataset_params, log)
+        commit_reference_component(conn, dataset_params, log)
 
     if primary_ref:
 
-        star_ids = commit_stars(conn, dataset_params, reduction_metadata, log)
+        if not add_matched_stars:
+            star_ids = commit_stars(conn, dataset_params, reduction_metadata, log)
 
-        commit_photometry(conn, dataset_params, reduction_metadata, star_ids, log)
+            commit_photometry(conn, dataset_params, reduction_metadata, star_ids, log)
+
+        (matched_stars, transform) = generate_primary_ref_match_table(reduction_metadata,log)
 
     else:
 
@@ -118,10 +126,19 @@ def run_stage3_db_ingest(setup, primary_ref=False):
                                                         primary_refimg_id,transform,log,
                                                         verbose=True)
 
-        commit_photometry_matching(conn, dataset_params, reduction_metadata,
+        if not add_matched_stars:
+            commit_photometry_matching(conn, dataset_params, reduction_metadata,
                                                         matched_stars, log,
                                                         verbose=False)
 
+    reduction_metadata.create_matched_stars_layer(matched_stars)
+    reduction_metadata.create_transform_layer(transform)
+    reduction_metadata.save_a_layer_to_file(setup.red_dir,
+                                          'pyDANDIA_metadata.fits',
+                                          'matched_stars', log)
+    reduction_metadata.save_a_layer_to_file(setup.red_dir,
+                                        'pyDANDIA_metadata.fits',
+                                        'transformation', log)
     conn.close()
 
     status = 'OK'
@@ -797,7 +814,7 @@ def match_catalog_entries_with_starlist(conn,params,starlist,reduction_metadata,
             matched_stars.add_match(p)
 
             if verbose:
-                log.info(matched_stars.summarize_last(units='both'))
+                log.info(matched_stars.summarize_last(units='pixels'))
 
     return matched_stars
 
@@ -865,8 +882,29 @@ def match_all_entries_with_starlist(setup,conn,params,starlist,reduction_metadat
             matched_stars.add_match(p)
 
             if verbose:
-                log.info(matched_stars.summarize_last(units='both'))
+                log.info(matched_stars.summarize_last(units='pixels'))
 
     log.info('Matched '+str(matched_stars.n_match)+' stars')
 
     return matched_stars
+
+def generate_primary_ref_match_table(reduction_metadata,log):
+
+    matched_stars = match_utils.StarMatchIndex()
+
+    matched_stars.cat1_index = list(reduction_metadata.star_catalog[1]['index'].data)
+    matched_stars.cat1_ra = list(reduction_metadata.star_catalog[1]['ra'].data)
+    matched_stars.cat1_dec = list(reduction_metadata.star_catalog[1]['dec'].data)
+    matched_stars.cat1_x = list(reduction_metadata.star_catalog[1]['x'].data)
+    matched_stars.cat1_y = list(reduction_metadata.star_catalog[1]['y'].data)
+    matched_stars.cat2_index = list(reduction_metadata.star_catalog[1].data)
+    matched_stars.cat2_ra = list(reduction_metadata.star_catalog[1]['ra'].data)
+    matched_stars.cat2_dec = list(reduction_metadata.star_catalog[1]['dec'].data)
+    matched_stars.cat2_x = list(reduction_metadata.star_catalog[1]['x'].data)
+    matched_stars.cat2_y = list(reduction_metadata.star_catalog[1]['y'].data)
+    matched_stars.separation = [ 0.0 ] * len(reduction_metadata.star_catalog[1]['index'])
+    matched_stars.n_match = len(reduction_metadata.star_catalog[1]['index'])
+
+    transform = AffineTransform(matrix=np.zeros((3,3)))
+
+    return matched_stars, transform
