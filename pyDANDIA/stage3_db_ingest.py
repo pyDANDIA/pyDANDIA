@@ -12,6 +12,7 @@ from astropy import table
 from astropy import time
 from astropy import units
 from astropy.coordinates import SkyCoord
+from skimage.transform import AffineTransform
 import numpy as np
 import glob
 from shutil import move
@@ -37,7 +38,8 @@ def run_stage3_db_ingest(setup, primary_ref=False, add_matched_stars=False):
     if primary_ref:
         log.info('Running in PRIMARY-REF mode.')
 
-    archive_existing_db(setup,primary_ref,log)
+    if not add_matched_stars:
+        archive_existing_db(setup,primary_ref,log)
 
     conn = phot_db.get_connection(dsn=setup.phot_db_path)
 
