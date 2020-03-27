@@ -80,7 +80,7 @@ def run_stage_stand_alone():
 
         (status, report) = stage3_db_ingest.run_stage3_db_ingest(setup,
                                             primary_ref=params['primary_ref'],
-                                            'add_matched_stars'=params['add_matched_stars'])
+                                            add_matched_stars=params['add_matched_stars'])
 
     elif params['stage'] == 'stage4':
 
