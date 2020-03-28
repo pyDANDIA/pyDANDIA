@@ -130,6 +130,8 @@ def run_stage3_db_ingest(setup, primary_ref=False, add_matched_stars=False):
                                                         matched_stars, log,
                                                         verbose=False)
 
+    print(matched_stars.cat1_index)
+    exit()
     reduction_metadata.create_matched_stars_layer(matched_stars)
     reduction_metadata.create_transform_layer(transform)
     reduction_metadata.save_a_layer_to_file(setup.red_dir,
@@ -890,7 +892,8 @@ def match_all_entries_with_starlist(setup,conn,params,starlist,reduction_metadat
 def generate_primary_ref_match_table(reduction_metadata,log):
 
     matched_stars = match_utils.StarMatchIndex()
-
+    print(reduction_metadata.star_catalog[1]['index'])
+    exit()
     matched_stars.cat1_index = list(reduction_metadata.star_catalog[1]['index'])
     matched_stars.cat1_ra = list(reduction_metadata.star_catalog[1]['ra'])
     matched_stars.cat1_dec = list(reduction_metadata.star_catalog[1]['dec'])
