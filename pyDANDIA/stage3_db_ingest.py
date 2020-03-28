@@ -893,6 +893,8 @@ def generate_primary_ref_match_table(reduction_metadata,log):
 
     matched_stars = match_utils.StarMatchIndex()
     print(reduction_metadata.star_catalog[1]['index'])
+    import pdb;
+    pdb.set_trace()
     exit()
     matched_stars.cat1_index = list(reduction_metadata.star_catalog[1]['index'])
     matched_stars.cat1_ra = list(reduction_metadata.star_catalog[1]['ra'])
