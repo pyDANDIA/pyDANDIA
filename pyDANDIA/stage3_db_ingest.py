@@ -906,4 +906,6 @@ def generate_primary_ref_match_table(reduction_metadata,log):
 
     transform = AffineTransform(matrix=np.zeros((3,3)))
 
+    log.info('Generated matched_stars and transform for a primary reference dataset')
+
     return matched_stars, transform

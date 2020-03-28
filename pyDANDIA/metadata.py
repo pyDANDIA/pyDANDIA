@@ -434,9 +434,9 @@ class MetaData:
     def create_matched_stars_layer(self, matched_stars):
         """Method to output a new metadata layer tabulating the crossed-matched identifications between the
         dataset's star IDs and those for the field"""
-        print(matched_stars.cat2_index)
-        print(type(matched_stars.cat2_index))
-        
+        print(matched_stars.cat2_index, 'cat2_index')
+        print('type', type(matched_stars.cat2_index))
+
         table_data = Table( [ Column(name='dataset_star_id', data = np.array(matched_stars.cat2_index), dtype='int'),
                                     Column(name='dataset_ra', data = np.array(matched_stars.cat2_ra), dtype='float'),
                                     Column(name='dataset_dec', data = np.array(matched_stars.cat2_dec), dtype='float'),
