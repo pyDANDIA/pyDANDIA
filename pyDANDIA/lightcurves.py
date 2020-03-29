@@ -16,9 +16,12 @@ from pyDANDIA import  phot_db
 from pyDANDIA import  hd5_utils
 from pyDANDIA import  pipeline_setup
 from pyDANDIA import  metadata
+from pyDANDIA import  logs
 
 def extract_star_lightcurves_on_position(params):
     """Function to extract a lightcurve from a phot_db"""
+
+    log = logs.start_stage_log( params['red_dir'], 'lightcurves' )
 
     reduction_metadata = metadata.MetaData()
     reduction_metadata.load_a_layer_from_file( params['red_dir'],
@@ -55,7 +58,7 @@ def extract_star_lightcurves_on_position(params):
 
         #datasets = identify_unique_datasets(phot_table,facilities,filters)
 
-        photometry_data = fetch_photometry_for_dataset(params, star_field_id, matched_stars)
+        photometry_data = fetch_photometry_for_dataset(params, star_field_id, matched_stars, log)
 
         setname = path.basename(params['red_dir']).split('_')[1]
 
@@ -76,6 +79,8 @@ def extract_star_lightcurves_on_position(params):
         message = 'No stars within search region'
 
     conn.close()
+
+    logs.close_log(log)
 
     return message
 
@@ -114,11 +119,18 @@ def identify_unique_datasets(phot_table,facilities,filters):
 
     return datasets
 
-def fetch_photometry_for_dataset(params, star_field_id, matched_stars):
+def fetch_photometry_for_dataset(params, star_field_id, matched_stars, log):
 
     setup = pipeline_setup.pipeline_setup({'red_dir': params['red_dir']})
 
     dataset_photometry = hd5_utils.read_phot_hd5(setup)
+
+    (star_dataset_ids, star_field_ids) = matched_stars.find_starlist_match_ids('cat1_index', np.array([star_field_id]), log,
+                                                                                verbose=True)
+    star_dataset_id = star_dataset_ids[0]
+
+    print('FIELD ID = '+str(star_field_id))
+    print('DATASET ID = '+str(star_dataset_id))
 
     jdx = np.where(dataset_photometry[:,:,0] == star_field_id)
 
