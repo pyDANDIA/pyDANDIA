@@ -132,9 +132,6 @@ def fetch_photometry_for_dataset(params, star_field_id, matched_stars, log):
     print('Star field ID = '+str(star_field_id))
     print('Star dataset ID = '+str(star_dataset_id))
 
-    #jdx = np.where(dataset_photometry[:,:,0] == star_field_id)
-
-    #index_list = np.unique(jdx[0])
     star_dataset_index = star_dataset_id - 1
 
     print('Star array index: '+str(star_dataset_index))
