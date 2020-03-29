@@ -1166,4 +1166,7 @@ def load_matched_stars_from_metadata(reduction_metadata,log):
     """Function to read the list of dataset stars matched against the field catalog
     and the transformation between the two from the metadata"""
 
+    matched_stars = reduction_metadata.load_matched_stars()
+    transform = reduction_metadata.load_transform()
+    
     return transform, matched_stars
