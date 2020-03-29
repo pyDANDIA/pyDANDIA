@@ -892,13 +892,13 @@ def match_all_entries_with_starlist(setup,conn,params,starlist,reduction_metadat
 def generate_primary_ref_match_table(reduction_metadata,log):
 
     matched_stars = match_utils.StarMatchIndex()
-    
+
     matched_stars.cat1_index = list(reduction_metadata.star_catalog[1]['index'].data)
     matched_stars.cat1_ra = list(reduction_metadata.star_catalog[1]['ra'].data)
     matched_stars.cat1_dec = list(reduction_metadata.star_catalog[1]['dec'].data)
     matched_stars.cat1_x = list(reduction_metadata.star_catalog[1]['x'].data)
     matched_stars.cat1_y = list(reduction_metadata.star_catalog[1]['y'].data)
-    matched_stars.cat2_index = list(reduction_metadata.star_catalog[1].data)
+    matched_stars.cat2_index = list(reduction_metadata.star_catalog[1]['index'].data)
     matched_stars.cat2_ra = list(reduction_metadata.star_catalog[1]['ra'].data)
     matched_stars.cat2_dec = list(reduction_metadata.star_catalog[1]['dec'].data)
     matched_stars.cat2_x = list(reduction_metadata.star_catalog[1]['x'].data)
