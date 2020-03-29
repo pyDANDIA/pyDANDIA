@@ -129,8 +129,8 @@ def fetch_photometry_for_dataset(params, star_field_id, matched_stars, log):
                                                                                 verbose=True)
     star_dataset_id = star_dataset_ids[0]
 
-    print('FIELD ID = '+str(star_field_id))
-    print('DATASET ID = '+str(star_dataset_id))
+    print('Star field ID = '+str(star_field_id))
+    print('Star dataset ID = '+str(star_dataset_id))
 
     jdx = np.where(dataset_photometry[:,:,0] == star_field_id)
 
