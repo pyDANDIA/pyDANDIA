@@ -10,9 +10,8 @@ def modify_red_status_table(red_dir):
     n_images = len(reduction_metadata.reduction_status[1]['IMAGES'])
 
     for i in range(0,n_images,1):
-        print(reduction_metadata.reduction_status[1]['STAGE_6'][i], (reduction_metadata.reduction_status[1]['STAGE_6'][i] == 0))
-        if int(reduction_metadata.reduction_status[1]['STAGE_6'][i]) == 0:
-            reduction_metadata.update_a_cell_to_layer('reduction_status', i, 'STAGE_6', '1')
+        if '-1' in str(reduction_metadata.reduction_status[1]['STAGE_7'][i]):
+            reduction_metadata.update_a_cell_to_layer('reduction_status', i, 'STAGE_6', '-1')
 
     reduction_metadata.save_updated_metadata(red_dir,'pyDANDIA_metadata.fits')
 
