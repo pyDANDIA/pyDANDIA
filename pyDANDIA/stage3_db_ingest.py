@@ -130,8 +130,6 @@ def run_stage3_db_ingest(setup, primary_ref=False, add_matched_stars=False):
                                                         matched_stars, log,
                                                         verbose=False)
 
-    print(matched_stars.cat1_index)
-    exit()
     reduction_metadata.create_matched_stars_layer(matched_stars)
     reduction_metadata.create_transform_layer(transform)
     reduction_metadata.save_a_layer_to_file(setup.red_dir,
