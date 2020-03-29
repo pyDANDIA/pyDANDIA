@@ -125,7 +125,7 @@ def fetch_photometry_for_dataset(params, star_field_id, matched_stars, log):
 
     dataset_photometry = hd5_utils.read_phot_hd5(setup)
 
-    (star_dataset_ids, star_field_ids) = matched_stars.find_starlist_match_ids('cat1_index', np.array([star_field_id]), log,
+    (star_field_ids, star_dataset_ids) = matched_stars.find_starlist_match_ids('cat1_index', np.array([star_field_id]), log,
                                                                                 verbose=True)
     star_dataset_id = star_dataset_ids[0]
 
