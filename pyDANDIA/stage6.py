@@ -47,7 +47,7 @@ def run_stage6(setup):
 
     """
 
-    stage6_version = 'stage6 v0.2'
+    stage6_version = 'stage6 v0.9'
 
     log = logs.start_stage_log(setup.red_dir, 'stage6', version=stage6_version)
     log.info('Setup:\n' + setup.summary() + '\n')
@@ -83,9 +83,6 @@ def run_stage6(setup):
     #(transform, matched_stars) = match_dataset_with_field_primary_reference(setup,conn,dataset_params,
     #                                                                       reduction_metadata,log)
     (transform, matched_stars) = load_matched_stars_from_metadata(reduction_metadata,log)
-    print(matched_stars.summary())
-    print(transform)
-    import pdb; pdb.set_trace()
 
     # find the images needed to treat
     all_images = reduction_metadata.find_all_images(setup, reduction_metadata,
@@ -1168,5 +1165,5 @@ def load_matched_stars_from_metadata(reduction_metadata,log):
 
     matched_stars = reduction_metadata.load_matched_stars()
     transform = reduction_metadata.load_field_dataset_transform()
-    
+
     return transform, matched_stars

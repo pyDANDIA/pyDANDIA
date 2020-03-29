@@ -15,9 +15,16 @@ import matplotlib.pyplot as plt
 from pyDANDIA import  phot_db
 from pyDANDIA import  hd5_utils
 from pyDANDIA import  pipeline_setup
+from pyDANDIA import  metadata
 
 def extract_star_lightcurves_on_position(params):
     """Function to extract a lightcurve from a phot_db"""
+
+    reduction_metadata = metadata.MetaData()
+    reduction_metadata.load_a_layer_from_file( params['red_dir'],
+                                                      'pyDANDIA_metadata.fits',
+                                                      'matched_stars' )
+    matched_stars = reduction_metadata.load_matched_stars()
 
     conn = phot_db.get_connection(dsn=params['db_file_path'])
 
@@ -48,7 +55,7 @@ def extract_star_lightcurves_on_position(params):
 
         #datasets = identify_unique_datasets(phot_table,facilities,filters)
 
-        photometry_data = fetch_photometry_for_dataset(params, star_field_id)
+        photometry_data = fetch_photometry_for_dataset(params, star_field_id, matched_stars)
 
         setname = path.basename(params['red_dir']).split('_')[1]
 
@@ -107,7 +114,7 @@ def identify_unique_datasets(phot_table,facilities,filters):
 
     return datasets
 
-def fetch_photometry_for_dataset(params, star_field_id):
+def fetch_photometry_for_dataset(params, star_field_id, matched_stars):
 
     setup = pipeline_setup.pipeline_setup({'red_dir': params['red_dir']})
 
