@@ -1167,6 +1167,6 @@ def load_matched_stars_from_metadata(reduction_metadata,log):
     and the transformation between the two from the metadata"""
 
     matched_stars = reduction_metadata.load_matched_stars()
-    transform = reduction_metadata.load_transform()
+    transform = reduction_metadata.load_field_dataset_transform()
     
     return transform, matched_stars
