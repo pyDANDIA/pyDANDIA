@@ -85,8 +85,8 @@ def run_stage6(setup):
     (transform, matched_stars) = load_matched_stars_from_metadata(reduction_metadata,log)
     print(matched_stars.summary())
     print(transform)
-    import import pdb; pdb.set_trace()
-    
+    import pdb; pdb.set_trace()
+
     # find the images needed to treat
     all_images = reduction_metadata.find_all_images(setup, reduction_metadata,
                                                     os.path.join(setup.red_dir, 'data'), log=log)
