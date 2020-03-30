@@ -17,12 +17,12 @@ import numpy as np
 
 def test_umatrix_constant():
     setup = mock.MagicMock()
-  
-    reference_image = np.zeros((15, 15))                                  
-    reference_image[7, 7] = 1                                             
-    reference_image[8, 8] = 2                                       
-    reference_image[9,9] = 1                                              
-    u_matrix = stage5.umatrix_constant(reference_image, 5)        
+
+    reference_image = np.zeros((15, 15))
+    reference_image[7, 7] = 1
+    reference_image[8, 8] = 2
+    reference_image[9,9] = 1
+    u_matrix = stage5.umatrix_constant(reference_image, 5)
     expected  = np.array([[   6.,    0.,    0.,    0.,    0.,    0.,    4.,    0.,    0.,
            0.,    0.,    0.,    1.,    0.,    0.,    0.,    0.,    0.,
            0.,    0.,    0.,    0.,    0.,    0.,    0.,    4.],
@@ -109,14 +109,14 @@ def test_umatrix_constant():
 
 def test_bvector_constant():
     setup = mock.MagicMock()
-  
-    reference_image = np.zeros((15, 15))                                  
-    reference_image[7, 7] = 1                                             
-    reference_image[8, 8] = 2                                       
-    reference_image[9,9] = 1                                              
-    data_image = np.zeros((15, 15))                                                                                             
-    data_image[8,8] =  1              
-    bvector = stage5.bvector_constant(reference_image,data_image, 5)      
+
+    reference_image = np.zeros((15, 15))
+    reference_image[7, 7] = 1
+    reference_image[8, 8] = 2
+    reference_image[9,9] = 1
+    data_image = np.zeros((15, 15))
+    data_image[8,8] =  1
+    bvector = stage5.bvector_constant(reference_image,data_image, 5)
     expected  = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 2.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0])
 
     assert np.allclose(bvector,expected)
@@ -136,13 +136,13 @@ def test_noise_model():
 
 
 def test_kernel_preparation_matrix():
-    reference_image = np.zeros((15, 15))                                  
-    reference_image[7, 7] = 1                                             
-    reference_image[8, 8] = 2                                       
-    reference_image[9,9] = 1                                              
-    data_image = np.zeros((15, 15))                                                                                             
-    data_image[8,8] =  1              
-    umatrix, bvector =  stage5.kernel_preparation_matrix(data_image, reference_image, 5)      
+    reference_image = np.zeros((15, 15))
+    reference_image[7, 7] = 1
+    reference_image[8, 8] = 2
+    reference_image[9,9] = 1
+    data_image = np.zeros((15, 15))
+    data_image[8,8] =  1
+    umatrix, bvector =  stage5.kernel_preparation_matrix(data_image, reference_image, 5)
     expected_b  = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0,
                             0.0, 0.0, 2.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0,
                             0.0, 0.0, 0.0, 0.0, 0.0, 1.0])
@@ -227,3 +227,43 @@ def test_kernel_preparation_matrix():
     assert np.allclose(bvector,expected_b)
     assert np.allclose(umatrix,expected_u)
 
+def test_quality_control_matrix_sort():
+    """Function to test the sorting of the quality control matrix"""
+
+    full_quality_metrics = np.array([
+    ['cpt1m010-fa16-20190407-0119-e91.fits', 1.0478244048563121, 3.047280887016868e-09, 0.0, 0.17750414929950056, 950363.5, 407.72587826133486, 0.03518266772450207],
+    ['cpt1m010-fa16-20190408-0139-e91.fits', 1.0499661649704115, 3.1521415465378003e-09, 0.0, 0.1747200273412643, 950363.5, 527.6157330454099, 1.6506586282878055],
+    ['cpt1m010-fa16-20190409-0293-e91.fits', 0.6597437537227052, 3.2281062892539527e-09, 0.0, 0.08795468153074198, 950363.5, 840.1911380642612, 6.840727227399374],
+    ['cpt1m010-fa16-20190410-0259-e91.fits', -1.0, -1.0, -1.0, -1.0, 0, -1.0, -1.0],
+    ['cpt1m010-fa16-20190412-0214-e91.fits', 1.013555802434664, 3.1812270228978657e-09, 0.0, 0.1986483456664936, 950363.5, 1275.4679938515458, 8.73078393319286],
+    ['cpt1m010-fa16-20190418-0149-e91.fits', 1.0559951086970316, 1.8517698217049203e-09, 0.0, 0.24768497022058558, 950363.5, 1357.087534072004, 8.270364308785238],
+    ['cpt1m010-fa16-20190418-9999-e91.fits', -1.0, -1.0, -1.0, -1.0, 0, -1.0, -1.0],
+    ['cpt1m010-fa16-20190428-0208-e91.fits', 1.0492613699080264, 2.9865872047901687e-09, 0.0, 0.1565328501963192, 950363.5, 585.7458139764944, 1.842257223326082],
+    ['cpt1m010-fa16-20190430-0193-e91.fits', 1.0409648646044285, 2.8677645948044937e-09, 0.0, 0.15745000433103648, 950363.5, 281.1737335826472, -1.8242692401964504],
+    ['cpt1m010-fa16-20190509-0229-e91.fits', 1.0627266440992327, 3.1207726001196903e-09, 0.0, 0.21383342599930935, 950363.5, 923.6000725444903, 5.658201553528483],
+    ['cpt1m010-fa16-20190510-0205-e91.fits', 1.059769618199541, 1.845306957413796e-09, 0.0, 0.22674651754331643, 950363.5, 1466.7078963880358, 7.153959076281039],
+    ['cpt1m010-fa16-20190512-0457-e91.fits', 1.0353947884885626, 3.140546133079409e-09, 0.0, 0.20715224460577947, 950363.5, 1235.7769256641711, 10.148807964051048],
+    ['cpt1m010-fa16-20190513-0165-e91.fits', 0.5245160662942117, 3.289785134672552e-09, 0.0, 0.08648437941186, 950363.5, 207.78450154507723, 3.9267130304475413],
+    ['cpt1m010-fa16-20190522-0099-e91.fits', 1.0891077957565556, 3.2796640820780367e-09, 0.0, 0.412240713566837, 950363.5, 189.31723424224708, 5.312998522060381],
+    ])
+
+    quality_metrics = []
+    for row in range(0,len(full_quality_metrics),1):
+        if full_quality_metrics[row,1] != '-1.0':
+            quality_metrics.append(full_quality_metrics[row,:])
+    quality_metrics = np.array(quality_metrics)
+
+    meta = metadata.MetaData()
+    meta.create_images_stats_layer()
+    for image in full_quality_metrics[:,0]:
+        meta.add_row_to_layer(key_layer='images_stats',
+                                new_row=[ image, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 ])
+
+    sorted_data = stage5.sort_quality_metrics(quality_metrics, meta)
+
+    assert(type(sorted_data) == type(quality_metrics))
+    assert(np.array_equal(sorted_data, full_quality_metrics))
+
+if __name__ == '__main__':
+
+    test_quality_control_matrix_sort()

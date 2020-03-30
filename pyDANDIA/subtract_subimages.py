@@ -6,11 +6,11 @@ from multiprocessing import Pool
 import multiprocessing as mp
 import numpy as np
 import scipy.ndimage as sndi
-
+from pyDANDIA import convolution
 
 def subtract_images(data_image, reference_image, kernel, kernel_size, bkg_kernel, mask = None):
     model_image = convolve2d(reference_image, kernel, mode='same')
-
+    #model_image = convolution.convolve_2d(reference_image,kernel)
     #avoid image parts with shift 0 
 
     model_image[data_image==0]=-bkg_kernel

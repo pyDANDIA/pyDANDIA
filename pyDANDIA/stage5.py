@@ -16,7 +16,7 @@ from astropy.io import fits
 from scipy.signal import convolve2d
 from scipy.stats import skew, kurtosis
 from scipy.ndimage.filters import gaussian_filter
-from pyDANDIA.read_images_stage5 import open_reference, open_images, open_data_image
+from pyDANDIA.read_images_stage5 import open_reference, open_images, open_data_image,mask_the_image
 from pyDANDIA.stage0 import open_an_image
 from pyDANDIA.subtract_subimages import subtract_images, subtract_subimage
 from multiprocessing import Pool
@@ -30,6 +30,8 @@ from pyDANDIA import config_utils
 from pyDANDIA import metadata
 from pyDANDIA import logs
 from pyDANDIA import psf
+from pyDANDIA import stage4
+
 import matplotlib.pyplot as plt
 
 
@@ -39,7 +41,7 @@ def run_stage5(setup):
     image
     :param object setup : an instance of the ReductionSetup class. See reduction_control.py
 
-    :return: [status, report, reduction_metadata], stage5 status, report, 
+    :return: [status, report, reduction_metadata], stage5 status, report,
      metadata file
     :rtype: array_like
     """
@@ -51,7 +53,7 @@ def run_stage5(setup):
     try:
         from umatrix_routine import umatrix_construction, umatrix_bvector_construction, bvector_construction
         from umatrix_routine import umatrix_construction_nobkg, bvector_construction_nobkg
-        from umatrix_routine import umatrix_construction_clean, bvector_construction_clean
+        #from umatrix_routine import umatrix_construction_clean, bvector_construction_clean
 
     except ImportError:
         log.info('Uncompiled cython code, please run setup.py: e.g.\n python setup.py build_ext --inplace')
@@ -93,8 +95,8 @@ def run_stage5(setup):
         if abs(float(stats_entry['SHIFT_Y'])) > shift_max:
             shift_max = abs(float(stats_entry['SHIFT_Y']))
 
-        fwhms.append(((float(stats_entry['SIGMA_Y'])) ** 2 + (float(stats_entry['SIGMA_Y'])) ** 2) ** 0.5)  # arcsec
-
+       # fwhms.append(((float(stats_entry['SIGMA_Y'])) ** 2 + (float(stats_entry['SIGMA_Y'])) ** 2) ** 0.5)  # arcsec
+        fwhms.append(float(stats_entry['FWHM']))  # arcsec
     fwhms = np.array(fwhms)
     mask = np.isnan(fwhms)
     fwhms[mask] = 99
@@ -111,10 +113,15 @@ def run_stage5(setup):
     for percentile in kernel_percentile:
 
         kernel_size_tmp = int(
-            4. * float(reduction_metadata.reduction_parameters[1]['KER_RAD'][0]) * np.percentile(fwhms, percentile))
+            1.0*float(reduction_metadata.reduction_parameters[1]['KER_RAD'][0]) * np.percentile(fwhms, percentile))
 
+        try:
+            if kernel_size_tmp == kernel_size_array[-1]:
+                kernel_size_tmp += 1
+        except:
+            pass
         if kernel_size_tmp % 2 == 0:
-            kernel_size_tmp -= 1
+            kernel_size_tmp += 1
 
         if kernel_size_tmp < 1:
             kernel_size_tmp = 1
@@ -130,7 +137,8 @@ def run_stage5(setup):
                                                     os.path.join(setup.red_dir, 'data'), log=log)
 
     new_images = reduction_metadata.find_images_need_to_be_process(setup, all_images,
-                                                                   stage_number=5, rerun_all=True, log=log)
+                                                                   stage_number=5, log=log)
+    image_red_status = reduction_metadata.fetch_image_status(5)
 
     kernel_directory_path = os.path.join(setup.red_dir, 'kernel')
     diffim_directory_path = os.path.join(setup.red_dir, 'diffim')
@@ -143,7 +151,7 @@ def run_stage5(setup):
 
     reduction_metadata.update_column_to_layer('data_architecture', 'KERNEL_PATH', kernel_directory_path)
 
-    # difference images are written for verbosity level > 0 
+    # difference images are written for verbosity level > 0
     reduction_metadata.update_column_to_layer('data_architecture', 'DIFFIM_PATH', diffim_directory_path)
     data_image_directory = os.path.join(setup.red_dir, 'resampled')
     ref_directory_path = '.'
@@ -159,10 +167,10 @@ def run_stage5(setup):
         ref_row_index = np.where(reduction_metadata.images_stats[1]['IM_NAME'] == str(
             reduction_metadata.data_architecture[1]['REF_IMAGE'][0]))[0][0]
 
-        ref_fwhm_x = reduction_metadata.images_stats[1][ref_row_index]['SIGMA_X']
-        ref_fwhm_y = reduction_metadata.images_stats[1][ref_row_index]['SIGMA_Y']
-        ref_sigma_x = ref_fwhm_x / (2. * (2. * np.log(2.)) ** 0.5)
-        ref_sigma_y = ref_fwhm_y / (2. * (2. * np.log(2.)) ** 0.5)
+        ref_sigma_x = reduction_metadata.images_stats[1][ref_row_index]['SIGMA_X']
+        ref_sigma_y = reduction_metadata.images_stats[1][ref_row_index]['SIGMA_Y']
+        ref_fwhm_x = reduction_metadata.images_stats[1][ref_row_index]['FWHM']
+        ref_fwhm_y = reduction_metadata.images_stats[1][ref_row_index]['FWHM']
         ref_stats = [ref_fwhm_x, ref_fwhm_y, ref_sigma_x, ref_sigma_y]
 
         logs.ifverbose(log, setup, 'Using reference image:' + reference_image_name)
@@ -220,12 +228,7 @@ def run_stage5(setup):
 
     else:
         log.info('Constructing quality metrics columns in metadata')
-        sorted_data = np.copy(quality_metrics)
-
-        for index in range(len(quality_metrics)):
-            target_image = data[index][0]
-            row_index = np.where(reduction_metadata.images_stats[1]['IM_NAME'].data == target_image)[0][0]
-            sorted_data[row_index] = quality_metrics[index]
+        sorted_data = sort_quality_metrics(quality_metrics, reduction_metadata)
 
         column_format = 'float'
         column_unit = ''
@@ -252,7 +255,9 @@ def run_stage5(setup):
                                                new_column_unit=column_unit)
 
     log.info('Updating metadata')
-    reduction_metadata.update_reduction_metadata_reduction_status(new_images, stage_number=5, status=1, log=log)
+    image_red_status = metadata.set_image_red_status(image_red_status,'1',image_list=new_images)
+    reduction_metadata.update_reduction_metadata_reduction_status_dict(image_red_status,
+                                                stage_number=5, log=log)
     reduction_metadata.save_updated_metadata(
         reduction_metadata.data_architecture[1]['OUTPUT_DIRECTORY'][0],
         reduction_metadata.data_architecture[1]['METADATA_NAME'][0],
@@ -289,11 +294,46 @@ def round_unc(val, err):
 
     :return: formatted uncertainty
     '''
-    digs = abs(int(np.log10(err / val)))
-    val_round = round(val, digs)
-    unc_round = round(err, digs)
-    return "{0} +/- {1}".format(val_round, unc_round)
+    if val == 0.0 and err == 0.0:
+        return "0.0 +/- 0.0"
+    else:
+        try:
+            digs = abs(int(np.log10(err / abs(val))))
+        except ValueError:
+            print('ERROR in round_unc, inputs: ',err, val)
+            exit()
+        val_round = round(val, digs)
+        unc_round = round(err, digs)
+        return "{0} +/- {1}".format(val_round, unc_round)
 
+def sort_quality_metrics(quality_metrics, reduction_metadata):
+    """Function to sort the quality metrics array into the same order as
+    the metadata's image_stat table.
+
+    Inputs:
+        :param array quality_metrics: QC indices per NEW image
+        :param metadata reduction_metadata: Metadata for the current dataset
+
+    Output:
+        :param array sorted_data: Sorted quality_metrics list
+    """
+
+    image_list = reduction_metadata.images_stats[1]['IM_NAME']
+
+    sorted_data = []
+    for image in image_list:
+        sorted_data.append([image, 0.0, 0.0, 0.0, 0.0, 0, 0.0, 0.0])
+    sorted_data = np.array(sorted_data)
+
+    new_images = list(np.array(quality_metrics)[:,0])
+    for i,target_image in enumerate(image_list):
+        try:
+            new_index = new_images.index( str(target_image) )
+            sorted_data[i] = quality_metrics[new_index]
+        except ValueError:
+            sorted_data[i] = [target_image, -1.0, -1.0, -1.0, -1.0, 0, -1.0, -1.0]
+
+    return sorted_data
 
 def smoothing_2sharp_images(reduction_metadata, ref_fwhm_x, ref_fwhm_y, ref_sigma_x, ref_sigma_y, row_index):
     smoothing = 0.
@@ -311,7 +351,8 @@ def smoothing_2sharp_images(reduction_metadata, ref_fwhm_x, ref_fwhm_y, ref_sigm
         smoothing = smoothing_y
 
     if smoothing >0 :
-        smoothing = 2* (ref_sigma_x ** 2 + ref_sigma_y ** 2) ** 0.5
+        smoothing = 3* (ref_sigma_x ** 2 + ref_sigma_y ** 2) ** 0.5
+    smoothing = 0
     return smoothing
 
 
@@ -362,6 +403,9 @@ def subtract_with_constant_kernel(new_images, reference_image_name, reference_im
                 os.path.join(reduction_metadata.data_architecture[1]['REF_PATH'][0], 'master_mask.fits'))
             # master_mask = np.where(master_mask[0].data > 0.85 * np.max(master_mask[0].data))
             master_mask = master_mask[0].data > 0
+
+
+
         except:
             master_mask = []
 
@@ -454,7 +498,7 @@ def subtract_with_constant_kernel(new_images, reference_image_name, reference_im
             kernel_matrix, bkg_kernel, kernel_uncertainty = kernel_solution(umatrix, b_vector, kernel_size,
                                                                             circular=False)
             # res = so.minimize(fit_kernel,kernel_matrix.ravel(),args=(data_image,reference_image,bright_reference_mask))
-            # import pdb; pdb.set_trace()
+
             pscale = np.sum(kernel_matrix)
             pscale_err = np.sum(kernel_uncertainty ** 2) ** 0.5
             np.save(os.path.join(kernel_directory_path, 'kernel_' + new_image + '.npy'), [kernel_matrix, bkg_kernel])
@@ -537,7 +581,7 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
 
     log.info('Starting image subtraction with a constant kernel')
 
-    grow_kernel = 4. * float(reduction_metadata.reduction_parameters[1]['KER_RAD'][0])
+    grow_kernel = 1.0* float(reduction_metadata.reduction_parameters[1]['KER_RAD'][0])
     pixscale = reduction_metadata.reduction_parameters[1]['PIX_SCALE'][0]
 
     list_of_stamps = reduction_metadata.stamps[1]['PIXEL_INDEX'].tolist()
@@ -549,15 +593,10 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
 
             master_mask = fits.open(
                 os.path.join(reduction_metadata.data_architecture[1]['REF_PATH'][0], 'master_mask.fits'))
-            # master_mask = np.where(master_mask[0].data > 0.85 * np.max(master_mask[0].data))
             master_mask = master_mask[0].data > 0
+
         except:
             master_mask = []
-
-        try:
-            resampled_median_image = resampled_median_stack(setup, reduction_metadata, new_images, log)
-        except:
-            resampled_median_image = np.zeros(np.shape(master_mask[0].data))
 
         kernel_size_max = max(kernel_size_array)
         reference_images = []
@@ -638,31 +677,35 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
         log.info(new_image + ' quality metrics:')
 
         row_index = np.where(reduction_metadata.images_stats[1]['IM_NAME'] == new_image)[0][0]
+        fwhm_val = reduction_metadata.images_stats[1][row_index]['FWHM'] * grow_kernel
         ref_fwhm_x, ref_fwhm_y, ref_sigma_x, ref_sigma_y = ref_stats
-        x_fwhm, y_fwhm = reduction_metadata.images_stats[1][row_index]['SIGMA_X'],  \
-            reduction_metadata.images_stats[1][row_index]['SIGMA_Y']
-        try:
-            fwhm_val = int(grow_kernel * (float(x_fwhm) ** 2 + float(y_fwhm) ** 2) ** 0.5)
-        except:
-            fwhm_val = 999
+
 
         umatrix_index = int(np.digitize(fwhm_val, np.array(kernel_size_array)))
         umatrix_index = min(umatrix_index, len(kernel_size_array) - 1)
+       # umatrix_index = -1
         umatrix_grid = umatrices_grid[umatrix_index]
         kernel_size = kernel_size_array[umatrix_index]
         reference_image, bright_reference_mask, reference_image_unmasked, noise_image = reference_images[umatrix_index]
+
+
         x_shift, y_shift = 0, 0
 
         log.info('Smoothing the data if the reference is not as sharp as a data image')
         smoothing = smoothing_2sharp_images(reduction_metadata, ref_fwhm_x, ref_fwhm_y, ref_sigma_x, ref_sigma_y,
                                             row_index)
 
+
+        image_directory = reduction_metadata.data_architecture[1]['IMAGES_PATH'][0]
+        data_image = fits.open(os.path.join(image_directory, new_image))[0].data
+
+        stamps_directory = os.path.join(data_image_directory, new_image)
+
+        warp_matrix =  np.load(os.path.join(stamps_directory, 'warp_matrice_image.npy'))
+        resample_image = stage4.warp_image(data_image,warp_matrix)
+
         try:
 
-            #data_image, data_image_unmasked = open_data_image(setup, data_image_directory, new_image,
-            #                                                  bright_reference_mask, kernel_size, max_adu,
-            #                                                  xshift=x_shift, yshift=y_shift, sigma_smooth=smoothing,
-            #                                                  central_crop=maxshift)
 
 
             pscales = []
@@ -673,9 +716,10 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
             kurtosises_quality = []
             skewes_quality = []
 
-            stamps_directory = os.path.join(data_image_directory, new_image)
+
 
             for stamp in list_of_stamps:
+
                 stamp_row = np.where(reduction_metadata.stamps[1]['PIXEL_INDEX'] == stamp)[0][0]
                 xmin = int(reduction_metadata.stamps[1][stamp_row]['X_MIN'])
                 xmax = int(reduction_metadata.stamps[1][stamp_row]['X_MAX'])
@@ -684,7 +728,12 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
 
 
                 ref = reference_image[kernel_size:-kernel_size, kernel_size:-kernel_size][ymin:ymax, xmin:xmax]
+
                 ref_unmasked = reference_image_unmasked[ymin:ymax, xmin:xmax]
+
+
+                img = resample_image[ymin:ymax, xmin:xmax]
+
 
                 ref_extended = np.zeros((ref.shape[0]+2*kernel_size,ref.shape[1]+2*kernel_size))
                 ref_extended[kernel_size:-kernel_size, kernel_size:-kernel_size] = ref
@@ -696,17 +745,22 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
 
 
                 bal_mask_extended[kernel_size:-kernel_size, kernel_size:-kernel_size] = \
-                    bright_reference_mask[kernel_size:-kernel_size, kernel_size:-kernel_size][ymin:ymax, xmin:xmax]
+                    master_mask[ymin:ymax, xmin:xmax]
                 #img = data_image[ymin:ymax, xmin:xmax]
                 #img = fits.open(os.path.join(stamps_directory, 'resample__stamp_' + str(stamp) + '.fits'))[0].data
                 #img_unmasked = np.copy(img)
 
-                img, img_unmasked = open_data_image(setup,stamps_directory, new_image,
-                                                              bal_mask_extended, kernel_size, max_adu,
-                                                              xshift=x_shift, yshift=y_shift, sigma_smooth=smoothing,
-                                                              central_crop=maxshift)
+                #img, img_unmasked = open_data_image(setup,stamps_directory, 'resample_stamp_'+str(stamp)+'.fits',
+                #                                              bal_mask_extended, kernel_size, max_adu,
+                #                                              xshift=x_shift, yshift=y_shift, sigma_smooth=smoothing,
+                #                                              central_crop=maxshift)
 
-                img[bal_mask_extended] = 0
+                warp_matrix =  np.load(os.path.join(stamps_directory, 'warp_matrice_stamp_'+str(stamp)+'.npy'))
+                img = stage4.warp_image(img,warp_matrix)
+
+                data_image, data_image_unmasked = mask_the_image(img,max_adu,bal_mask_extended,kernel_size)
+
+
 
                 noisy = noise_image[kernel_size:-kernel_size, kernel_size:-kernel_size][ymin:ymax, xmin:xmax]
                 noise = np.zeros(ref_extended.shape)
@@ -714,7 +768,7 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
 
 
                 umatrix = umatrix_grid[stamp_row]
-                b_vector = bvector_constant(ref_extended,img, kernel_size, noise)
+                b_vector = bvector_constant(ref_extended,data_image, kernel_size, noise)
 
                 kernel_matrix, bkg_kernel, kernel_uncertainty = kernel_solution(umatrix, b_vector, kernel_size,
                                                                             circular=False)
@@ -728,14 +782,15 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
                 hdu_kernel = fits.PrimaryHDU(kernel_matrix, header=kernel_header)
                 hdu_kernel.writeto(os.path.join(kernel_directory, 'kernel_stamp_' + str(stamp) + '.fits'), overwrite=True)
                 hdu_kernel_err = fits.PrimaryHDU(kernel_uncertainty)
-                hdu_kernel_err.writeto(os.path.join(kernel_directory, 'kernel__err_stamp_' + str(stamp) + '.fits'), overwrite=True)
+                hdu_kernel_err.writeto(os.path.join(kernel_directory, 'kernel_err_stamp_' + str(stamp) + '.fits'), overwrite=True)
                 # Particle data group formatting
                 pscale_formatted = round_unc(pscale, pscale_err)
-                difference_image = subtract_images(img_unmasked, ref_unmasked, kernel_matrix,
+                difference_image = subtract_images(data_image_unmasked, ref_unmasked, kernel_matrix,
                                                kernel_size, bkg_kernel)
+
                 # unmasked subtraction (for quality stats)
                 mean_sky, median_sky, std_sky = sigma_clipped_stats(ref_unmasked, sigma=5.0)
-                difference_image_um = subtract_images(img, ref_extended, kernel_matrix, kernel_size, bkg_kernel)
+                difference_image_um = subtract_images(data_image, ref_extended, kernel_matrix, kernel_size, bkg_kernel)
                 mask = ref_extended != 0
                 ngood = len(difference_image_um[mask])
                 kurtosis_quality = kurtosis(difference_image_um[mask])
@@ -753,6 +808,10 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
                 new_header['KURTOSIS'] = kurtosis_quality
                 new_header['SKEW'] = skew_quality
                 difference_image_hdu = fits.PrimaryHDU(difference_image, header=new_header)
+                try:
+                    os.mkdir(diffim_directory)
+                except:
+                    pass
                 difference_image_hdu.writeto(os.path.join(diffim_directory, 'diff_stamp_' + str(stamp) + '.fits'), overwrite=True)
 
                 pscales.append(pscale)
@@ -881,8 +940,9 @@ def noise_model(model_image, gain=1., readout_noise=0., flat=None, initialize=No
 
     weights = 1. / noise_image
 
-    weights[noise_image == 1] = 0.
-
+    #weights[noise_image == 1] = 0.
+    weights = np.ones(noise_image.shape)
+    weights[mask] = 0
     return weights
 
 
@@ -1149,7 +1209,7 @@ def bvector_constant_clean(reference_image, data_image, ker_size, first_b_vector
     for finding the best kernel and assumes it can be calculated
     sufficiently if the noise model either is neglected or similar on all
     model images. In order to run, it needs the largest possible kernel size
-    and carefully masked regions on both - data and reference image. 
+    and carefully masked regions on both - data and reference image.
     After an initial run, the umatrix is corrected for potential outliers
     and b vector are both updated.
 
@@ -1207,8 +1267,8 @@ def kernel_preparation_matrix(data_image, reference_image, ker_size, model_image
     the Bramich 2008 paper. The data image is indexed using i,j
     the reference image should have the same shape as the data image
     the kernel is indexed via l, m. kernel_size requires as input the edge
-    length of the kernel. The kernel matrix k_lm and a background b0 
-    k_lm, where l and m correspond to the kernel pixel indices defines 
+    length of the kernel. The kernel matrix k_lm and a background b0
+    k_lm, where l and m correspond to the kernel pixel indices defines
     The resulting vector b is obtained from the matrix U_l,m,l
 
     :param object image: data image
@@ -1260,7 +1320,7 @@ def kernel_preparation_matrix(data_image, reference_image, ker_size, model_image
 
 def kernel_solution(u_matrix, b_vector, kernel_size, circular=True):
     '''
-    reshape kernel solution for convolution and obtain uncertainty 
+    reshape kernel solution for convolution and obtain uncertainty
     from lstsq solution
 
     :param object array: u_matrix

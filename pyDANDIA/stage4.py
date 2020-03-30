@@ -36,18 +36,20 @@ import scipy.ndimage as sn
 from skimage.measure import ransac
 import skimage.feature as sf
 from photutils import centroid_com
+import matplotlib.pyplot as plt
 
 from pyDANDIA import metadata
 from pyDANDIA import logs
 from pyDANDIA import convolution
 from pyDANDIA import psf
-from pystackreg import StackReg
-import astroalign
+from pyDANDIA import quality_control
 from skimage.feature import register_translation
 
 from skimage.feature import (ORB, match_descriptors,
                              plot_matches)
 import itertools
+import matplotlib.pyplot as plt
+
 class PolyTF_4(tf.PolynomialTransform):
     def estimate(*data):
         return tf.PolynomialTransform.estimate(*data, order=2)
@@ -62,11 +64,11 @@ def polyfit2d(x, y, z, order=3,errors=None):
     for j in range(order+1):
         for i in range(j+1):
             G[:,k] = x**(j-i) * y**i
-            k+=1 
+            k+=1
 
     if errors is not None:
         G *= 1/errors[:,np.newaxis]
-        Z = z*1/errors  
+        Z = z*1/errors
     else:
         Z=z
     m, _, _, _ = np.linalg.lstsq(G, Z)
@@ -97,7 +99,8 @@ def run_stage4(setup):
                                                     os.path.join(setup.red_dir, 'data'), log=log)
 
     new_images = reduction_metadata.find_images_need_to_be_process(setup, all_images,
-                                                                   stage_number=4, rerun_all=True, log=log)
+                                                                   stage_number=4, rerun_all=False, log=log)
+    image_red_status = reduction_metadata.fetch_image_status(4)
 
     if len(all_images) > 0:
         try:
@@ -141,6 +144,7 @@ def run_stage4(setup):
             target_image = open_an_image(setup, images_directory, new_image, log, image_index=0)
 
             try:
+
                 x_new_center, y_new_center, x_shift, y_shift = find_x_y_shifts_from_the_reference_image(setup,
                                                                                                         reference_image,
                                                                                                         target_image,
@@ -149,7 +153,7 @@ def run_stage4(setup):
 
                 data.append([new_image, x_shift, y_shift])
                 logs.ifverbose(log, setup,
-                               'I found the image translation to the reference for frame:' + new_image)
+                               'I found the image translation ('+str(x_shift)+','+str(y_shift)+') to the reference for frame:' + new_image)
 
             except:
 
@@ -163,7 +167,7 @@ def run_stage4(setup):
 
         if ('SHIFT_X' in reduction_metadata.images_stats[1].keys()) and (
                 'SHIFT_Y' in reduction_metadata.images_stats[1].keys()):
-           
+
             for index in range(len(data)):
                 target_image = data[index][0]
                 x_shift = data[index][1]
@@ -177,15 +181,16 @@ def run_stage4(setup):
             logs.ifverbose(log, setup,
                            'I have to construct SHIFT_X and SHIFT_Y columns')
 
-            sorted_data = np.copy(data)
+            #sorted_data = np.copy(data)
+
+            sorted_data = [['None',0,0]]*len(image_red_status)
 
             for index in range(len(data)):
                 target_image = data[index][0]
-
-                row_index = np.where(reduction_metadata.images_stats[1]['IM_NAME'].data == new_image)[0][0]
-
+                row_index = np.where(reduction_metadata.images_stats[1]['IM_NAME'].data == target_image)[0][0]
                 sorted_data[row_index] = data[index]
 
+            sorted_data = np.array(sorted_data)
             column_format = 'float'
             column_unit = 'pix'
             reduction_metadata.add_column_to_layer('images_stats', 'SHIFT_X', sorted_data[:, 1],
@@ -196,15 +201,21 @@ def run_stage4(setup):
                                                    new_column_format=column_format,
                                                    new_column_unit=column_unit)
 
-    reduction_metadata.update_reduction_metadata_reduction_status(new_images, stage_number=4, status=1, log=log)
+        (new_images, image_red_status) = quality_control.verify_image_shifts(new_images,
+                                                    data, image_red_status)
 
-    px_scale = float(reduction_metadata.reduction_parameters[1]['PIX_SCALE'])
-    #resample_image(new_images, reference_image_name, reference_image_directory, reduction_metadata, setup,
-    #               data_image_directory, resampled_directory_path, ref_row_index, px_scale, log=log,
-    #               mask_extension_in=3)
-    resample_image_stamps(new_images, reference_image_name, reference_image_directory, reduction_metadata, setup,
-                   data_image_directory, resampled_directory_path, ref_row_index, px_scale, log=log,
-                   mask_extension_in=3)
+        px_scale = float(reduction_metadata.reduction_parameters[1]['PIX_SCALE'])
+        #resample_image(new_images, reference_image_name, reference_image_directory, reduction_metadata, setup,
+        #               data_image_directory, resampled_directory_path, ref_row_index, px_scale, log=log,
+        #               mask_extension_in=3)
+        image_red_status = resample_image_stamps(new_images, reference_image_name, reference_image_directory, reduction_metadata, setup,
+                       data_image_directory, resampled_directory_path, ref_row_index, px_scale,
+                       image_red_status, log=log, mask_extension_in=-1)
+
+        #image_red_status = metadata.set_image_red_status(image_red_status,'1',image_list=new_images)
+        reduction_metadata.update_reduction_metadata_reduction_status_dict(image_red_status,
+                                                    stage_number=4, log=log)
+
     reduction_metadata.save_updated_metadata(
         reduction_metadata.data_architecture[1]['OUTPUT_DIRECTORY'][0],
         reduction_metadata.data_architecture[1]['METADATA_NAME'][0],
@@ -289,7 +300,7 @@ def find_x_y_shifts_from_the_reference_image(setup, reference_image, target_imag
     reduce_template = reference_image
     from skimage.feature import register_translation
     shifts, errors, phasediff = register_translation(reduce_template, reduce_image, 10)
-   
+
     x_shift = shifts[1]
     y_shift = shifts[0]
 
@@ -478,6 +489,24 @@ def refine_positions(image,positions):
 
     return refine_positions
 
+
+def refine_positions2(image,positions):
+
+    Y,X = np.mgrid[:image.shape[0], :image.shape[1]]
+
+
+    refine_positions = []
+    for idx,pos in enumerate(positions):
+
+
+        stamp = image[int(np.round(pos[1]))-1:int(np.round(pos[1]))+2,int(np.round(pos[0]))-1:int(np.round(pos[0]))+2]
+
+        weight_x = np.sum(stamp*X[int(np.round(pos[1]))-1:int(np.round(pos[1]))+2,int(np.round(pos[0]))-1:int(np.round(pos[0]))+2])/np.sum(stamp)
+        weight_y = np.sum(stamp*Y[int(np.round(pos[1]))-1:int(np.round(pos[1]))+2,int(np.round(pos[0]))-1:int(np.round(pos[0]))+2])/np.sum(stamp)
+        refine_positions.append([weight_x,weight_y,1])
+
+    return refine_positions
+
 def resample_image(new_images, reference_image_name, reference_image_directory, reduction_metadata, setup,
                    data_image_directory, resampled_directory_path, ref_row_index, px_scale, log=None,
                    mask_extension_in=-1):
@@ -518,7 +547,7 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
 
         iteration = 0
         corr_ini = np.corrcoef(reference_image.ravel(), shifted.ravel())[0, 1]
-        
+
         while iteration < 1:
 
 
@@ -546,8 +575,8 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
 
                 pts_reference2 = np.copy(pts_reference)
 
-                #model_robust, inliers = ransac((pts_data[:2500, :2], pts_reference2[:2500, :2]), tf.AffineTransform, min_samples=min(50,int(0.1*len(pts_data[:2500]))), residual_threshold=0.1,max_trials=1000)
-                model_robust, inliers = ransac((pts_reference2[:2500, :2]-center, pts_data[:2500, :2]-center),  tf.AffineTransform, min_samples=min(50,int(0.1*len(pts_data[:2500]))), residual_threshold=0.1,max_trials=1000)
+                #model_robust, inliers = ransac((pts_data[:5000, :2], pts_reference2[:5000, :2]), tf.AffineTransform, min_samples=min(50,int(0.1*len(pts_data[:5000]))), residual_threshold=0.1,max_trials=1000)
+                model_robust, inliers = ransac((pts_reference2[:5000, :2]-center, pts_data[:5000, :2]-center),  tf.AffineTransform, min_samples=min(50,int(0.1*len(pts_data[:5000]))), residual_threshold=0.1,max_trials=1000)
 
 
                 print('Using Affine Transformation')
@@ -557,7 +586,7 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
                 model_final = tf.SimilarityTransform(translation=(-x_shift, -y_shift))
                 print('Using XY shifts')
             try:
-               
+
 
                 model_params = np.dot(original_matrix,model_robust.params)
                 model_final = model_robust
@@ -569,18 +598,18 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
                 #                 mode='constant', cval=np.median(data_image), clip=False, preserve_range=False)
                 #shifted_mask = tf.warp(mask_image,inverse_map=model_final.inverse, output_shape=data_image.shape, order=3,
                 #                 mode='constant', cval=1, clip=False, preserve_range=False)
-                #import astroalign as aa
+                #import astroalign as aa - REMOVED
                 #model_final, (s_list, t_list) = aa.find_transform(reference_image,data_image)
-                
+
                 #res = so.minimize(quick_pos_fit2,model_final.params.ravel(), args = ( reference_image, data_image, mask_image, model_final),method='Powell')
-                #model_final.params = res['x'].reshape(3,3) 
+                #model_final.params = res['x'].reshape(3,3)
                 #model_final.params[0,2] = model_final.params[0,2] + (model_final.params[0,0]+model_final.params[0,1])*center
                 #model_final.params[1,2] = model_final.params[1,2] + (model_final.params[1,0]+model_final.params[1,1])*center
                 shifted = tf.warp(data_image, inverse_map=model_final, output_shape=data_image.shape, order=1,
                                  mode='constant', cval=0, clip=True, preserve_range=True)
                 shifted_mask = tf.warp(mask_image,inverse_map=model_final, output_shape=data_image.shape, order=1,
                                  mode='constant', cval=1, clip=False, preserve_range=False)
-               
+
                 #shifted = manual_transformation(model_final.params,[center,center], data_image)
                 #shifted_mask = manual_transformation(model_final.params,[center,center], mask_image)
                 corr = np.corrcoef(reference_image[~shifted_mask.astype(bool)],shifted[~shifted_mask.astype(bool)])[0,1]
@@ -594,7 +623,7 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
             #print(iteration,len(pts_data[inliers]),corr_ini,corr)
 
             iteration += 1
-        #import astroalign as aa
+        #import astroalign as aa - REMOVED
         #aligned_image, footprint = aa.register(data_image, reference_image)
         #transf, (s_list, t_list) = aa.find_transform(data_image, reference_image)
         #corr2 = np.corrcoef(reference_image[~shifted_mask.astype(bool)],aligned_image[~shifted_mask.astype(bool)])[0,1]
@@ -602,7 +631,7 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
         #shifted = ird.similarity(reference_image,data_image, numiter=3)['timg']
         #shifted[shifted_mask.astype(bool)]=0
        #res = so.minimize(quick_pos_fit2,model_final.params.ravel(), args = ( reference_image, data_image, mask_image, model_final),method='Powell')
-     
+
         mask = np.abs(shifted_mask)<10**-5
         shifted_mask[mask] = 0
         master_mask += shifted_mask
@@ -618,16 +647,20 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
 
 
 def resample_image_stamps(new_images, reference_image_name, reference_image_directory, reduction_metadata, setup,
-                   data_image_directory, resampled_directory_path, ref_row_index, px_scale, log=None,
-                   mask_extension_in=-1):
+                   data_image_directory, resampled_directory_path, ref_row_index, px_scale,
+                   image_red_status, log=None, mask_extension_in=-1):
     from skimage.feature import ORB, match_descriptors, plot_matches
     from skimage.measure import ransac
     import sep
     list_of_stamps = reduction_metadata.stamps[1]['PIXEL_INDEX'].tolist()
 
     if len(new_images) > 0:
+
         reference_image_hdu = fits.open(os.path.join(reference_image_directory, reference_image_name), memmap=True)
-        reference_image = reference_image_hdu[0].data
+        reference_image = np.copy(reference_image_hdu[0].data)
+
+        mask_reference = reference_image_hdu[mask_extension_in].data.astype(bool)
+
 
     ref_sources, ref_fwhm = extract_catalog(reduction_metadata, reference_image, ref_row_index)
 
@@ -642,135 +675,140 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
             reduction_metadata.images_stats[1][row_index]['SHIFT_Y']
 
         data_image_hdu = fits.open(os.path.join(data_image_directory, new_image), memmap=True)
-        data_image = data_image_hdu[0].data
+        data_image = np.copy(data_image_hdu[0].data)
 
-        if mask_extension_in > len(data_image_hdu) - 1 or mask_extension_in == -1:
-            mask_extension = -1
-            mask_image = np.zeros(data_image.shape)
+        mask_image = np.array(data_image_hdu[mask_extension_in].data, dtype=float)
+
+        mask_status = quality_control.verify_mask_statistics(new_image,mask_image, log)
+
+        if not mask_status:
+            log.info('WARNING: Mask statistics indicate a problem with this image, skipping')
+            image_red_status[new_image] = -1
+
         else:
-            mask_extension = mask_extension_in
-            mask_image = np.array(data_image_hdu[mask_extension].data, dtype=float)
+            shifted_mask = np.copy(mask_image)
+            shifted = np.copy(data_image)
+            shifted_catalog = np.copy(data_image)
+            shifted_catalog[mask_image.astype(bool)] = 0
+            iteration = 0
+            corr_ini = np.corrcoef(reference_image.ravel(), shifted.ravel())[0, 1]
 
-        shifted_mask = np.copy(mask_image)
-        shifted = np.copy(data_image)
+            while iteration < 1:
 
-        iteration = 0
-        corr_ini = np.corrcoef(reference_image.ravel(), shifted.ravel())[0, 1]
+                data_sources, data_fwhm = extract_catalog(reduction_metadata, shifted_catalog, row_index)
 
-        while iteration < 1:
+                try:
 
-            data_sources, data_fwhm = extract_catalog(reduction_metadata, shifted, row_index)
+                    if iteration > 0:
 
+                        x_shift = 0
+                        y_shift = 0
+                        original_matrix = model_final.params
+
+                    else:
+                        original_matrix = np.identity(3)
+
+                    pts_data, pts_reference, e_pos = crossmatch_catalogs(ref_sources, data_sources, x_shift, y_shift)
+
+                    pts_reference2 = np.copy(pts_reference)
+
+                    model_robust, inliers = ransac((pts_reference2[:5000, :2] , pts_data[:5000, :2] ), tf.AffineTransform,
+                                                   min_samples=min(50, int(0.1 * len(pts_data[:5000]))),
+                                                   residual_threshold=0.05, max_trials=1000)
+
+                    if len(pts_data[:5000][inliers])<10:
+                        raise ValueError("Not enough matching stars! Switching to translation")
+                    model_final = np.dot(original_matrix, model_robust.params)
+                    print('Using Affine Transformation')
+
+                except:
+
+                    model_final = tf.SimilarityTransform(translation=(x_shift, y_shift)).params
+                    print('Using XY shifts')
+                try:
+
+
+
+
+                    shifted = tf.warp(data_image, inverse_map=model_final, output_shape=data_image.shape, order=5,mode='constant', cval=0, clip=True, preserve_range=True)
+                    shifted_mask = tf.warp(mask_image, inverse_map=model_final, output_shape=data_image.shape, order=1, mode='constant', cval=1, clip=True, preserve_range=True)
+
+                    corr = np.corrcoef(reference_image[~shifted_mask.astype(bool)], shifted[~shifted_mask.astype(bool)])[0, 1]
+
+
+                except:
+                    shifted_mask = np.zeros(np.shape(data_image))
+                    print('Similarity Transform has failed to produce parameters')
+
+                iteration += 1
+
+            mask = np.abs(shifted_mask) < 10 ** -5
+            shifted_mask[mask] = 0
+            master_mask += shifted_mask
+
+            #resample the stamps
+            resample_directory = os.path.join(resampled_directory_path, new_image)
             try:
-                if iteration > 0:
-
-                    x_shift = 0
-                    y_shift = 0
-                    center = int(len(data_image) / 2)
-                    original_matrix = model_final.params
-
-                else:
-                    center = int(len(data_image) / 2)
-                    original_matrix = np.identity(3)
-
-                pts_data, pts_reference, e_pos = crossmatch_catalogs(ref_sources, data_sources, x_shift, y_shift)
-
-                pts_reference2 = np.copy(pts_reference)
-
-                model_robust, inliers = ransac((pts_reference2[:2500, :2] - center, pts_data[:2500, :2] - center),
-                                               tf.AffineTransform, min_samples=min(50, int(0.1 * len(pts_data[:2500]))),
-                                               residual_threshold=0.1, max_trials=1000)
-
-                print('Using Affine Transformation')
-
+                os.mkdir(resample_directory)
             except:
+                pass
 
-                model_final = tf.SimilarityTransform(translation=(-x_shift, -y_shift))
-                print('Using XY shifts')
-            try:
+            for stamp in list_of_stamps:
+                try:
+                    stamp_row = np.where(reduction_metadata.stamps[1]['PIXEL_INDEX'] == stamp)[0][0]
+                    xmin = reduction_metadata.stamps[1][stamp_row]['X_MIN'].astype(int)
+                    xmax = reduction_metadata.stamps[1][stamp_row]['X_MAX'].astype(int)
+                    ymin = reduction_metadata.stamps[1][stamp_row]['Y_MIN'].astype(int)
+                    ymax = reduction_metadata.stamps[1][stamp_row]['Y_MAX'].astype(int)
 
-                model_params = np.dot(original_matrix, model_robust.params)
-                model_final = model_robust
-                model_final.params = model_params
-                model_final.params[0, 2] += center * (1 - model_final.params[0, 0] - model_final.params[0, 1])
-                model_final.params[1, 2] += center * (1 - model_final.params[1, 0] - model_final.params[1, 1])
+                    img = shifted[ymin:ymax, xmin:xmax]
 
+                    stamp_mask = (ref_sources['xcentroid']<xmax) & (ref_sources['xcentroid']>xmin ) &\
+                                 (ref_sources['ycentroid']<ymax) & (ref_sources['ycentroid']>ymin )
+                    ref_stamps = ref_sources[stamp_mask]
 
-                shifted = tf.warp(data_image, inverse_map=model_final, output_shape=data_image.shape, order=1,
-                                  mode='constant', cval=0, clip=True, preserve_range=True)
-                shifted_mask = tf.warp(mask_image, inverse_map=model_final, output_shape=data_image.shape, order=1,
-                                       mode='constant', cval=1, clip=False, preserve_range=False)
+                    data_stamps, stamps_fwhm = extract_catalog(reduction_metadata, img, row_index)
 
+                    data_stamps['xcentroid'] += xmin
+                    data_stamps['ycentroid'] += ymin
 
-                corr = np.corrcoef(reference_image[~shifted_mask.astype(bool)], shifted[~shifted_mask.astype(bool)])[
-                    0, 1]
+                    pts_data, pts_reference, e_pos = crossmatch_catalogs(ref_stamps, data_stamps,0,0)
 
+                    model_stamp, inliers = ransac((pts_reference[:5000, :2] , pts_data[:5000, :2] ),
+                                               tf.AffineTransform, min_samples=min(50, int(0.1 * len(pts_data[:5000]))),
+                                               residual_threshold=0.05, max_trials=1000)
 
+                    #save the warp matrices instead of images
+                    np.save(os.path.join(resample_directory, 'warp_matrice_stamp_' + str(stamp) + '.npy'), model_stamp.params)
 
+                except:
 
-            except:
-                shifted_mask = np.zeros(np.shape(data_image))
-                print('Similarity Transform has failed to produce parameters')
-
-            iteration += 1
-
-
-        mask = np.abs(shifted_mask) < 10 ** -5
-        shifted_mask[mask] = 0
-        master_mask += shifted_mask
-
-        if mask_extension > -1 and model_final != None:
-            shifted_mask = tf.warp(shifted_mask, inverse_map=model_final, preserve_range=True)
-
-
-        #resample the stamps
-        resample_directory = os.path.join(resampled_directory_path, new_image)
-        try:
-            os.mkdir(resample_directory)
+                   model_stamp = tf.SimilarityTransform(translation=(0,0))
+                   np.save(os.path.join(resample_directory, 'warp_matrice_stamp_' + str(stamp) + '.npy'), model_stamp.params)
 
 
 
-        except:
-            pass
 
-        for stamp in list_of_stamps:
+            #save the warp matrices instead of images
+            np.save(os.path.join(resample_directory, 'warp_matrice_image.npy'), model_final)
+            data_image_hdu.close()
 
-            stamp_row = np.where(reduction_metadata.stamps[1]['PIXEL_INDEX'] == stamp)[0][0]
-            xmin = reduction_metadata.stamps[1][stamp_row]['X_MIN'].astype(int)
-            xmax = reduction_metadata.stamps[1][stamp_row]['X_MAX'].astype(int)
-            ymin = reduction_metadata.stamps[1][stamp_row]['Y_MIN'].astype(int)
-            ymax = reduction_metadata.stamps[1][stamp_row]['Y_MAX'].astype(int)
+            image_red_status[new_image] = 1
 
-            img = shifted[ymin:ymax, xmin:xmax]
-            ref = reference_image[ymin:ymax, xmin:xmax]
-
-            stamp_mask = (ref_sources['xcentroid']<xmax) & (ref_sources['xcentroid']>xmin ) &\
-                         (ref_sources['ycentroid']<ymax) & (ref_sources['xcentroid']>ymin )
-            ref_stamps = ref_sources[stamp_mask]
-
-            data_stamps, stamps_fwhm = extract_catalog(reduction_metadata, img, row_index)
-
-            data_stamps['xcentroid'] += xmin
-            data_stamps['ycentroid'] += ymin
-
-            pts_data, pts_reference, e_pos = crossmatch_catalogs(ref_stamps, data_stamps,0,0)
-
-            model_stamp, inliers = ransac((pts_reference[:2500, :2] , pts_data[:2500, :2] ),
-                                       tf.AffineTransform, min_samples=min(50, int(0.1 * len(pts_data[:2500]))),
-                                       residual_threshold=0.1, max_trials=1000)
-            shifted_stamp = tf.warp(img, inverse_map=model_stamp, output_shape=img.shape, order=1,
-                              mode='constant', cval=0, clip=True, preserve_range=True)
-
-            resampled_stamp_hdu = fits.PrimaryHDU(shifted_stamp)
-            resampled_stamp_hdu.writeto(os.path.join(resample_directory, 'resample_stamp_' + str(stamp) + '.fits')
-                                                                  , overwrite=True)
-
-        resampled_image_hdu = fits.PrimaryHDU(shifted)
-        resampled_image_hdu.writeto(os.path.join(resample_directory, new_image), overwrite=True)
-        data_image_hdu.close()
-
+    mask = np.abs(master_mask) < 1.0
+    master_mask[mask] = 0
     master_mask_hdu = fits.PrimaryHDU(master_mask)
     master_mask_hdu.writeto(os.path.join(reference_image_directory, 'master_mask.fits'), overwrite=True)
+
+    return image_red_status
+
+
+def warp_image(image_to_warp,warp_matrix):
+
+    warp_image = tf.warp(image_to_warp, inverse_map=warp_matrix, output_shape=image_to_warp.shape, order=5,
+                                  mode='constant', cval=0, clip=True, preserve_range=True)
+
+    return warp_image
 
 def reformat_catalog(idx_match, dist2d, ref_sources, data_sources, central_region_x, distance_threshold=1.5,
                      max_points=2000):
@@ -849,7 +887,7 @@ def manual_transformation(matrix, center, data_image):
      [scale_x * np.sin(rot), scale_y * np.cos(rot + shear), -center[1]],
      [0, 0, 1]])
 
-   
+
     good_matrix[0:2, 2] = translation
     ##matrix_center = np.array([
     ## [1,0,center[0]],
@@ -861,5 +899,5 @@ def manual_transformation(matrix, center, data_image):
     # i#mport matplotlib.pyplot as plt
     # plt.imshow(rr)
     # plt.show()
-  
+
     return model

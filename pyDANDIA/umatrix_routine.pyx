@@ -27,8 +27,8 @@ def umatrix_construction(np.ndarray[DTYPE_t, ndim = 2] reference_image,np.ndarra
             sum_acc = 0.
             idx_l, idx_m = pandq[idx_p]
             idx_l_prime, idx_m_prime = pandq[idx_q]
-            for idx_i in range(kernel_size_half,ni_image-kernel_size+kernel_size_half):
-                for idx_j in range(kernel_size_half,nj_image-kernel_size+kernel_size_half):         
+            for idx_i in range(kernel_size_half,ni_image-kernel_size+kernel_size_half+1):
+                for idx_j in range(kernel_size_half,nj_image-kernel_size+kernel_size_half+1):
                     sum_acc += reference_image[idx_i + idx_l, idx_j + idx_m] * reference_image[idx_i + idx_l_prime,idx_j + idx_m_prime]  * weights[idx_i, idx_j]
             u_matrix[idx_p, idx_q] = sum_acc
             u_matrix[idx_q, idx_p] = sum_acc
@@ -39,8 +39,8 @@ def umatrix_construction(np.ndarray[DTYPE_t, ndim = 2] reference_image,np.ndarra
             idx_l = kernel_size
             idx_m = kernel_size
             idx_l_prime, idx_m_prime = pandq[idx_q]
-            for idx_i in range(kernel_size_half,ni_image-kernel_size+kernel_size_half):
-                for idx_j in range(kernel_size_half,nj_image-kernel_size+kernel_size_half):               
+            for idx_i in range(kernel_size_half,ni_image-kernel_size+kernel_size_half+1):
+                for idx_j in range(kernel_size_half,nj_image-kernel_size+kernel_size_half+1):
                     sum_acc += reference_image[idx_i + idx_l_prime, idx_j + idx_m_prime] * weights[idx_i, idx_j]
             u_matrix[idx_p, idx_q] = sum_acc
     
@@ -49,9 +49,9 @@ def umatrix_construction(np.ndarray[DTYPE_t, ndim = 2] reference_image,np.ndarra
             sum_acc = 0.
             idx_l, idx_m = pandq[idx_p]
             idx_l_prime = kernel_size
-            idl_m_prime = kernel_size 
-            for idx_i in range(kernel_size_half,ni_image-kernel_size+kernel_size_half):
-                for idx_j in range(kernel_size_half, nj_image-kernel_size+kernel_size_half):
+            idl_m_prime = kernel_size
+            for idx_i in range(kernel_size_half,ni_image-kernel_size+kernel_size_half+1):
+                for idx_j in range(kernel_size_half, nj_image-kernel_size+kernel_size_half+1):
                     sum_acc += reference_image[idx_i + idx_l, idx_j + idx_m] * weights[idx_i, idx_j] 
             u_matrix[idx_p, idx_q] = sum_acc
 
@@ -157,7 +157,7 @@ def umatrix_bvector_construction(np.ndarray[DTYPE_t, ndim = 2] reference_image,n
             idx_l, idx_m = pandq[idx_p]
             idx_l_prime, idx_m_prime = pandq[idx_q]
             for idx_i in range(kernel_size_half,ni_image-kernel_size+kernel_size_half):
-                for idx_j in range(kernel_size_half,nj_image-kernel_size+kernel_size_half):         
+                for idx_j in range(kernel_size_half,nj_image-kernel_size+kernel_size_half):
                     sum_acc += reference_image[idx_i + idx_l, idx_j + idx_m] * reference_image[idx_i + idx_l_prime,idx_j + idx_m_prime]  * weights[idx_i, idx_j]
             u_matrix[idx_p, idx_q] = sum_acc
             u_matrix[idx_q, idx_p] = sum_acc
@@ -169,7 +169,7 @@ def umatrix_bvector_construction(np.ndarray[DTYPE_t, ndim = 2] reference_image,n
             idx_m = kernel_size
             idx_l_prime, idx_m_prime = pandq[idx_q]
             for idx_i in range(kernel_size_half,ni_image-kernel_size+kernel_size_half):
-                for idx_j in range(kernel_size_half,nj_image-kernel_size+kernel_size_half):               
+                for idx_j in range(kernel_size_half,nj_image-kernel_size+kernel_size_half):
                     sum_acc += reference_image[idx_i + idx_l_prime, idx_j + idx_m_prime] * weights[idx_i, idx_j]
             u_matrix[idx_p, idx_q] = sum_acc
     
@@ -221,8 +221,8 @@ def bvector_construction(np.ndarray[DTYPE_t, ndim = 2] reference_image,np.ndarra
     for idx_p in range(n_kernel):
         idx_l, idx_m = pandq[idx_p]
         sum_acc = 0.
-        for idx_i in range(kernel_size_half,ni_image-kernel_size+kernel_size_half):
-           for idx_j in range(kernel_size_half,nj_image-kernel_size+kernel_size_half):
+        for idx_i in range(kernel_size_half,ni_image-kernel_size+kernel_size_half+1):
+           for idx_j in range(kernel_size_half,nj_image-kernel_size+kernel_size_half+1):
                    sum_acc += data_image[idx_i, idx_j] * reference_image[idx_i + idx_l , idx_j + idx_m ] * weights[idx_i, idx_j]
         b_vector[idx_p] = sum_acc
 

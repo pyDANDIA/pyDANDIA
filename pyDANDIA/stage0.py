@@ -1,12 +1,12 @@
 ######################################################################
-#                                                                   
+#
 # stage0.py - First stage of the pipeline. Handle data, create bad pixels mask...
 # More details in individual fonctions.
 
 #
 # dependencies:
 #      numpy 1.8+
-#      astropy 1.0+ 
+#      astropy 1.0+
 ######################################################################
 
 import numpy as np
@@ -27,10 +27,10 @@ from pyDANDIA import quality_control
 from pyDANDIA import bad_pixel_mask
 
 def run_stage0(setup):
-    """Main driver function to run stage 0: data preparation.    
-    The tasks of this stage are to ensure that all images are prepared for 
+    """Main driver function to run stage 0: data preparation.
+    The tasks of this stage are to ensure that all images are prepared for
     reduction, and to make sure the reduction metadata is up to date.
-    Input: setup - is an instance of the ReductionSetup class. See 
+    Input: setup - is an instance of the ReductionSetup class. See
            reduction_control.py
     Output: prepares the metadata file
     """
@@ -63,14 +63,14 @@ def run_stage0(setup):
     inst_config_file_name = find_the_inst_config_file_name(setup, reduction_metadata, image_name,
                                                            setup.pipeline_config_dir,
                                                            image_index=0, log=None)
-    
+
     if inst_config_file_name == None:
-        
+
             status = 'ERROR'
             report = 'Cannot find a pipeline configuration file for this dataset'
-            
+
             return status, report, None
-            
+
     inst_config = read_the_inst_config_file(setup.pipeline_config_dir, inst_config_file_name, log=log)
     update_reduction_metadata_with_inst_config_file(reduction_metadata,
                                                     inst_config, log=log)
@@ -83,7 +83,7 @@ def run_stage0(setup):
                                                                    stage_number=0, rerun_all=None, log=log)
     # create new rows on reduction status for new images
     reduction_metadata.update_reduction_metadata_reduction_status(new_images, stage_number=0, status=0, log=log)
-    
+
     # construct the stamps if needed
     if reduction_metadata.stamps[1]:
         pass
@@ -106,30 +106,30 @@ def run_stage0(setup):
         set_bad_pixel_mask_directory(setup, reduction_metadata,
                                      bpm_directory_path=os.path.join(setup.red_dir, 'data'),
                                      log=log)
-        
+
         instrument_bpm = bad_pixel_mask.BadPixelMask()
-        
+
         instrument_bpm.load_latest_instrument_mask(reduction_metadata.reduction_parameters[1]['INSTRID'][0],setup,log=log)
-        
+
         logs.ifverbose(log, setup, 'Updating metadata with info on new images...')
 
         for new_image in new_images:
             open_image = open_an_image(setup, reduction_metadata.data_architecture[1]['IMAGES_PATH'][0],
                                        new_image, log, image_index=0)
-            
+
             image_bpm = open_an_image(setup, reduction_metadata.data_architecture[1]['BPM_PATH'][0],
                                            new_image, log, image_index=2)
-            
+
             # Occasionally, the LCO BANZAI pipeline fails to produce an image
-            # catalogue for an image.  If this happens, there will only be 2 
+            # catalogue for an image.  If this happens, there will only be 2
             # extensions to the FITS image HDU, the PrimaryHDU (main image data)
-            # and the ImageHDU (BPM).  
+            # and the ImageHDU (BPM).
             if image_bpm == None:
-                
+
                 image_bpm = open_an_image(setup, reduction_metadata.data_architecture[1]['BPM_PATH'][0],
                                            new_image, log, image_index=1)
-            
-            bpm = bad_pixel_mask.construct_the_pixel_mask(setup, reduction_metadata, 
+
+            bpm = bad_pixel_mask.construct_the_pixel_mask(setup, reduction_metadata,
                                                   open_image, image_bpm, [1,3], log,
                                                   low_level=0,
                                                   instrument_bpm=instrument_bpm)
@@ -145,7 +145,7 @@ def run_stage0(setup):
         log=log)
 
     (status,report) = quality_control.verify_stage0_output(setup,log)
-    
+
     logs.close_log(log)
 
     return status, report, reduction_metadata
@@ -167,21 +167,21 @@ def read_the_config_file(config_directory, config_file_name='config.json',
 
     :param string config_directory: the directory to the config file
     :param string config_file_name: the name of the config file
-   
+
     :return: the config file
     :rtype: dictionnary
     '''
 
     if os.path.isdir(config_directory) == False:
         raise IOError('Cannot find pipeline configuration directory '+config_directory)
-        
+
     config_file_path = os.path.join(config_directory, config_file_name)
-    
+
     if os.path.isfile(config_file_path) == False:
         raise IOError('Cannot find the configuration file '+config_file_path)
-    
+
     pipeline_configuration = config_utils.read_config(config_file_path)
-        
+
     if log != None:
         log.info('Read pipeline configuration from ' + config_file_path)
 
@@ -214,7 +214,7 @@ def find_the_inst_config_file_name(setup, reduction_metadata, image_name, inst_c
     potential_inst_names = open_image.header.values()
 
     inst_config_file_name = None
-    
+
     for name in potential_inst_names:
 
         if name in potential_cameras_names:
@@ -224,7 +224,7 @@ def find_the_inst_config_file_name(setup, reduction_metadata, image_name, inst_c
 
     if inst_config_file_name == None:
         raise ValueError('No instrument configuration found for the instrument IDs in the image header data')
-        
+
     return None
 
 
@@ -386,7 +386,7 @@ def open_an_image(setup, image_directory, image_name, log,
         return image_data
 
     except IndexError:
-        
+
         logs.ifverbose(log, setup, image_name + \
                 ' open : not OK!  Cannot open FITS extension '+str(image_index))
 
@@ -405,7 +405,7 @@ def open_an_bad_pixel_mask(reduction_metadata, bpm_name, bpm_index=1, verbose=Fa
 
     :return: the opened bad pixel mask
     :rtype: astropy.image object
-    
+
     WARNING: BAD PIXEL MASK FUNCTIONS HAVE BEEN MOVED TO bad_pixel_mask.py
     '''
     bpm_directory_path = reduction_metadata.data_architecture[1]['BPM_PATH'][0]
@@ -466,11 +466,11 @@ def update_reduction_metadata_with_config_file(reduction_metadata,
     for key in keys:
 
         if key != 'psf_factors':
-            
+
             try:
                 data.append([key, config_dictionnary[key]['value'], config_dictionnary[key]['format'],
                              config_dictionnary[key]['unit']])
-    
+
             except:
                 if log != None:
                     log.info('Error in config file on key' + key)
@@ -494,13 +494,13 @@ def update_reduction_metadata_with_config_file(reduction_metadata,
     data = []
 
     for i in range(0,len(config_dictionnary['psf_factors']['value']),1):
-        
-        data.append([str(i+1), 
+
+        data.append([str(i+1),
                      config_dictionnary['psf_factors']['value'][i],
                      0.0])
 
     reduction_metadata.create_psf_dimensions_layer(np.array(data))
-    
+
     if log != None:
         log.info('Updated metadata with pipeline configuration parameters')
 
@@ -584,7 +584,7 @@ def construct_the_stamps(open_image, stamp_size=None, arcseconds_stamp_size=(110
     :param list stamp_sizes: list of integer give the X,Y stamp size , i.e [150,52] give 150 pix in X, 52 in Y
     :param tuple arcseconds_stamp_size: list of integer give the X,Y stamp size in arcseconds units
     :param float pixel_scale: pixel scale of the CCD, in arcsec/pix
-    :param float fraction_of_overlaping_pixels : half of  number of pixels as 1D substamp fraction 
+    :param float fraction_of_overlaping_pixels : half of  number of pixels as 1D substamp fraction
     :param boolean verbose: switch to True to have more informations
 
 
@@ -592,7 +592,7 @@ def construct_the_stamps(open_image, stamp_size=None, arcseconds_stamp_size=(110
     :return an array containing the pixel index, Y_min, Y_max, X_min, X_max (i.e matrix index definition)
     :rtype array_like
     '''
-    
+
 
     image = open_image.data
     full_image_y_size, full_image_x_size = image.shape
@@ -613,10 +613,10 @@ def construct_the_stamps(open_image, stamp_size=None, arcseconds_stamp_size=(110
             x_subsize = int(full_image_x_size/subimage_shape[0])
             y_subsize = int(full_image_y_size/subimage_shape[1])
 
-           
+
             subimage_slices = []
             for idx in range(subimage_shape[0]):
-                for jdx in range(subimage_shape[1]):            
+                for jdx in range(subimage_shape[1]):
                     subimage_element = subimage_shape+[idx,jdx]
                     x_subsize, y_subsize = full_image_x_size/subimage_element[0], full_image_y_size/subimage_element[1]
 

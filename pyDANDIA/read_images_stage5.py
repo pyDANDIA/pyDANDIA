@@ -19,14 +19,15 @@ from pyDANDIA import psf
 
 def background_fit(image1, master_mask = []):
 
+
     from pyDANDIA import psf
     y, x = np.indices(image1.shape)
-    fit = psf.fit_background(image1, y, x, ~master_mask, background_model='Quadratic')
-    background_model = psf.QuadraticBackground()
+    fit = psf.fit_background(image1, y, x, ~master_mask, background_model='Gradient')
+    background_model = psf.GradientBackground()
     background = background_model.background_model(y, x, fit[0])
 
-    background[master_mask] = 0
 
+    #background = np.median(image1[master_mask])
     return background
 
 def background_mesh_perc(image1,perc=30,box_guess=300, master_mask = []):
@@ -151,8 +152,7 @@ def open_data_image(setup, data_image_directory, data_image_name, reference_mask
     :param object float: index of the maximum adu values
     :return: images, mask
     '''
-    #replacing the bkg with noise
-    np.random.seed(0)
+
 
     #data_image1 is a large format image for processing subimages
     if data_image1 == None:
@@ -164,24 +164,27 @@ def open_data_image(setup, data_image_directory, data_image_name, reference_mask
         data_image = fits.HDUList(fits.PrimaryHDU(data_image1[data_extension].data[subset[0]:subset[1],subset[2]:subset[3]]))
 
     data_image = np.copy(data_image[data_extension].data)
-    img50pc = np.median(data_image)
-    
-   
+    data_image_unmasked = np.copy(data_image)
+    if sigma_smooth > 0:
+        data_image = gaussian_filter(data_image, sigma=sigma_smooth) 
 
-    #bkg_image = background_mesh_perc(data_image, master_mask =  reference_mask[kernel_size:-kernel_size,kernel_size:-kernel_size])
-    #bkg_image = np.median(data_image[~reference_mask[kernel_size:-kernel_size,kernel_size:-kernel_size]])
+
+
+    data_extended, data_image_unmasked = mask_the_image(data_image,max_adu,reference_mask,kernel_size)
+
+
+    return data_extended, data_image_unmasked
+
+
+def mask_the_image(data_image,max_adu,reference_mask,kernel_size):
+    
+    data_image,data_mask = cosmicray_lacosmic(data_image,sigclip=7, objlim = 7., satlevel = max_adu)
+   
     bkg_image = background_fit(data_image, master_mask = reference_mask[kernel_size:-kernel_size,kernel_size:-kernel_size])
 
     data_image = data_image-bkg_image #- background_mesh_perc(data_image[data_extension].data,master_mask = reference_mask[kernel_size:-kernel_size,kernel_size:-kernel_size])
-   
-    data_image[ reference_mask[kernel_size:-kernel_size,kernel_size:-kernel_size]] = 0.
-    #import pdb;
-    #pdb.set_trace()
-    img_shape = np.shape(data_image)
-    shifted = np.zeros(img_shape)
-    #smooth data image
-    if sigma_smooth > 0:
-        data_image = gaussian_filter(data_image, sigma=sigma_smooth)
+
+    data_image[reference_mask[kernel_size:-kernel_size, kernel_size:-kernel_size]] = 0
 
     data_image_unmasked = np.copy(data_image)
   
@@ -189,14 +192,6 @@ def open_data_image(setup, data_image_directory, data_image_name, reference_mask
     data_extended = np.zeros((np.shape(data_image)[0] + 2 * kernel_size, np.shape(data_image)[1] + 2 * kernel_size))
     data_extended[kernel_size:-kernel_size, kernel_size:-
                  kernel_size] = np.array(data_image, float)
-    
-    #replace saturated pixels with random noise or 0, bkg_sigma:
-    #bkg_sigma = np.std(data_image_unmasked < img50pc) / (1.-2./np.pi)**0.5
-    #apply consistent mask    
-    data_image_unmasked[reference_mask[kernel_size:-kernel_size,kernel_size:-kernel_size]] = 0.#np.random.randn(len(data_image_unmasked[reference_mask[kernel_size:-kernel_size,kernel_size:-kernel_size]]))*bkg_sigma
-    data_extended[reference_mask] = 0.
-
-
 
     return data_extended, data_image_unmasked
 
@@ -219,28 +214,16 @@ def open_reference(setup, ref_image_directory, ref_image_name, kernel_size, max_
     if subset != None and ref_image1 != None:
         ref_image = fits.HDUList(fits.PrimaryHDU(ref_image1[ref_extension].data[subset[0]:subset[1],subset[2]:subset[3]]))
     
-    #increase kernel size by 1.5 and define circular mask
-    kernel_size_plus = int(kernel_size) + 10
-    mask_kernel = np.ones(kernel_size_plus * kernel_size_plus, dtype=float)
-    mask_kernel = mask_kernel.reshape((kernel_size_plus, kernel_size_plus))
-    xyc = int(kernel_size_plus / 2)
-    radius_square = (xyc)**2
-    for idx in range(kernel_size_plus):
-        for jdx in range(kernel_size_plus):
-            if (idx - xyc)**2 + (jdx - xyc)**2 >= radius_square:
-                mask_kernel[idx, jdx] = 0.
+
     ref_image = np.copy(ref_image[ref_extension].data)
-    img_shape = np.shape(ref_image) 
-    ref50pc = np.median(ref_image)
+    ref_image,ref_mask  = cosmicray_lacosmic(ref_image,sigclip=7, objlim = 7., satlevel = max_adu)
 
-    if master_mask != []:
-        ref_image[master_mask] = max_adu + ref50pc + 1.
 
-    ref_bright_mask_1 = (ref_image > max_adu + ref50pc)
 
     #bkg_image = background_mesh_perc(ref_image,master_mask = master_mask)
     #bkg_image = np.median(ref_image[~master_mask])
-    bkg_image = background_fit(ref_image, master_mask=ref_bright_mask_1)
+    bkg_image = background_fit(ref_image, master_mask=master_mask)
+   # bkg_image = 0
     if external_weight is not None:
         try:
             noise_image = external_weight + np.copy(ref_image[ref_extension].data)
@@ -249,7 +232,8 @@ def open_reference(setup, ref_image_directory, ref_image_name, kernel_size, max_
             print('format mismatch (noise model construction)')
     else:
         noise_image = np.copy(ref_image)
-    
+
+
     #noise_image = gaussian_filter(noise_image, sigma=kernel_size/2)
     ref_image = ref_image - bkg_image
 
@@ -257,9 +241,9 @@ def open_reference(setup, ref_image_directory, ref_image_name, kernel_size, max_
   
     ref_image_unmasked = np.copy(ref_image)
   
-    mask_extended = np.zeros((np.shape(ref_image)[0] + 2 * kernel_size,
-                             np.shape(ref_image)[1] + 2 * kernel_size))
-    mask_extended[kernel_size:-kernel_size, kernel_size:-kernel_size][ref_bright_mask_1] = 1.
+    mask_extended = np.ones((np.shape(ref_image)[0] + 2 * kernel_size,
+                             np.shape(ref_image)[1] + 2 * kernel_size)).astype(bool)
+    mask_extended[kernel_size:-kernel_size, kernel_size:-kernel_size] = master_mask
 
     ref_extended = np.zeros((np.shape(ref_image)[0] + 2 * kernel_size,
                              np.shape(ref_image)[1] + 2 * kernel_size))
@@ -269,26 +253,15 @@ def open_reference(setup, ref_image_directory, ref_image_name, kernel_size, max_
     noise_extended = np.zeros((np.shape(ref_image)[0] + 2 * kernel_size,
                              np.shape(ref_image)[1] + 2 * kernel_size))
     noise_extended[kernel_size:-kernel_size, kernel_size:-
-                 kernel_size] = np.array(noise_image, float)    
-   
-    #apply consistent mask
-    ref_bright_mask = mask_extended > 0.
-    mask_propagate = np.zeros(np.shape(ref_extended))
-    mask_propagate[ref_bright_mask] = 1.
-    #increase mask size to kernel size
-    mask_propagate = convolve2d(mask_propagate, mask_kernel, mode='same', fillvalue=1)
-    bright_mask = mask_propagate > 0.
-    ref_extended[bright_mask] = 0.
+                 kernel_size] = np.array(noise_image, float)
 
-    noise_extended[bright_mask] = 0.
- 
-    #replace saturated pixels with random noise or zero:
-    #bkg_sigma = np.std(ref_image_unmasked < np.median(ref_image_unmasked)) / (1.-2./np.pi)**0.5
-    #apply consistent mask    
-    #ref_extended = cosmicray_lacosmic(ref_extended, sigclip=7, objlim = 7., satlevel = max_adu)[0]
-    #ref_image_unmasked = cosmicray_lacosmic(ref_image_unmasked, sigclip=7, objlim = 7, satlevel = max_adu)[0]
-    ref_image_unmasked[bright_mask[kernel_size:-kernel_size,kernel_size:-kernel_size]] = 0. # np.random.randn(len(ref_image_unmasked[bright_mask[kernel_size:-kernel_size,kernel_size:-kernel_size]]))*bkg_sigma
-    return np.array(ref_extended,dtype = float), bright_mask, np.array(ref_image_unmasked, dtype=float), np.array(noise_extended, dtype=float)
+
+    ref_extended[mask_extended] = 0.
+
+    noise_extended[mask_extended] = 0.
+
+    ref_image_unmasked[master_mask] = 0. # np.random.randn(len(ref_image_unmasked[bright_mask[kernel_size:-kernel_size,kernel_size:-kernel_size]]))*bkg_sigma
+    return np.array(ref_extended,dtype = float), mask_extended, np.array(ref_image_unmasked, dtype=float), np.array(noise_extended, dtype=float)
    
 def open_images(setup, ref_image_directory, data_image_directory, ref_image_name,
                 data_image_name, kernel_size, max_adu, ref_extension = 0, 
