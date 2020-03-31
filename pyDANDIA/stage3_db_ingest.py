@@ -92,11 +92,7 @@ def run_stage3_db_ingest(setup, primary_ref=False, add_matched_stars=False):
 
     ref_id_list = phot_db.find_reference_image_for_dataset(conn,dataset_params)
 
-    print(ref_id_list != None)
-    print(len(ref_id_list) > 0)
-    print(not add_matched_stars)
     if ref_id_list != None and len(ref_id_list) > 0 and add_matched_stars == False:
-        print('Got here')
         phot_db.cascade_delete_reference_images(conn, ref_id_list, log)
 
     if not add_matched_stars:
@@ -106,8 +102,6 @@ def run_stage3_db_ingest(setup, primary_ref=False, add_matched_stars=False):
     if primary_ref:
 
         if not add_matched_stars:
-            print('Got here 2')
-            exit()
             star_ids = commit_stars(conn, dataset_params, reduction_metadata, log)
 
             commit_photometry(conn, dataset_params, reduction_metadata, star_ids, log)
