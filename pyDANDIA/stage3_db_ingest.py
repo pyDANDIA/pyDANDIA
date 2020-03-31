@@ -42,8 +42,7 @@ def run_stage3_db_ingest(setup, primary_ref=False, add_matched_stars=False):
         archive_existing_db(setup,primary_ref,log)
     else:
         log.info('Running to add the matched stars table to the metadata only')
-    exit()
-    
+
     conn = phot_db.get_connection(dsn=setup.phot_db_path)
 
     reduction_metadata = metadata.MetaData()
@@ -93,6 +92,10 @@ def run_stage3_db_ingest(setup, primary_ref=False, add_matched_stars=False):
 
     ref_id_list = phot_db.find_reference_image_for_dataset(conn,dataset_params)
 
+    print(ref_id_list != None)
+    print(len(ref_id_list) > 0)
+    print(not add_matched_stars)
+    exit()
     if ref_id_list != None and len(ref_id_list) > 0 and not add_matched_stars:
         phot_db.cascade_delete_reference_images(conn, ref_id_list, log)
 
