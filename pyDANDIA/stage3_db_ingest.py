@@ -40,7 +40,10 @@ def run_stage3_db_ingest(setup, primary_ref=False, add_matched_stars=False):
 
     if not add_matched_stars:
         archive_existing_db(setup,primary_ref,log)
-
+    else:
+        log.info('Running to add the matched stars table to the metadata only')
+    exit()
+    
     conn = phot_db.get_connection(dsn=setup.phot_db_path)
 
     reduction_metadata = metadata.MetaData()
