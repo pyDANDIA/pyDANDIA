@@ -435,7 +435,6 @@ def extract_catalog(reduction_metadata, data_image, row_index, log):
     # Error handling for cases where DAOfind crashes.  This seems to happen for
     # images with strong gradients in the sky background, possibly producing
     # an excessive number of false detections.
-        pass
     try:
         data_sources = daofind2.find_stars(data_image - median_data)
     except MemoryError:
