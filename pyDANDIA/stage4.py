@@ -417,7 +417,7 @@ def point_transformation(params, pts1):
 
 
 
-def extract_catalog(reduction_metadata, data_image, row_index):
+def extract_catalog(reduction_metadata, data_image, row_index, log):
 
 
     central_region_x, central_region_y = np.shape(data_image)
@@ -432,7 +432,15 @@ def extract_catalog(reduction_metadata, data_image, row_index):
                              ratio=min(data_sigma_x, data_sigma_y) / max(data_sigma_x, data_sigma_y),
                              threshold=3. * std_data, exclude_border=True)
 
-    data_sources = daofind2.find_stars(data_image - median_data)
+    # Error handling for cases where DAOfind crashes.  This seems to happen for
+    # images with strong gradients in the sky background, possibly producing
+    # an excessive number of false detections.
+    try:
+        data_sources = daofind2.find_stars(data_image - median_data)
+    except MemoryError:
+        if log!=None:
+            log.info(' -> ERROR: DAOfind produced a MemoryError when attempting to extract this image catalog')
+        data_sources = None
 
     return data_sources, data_fwhm
 
@@ -519,7 +527,7 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
         reference_image_hdu = fits.open(os.path.join(reference_image_directory, reference_image_name), memmap=True)
         reference_image = reference_image_hdu[0].data
 
-    ref_sources,ref_fwhm = extract_catalog(reduction_metadata, reference_image, ref_row_index)
+    ref_sources,ref_fwhm = extract_catalog(reduction_metadata, reference_image, ref_row_index, log)
 
     #pts_reference = sf.blob_log(reference_image, min_sigma=2, max_sigma=5, threshold=1)
     #pts_reference = refine_positions(reference_image, pts_reference)
@@ -662,13 +670,14 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
         mask_reference = reference_image_hdu[mask_extension_in].data.astype(bool)
 
 
-    ref_sources, ref_fwhm = extract_catalog(reduction_metadata, reference_image, ref_row_index)
+    ref_sources, ref_fwhm = extract_catalog(reduction_metadata, reference_image, ref_row_index, log)
 
+    log.info('Starting image resampling')
 
     master_mask = 0
 
     for new_image in new_images:
-        print(new_image)
+        log.info('Resampling image '+new_image)
 
         row_index = np.where(reduction_metadata.images_stats[1]['IM_NAME'] == new_image)[0][0]
         x_shift, y_shift = -reduction_metadata.images_stats[1][row_index]['SHIFT_X'], - \
@@ -695,7 +704,7 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
 
             while iteration < 1:
 
-                data_sources, data_fwhm = extract_catalog(reduction_metadata, shifted_catalog, row_index)
+                data_sources, data_fwhm = extract_catalog(reduction_metadata, shifted_catalog, row_index, log)
 
                 try:
 
@@ -719,12 +728,12 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
                     if len(pts_data[:5000][inliers])<10:
                         raise ValueError("Not enough matching stars! Switching to translation")
                     model_final = np.dot(original_matrix, model_robust.params)
-                    print('Using Affine Transformation')
+                    log.info(' -> Using Affine Transformation')
 
                 except:
 
                     model_final = tf.SimilarityTransform(translation=(x_shift, y_shift)).params
-                    print('Using XY shifts')
+                    log.info(' -> Using XY shifts')
                 try:
 
 
@@ -738,7 +747,7 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
 
                 except:
                     shifted_mask = np.zeros(np.shape(data_image))
-                    print('Similarity Transform has failed to produce parameters')
+                    log.info(' -> Similarity Transform has failed to produce parameters')
 
                 iteration += 1
 
@@ -753,6 +762,7 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
             except:
                 pass
 
+            log.info(' -> Resampling image stamps')
             for stamp in list_of_stamps:
                 try:
                     stamp_row = np.where(reduction_metadata.stamps[1]['PIXEL_INDEX'] == stamp)[0][0]
@@ -767,7 +777,7 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
                                  (ref_sources['ycentroid']<ymax) & (ref_sources['ycentroid']>ymin )
                     ref_stamps = ref_sources[stamp_mask]
 
-                    data_stamps, stamps_fwhm = extract_catalog(reduction_metadata, img, row_index)
+                    data_stamps, stamps_fwhm = extract_catalog(reduction_metadata, img, row_index, log)
 
                     data_stamps['xcentroid'] += xmin
                     data_stamps['ycentroid'] += ymin
