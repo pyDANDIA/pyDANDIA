@@ -18,6 +18,103 @@ from pyDANDIA import  pipeline_setup
 from pyDANDIA import  metadata
 from pyDANDIA import  logs
 
+
+
+def extract_star_lightcurves_on_cone_to_list(params):
+	"""Function to extract a lightcurve from a phot_db"""
+
+	log = logs.start_stage_log( params['red_dir'], 'lightcurves' )
+
+	reduction_metadata = metadata.MetaData()
+	reduction_metadata.load_a_layer_from_file( params['red_dir'],
+		                                      'pyDANDIA_metadata.fits',
+		                                      'matched_stars' )
+	matched_stars = reduction_metadata.load_matched_stars()
+
+	conn = phot_db.get_connection(dsn=params['db_file_path'])
+
+	facilities = phot_db.fetch_facilities(conn)
+	filters = phot_db.fetch_filters(conn)
+	code_id = phot_db.get_stage_software_id(conn,'stage6')
+
+	c = SkyCoord(params['ra'], params['dec'], frame='icrs', unit=(units.hourangle, units.deg))
+
+	if 'radius' in params.keys():
+		radius = float(params['radius'])
+	else:
+		radius = 2.0 / 3600.0
+
+	results = phot_db.box_search_on_position(conn, c.ra.deg, c.dec.deg, radius, radius)
+	lcs = []
+	for star_field_id in results['star_id']:
+
+	
+	
+		photometry_data = fetch_photometry_for_dataset(params, star_field_id, matched_stars, log)
+
+		lcs.append(np.c_[photometry_data['hjd'],photometry_data['calibrated_mag'],photometry_data['calibrated_mag_err']])  
+	
+
+	
+	return lcs
+
+
+
+
+def extract_star_lightcurves_on_cone(params):
+	"""Function to extract a lightcurve from a phot_db"""
+
+	log = logs.start_stage_log( params['red_dir'], 'lightcurves' )
+
+	reduction_metadata = metadata.MetaData()
+	reduction_metadata.load_a_layer_from_file( params['red_dir'],
+		                                      'pyDANDIA_metadata.fits',
+		                                      'matched_stars' )
+	matched_stars = reduction_metadata.load_matched_stars()
+
+	conn = phot_db.get_connection(dsn=params['db_file_path'])
+
+	facilities = phot_db.fetch_facilities(conn)
+	filters = phot_db.fetch_filters(conn)
+	code_id = phot_db.get_stage_software_id(conn,'stage6')
+
+	c = SkyCoord(params['ra'], params['dec'], frame='icrs', unit=(units.hourangle, units.deg))
+
+	if 'radius' in params.keys():
+		radius = float(params['radius'])
+	else:
+		radius = 2.0 / 3600.0
+
+	results = phot_db.box_search_on_position(conn, c.ra.deg, c.dec.deg, radius, radius)
+
+	for star_field_id in results['star_id']:
+
+	
+	
+		photometry_data = fetch_photometry_for_dataset(params, star_field_id, matched_stars, log)
+
+		setname = path.basename(params['red_dir']).split('_')[1]
+
+		datafile = open(path.join(params['output_dir'],'star_'+str(star_field_id)+'_'+setname+'.dat'),'w')
+
+		for i in range(0,len(photometry_data),1):
+
+		    datafile.write(str(photometry_data['hjd'][i])+'  '+\
+				    str(photometry_data['instrumental_mag'][i])+'  '+str(photometry_data['instrumental_mag_err'][i])+'  '+\
+				    str(photometry_data['calibrated_mag'][i])+'  '+str(photometry_data['calibrated_mag_err'][i])+'\n')
+
+		datafile.close()
+		print('-> Output dataset '+setname)
+
+	message = 'OK'
+
+	
+	return message
+
+
+
+
+
 def extract_star_lightcurves_on_position(params):
     """Function to extract a lightcurve from a phot_db"""
 
