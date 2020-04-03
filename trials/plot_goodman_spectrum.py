@@ -40,9 +40,10 @@ def save_spectrum_data_as_text_file(data, params):
     file_path = path.splitext(params['output_plot'])[0]+'.txt'
 
     f = open(file_path, 'w')
-    f.write('# Wavelength [nm]   Flux\n')
+    f.write('# Wavelength [nm]   Flux   Flux uncertainty\n')
     for i in range(0,data.shape[0],1):
-        f.write(str(data[i,0])+'  '+str(data[i,1])+'\n')
+        err = np.sqrt(data[i,1])
+        f.write(str(data[i,0])+'  '+str(data[i,1])+' '+str(err)+'\n')
     f.close()
 
 def read_goodman_spectrum_file(params):
