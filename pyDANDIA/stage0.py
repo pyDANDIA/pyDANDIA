@@ -561,7 +561,7 @@ def update_reduction_metadata_headers_summary_with_new_images(setup,
 
         if layer:
 
-            reduction_metadata.add_row_to_layer('headers_summary',  values)
+            reduction_metadata.add_row_to_layer('headers_summary',  values.astype(str))
 
 
         else:

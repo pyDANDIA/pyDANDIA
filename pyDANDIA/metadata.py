@@ -845,7 +845,7 @@ class MetaData:
         layer[1][column_name][row_index] = new_value
 
     def update_reduction_metadata_reduction_status(self, new_images, stage_number=0,
-        status = 0, log = None):
+        status = '0', log = None):
         '''
         Update the reduction_status layer with all images of the stage set to status
 
@@ -861,7 +861,7 @@ class MetaData:
         if len(layer[1])==0:
             for image in new_images:
 
-                    self.add_row_to_layer('reduction_status',[image]+number_of_columns*[0])
+                    self.add_row_to_layer('reduction_status',[image]+number_of_columns*['0'])
 
         else:
             column_name = 'STAGE_'+str(stage_number)
@@ -872,7 +872,7 @@ class MetaData:
                     self.update_a_cell_to_layer('reduction_status', index_image, column_name, status)
                 else:
 
-                    self.add_row_to_layer('reduction_status',[image]+number_of_columns*[0])
+                    self.add_row_to_layer('reduction_status',[image]+number_of_columns*['0'])
 
         if log != None:
             log.info('Updated the reduction status layer')
