@@ -12,6 +12,8 @@ def plot_extracted_spectrum():
 
     plot_spectrum(data,params)
 
+    save_spectrum_data_as_text_file(data, params)
+
 def plot_spectrum(data,params):
 
     plot_params = {'axes.labelsize': 18,
@@ -24,14 +26,25 @@ def plot_spectrum(data,params):
 
     plt.plot(data[:,0], data[:,1], 'k-')
 
-    plt.xlabel('Wavelength [$\\AA$]')
-    plt.ylabel('Flux')
+    plt.xlabel('Wavelength [nm]')
+    plt.ylabel('Flux [counts]')
     plt.grid()
 
     if params['interactive']:
         plt.show()
     else:
         plt.savefig(params['output_plot'], bbox_inches='tight')
+
+def save_spectrum_data_as_text_file(data, params):
+
+    file_path = path.splitext(params['output_plot'])[0]+'.txt'
+
+    f = open(file_path, 'w')
+    f.write('# Wavelength [nm]   Flux [counts]   Flux uncertainty [counts]\n')
+    for i in range(0,data.shape[0],1):
+        err = np.sqrt(data[i,1])
+        f.write(str(data[i,0])+'  '+str(data[i,1])+' '+str(err)+'\n')
+    f.close()
 
 def read_goodman_spectrum_file(params):
 
@@ -47,11 +60,13 @@ def read_goodman_spectrum_file(params):
 
     l1 = header['CRVAL1']
     l2 = header['CRVAL1'] + header['NAXIS1']*header['CDELT1']
-    try:
-        data[:,0] = np.arange(l1, l2, header['CDELT1'])
-    except ValueError:
-        l2 = header['CRVAL1'] + (header['NAXIS1']-1)*header['CDELT1']
-        data[:,0] = np.arange(l1, l2, header['CDELT1'])
+
+    # Better to do this than use arange because rounding errors in CDELT1
+    # cause an unpredictable offset in the indexing
+    # Note conversion from Angstroms to nm
+    for i in range(0,len(data[:,0]),1):
+        data[i,0] = (header['CRVAL1'] + (float(i)*header['CDELT1']))/10.0
+
     return data
 
 def get_args():

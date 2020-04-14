@@ -29,7 +29,9 @@ from skimage.transform import AffineTransform
 
 VERSION = 'pyDANDIA_reference_astrometry_v0.2'
 
-def run_reference_astrometry(setup, force_rotate_ref=False, dx=0.0, dy=0.0):
+def run_reference_astrometry(setup, force_rotate_ref=False,
+                                    dx=0.0, dy=0.0,
+                                    trust_wcs=False):
     """Driver function to perform the object detection and astrometric analysis
     of the reference frame from a given dataset.
 
@@ -104,11 +106,14 @@ def run_reference_astrometry(setup, force_rotate_ref=False, dx=0.0, dy=0.0):
         transform = AffineTransform()
         it = 0
         max_it = 5
-        iterate = True
+        if not trust_wcs:
+            iterate = True
+        else:
+            iterate = False
         method = 'ransac'
         old_n_match = 0
 
-        while iterate:
+        if iterate:
             it += 1
 
             if it == 1 and (dx != 0.0 or dy != 0.0):
@@ -153,7 +158,7 @@ def run_reference_astrometry(setup, force_rotate_ref=False, dx=0.0, dy=0.0):
                                                          bright_central_gaia_stars,log,
                                                          tol=2.0,verbose=False)
 
-                if len(matched_stars.cat1_index) > 0:
+                if len(matched_stars.cat1_index) > 3:
                     transform = calc_coord_offsets.calc_pixel_transform(setup,
                                                 bright_central_gaia_stars[matched_stars.cat2_index],
                                                 bright_central_detected_stars[matched_stars.cat1_index],
@@ -192,6 +197,24 @@ def run_reference_astrometry(setup, force_rotate_ref=False, dx=0.0, dy=0.0):
 
             else:
                 old_n_match = matched_stars.n_match
+
+        else:
+            log.info('Trusting original WCS solution, transformation will be calculated after catalog match to original pixel positions')
+            transform = AffineTransform(translation=(0.0, 0.0))
+
+            #stellar_density = utilities.stellar_density(bright_central_gaia_stars,
+            #                                    selection_radius)
+
+            matched_stars = match_utils.StarMatchIndex()
+            matched_stars = wcs.match_stars_pixel_coords(bright_central_detected_stars,
+                                                     bright_central_gaia_stars,log,
+                                                     tol=2.0,verbose=False)
+
+            if len(matched_stars.cat1_index) > 3:
+                transform = calc_coord_offsets.calc_pixel_transform(setup,
+                                            bright_central_gaia_stars[matched_stars.cat2_index],
+                                            bright_central_detected_stars[matched_stars.cat1_index],
+                                            log)
 
         gaia_sources = update_catalog_image_coordinates(setup, image_wcs,
                                                         gaia_sources, log, 'catalog_stars_full_revised_'+str(it)+'.reg',
