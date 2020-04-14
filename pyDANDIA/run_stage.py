@@ -66,7 +66,8 @@ def run_stage_stand_alone():
         (status, report) = reference_astrometry.run_reference_astrometry(setup,
                                                     force_rotate_ref=params['rotate_ref'],
                                                     dx=params['dx'],
-                                                    dy=params['dy'])
+                                                    dy=params['dy'],
+                                                    trust_wcs=params['trust_wcs'])
 
     elif params['stage'] == 'stage3':
 
@@ -184,6 +185,11 @@ def get_args():
         params['add_matched_stars'] = True
     else:
         params['add_matched_stars'] = False
+
+    if '-trust-wcs' in argv:
+        params['trust_wcs'] = True
+    else:
+        params['trust_wcs'] = False
 
     params['dx'] = 0.0
     params['dy'] = 0.0
