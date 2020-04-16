@@ -216,6 +216,9 @@ def extract_parameters_stage3(reduction_metadata,log):
 
     idx = np.where(reduction_metadata.images_stats[1]['IM_NAME'].data ==  reduction_metadata.data_architecture[1]['REF_IMAGE'][0])
 
+    print(reduction_metadata.images_stats[1]['IM_NAME'].data)
+    print(idx, reduction_metadata.data_architecture[1]['REF_IMAGE'][0])
+
     if len(idx[0]) > 0:
 
         meta_pars['ref_sky_bkgd'] = reduction_metadata.images_stats[1]['SKY'].data[idx[0][0]]
