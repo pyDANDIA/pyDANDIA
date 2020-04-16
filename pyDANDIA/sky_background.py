@@ -53,7 +53,7 @@ def model_sky_background(setup,reduction_metadata,log,ref_star_catalog,
     delta_bins = ((bins[1:]+bins[0:-1])/2.0)[0:-1]
     delta_bin_counts = bin_counts[1:]-bin_counts[0:-1]
     idx1 = np.where(delta_bins > dbin_min)[0]
-    idx2 = np.where(delta_bins < dmin_max)[0]
+    idx2 = np.where(delta_bins < dbin_max)[0]
     idx = list(set(idx1).intersection(set(idx2)))
     jdx = np.where(delta_bin_counts[idx] == delta_bin_counts[idx].max())
     bkgd_value = delta_bins[idx][jdx[0]]
