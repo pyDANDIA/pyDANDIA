@@ -115,6 +115,7 @@ def run_reference_astrometry(setup, force_rotate_ref=False,
 
         if iterate:
             it += 1
+            log.info('STAR MATCHING ITERATION '+str(it))
 
             if it == 1 and (dx != 0.0 or dy != 0.0):
                 log.info('Applying initial transformation of catalog positions, dx='+str(dx)+', dy='+str(dy)+' pixels')
@@ -188,6 +189,11 @@ def run_reference_astrometry(setup, force_rotate_ref=False,
                                                             stellar_density_threshold,
                                                             transform=transform, radius=selection_radius)
 
+            log.info('Testing to see if iterations should continue:')
+            log.info('Iteration = '+str(it)+' maximum iterations='+str(max_it))
+            log.info('Transformation parameters: '+repr(transform.translation))
+            log.info('Previous number of stars matched='+str(old_n_match)+' current number of stars matched='+str(matched_stars.n_match))
+
             if it >= max_it or (abs(transform.translation[0]) < 0.5 and abs(transform.translation[1]) < 0.5\
                 and transform.translation[0] != 0.0 and transform.translation[1] != 0.0) or \
                     old_n_match > matched_stars.n_match:
@@ -197,6 +203,7 @@ def run_reference_astrometry(setup, force_rotate_ref=False,
 
             else:
                 old_n_match = matched_stars.n_match
+                log.info(' -> Iterations continue')
 
         else:
             log.info('Trusting original WCS solution, transformation will be calculated after catalog match to original pixel positions')
