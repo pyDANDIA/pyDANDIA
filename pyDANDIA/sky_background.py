@@ -64,6 +64,15 @@ def model_sky_background(setup,reduction_metadata,log,ref_star_catalog,
 
     fig = plt.figure(1)
     plt.hist(star_masked_image.flatten(),1000,range=(0.0, 5000.0), log=True)
+    (xmin,xmax,ymin,ymax) = plt.axis()
+    plt.axis([0.0, 5000, ymin, ymax])
+    plt.xlabel('Pixel value [counts]')
+    plt.ylabel('Frequency')
+    plt.legend()
+    plt.savefig(path.join(setup.red_dir,'ref','ref_bkgd_hist.png'))
+    plt.close(1)
+
+    fig = plt.figure(2)
     plt.plot(delta_bins, delta_bin_counts, 'b.', label='Rate of change')
     (xmin,xmax,ymin,ymax) = plt.axis()
     plt.axis([0.0, 5000, ymin, ymax])
@@ -71,8 +80,8 @@ def model_sky_background(setup,reduction_metadata,log,ref_star_catalog,
     plt.xlabel('Pixel value [counts]')
     plt.ylabel('Frequency')
     plt.legend()
-    plt.savefig(path.join(setup.red_dir,'ref','ref_bkgd_hist.png'))
-    plt.close(1)
+    plt.savefig(path.join(setup.red_dir,'ref','ref_bkgd_hist_rate_of_change.png'))
+    plt.close(2)
 
     background_type = reduction_metadata.reduction_parameters[1]['BACK_VAR'].data[0]
 
