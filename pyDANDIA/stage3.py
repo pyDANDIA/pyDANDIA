@@ -61,7 +61,8 @@ def run_stage3(setup):
         ref_star_catalog = catalog_utils.load_ref_star_catalog_from_metadata(reduction_metadata)
 
         sky_model = sky_background.model_sky_background(setup,
-                                        reduction_metadata,log,ref_star_catalog)
+                                        reduction_metadata,log,ref_star_catalog,
+                                        bandpass=meta_pars[bandpass])
 
         ref_star_catalog = psf_selection.psf_star_selection(setup,
                                         reduction_metadata,

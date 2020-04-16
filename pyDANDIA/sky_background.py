@@ -17,7 +17,8 @@ import matplotlib.pyplot as plt
 from astropy.io import fits
 from astropy import visualization
 
-def model_sky_background(setup,reduction_metadata,log,ref_star_catalog,image_path=None):
+def model_sky_background(setup,reduction_metadata,log,ref_star_catalog,
+                        image_path=None, bandpass=None):
     """Function to model the sky background of a real image by masking out
     the positions of the known stars in order to fit a better model to the
     background
@@ -43,10 +44,15 @@ def model_sky_background(setup,reduction_metadata,log,ref_star_catalog,image_pat
     idx = np.where(bin_counts == bin_counts.max())
     log.info('Most frequent pixel value '+str(bins[idx[0]]))
 
+    dbin_min = 500.0
+    dbin_max = 5000.0
+    if 'g' in bandpass:
+        dbin_min=250.0
+
     delta_bins = ((bins[1:]+bins[0:-1])/2.0)[0:-1]
     delta_bin_counts = bin_counts[1:]-bin_counts[0:-1]
-    idx1 = np.where(delta_bins > 500.0)[0]
-    idx2 = np.where(delta_bins < 5000.0)[0]
+    idx1 = np.where(delta_bins > dbin_min)[0]
+    idx2 = np.where(delta_bins < dmin_max)[0]
     idx = list(set(idx1).intersection(set(idx2)))
     jdx = np.where(delta_bin_counts[idx] == delta_bin_counts[idx].max())
     bkgd_value = delta_bins[idx][jdx[0]]
