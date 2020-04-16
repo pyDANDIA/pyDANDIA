@@ -62,7 +62,7 @@ def run_stage3(setup):
 
         sky_model = sky_background.model_sky_background(setup,
                                         reduction_metadata,log,ref_star_catalog,
-                                        bandpass=meta_pars[bandpass])
+                                        bandpass=meta_pars['bandpass'])
 
         ref_star_catalog = psf_selection.psf_star_selection(setup,
                                         reduction_metadata,
@@ -215,9 +215,6 @@ def extract_parameters_stage3(reduction_metadata,log):
         meta_pars['ref_image_name'] = None
 
     idx = np.where(reduction_metadata.images_stats[1]['IM_NAME'].data ==  reduction_metadata.data_architecture[1]['REF_IMAGE'][0])
-
-    print(reduction_metadata.images_stats[1]['IM_NAME'].data)
-    print(idx, reduction_metadata.data_architecture[1]['REF_IMAGE'][0])
 
     if len(idx[0]) > 0:
 
