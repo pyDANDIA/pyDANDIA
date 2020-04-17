@@ -57,18 +57,25 @@ def model_sky_background(setup,reduction_metadata,log,ref_star_catalog,
     idx2 = np.where(delta_bins < dbin_max)[0]
     idx = list(set(idx1).intersection(set(idx2)))
     jdx = np.where(delta_bin_counts[idx] == delta_bin_counts[idx].max())
-    bkgd_value = delta_bins[idx][jdx[0]]
+    floor_value = delta_bins[idx][jdx[0]]
     if len(bkgd_value) > 1:
-        bkgd_value = [bkgd_value[0]]
-    log.info('Floor of most frequent pixel value curve '+str(bkgd_value))
+        floor_value = [floor_value[0]]
+    log.info('Floor of most frequent pixel value curve '+str(floor_value))
 
-    if bkgd_value > 3.0*most_freq_value:
+    if floor_value > 3.0*most_freq_value:
         bkgd_value = most_freq_value
         log.info('Floor estimator seems to have over-estimated the sky background')
         log.info('Reverting to most frequent pixel value '+str(bkgd_value))
+    else:
+        bkgd_value = floor_value
+        log.info('Using the floor estimator for the sky background = '+str(bkgd_value))
 
     fig = plt.figure(1)
     plt.hist(star_masked_image.flatten(),1000,range=(0.0, 5000.0), log=True)
+    plt.plot([floor_value, floor_value], [ymin,ymax], 'r-.', label='Floor estimator')
+    plt.plot([most_freq_value, most_freq_value], [ymin,ymax], 'r-.', label='Most-frequent-value estimator')
+    plt.plot([dbin_min, dbin_min], [ymin,ymax], 'r-.', label='Minimum threshold')
+    plt.plot([dbin_max, dbin_max], [ymin,ymax], 'r-.', label='Maximum threshold')
     (xmin,xmax,ymin,ymax) = plt.axis()
     plt.axis([0.0, 5000, ymin, ymax])
     plt.xlabel('Pixel value [counts]')
@@ -81,7 +88,10 @@ def model_sky_background(setup,reduction_metadata,log,ref_star_catalog,
     plt.plot(delta_bins, delta_bin_counts, 'b.', label='Rate of change')
     (xmin,xmax,ymin,ymax) = plt.axis()
     plt.axis([0.0, 5000, ymin, ymax])
-    plt.plot([bkgd_value, bkgd_value], [ymin,ymax], 'r-.', label='Background value')
+    plt.plot([floor_value, floor_value], [ymin,ymax], 'r-.', label='Floor estimator')
+    plt.plot([most_freq_value, most_freq_value], [ymin,ymax], 'r-.', label='Most-frequent-value estimator')
+    plt.plot([dbin_min, dbin_min], [ymin,ymax], 'r-.', label='Minimum threshold')
+    plt.plot([dbin_max, dbin_max], [ymin,ymax], 'r-.', label='Maximum threshold')
     plt.xlabel('Pixel value [counts]')
     plt.ylabel('Frequency')
     plt.legend()
