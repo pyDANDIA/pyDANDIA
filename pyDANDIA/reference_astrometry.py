@@ -106,99 +106,11 @@ def run_reference_astrometry(setup, force_rotate_ref=False,
         transform = AffineTransform()
         it = 0
         max_it = 5
-        if not trust_wcs:
-            iterate = True
-        else:
-            iterate = False
+        iterate = True
         method = 'ransac'
         old_n_match = 0
 
-        if iterate:
-            it += 1
-
-            if it == 1 and (dx != 0.0 or dy != 0.0):
-                log.info('Applying initial transformation of catalog positions, dx='+str(dx)+', dy='+str(dy)+' pixels')
-                transform = AffineTransform(translation=(dx, dy))
-                stellar_density = utilities.stellar_density(bright_central_gaia_stars,
-                                                    selection_radius)
-                matched_stars = match_utils.StarMatchIndex()
-
-            elif it == 1 and method in ['histogram', 'ransac']:
-                log.info('Calculating transformation using the histogram method, iteration '+str(it))
-
-                stellar_density = utilities.stellar_density(bright_central_gaia_stars,
-                                                    selection_radius)
-
-                if stellar_density < stellar_density_threshold:
-                    log.info('Stellar density is low, '+str(round(stellar_density,2))+' sources/arcmin**2, so using whole catalog to calculate transformation')
-                    transform = calc_coord_offsets.calc_offset_pixels(setup, detected_sources, gaia_sources,
-                                                                  log, diagnostics=True)
-                else:
-
-                    log.info('Stellar density is high, '+str(round(stellar_density,2))+' sources/arcmin**2, so using bright central stars to calculate transformation')
-                    transform = calc_coord_offsets.calc_offset_pixels(setup,bright_central_detected_stars,
-                                                      bright_central_gaia_stars,
-                                                      log,
-                                                      diagnostics=True)
-
-                matched_stars = match_utils.StarMatchIndex()
-
-                # This method is not robust when the residual offsets are small
-                # Therefore, any proposed transform is ignored if it is smaller
-                # than a threshold value
-                if abs(transform.translation[0]) < 3.0 and abs(transform.translation[1]) < 3.0 and (matched_stars.n_match<20):
-
-                    transform = AffineTransform()
-
-                    log.info('Histogram method found a small transform, below the methods reliability threshold.  This transform will be ignored in favour of the RANSAC method')
-
-            elif it > 1 and method in ['histogram', 'ransac']:
-                log.info('Calculating transformation using the ransac method, iteration '+str(it))
-                matched_stars = wcs.match_stars_pixel_coords(bright_central_detected_stars,
-                                                         bright_central_gaia_stars,log,
-                                                         tol=2.0,verbose=False)
-
-                if len(matched_stars.cat1_index) > 3:
-                    transform = calc_coord_offsets.calc_pixel_transform(setup,
-                                                bright_central_gaia_stars[matched_stars.cat2_index],
-                                                bright_central_detected_stars[matched_stars.cat1_index],
-                                                log)
-
-                else:
-                    raise ValueError('No matched stars')
-
-            if method == 'shortest_string':
-                det_array = np.zeros((len(bright_central_detected_stars),2))
-                det_array[:,0] = bright_central_detected_stars['x'].data
-                det_array[:,1] = bright_central_detected_stars['y'].data
-
-                cat_array = np.zeros((len(bright_central_gaia_stars),2))
-                cat_array[:,0] = bright_central_gaia_stars['x'].data
-                cat_array[:,1] = bright_central_gaia_stars['y'].data
-
-                (x_offset,y_offset) = shortest_string.find_xy_offset(det_array, cat_array,
-                                                              log=log,
-                                                              diagnostics=True)
-
-            if old_n_match <= matched_stars.n_match:
-                bright_central_gaia_stars = update_catalog_image_coordinates(setup, image_wcs,
-                                                            bright_central_gaia_stars, log,
-                                                            'catalog_stars_bright_revised_'+str(it)+'.reg',
-                                                            stellar_density, rotate_wcs, force_rotate_ref,
-                                                            stellar_density_threshold,
-                                                            transform=transform, radius=selection_radius)
-
-            if it >= max_it or (abs(transform.translation[0]) < 0.5 and abs(transform.translation[1]) < 0.5\
-                and transform.translation[0] != 0.0 and transform.translation[1] != 0.0) or \
-                    old_n_match > matched_stars.n_match:
-                iterate = False
-                log.info('Coordinate transform halting on iteration '+str(it)+' (of '+str(max_it)+'), latest transform '+repr(transform.translation)+\
-                        ', Nstars matched '+str(matched_stars.n_match)+', compared with '+str(old_n_match)+' previously')
-
-            else:
-                old_n_match = matched_stars.n_match
-
-        else:
+        if trust_wcs == True:
             log.info('Trusting original WCS solution, transformation will be calculated after catalog match to original pixel positions')
             transform = AffineTransform(translation=(0.0, 0.0))
 
@@ -215,6 +127,101 @@ def run_reference_astrometry(setup, force_rotate_ref=False,
                                             bright_central_gaia_stars[matched_stars.cat2_index],
                                             bright_central_detected_stars[matched_stars.cat1_index],
                                             log)
+
+        else:
+            while iterate:
+                it += 1
+                log.info('STAR MATCHING ITERATION '+str(it))
+
+                if it == 1 and (dx != 0.0 or dy != 0.0):
+                    log.info('Applying initial transformation of catalog positions, dx='+str(dx)+', dy='+str(dy)+' pixels')
+                    transform = AffineTransform(translation=(dx, dy))
+                    stellar_density = utilities.stellar_density(bright_central_gaia_stars,
+                                                        selection_radius)
+                    matched_stars = match_utils.StarMatchIndex()
+
+                elif it == 1 and method in ['histogram', 'ransac']:
+                    log.info('Calculating transformation using the histogram method, iteration '+str(it))
+
+                    stellar_density = utilities.stellar_density(bright_central_gaia_stars,
+                                                        selection_radius)
+
+                    if stellar_density < stellar_density_threshold:
+                        log.info('Stellar density is low, '+str(round(stellar_density,2))+' sources/arcmin**2, so using whole catalog to calculate transformation')
+                        transform = calc_coord_offsets.calc_offset_pixels(setup, detected_sources, gaia_sources,
+                                                                      log, diagnostics=True)
+                    else:
+
+                        log.info('Stellar density is high, '+str(round(stellar_density,2))+' sources/arcmin**2, so using bright central stars to calculate transformation')
+                        transform = calc_coord_offsets.calc_offset_pixels(setup,bright_central_detected_stars,
+                                                          bright_central_gaia_stars,
+                                                          log,
+                                                          diagnostics=True)
+
+                    matched_stars = match_utils.StarMatchIndex()
+
+                    # This method is not robust when the residual offsets are small
+                    # Therefore, any proposed transform is ignored if it is smaller
+                    # than a threshold value
+                    if abs(transform.translation[0]) < 3.0 and abs(transform.translation[1]) < 3.0 and (matched_stars.n_match<20):
+
+                        transform = AffineTransform()
+
+                        log.info('Histogram method found a small transform, below the methods reliability threshold.  This transform will be ignored in favour of the RANSAC method')
+
+                elif it > 1 and method in ['histogram', 'ransac']:
+                    log.info('Calculating transformation using the ransac method, iteration '+str(it))
+                    matched_stars = wcs.match_stars_pixel_coords(bright_central_detected_stars,
+                                                             bright_central_gaia_stars,log,
+                                                             tol=2.0,verbose=False)
+
+                    if len(matched_stars.cat1_index) > 3:
+                        transform = calc_coord_offsets.calc_pixel_transform(setup,
+                                                    bright_central_gaia_stars[matched_stars.cat2_index],
+                                                    bright_central_detected_stars[matched_stars.cat1_index],
+                                                    log)
+
+                    else:
+                        raise ValueError('No matched stars')
+
+                if method == 'shortest_string':
+                    det_array = np.zeros((len(bright_central_detected_stars),2))
+                    det_array[:,0] = bright_central_detected_stars['x'].data
+                    det_array[:,1] = bright_central_detected_stars['y'].data
+
+                    cat_array = np.zeros((len(bright_central_gaia_stars),2))
+                    cat_array[:,0] = bright_central_gaia_stars['x'].data
+                    cat_array[:,1] = bright_central_gaia_stars['y'].data
+
+                    (x_offset,y_offset) = shortest_string.find_xy_offset(det_array, cat_array,
+                                                                  log=log,
+                                                                  diagnostics=True)
+
+                if old_n_match <= matched_stars.n_match:
+                    bright_central_gaia_stars = update_catalog_image_coordinates(setup, image_wcs,
+                                                                bright_central_gaia_stars, log,
+                                                                'catalog_stars_bright_revised_'+str(it)+'.reg',
+                                                                stellar_density, rotate_wcs, force_rotate_ref,
+                                                                stellar_density_threshold,
+                                                                transform=transform, radius=selection_radius)
+
+                log.info('Testing to see if iterations should continue:')
+                log.info('Iteration = '+str(it)+' maximum iterations='+str(max_it))
+                log.info('Transformation parameters: '+repr(transform.translation))
+                log.info('Previous number of stars matched='+str(old_n_match)+' current number of stars matched='+str(matched_stars.n_match))
+
+                if it >= max_it or (abs(transform.translation[0]) < 0.5 and abs(transform.translation[1]) < 0.5\
+                    and transform.translation[0] != 0.0 and transform.translation[1] != 0.0) or \
+                        old_n_match > matched_stars.n_match:
+                    iterate = False
+                    log.info('Coordinate transform halting on iteration '+str(it)+' (of '+str(max_it)+'), latest transform '+repr(transform.translation)+\
+                            ', Nstars matched '+str(matched_stars.n_match)+', compared with '+str(old_n_match)+' previously')
+
+                else:
+                    old_n_match = matched_stars.n_match
+                    log.info(' -> Iterations continue, iterate='+repr(iterate))
+
+        log.info('Proceeding to x-match of full catalogs')
 
         gaia_sources = update_catalog_image_coordinates(setup, image_wcs,
                                                         gaia_sources, log, 'catalog_stars_full_revised_'+str(it)+'.reg',
