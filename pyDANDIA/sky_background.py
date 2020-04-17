@@ -42,7 +42,8 @@ def model_sky_background(setup,reduction_metadata,log,ref_star_catalog,
 
     (bin_counts, bins) = np.histogram(star_masked_image.flatten(),1000,range=(-10000.0, 20000.0))
     idx = np.where(bin_counts == bin_counts.max())
-    log.info('Most frequent pixel value '+str(bins[idx[0]]))
+    most_freq_value = bins[idx[0]]
+    log.info('Most frequent pixel value '+str(most_freq_value))
 
     dbin_min = 500.0
     dbin_max = 5000.0
@@ -61,6 +62,10 @@ def model_sky_background(setup,reduction_metadata,log,ref_star_catalog,
         bkgd_value = [bkgd_value[0]]
     log.info('Floor of most frequent pixel value curve '+str(bkgd_value))
 
+    if bkgd_value > 3.0*most_freq_value:
+        bkgd_value = most_freq_value
+        log.info('Floor estimator seems to have over-estimated the sky background')
+        log.info('Reverting to most frequent pixel value '+str(bkgd_value))
 
     fig = plt.figure(1)
     plt.hist(star_masked_image.flatten(),1000,range=(0.0, 5000.0), log=True)
