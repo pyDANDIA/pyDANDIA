@@ -110,7 +110,7 @@ def run_reference_astrometry(setup, force_rotate_ref=False,
         method = 'ransac'
         old_n_match = 0
 
-        if not trust_wcs:
+        if trust_wcs == True:
             log.info('Trusting original WCS solution, transformation will be calculated after catalog match to original pixel positions')
             transform = AffineTransform(translation=(0.0, 0.0))
 
