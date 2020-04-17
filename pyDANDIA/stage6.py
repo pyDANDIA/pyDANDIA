@@ -247,7 +247,8 @@ def run_stage6(setup):
                                                                     reduction_metadata,
                                                                     log, ref_star_catalog,
                                                                     image_path=os.path.join(setup.red_dir,'data',new_image),
-                                                                    bandpass=image_params['filter_name'])
+                                                                    bandpass=image_params['filter_name'],
+                                                                    diagnostics=False)
                     log.info('Built sky model')
                     stamp_directory = os.path.join(diffim_directory,new_image)
                     difference_image = open_an_image(setup, stamp_directory,'diff_stamp_'+str(stamp)+'.fits' , log, 0)[0]

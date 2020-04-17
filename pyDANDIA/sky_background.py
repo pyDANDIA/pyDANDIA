@@ -18,7 +18,8 @@ from astropy.io import fits
 from astropy import visualization
 
 def model_sky_background(setup,reduction_metadata,log,ref_star_catalog,
-                        image_path=None, bandpass=None):
+                        image_path=None, bandpass=None,
+                        diagnostics=True):
     """Function to model the sky background of a real image by masking out
     the positions of the known stars in order to fit a better model to the
     background
@@ -70,33 +71,34 @@ def model_sky_background(setup,reduction_metadata,log,ref_star_catalog,
         bkgd_value = floor_value
         log.info('Using the floor estimator for the sky background = '+str(bkgd_value))
 
-    fig = plt.figure(1)
-    plt.hist(star_masked_image.flatten(),1000,range=(0.0, 5000.0), log=True)
-    (xmin,xmax,ymin,ymax) = plt.axis()
-    plt.axis([0.0, 5000, ymin, ymax])
-    plt.plot([floor_value, floor_value], [ymin,ymax], 'g-.', label='Floor estimator')
-    plt.plot([most_freq_value, most_freq_value], [ymin,ymax], 'k-.', label='Most-frequent-value estimator')
-    plt.plot([dbin_min, dbin_min], [ymin,ymax], 'm-.', label='Minimum threshold')
-    plt.plot([dbin_max, dbin_max], [ymin,ymax], 'm-.', label='Maximum threshold')
-    plt.xlabel('Pixel value [counts]')
-    plt.ylabel('Frequency')
-    plt.legend()
-    plt.savefig(path.join(setup.red_dir,'ref','ref_bkgd_hist.png'))
-    plt.close(1)
+    if diagnostics:
+        fig = plt.figure(1)
+        plt.hist(star_masked_image.flatten(),1000,range=(0.0, 5000.0), log=True)
+        (xmin,xmax,ymin,ymax) = plt.axis()
+        plt.axis([0.0, 5000, ymin, ymax])
+        plt.plot([floor_value, floor_value], [ymin,ymax], 'g-.', label='Floor estimator')
+        plt.plot([most_freq_value, most_freq_value], [ymin,ymax], 'k-.', label='Most-frequent-value estimator')
+        plt.plot([dbin_min, dbin_min], [ymin,ymax], 'm-.', label='Minimum threshold')
+        plt.plot([dbin_max, dbin_max], [ymin,ymax], 'm-.', label='Maximum threshold')
+        plt.xlabel('Pixel value [counts]')
+        plt.ylabel('Frequency')
+        plt.legend()
+        plt.savefig(path.join(setup.red_dir,'ref','ref_bkgd_hist.png'))
+        plt.close(1)
 
-    fig = plt.figure(2)
-    plt.plot(delta_bins, delta_bin_counts, 'b.', label='Rate of change')
-    (xmin,xmax,ymin,ymax) = plt.axis()
-    plt.axis([0.0, 5000, ymin, ymax])
-    plt.plot([floor_value, floor_value], [ymin,ymax], 'g-.', label='Floor estimator')
-    plt.plot([most_freq_value, most_freq_value], [ymin,ymax], 'k-.', label='Most-frequent-value estimator')
-    plt.plot([dbin_min, dbin_min], [ymin,ymax], 'm-.', label='Minimum threshold')
-    plt.plot([dbin_max, dbin_max], [ymin,ymax], 'm-.', label='Maximum threshold')
-    plt.xlabel('Pixel value [counts]')
-    plt.ylabel('Frequency')
-    plt.legend()
-    plt.savefig(path.join(setup.red_dir,'ref','ref_bkgd_hist_rate_of_change.png'))
-    plt.close(2)
+        fig = plt.figure(2)
+        plt.plot(delta_bins, delta_bin_counts, 'b.', label='Rate of change')
+        (xmin,xmax,ymin,ymax) = plt.axis()
+        plt.axis([0.0, 5000, ymin, ymax])
+        plt.plot([floor_value, floor_value], [ymin,ymax], 'g-.', label='Floor estimator')
+        plt.plot([most_freq_value, most_freq_value], [ymin,ymax], 'k-.', label='Most-frequent-value estimator')
+        plt.plot([dbin_min, dbin_min], [ymin,ymax], 'm-.', label='Minimum threshold')
+        plt.plot([dbin_max, dbin_max], [ymin,ymax], 'm-.', label='Maximum threshold')
+        plt.xlabel('Pixel value [counts]')
+        plt.ylabel('Frequency')
+        plt.legend()
+        plt.savefig(path.join(setup.red_dir,'ref','ref_bkgd_hist_rate_of_change.png'))
+        plt.close(2)
 
     background_type = reduction_metadata.reduction_parameters[1]['BACK_VAR'].data[0]
 
