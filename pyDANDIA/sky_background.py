@@ -47,7 +47,7 @@ def model_sky_background(setup,reduction_metadata,log,ref_star_catalog,
 
     dbin_min = 500.0
     dbin_max = 5000.0
-    if 'g' in bandpass:
+    if bandpass != None and 'g' in bandpass:
         dbin_min=250.0
     log.info('Applying sky count bin selection limits: '+str(dbin_min)+' to '+str(dbin_max))
 

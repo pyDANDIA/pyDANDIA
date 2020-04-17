@@ -246,7 +246,8 @@ def run_stage6(setup):
                     sky_model = sky_background.model_sky_background(setup,
                                                                     reduction_metadata,
                                                                     log, ref_star_catalog,
-                                                                    image_path=os.path.join(setup.red_dir,'data',new_image))
+                                                                    image_path=os.path.join(setup.red_dir,'data',new_image),
+                                                                    bandpass=dataset_params['filter'])
                     log.info('Built sky model')
                     stamp_directory = os.path.join(diffim_directory,new_image)
                     difference_image = open_an_image(setup, stamp_directory,'diff_stamp_'+str(stamp)+'.fits' , log, 0)[0]
