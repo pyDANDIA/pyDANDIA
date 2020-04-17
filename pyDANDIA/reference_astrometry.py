@@ -203,7 +203,7 @@ def run_reference_astrometry(setup, force_rotate_ref=False,
 
             else:
                 old_n_match = matched_stars.n_match
-                log.info(' -> Iterations continue')
+                log.info(' -> Iterations continue, iterate='+repr(iterate))
 
         else:
             log.info('Trusting original WCS solution, transformation will be calculated after catalog match to original pixel positions')
@@ -222,6 +222,8 @@ def run_reference_astrometry(setup, force_rotate_ref=False,
                                             bright_central_gaia_stars[matched_stars.cat2_index],
                                             bright_central_detected_stars[matched_stars.cat1_index],
                                             log)
+
+        log.info('Proceeding to x-match of full catalogs')
 
         gaia_sources = update_catalog_image_coordinates(setup, image_wcs,
                                                         gaia_sources, log, 'catalog_stars_full_revised_'+str(it)+'.reg',
