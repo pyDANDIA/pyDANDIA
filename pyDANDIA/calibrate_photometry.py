@@ -254,10 +254,11 @@ def select_calibration_stars(star_catalog,params,log):
         med = np.median(star_catalog[col][np.where(star_catalog[col]>0)])
 
         max_err = 2.0 * med
+        if np.isnan(max_err):
+            max_err = 0.02
 
         if 'cat_merr_max' in params.keys():
-            if params['cat_merr_max'] > max_err or max_err == np.nan:
-                max_err = params['cat_merr_max']
+            max_err = params['cat_merr_max']
 
         log.info('Median photometric uncertainty ('+f+'-band) of catalog stars: '+str(med))
         log.info('Excluding catalog stars ('+f+'-band) with uncertainty > '+str(max_err))
