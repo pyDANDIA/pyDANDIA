@@ -267,7 +267,6 @@ def select_calibration_stars(star_catalog,params,log):
         idx2 = np.where(star_catalog[col] > 0)
         idx3 = np.where(star_catalog[cmag] < limit_mag)
 
-        print(params)
         if len(idx1[0]) == 0:
             log.info('No catalog stars with magnitude errors <='+str(max_err))
             raise ValueError('No catalog stars with magnitude errors <='+str(max_err))
