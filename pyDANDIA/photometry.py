@@ -169,8 +169,8 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
                             (1.0/(sigma_ron*sigma_ron)) + \
                                 (1.0/(sigma_sky*sigma_sky))
             total_flux = (sigma_star*sigma_star) + (sigma_ron*sigma_ron) + (sigma_sky*sigma_sky)
-            flux_err = np.sqrt(1.0/sum_inv_varience)
-            total_flux_err = np.sqrt(total_flux)
+            sigma_flux = np.sqrt(1.0/sum_inv_varience)
+            flux_err = np.sqrt(total_flux)
 
             if diagnostics:
                 logs.ifverbose(log, setup, ' -> Star '+str(j)+' raw flux='+str(flux)+'e- '+
