@@ -989,7 +989,7 @@ class MetaData:
             ron = float(self.reduction_parameters[1]['RON'])
         except:
             ron = None
-        return gain
+        return ron
 
     def extract_exptime(self,image_name):
         """Convenience method to look up the exposure time for the indicated
