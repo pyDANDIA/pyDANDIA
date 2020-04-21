@@ -165,11 +165,7 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
             median_sky = np.median(sky_section)
             sigma_sky = np.sqrt(median_sky * gain * psf_npixels)
 
-            sum_inv_varience = (1.0/(sigma_star*sigma_star)) + \
-                            (1.0/(sigma_ron*sigma_ron)) + \
-                                (1.0/(sigma_sky*sigma_sky))
             total_flux = (sigma_star*sigma_star) + (sigma_ron*sigma_ron) + (sigma_sky*sigma_sky)
-            sigma_flux = np.sqrt(1.0/sum_inv_varience)
             flux_err = np.sqrt(total_flux)
 
             if diagnostics:
@@ -177,7 +173,7 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
                                 'star noise='+str(sigma_star)+'e- '+
                                 'read noise='+str(sigma_ron)+'e- (RON='+str(ron)+'e-/pix) '+
                                 'sky noise='+str(sigma_sky)+'e- (median sky='+str(median_sky)+'ADU) '+
-                                'total flux uncertainty='+str(flux_err)+' total='+str(total_flux_err)+
+                                'total flux uncertainty='+str(flux_err)+
                                 ' before scaling by exposure time')
                 logs.ifverbose(log, setup, ' -> PSF radius='+str(half_psf)+\
                                 'pix, N pixels PSF='+str(psf_npixels)+'pix, gain='+str(gain)+' e-/ADU')
