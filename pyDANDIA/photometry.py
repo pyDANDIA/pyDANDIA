@@ -164,8 +164,8 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
             sigma_ron = np.sqrt(ron*ron * psf_npixels)
             sigma_sky = np.sqrt(np.median(sky_section) * gain * psf_npixels)
 
-            sum_inv_varience = (1.0/(sigma_star*sigma_star)) +
-                            (1.0/(sigma_ron*sigma_ron)) +
+            sum_inv_varience = (1.0/(sigma_star*sigma_star)) + \
+                            (1.0/(sigma_ron*sigma_ron)) + \
                                 (1.0/sigma_sky*sigma_sky))
             flux_err = np.sqrt(1.0/sum_inv_varience)
 
