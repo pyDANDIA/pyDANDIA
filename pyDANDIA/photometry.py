@@ -62,7 +62,7 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
         psf_diameter = (reduction_metadata.psf_dimensions[1]['psf_radius'][0]*2.0)
 
     half_psf = int(float(psf_diameter)/2.0)
-    psf_npixels = np.pi * half_psf**2
+    psf_npixels = np.pi * (half_psf**2)
 
     exp_time = reduction_metadata.extract_exptime(os.path.basename(image_path))
 
@@ -162,7 +162,8 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
             (flux, sigma_star) = fitted_model.calc_flux(Y_grid, X_grid, gain)
 
             sigma_ron = np.sqrt(ron*ron * psf_npixels)
-            sigma_sky = np.sqrt(np.median(sky_section) * gain * psf_npixels)
+            median_sky = np.median(sky_section)
+            sigma_sky = np.sqrt(median_sky * gain * psf_npixels)
 
             sum_inv_varience = (1.0/(sigma_star*sigma_star)) + \
                             (1.0/(sigma_ron*sigma_ron)) + \
@@ -172,10 +173,12 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
             if diagnostics:
                 logs.ifverbose(log, setup, ' -> Star '+str(j)+
                                 'star noise='+str(sigma_star)+'e- '+
-                                'read noise='+str(sigma_ron)+'e- '+
-                                'sky noise='+str(sigma_sky)+'e- '+
+                                'read noise='+str(sigma_ron)+'e- (RON='+str(ron)+'e-/pix) '+
+                                'sky noise='+str(sigma_sky)+'e- (median sky='+str(median_sky)+'ADU) '+
                                 'total flux uncertainty='+str(flux_err)+
                                 ' before scaling by exposure time')
+                logs.ifverbose(log, setup, ' -> PSF radius='+str(half_psf)+\
+                                'pix, N pixels PSF='+str(psf_npixels)+'pix, gain='+str(gain)+' e-/ADU')
 
             (mag, mag_err, flux_scaled, flux_err_scaled) = convert_flux_to_mag(flux, flux_err, exp_time=exp_time)
 
