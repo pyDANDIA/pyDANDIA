@@ -980,6 +980,17 @@ class MetaData:
             gain = None
         return gain
 
+    def get_readnoise(self):
+        """Convenience method to return the camera read noise, if the
+        reduction_parameters layer has been loaded.  Otherwise, None is given.
+        """
+
+        try:
+            ron = float(self.reduction_parameters[1]['RON'])
+        except:
+            ron = None
+        return gain
+
     def extract_exptime(self,image_name):
         """Convenience method to look up the exposure time for the indicated
         image from the headers_summary in the reduction metadata"""

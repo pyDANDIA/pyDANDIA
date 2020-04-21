@@ -62,10 +62,12 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
         psf_diameter = (reduction_metadata.psf_dimensions[1]['psf_radius'][0]*2.0)
 
     half_psf = int(float(psf_diameter)/2.0)
+    psf_npixels = np.pi * half_psf**2
 
     exp_time = reduction_metadata.extract_exptime(os.path.basename(image_path))
 
     gain = reduction_metadata.get_gain()
+    ron = reduction_metadata.get_readnoise()
 
     logs.ifverbose(log,setup,'Applying '+psf_model.psf_type()+\
                     ' PSF of diameter='+str(psf_diameter))
@@ -157,8 +159,15 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
                 logs.ifverbose(log, setup,' -> Star '+str(j)+
                                 ' subtracted PSF from the residuals')
 
-            (flux, flux_err) = fitted_model.calc_flux(Y_grid, X_grid)
-            flux_err = (flux+ np.median(sky_section)*int(psf_diameter)**2)**0.5
+            (flux, sigma_star) = fitted_model.calc_flux(Y_grid, X_grid, gain)
+
+            sigma_ron = np.sqrt(ron*ron * psf_npixels)
+            sigma_sky = np.sqrt(np.median(sky_section) * gain * psf_npixels)
+
+            sum_inv_varience = (1.0/(sigma_star*sigma_star)) +
+                            (1.0/(sigma_ron*sigma_ron)) +
+                                (1.0/sigma_sky*sigma_sky))
+            flux_err = np.sqrt(1.0/sum_inv_varience)
 
             (mag, mag_err, flux_scaled, flux_err_scaled) = convert_flux_to_mag(flux, flux_err, exp_time=exp_time)
 
