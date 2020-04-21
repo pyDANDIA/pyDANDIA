@@ -169,6 +169,14 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
                                 (1.0/(sigma_sky*sigma_sky))
             flux_err = np.sqrt(1.0/sum_inv_varience)
 
+            if diagnostics:
+                log.ifverbose(log, setup, ' -> Star '+str(j)+
+                                'star noise='+str(sigma_star)+'e- '+
+                                'read noise='+str(sigma_ron)+'e- '+
+                                'sky noise='+str(sigma_sky)+'e- '+
+                                'total flux uncertainty='+str(flux_err)+
+                                ' before scaling by exposure time')
+
             (mag, mag_err, flux_scaled, flux_err_scaled) = convert_flux_to_mag(flux, flux_err, exp_time=exp_time)
 
             ref_star_catalog[j,5] = flux_scaled
