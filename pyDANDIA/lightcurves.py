@@ -93,7 +93,8 @@ def extract_star_lightcurves_on_cone(params):
 	
 		photometry_data = fetch_photometry_for_dataset(params, star_field_id, matched_stars, log)
 
-		setname = path.basename(params['red_dir']).split('_')[1]
+		#setname = path.basename(params['red_dir']).split('_')[1]
+		setname = path.basename("_".join((params['red_dir']).split('_')[1:]))
 
 		datafile = open(path.join(params['output_dir'],'star_'+str(star_field_id)+'_'+setname+'.dat'),'w')
 
@@ -157,7 +158,8 @@ def extract_star_lightcurves_on_position(params):
 
         photometry_data = fetch_photometry_for_dataset(params, star_field_id, matched_stars, log)
 
-        setname = path.basename(params['red_dir']).split('_')[1]
+        #setname = path.basename(params['red_dir']).split('_')[1]
+        setname = path.basename("_".join((params['red_dir']).split('_')[1:]))
 
         datafile = open(path.join(params['output_dir'],'star_'+str(star_field_id)+'_'+setname+'.dat'),'w')
 
