@@ -170,7 +170,7 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
             flux_err = np.sqrt(1.0/sum_inv_varience)
 
             if diagnostics:
-                log.ifverbose(log, setup, ' -> Star '+str(j)+
+                logs.ifverbose(log, setup, ' -> Star '+str(j)+
                                 'star noise='+str(sigma_star)+'e- '+
                                 'read noise='+str(sigma_ron)+'e- '+
                                 'sky noise='+str(sigma_sky)+'e- '+
