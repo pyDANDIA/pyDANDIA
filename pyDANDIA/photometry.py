@@ -166,7 +166,7 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
 
             sum_inv_varience = (1.0/(sigma_star*sigma_star)) + \
                             (1.0/(sigma_ron*sigma_ron)) + \
-                                (1.0/sigma_sky*sigma_sky))
+                                (1.0/(sigma_sky*sigma_sky))
             flux_err = np.sqrt(1.0/sum_inv_varience)
 
             (mag, mag_err, flux_scaled, flux_err_scaled) = convert_flux_to_mag(flux, flux_err, exp_time=exp_time)
