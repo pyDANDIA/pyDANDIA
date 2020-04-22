@@ -199,6 +199,17 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
                 logs.ifverbose(log,setup,' -> Star '+str(j)+
                                 ' No photometry possible from poor PSF fit')
 
+            ref_star_catalog[j,5] = 0.0
+            ref_star_catalog[j,6] = 0.0
+            ref_star_catalog[j,7] = 0.0
+            ref_star_catalog[j,8] = 0.0
+            ref_star_catalog[j,9] = 0.0
+            ref_star_catalog[j,10] = 0.0
+            ref_star_catalog[j,11] = 1e10
+            ref_star_catalog[j,12] = 0.0
+            ref_star_catalog[j,12] = 0.0
+            ref_star_catalog[j,13] = 0.0
+
         if j%jincr == 0:
             percentage = round((float(j)/float(len(ref_star_catalog)))*100.0,0)
             logs.ifverbose(log,setup,' -> Photometry '+str(percentage)+\
