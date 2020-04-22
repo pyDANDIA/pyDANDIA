@@ -179,6 +179,14 @@ def trigger_parallel_reduction(setup,dataset_dir,data_status,debug=False):
         command = path.join(setup.software_dir,'reduction_control.py')
         args = ['python', command, dataset_dir, setup.phot_db_path, setup.red_mode, data_status]
 
+    elif setup.red_mode in ['stage3']:
+
+        command = path.join(setup.software_dir,'run_stage.py')
+        args = ['python', command, setup.red_mode, dataset_dir, setup.phot_db_path]
+
+    else:
+        raise ValueError('Reduction mode '+str(setup.red_mode)+' not yet supported in parallel mode')
+
     p = subprocess.Popen(args, stdout=subprocess.PIPE)
 
     return p.pid
@@ -197,7 +205,7 @@ def trigger_single_reduction(setup,dataset_dir,data_status):
 
         command = path.join(setup.software_dir,'reduction_control.py')
         args = ['python', command, setup.red_dir, setup.phot_db_path, setup.red_mode, data_status, '-v', '0']
-        
+
         pid = subprocess.call(args, stdout=subprocess.PIPE)
 
     else:
