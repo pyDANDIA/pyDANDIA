@@ -618,15 +618,26 @@ def model_phot_transform(params,star_catalog,vphas_cat,match_index,fit,
 def set_calibration_limits(params,log):
     """Function to use the parameters given or set defaults"""
 
-    defaults = {'gp': {'det_mags_max': 21.0,
-                       'det_mags_min': 15.0,
-                       'cat_merr_max': 0.03},
-                'rp': {'det_mags_max': 21.0,
-                       'det_mags_min': 15.0,
-                       'cat_merr_max': 0.03},
-                'ip': {'det_mags_max': 21.0,
-                       'det_mags_min': 15.0,
-                       'cat_merr_max': 0.03}}
+    if params['use_gaia_phot']:
+        defaults = {'gp': {'det_mags_max': 21.0,
+                           'det_mags_min': 15.0,
+                           'cat_merr_max': 0.2},
+                    'rp': {'det_mags_max': 21.0,
+                           'det_mags_min': 15.0,
+                           'cat_merr_max': 0.07},
+                    'ip': {'det_mags_max': 21.0,
+                           'det_mags_min': 15.0,
+                           'cat_merr_max': 0.11}}
+    else:
+        defaults = {'gp': {'det_mags_max': 21.0,
+                           'det_mags_min': 15.0,
+                           'cat_merr_max': 0.03},
+                    'rp': {'det_mags_max': 21.0,
+                           'det_mags_min': 15.0,
+                           'cat_merr_max': 0.03},
+                    'ip': {'det_mags_max': 21.0,
+                           'det_mags_min': 15.0,
+                           'cat_merr_max': 0.03}}
 
     def_params = defaults[params['filter']]
 
