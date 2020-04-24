@@ -169,8 +169,12 @@ def extract_params_from_metadata(reduction_metadata, params, log):
     params['ra'] = reduction_metadata.headers_summary[1]['RAKEY'][iref]
     params['dec'] = reduction_metadata.headers_summary[1]['DECKEY'][iref]
     params['filter'] = reduction_metadata.headers_summary[1]['FILTKEY'][iref]
-    params['cat_mag_col'] = params['filter'].replace('p','') + 'mag'
-    params['cat_err_col'] = 'e_'+params['filter'].replace('p','') + 'mag'
+    if params['use_gaia_phot'] == True:
+        params['cat_mag_col'] = 'gaia_'+params['filter'].replace('p','')+'mag'
+        params['cat_err_col'] = 'gaia_'+params['filter'].replace('p','')+'mag_err'
+    else:
+        params['cat_mag_col'] = params['filter'].replace('p','') + 'mag'
+        params['cat_err_col'] = 'e_'+params['filter'].replace('p','') + 'mag'
 
     params['target'] = SkyCoord([params['ra']], [params['dec']],
                         unit=(u.hourangle, u.deg))
@@ -206,12 +210,37 @@ def extract_params_from_metadata(reduction_metadata, params, log):
     star_catalog['cal_ref_flux'] = np.zeros(len(reduction_metadata.star_catalog[1]['cal_ref_flux']))
     star_catalog['cal_ref_flux_err'] = np.zeros(len(reduction_metadata.star_catalog[1]['cal_ref_flux_error']))
 
-    (gmag, gmerr) = gaia_phot_transforms.gaia_flux_to_mag(reduction_metadata.star_catalog[1]['phot_g_mean_flux'],
+    (Gmag, Gmerr) = gaia_phot_transforms.gaia_flux_to_mag(reduction_metadata.star_catalog[1]['phot_g_mean_flux'],
                                                           reduction_metadata.star_catalog[1]['phot_g_mean_flux_error'],
                                                           passband="G")
-    star_catalog['gaia_source_id'] = reduction_metadata.star_catalog[1]['vphas_source_id']
-    star_catalog['gaia_gmag'] = gmag
-    star_catalog['gaia_gmag_err'] = gmerr
+    (BPmag, BPmerr) = gaia_phot_transforms.gaia_flux_to_mag(reduction_metadata.star_catalog[1]['phot_g_mean_flux'],
+                                                        reduction_metadata.star_catalog[1]['phot_g_mean_flux_error'],
+                                                        passband="G_BP")
+    (RPmag, RPmerr) = gaia_phot_transforms.gaia_flux_to_mag(reduction_metadata.star_catalog[1]['phot_g_mean_flux'],
+                                                        reduction_metadata.star_catalog[1]['phot_g_mean_flux_error'],
+                                                        passband="G_RP")
+
+    star_catalog['gaia_source_id'] = reduction_metadata.star_catalog[1]['gaia_source_id']
+    star_catalog['gaia_Gmag'] = Gmag
+    star_catalog['gaia_Gmag_err'] = Gmerr
+    star_catalog['gaia_BPmag'] = BPmag
+    star_catalog['gaia_BPmag_err'] = BPmerr
+    star_catalog['gaia_RPmag'] = RPmag
+    star_catalog['gaia_RPmag_err'] = RPmerr
+
+    (BP_RP, BPRPerr) = gaia_phot_transforms.calc_gaia_colours(star_catalog['gaia_BPmag'],star_catalog['gaia_BPmag_err'],
+                                               star_catalog['gaia_RPmag'],star_catalog['gaia_RPmag_err'])
+    star_catalog['gaia_BP_RP'] = BP_RP
+    star_catalog['gaia_BPRP_err'] = BPRPerr
+
+    phot = gaia_phot_transforms.transform_gaia_phot_to_SDSS(star_catalog['gaia_Gmag'], star_catalog['gaia_Gmag_err'],
+                                        BP_RP, BPRPerr)
+    star_catalog['gaia_gmag'] = phot['g']
+    star_catalog['gaia_gmag_err'] = phot['g_err']
+    star_catalog['gaia_rmag'] = phot['r']
+    star_catalog['gaia_rmag_err'] = phot['r_err']
+    star_catalog['gaia_imag'] = phot['i']
+    star_catalog['gaia_imag_err'] = phot['i_err']
 
     log.info('Extracted star catalog')
 
@@ -245,7 +274,9 @@ def select_calibration_stars(star_catalog,params,log):
     if params['use_gaia_phot'] == True:
         cat_name = 'Gaia'
         cat_source_id_col = 'gaia_source_id'
-        passbands = { 'G': {'mag_col': 'gaia_gmag', 'merr_col': 'gaia_gmag_err'} }
+        passbands = { 'G': {'mag_col': 'gaia_Gmag', 'merr_col': 'gaia_Gmag_err'},
+                     'BP': {'mag_col': 'gaia_BPmag', 'merr_col': 'gaia_BPmag_err'},
+                     'RP': {'mag_col': 'gaia_RPmag', 'merr_col': 'gaia_RPmag_err'} }
     else:
         cat_name = 'VPHAS+'
         cat_source_id_col = 'vphas_source_id'
@@ -405,7 +436,7 @@ def extract_matched_stars_index(star_catalog,log):
     cross-matched by position.
 
     Returns:
-        :param array match_index: [[Index in vphas, index in detected_stars]]
+        :param array match_index: [[Index in selected catalog, index in detected_stars]]
     """
 
     match_index = {}
@@ -712,7 +743,9 @@ def model_phot_transform2(params,star_catalog,match_index,fit,
 
         plt.xlabel('Instrumental magnitude')
 
-        plt.ylabel('VPHAS+ catalog magnitude')
+        cat_name = 'VPHAS+'
+        if params['use_gaia_phot']: cat_name = 'Gaia'
+        plt.ylabel(params['cat_name']+' catalog magnitude')
 
         [xmin,xmax,ymin,ymax] = plt.axis()
 
