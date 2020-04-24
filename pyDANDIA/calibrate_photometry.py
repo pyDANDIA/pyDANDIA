@@ -667,8 +667,6 @@ def model_phot_transform2(params,star_catalog,match_index,fit,
     det_mags = star_catalog['mag'][match_index[:,0]]
     det_mag_errs = star_catalog['mag_err'][match_index[:,0]]
 
-    print(cat_mags)
-    print(cat_merrs)
     config = set_calibration_limits(params,log)
 
     k = np.where(cat_merrs <= config['cat_merr_max'])[0]
@@ -749,7 +747,7 @@ def model_phot_transform2(params,star_catalog,match_index,fit,
 
         cat_name = 'VPHAS+'
         if params['use_gaia_phot']: cat_name = 'Gaia'
-        plt.ylabel(params['cat_name']+' catalog magnitude')
+        plt.ylabel(cat_name+' catalog magnitude')
 
         [xmin,xmax,ymin,ymax] = plt.axis()
 
