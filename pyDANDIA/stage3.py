@@ -26,7 +26,7 @@ from pyDANDIA import  calibrate_photometry
 
 VERSION = 'pyDANDIA_stage3_v0.5'
 
-def run_stage3(setup):
+def run_stage3(setup, use_gaia_phot=False):
     """Driver function for pyDANDIA Stage 3:
     Detailed star find and PSF modeling
     """
@@ -108,7 +108,10 @@ def run_stage3(setup):
                                                 'pyDANDIA_metadata.fits',
                                                 'star_catalog', log=log)
 
-        reduction_metadata = calibrate_photometry.calibrate_photometry(setup, reduction_metadata, log)
+        cl_params = {'use_gaia_phot': use_gaia_phot}
+        reduction_metadata = calibrate_photometry.calibrate_photometry(setup,
+                                                        reduction_metadata, log,
+                                                        cl_params)
 
         reduction_metadata.create_software_layer(np.array([VERSION,'NONE']),
                                                      log=log)

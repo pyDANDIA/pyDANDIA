@@ -71,7 +71,8 @@ def run_stage_stand_alone():
 
     elif params['stage'] == 'stage3':
 
-        (status, report) = stage3.run_stage3(setup)
+        (status, report) = stage3.run_stage3(setup,
+                                            use_gaia_phot=params['use_gaia_phot'])
 
     elif params['stage'] == 'calibrate_photometry':
 
@@ -190,6 +191,11 @@ def get_args():
         params['trust_wcs'] = True
     else:
         params['trust_wcs'] = False
+
+    if '-use-gaia-phot' in argv or '-use_gaia_phot' in argv:
+        params['use_gaia_phot'] = True
+    else:
+        params['use_gaia_phot'] = False
 
     params['dx'] = 0.0
     params['dy'] = 0.0

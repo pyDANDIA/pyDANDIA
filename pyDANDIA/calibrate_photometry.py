@@ -12,6 +12,7 @@ from pyDANDIA import metadata
 from pyDANDIA import catalog_utils
 from pyDANDIA import photometry
 from pyDANDIA import vizier_tools
+from pyDANDIA import gaia_phot_transforms
 
 from astropy.coordinates import SkyCoord
 from astropy.coordinates import matching
@@ -22,7 +23,7 @@ import numpy as np
 from scipy import optimize
 import matplotlib.pyplot as plt
 
-VERSION = 'calibrate_photometry_0.3'
+VERSION = 'calibrate_photometry_0.4'
 
 def calibrate_photometry_catalog(setup, cl_params={}):
     """Function to calculate the photometric transform between the instrumental
@@ -107,6 +108,10 @@ def get_args():
         else:
             params[key] = None
 
+    params['use_gaia_phot'] = False
+    for a in sys.argv:
+        if '-use-gaia-phot' in a or '-use_gaia_phot' in a:
+            params['use_gaia_phot'] = True
 
     return params
 
@@ -201,6 +206,13 @@ def extract_params_from_metadata(reduction_metadata, params, log):
     star_catalog['cal_ref_flux'] = np.zeros(len(reduction_metadata.star_catalog[1]['cal_ref_flux']))
     star_catalog['cal_ref_flux_err'] = np.zeros(len(reduction_metadata.star_catalog[1]['cal_ref_flux_error']))
 
+    (gmag, gmerr) = gaia_phot_transforms.gaia_flux_to_mag(reduction_metadata.star_catalog[1]['phot_g_mean_flux'],
+                                                          reduction_metadata.star_catalog[1]['phot_g_mean_flux_error'],
+                                                          passband="G")
+    star_catalog['gaia_source_id'] = reduction_metadata.star_catalog[1]['vphas_source_id']
+    star_catalog['gaia_gmag'] = gmag
+    star_catalog['gaia_gmag_err'] = gmerr
+
     log.info('Extracted star catalog')
 
     return reduction_metadata, params, star_catalog
@@ -227,12 +239,23 @@ def fetch_catalog_sources_within_image(params,log):
     return vphas_cat
 
 def select_calibration_stars(star_catalog,params,log):
-    """Function to identify and flag stars suitable for the photometric
+    """Function to identify and flag  stars suitable for the photometric
     calibration.  Based on code by Y. Tsapras."""
 
-    # VPHAS catalog selection limits
-    jdx = np.where(star_catalog['vphas_source_id'] != 'None')
-    log.info('VPHAS+ data available for '+str(len(jdx[0]))+' stars in total')
+    if params['use_gaia_phot'] == True:
+        cat_name = 'Gaia'
+        cat_source_id_col = 'gaia_source_id'
+        passbands = { 'G': {'mag_col': 'gaia_gmag', 'merr_col': 'gaia_gmag_err'} }
+    else:
+        cat_name = 'VPHAS+'
+        cat_source_id_col = 'vphas_source_id'
+        passbands = { 'g': {'mag_col': 'gmag', 'merr_col': 'e_gmag'},
+                      'r': {'mag_col': 'rmag', 'merr_col': 'e_rmag'},
+                      'i': {'mag_col': 'imag', 'merr_col': 'e_imag'} }
+
+    # Catalog selection limits
+    jdx = np.where(star_catalog[cat_source_id_col] != 'None')
+    log.info(cat_name+' data available for '+str(len(jdx[0]))+' stars in total')
 
     limit_mag = 22.0
     #if params['filter'] == 'gp': limit_mag = 22.0
@@ -246,12 +269,9 @@ def select_calibration_stars(star_catalog,params,log):
 
     # First selecting stars with suitable VPHAS+ catalogue information
     idx = []
-    for f in ['g','r','i']:
+    for f,col_names in passbands.items():
 
-        col = 'e_'+f+'mag'
-        cmag = f+'mag'
-
-        med = np.median(star_catalog[col][np.where(star_catalog[col]>0)])
+        med = np.median(star_catalog[col_names['merr_col']][np.where(star_catalog[col_names['merr_col']]>0)])
 
         max_err = 2.0 * med
         if np.isnan(max_err):
@@ -263,9 +283,9 @@ def select_calibration_stars(star_catalog,params,log):
         log.info('Median photometric uncertainty ('+f+'-band) of catalog stars: '+str(med))
         log.info('Excluding catalog stars ('+f+'-band) with uncertainty > '+str(max_err))
 
-        idx1 = np.where(star_catalog[col] <= max_err)
-        idx2 = np.where(star_catalog[col] > 0)
-        idx3 = np.where(star_catalog[cmag] < limit_mag)
+        idx1 = np.where(star_catalog[col_names['merr_col']] <= max_err)
+        idx2 = np.where(star_catalog[col_names['merr_col']] > 0)
+        idx3 = np.where(star_catalog[col_names['mag_col']] < limit_mag)
 
         if len(idx1[0]) == 0:
             log.info('No catalog stars with magnitude errors <='+str(max_err))
@@ -289,7 +309,7 @@ def select_calibration_stars(star_catalog,params,log):
     star_catalog['clean'][idx] = 1.0
 
     log.info('Selected '+str(len(idx))+\
-            ' stars with VPHAS+ data suitable for use in photometric calibration')
+            ' stars with '+cat_name+' data suitable for use in photometric calibration')
 
     # Now selecting stars with good quality photometry from the ROME data and
     # Gaia positional data:
