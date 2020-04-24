@@ -88,9 +88,9 @@ def get_args():
         if len(sys.argv) > 4:
 
             for a in sys.argv[4:]:
-                (key,value) = a.split('=')
-
-                params[key] = value
+                if a[0:1] != '-':
+                    (key,value) = a.split('=')
+                    params[key] = value
 
     else:
         params['red_dir'] = input('Please enter the path to the reduction directory: ')
