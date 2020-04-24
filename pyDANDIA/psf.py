@@ -133,7 +133,7 @@ class Moffat2D(PSFModel):
 
         return params
 
-    def calc_flux(self, Y_star, X_star):
+    def calc_flux(self, Y_star, X_star, gain):
 
         model = self.psf_model_star(Y_star, X_star)
 
@@ -141,7 +141,7 @@ class Moffat2D(PSFModel):
 
         if flux > 0:
 
-            flux_err = np.sqrt(flux)
+            flux_err = np.sqrt(flux * gain)
 
         else:
 
@@ -166,7 +166,7 @@ class Moffat2D(PSFModel):
 
         Y_data, X_data = np.indices((int(psf_diameter),int(psf_diameter)))
 
-        (f_total,ferr) = self.calc_flux(Y_data,X_data)
+        (f_total,ferr) = self.calc_flux(Y_data,X_data, 1)
 
         self.psf_parameters.intensity = self.psf_parameters.intensity / f_total
 
@@ -290,7 +290,7 @@ class BivariateMoffat(PSFModel):
 
         return params
 
-    def calc_flux(self, Y_star, X_star):
+    def calc_flux(self, Y_star, X_star, gain):
 
         model = self.psf_model_star(Y_star, X_star)
 
@@ -298,7 +298,7 @@ class BivariateMoffat(PSFModel):
 
         if flux > 0:
 
-            flux_err = np.sqrt(flux)
+            flux_err = np.sqrt(flux * gain)
 
         else:
 
@@ -323,7 +323,7 @@ class BivariateMoffat(PSFModel):
 
         Y_data, X_data = np.indices((int(psf_diameter), int(psf_diameter)))
 
-        (f_total, ferr) = self.calc_flux(Y_data, X_data)
+        (f_total, ferr) = self.calc_flux(Y_data, X_data, 1.0)
 
         self.psf_parameters.intensity = self.psf_parameters.intensity / f_total
 
@@ -446,13 +446,13 @@ class Gaussian2D(PSFModel):
 
         return params
 
-    def calc_flux(self, Y_star, X_star):
+    def calc_flux(self, Y_star, X_star, gain):
 
         model = self.psf_model_star(Y_star, X_star)
 
         flux = model.sum()
 
-        flux_err = np.sqrt(flux)
+        flux_err = np.sqrt(flux * gain)
 
         return flux, flux_err
 
@@ -460,7 +460,7 @@ class Gaussian2D(PSFModel):
 
         Y_data, X_data = np.indices((int(psf_diameter),int(psf_diameter)))
 
-        (f_total,ferr) = self.calc_flux(Y_data,X_data)
+        (f_total,ferr) = self.calc_flux(Y_data,X_data, 1.0)
 
         self.psf_parameters.intensity = self.psf_parameters.intensity / f_total
 
@@ -531,13 +531,13 @@ class BivariateNormal(PSFModel):
 
         return params
 
-    def calc_flux(self, Y_star, X_star):
+    def calc_flux(self, Y_star, X_star, gain):
 
         model = self.psf_model_star(Y_star, X_star)
 
         flux = model.sum()
 
-        flux_err = np.sqrt(flux)
+        flux_err = np.sqrt(flux * gain)
 
         return flux, flux_err
 
@@ -545,7 +545,7 @@ class BivariateNormal(PSFModel):
 
         Y_data, X_data = np.indices((int(psf_diameter),int(psf_diameter)))
 
-        (f_total,ferr) = self.calc_flux(Y_data,X_data)
+        (f_total,ferr) = self.calc_flux(Y_data,X_data, 1.0)
 
         self.psf_parameters.intensity = self.psf_parameters.intensity / f_total
 
@@ -610,13 +610,13 @@ class Lorentzian2D(PSFModel):
 
         return params
 
-    def calc_flux(self, Y_star, X_star):
+    def calc_flux(self, Y_star, X_star, gain):
 
         model = self.psf_model_star(Y_star, X_star)
 
         flux = model.sum()
 
-        flux_err = np.sqrt(flux)
+        flux_err = np.sqrt(flux * gain)
 
         return flux, flux_err
 
@@ -624,7 +624,7 @@ class Lorentzian2D(PSFModel):
 
         Y_data, X_data = np.indices((int(psf_diameter),int(psf_diameter)))
 
-        (f_total,ferr) = self.calc_flux(Y_data,X_data)
+        (f_total,ferr) = self.calc_flux(Y_data,X_data, 1.0)
 
         self.psf_parameters.intensity = self.psf_parameters.intensity / f_total
 

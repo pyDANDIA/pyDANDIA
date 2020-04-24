@@ -63,7 +63,10 @@ def search_vizier_for_gaia_sources(ra, dec, radius):
     c = coordinates.SkyCoord(ra+' '+dec, frame='icrs', unit=(units.deg, units.deg))
     r = units.Quantity(radius/60.0, units.deg)
 
-    qs = Gaia.cone_search_async(c, r)
+    try:
+        qs = Gaia.cone_search_async(c, r)
+    except AttributeError:
+        raise IOError('No search results received from Vizier service')
     result = qs.get_results()
 
     catalog = result['ra','dec','source_id','ra_error','dec_error',

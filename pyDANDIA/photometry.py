@@ -62,10 +62,12 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
         psf_diameter = (reduction_metadata.psf_dimensions[1]['psf_radius'][0]*2.0)
 
     half_psf = int(float(psf_diameter)/2.0)
+    psf_npixels = np.pi * (half_psf**2)
 
     exp_time = reduction_metadata.extract_exptime(os.path.basename(image_path))
 
     gain = reduction_metadata.get_gain()
+    ron = reduction_metadata.get_readnoise()
 
     logs.ifverbose(log,setup,'Applying '+psf_model.psf_type()+\
                     ' PSF of diameter='+str(psf_diameter))
@@ -157,8 +159,24 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
                 logs.ifverbose(log, setup,' -> Star '+str(j)+
                                 ' subtracted PSF from the residuals')
 
-            (flux, flux_err) = fitted_model.calc_flux(Y_grid, X_grid)
-            flux_err = (flux+ np.median(sky_section)*int(psf_diameter)**2)**0.5
+            (flux, sigma_star) = fitted_model.calc_flux(Y_grid, X_grid, gain)
+
+            sigma_ron = np.sqrt(ron*ron * psf_npixels)
+            median_sky = np.median(sky_section)
+            sigma_sky = np.sqrt(median_sky * gain * psf_npixels)
+
+            total_flux = (sigma_star*sigma_star) + (sigma_ron*sigma_ron) + (sigma_sky*sigma_sky)
+            flux_err = np.sqrt(total_flux)
+
+            if diagnostics:
+                logs.ifverbose(log, setup, ' -> Star '+str(j)+' raw flux='+str(flux)+'e- '+
+                                'star noise='+str(sigma_star)+'e- '+
+                                'read noise='+str(sigma_ron)+'e- (RON='+str(ron)+'e-/pix) '+
+                                'sky noise='+str(sigma_sky)+'e- (median sky='+str(median_sky)+'ADU) '+
+                                'total flux uncertainty='+str(flux_err)+
+                                ' before scaling by exposure time')
+                logs.ifverbose(log, setup, ' -> PSF radius='+str(half_psf)+\
+                                'pix, N pixels PSF='+str(psf_npixels)+'pix, gain='+str(gain)+' e-/ADU')
 
             (mag, mag_err, flux_scaled, flux_err_scaled) = convert_flux_to_mag(flux, flux_err, exp_time=exp_time)
 
@@ -180,6 +198,17 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
             if diagnostics:
                 logs.ifverbose(log,setup,' -> Star '+str(j)+
                                 ' No photometry possible from poor PSF fit')
+
+            ref_star_catalog[j,5] = 0.0
+            ref_star_catalog[j,6] = 0.0
+            ref_star_catalog[j,7] = 0.0
+            ref_star_catalog[j,8] = 0.0
+            ref_star_catalog[j,9] = 0.0
+            ref_star_catalog[j,10] = 0.0
+            ref_star_catalog[j,11] = 1e10
+            ref_star_catalog[j,12] = 0.0
+            ref_star_catalog[j,12] = 0.0
+            ref_star_catalog[j,13] = 0.0
 
         if j%jincr == 0:
             percentage = round((float(j)/float(len(ref_star_catalog)))*100.0,0)
