@@ -660,11 +660,14 @@ def model_phot_transform2(params,star_catalog,match_index,fit,
     cmag = params['cat_mag_col']
     cerr = params['cat_err_col']
 
+    log.info('Using catalog photometry columns: '+cmag+', '+cerr)
+
     cat_mags = star_catalog[cmag][match_index[:,1]]
     cat_merrs = star_catalog[cerr][match_index[:,1]]
     det_mags = star_catalog['mag'][match_index[:,0]]
     det_mag_errs = star_catalog['mag_err'][match_index[:,0]]
 
+    print(cat_mags)
     config = set_calibration_limits(params,log)
 
     k = np.where(cat_merrs <= config['cat_merr_max'])[0]
