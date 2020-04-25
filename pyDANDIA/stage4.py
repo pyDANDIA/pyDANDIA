@@ -158,12 +158,9 @@ def run_stage4(setup):
             except:
 
                 logs.ifverbose(log, setup,
-                               'I can not find the image translation to the reference for frame:' + new_image + '. Abort stage4!')
+                               'WARNING: I can not find the image translation to the reference for frame:' + new_image)
 
-                status = 'KO'
-                report = 'No shift  found for image:' + new_image + ' !'
-
-                return status, report
+                data.append([new_image, None, None])
 
         if ('SHIFT_X' in reduction_metadata.images_stats[1].keys()) and (
                 'SHIFT_Y' in reduction_metadata.images_stats[1].keys()):
