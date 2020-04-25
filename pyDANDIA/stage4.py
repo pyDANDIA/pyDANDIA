@@ -143,24 +143,24 @@ def run_stage4(setup):
         for new_image in new_images:
             target_image = open_an_image(setup, images_directory, new_image, log, image_index=0)
 
-#            try:
+            try:
 
-            x_new_center, y_new_center, x_shift, y_shift = find_x_y_shifts_from_the_reference_image(setup,
+                x_new_center, y_new_center, x_shift, y_shift = find_x_y_shifts_from_the_reference_image(setup,
                                                                                                         reference_image,
                                                                                                         target_image,
                                                                                                         edgefraction=0.5,
                                                                                                         log=None)
 
-            data.append([new_image, x_shift, y_shift])
-            logs.ifverbose(log, setup,
+                data.append([new_image, x_shift, y_shift])
+                logs.ifverbose(log, setup,
                                'I found the image translation ('+str(x_shift)+','+str(y_shift)+') to the reference for frame:' + new_image)
 
-#            except:
+            except:
 
-#                logs.ifverbose(log, setup,
-#                               'WARNING: I can not find the image translation to the reference for frame:' + new_image)
+                logs.ifverbose(log, setup,
+                               'WARNING: I can not find the image translation to the reference for frame:' + new_image)
 
-#                data.append([new_image, None, None])
+                data.append([new_image, None, None])
 
         if ('SHIFT_X' in reduction_metadata.images_stats[1].keys()) and (
                 'SHIFT_Y' in reduction_metadata.images_stats[1].keys()):
@@ -295,10 +295,6 @@ def find_x_y_shifts_from_the_reference_image(setup, reference_image, target_imag
     # x_shift, y_shift = correlation_shift(reduce_template, reduce_image)
     reduce_image = target_image
     reduce_template = reference_image
-    print(reduce_image)
-    print(reduce_image.shape)
-    print(reduce_template)
-    print(reduce_template.shape)
     from skimage.feature import register_translation
     shifts, errors, phasediff = register_translation(reduce_template, reduce_image, 10)
 
