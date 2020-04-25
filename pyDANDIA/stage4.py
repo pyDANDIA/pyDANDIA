@@ -665,7 +665,10 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
         reference_image = np.copy(reference_image_hdu[0].data)
 
         mask_reference = reference_image_hdu[mask_extension_in].data.astype(bool)
+    else:
+        log.info('No images available to resample, halting.')
 
+        raise ValueError('No images available to resample, halting.')
 
     ref_sources, ref_fwhm = extract_catalog(reduction_metadata, reference_image, ref_row_index, log)
 
