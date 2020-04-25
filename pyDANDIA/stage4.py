@@ -295,6 +295,8 @@ def find_x_y_shifts_from_the_reference_image(setup, reference_image, target_imag
     # x_shift, y_shift = correlation_shift(reduce_template, reduce_image)
     reduce_image = target_image
     reduce_template = reference_image
+    print(reduce_image)
+    print(reduce_image.shape)
     from skimage.feature import register_translation
     shifts, errors, phasediff = register_translation(reduce_template, reduce_image, 10)
 
