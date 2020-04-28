@@ -91,3 +91,33 @@ def transform_gaia_phot_to_SDSS(Gmag, Gmerr, BPRPmag, BPRPerr):
                             name='imag_err')
 
     return phot
+
+def transform_gaia_phot_to_JohnsonCousins(Gmag, Gmerr, BPRPmag, BPRPerr):
+    """Function using the conversion transformations published in
+    Evans, D.W. et al., 2018, A&A, 616, A4 to calculate the Johnson-Cousins
+    V, R and I magnitudes based on the Gaia photometry."""
+
+    G_V = -0.01760 + -0.006860*BPRPmag + -0.1732*BPRPmag*BPRPmag
+    GV_err = 0.045858
+
+    G_R = -0.003226 + 0.3833*BPRPmag + -0.1345*BPRPmag*BPRPmag
+    GR_err = 0.04840
+
+    G_I = 0.02085 + 0.7419*BPRPmag + -0.09631*BPRPmag*BPRPmag
+    GI_err = 0.04956
+
+    phot = {}
+
+    phot['V'] = Column(data=(Gmag - G_V), name='Vmag')
+    phot['V_err'] = Column(data=(np.sqrt( (Gmerr*Gmerr) + (GV_err*GV_err) )),
+                            name='Vmag_err')
+
+    phot['R'] = Column(data=(Gmag - G_R), name='Rmag')
+    phot['R_err'] = Column(data=(np.sqrt( (Gmerr*Gmerr) + (GR_err*GR_err) )),
+                            name='Rmag_err')
+
+    phot['I'] = Column(data=(Gmag - G_I), name='Imag')
+    phot['I_err'] = Column(data=(np.sqrt( (Gmerr*Gmerr) + (GI_err*GI_err) )),
+                            name='Imag_err')
+
+    return phot

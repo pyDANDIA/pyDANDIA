@@ -65,7 +65,7 @@ def calibrate_photometry(setup, reduction_metadata, log, cl_params={}):
             star_catalog = apply_phot_calib(star_catalog,fit,log)
 
         output_to_metadata(setup, params, fit, star_catalog, reduction_metadata, log)
-        
+
     else:
 
         fit = [0,1]
@@ -245,6 +245,15 @@ def extract_params_from_metadata(reduction_metadata, params, log):
     star_catalog['gaia_rmag_err'] = phot['r_err']
     star_catalog['gaia_imag'] = phot['i']
     star_catalog['gaia_imag_err'] = phot['i_err']
+
+    phot = gaia_phot_transforms.transform_gaia_phot_to_JohnsonCousins(star_catalog['gaia_Gmag'], star_catalog['gaia_Gmag_err'],
+                                        BP_RP, BPRPerr)
+    star_catalog['gaia_Vmag'] = phot['V']
+    star_catalog['gaia_Vmag_err'] = phot['V_err']
+    star_catalog['gaia_Rmag'] = phot['R']
+    star_catalog['gaia_Rmag_err'] = phot['R_err']
+    star_catalog['gaia_Imag'] = phot['I']
+    star_catalog['gaia_Imag_err'] = phot['I_err']
 
     log.info('Extracted star catalog')
 
