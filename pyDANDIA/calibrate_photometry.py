@@ -641,7 +641,17 @@ def set_calibration_limits(params,log):
                            'cat_merr_max': 0.07},
                     'ip': {'det_mags_max': 21.0,
                            'det_mags_min': 15.0,
-                           'cat_merr_max': 0.11}}
+                           'cat_merr_max': 0.11},
+                    'V': {'det_mags_max': 21.0,
+                           'det_mags_min': 15.0,
+                           'cat_merr_max': 0.2},
+                    'R': {'det_mags_max': 21.0,
+                           'det_mags_min': 15.0,
+                           'cat_merr_max': 0.07},
+                    'I': {'det_mags_max': 21.0,
+                           'det_mags_min': 15.0,
+                           'cat_merr_max': 0.11},
+                           }
     else:
         defaults = {'gp': {'det_mags_max': 21.0,
                            'det_mags_min': 15.0,
@@ -651,7 +661,17 @@ def set_calibration_limits(params,log):
                            'cat_merr_max': 0.03},
                     'ip': {'det_mags_max': 21.0,
                            'det_mags_min': 15.0,
-                           'cat_merr_max': 0.03}}
+                           'cat_merr_max': 0.03}
+                    'V': {'det_mags_max': 21.0,
+                           'det_mags_min': 15.0,
+                           'cat_merr_max': 0.2},
+                    'R': {'det_mags_max': 21.0,
+                           'det_mags_min': 15.0,
+                           'cat_merr_max': 0.07},
+                    'I': {'det_mags_max': 21.0,
+                           'det_mags_min': 15.0,
+                           'cat_merr_max': 0.11},
+                    }
 
     def_params = defaults[params['filter']]
 
