@@ -15,10 +15,23 @@ def modify_red_status_table(red_dir):
 
     reduction_metadata.save_updated_metadata(red_dir,'pyDANDIA_metadata.fits')
 
+def modify_reduction_parameters(red_dir):
+
+    reduction_metadata = metadata.MetaData()
+    reduction_metadata.load_all_metadata(red_dir, 'pyDANDIA_metadata.fits')
+
+    key = input('Enter keyword value to change: ')
+    value = input('Enter new value of this keyword: ')
+
+    reduction_metadata.update_a_cell_to_layer('reduction_parameters', 0, key, str(value))
+
+    reduction_metadata.save_updated_metadata(red_dir,'pyDANDIA_metadata.fits')
+
 if __name__ == '__main__':
     if len(sys.argv) == 1:
         red_dir = input('Please enter the path to the reduction directory: ')
     else:
         red_dir = sys.argv[1]
 
-    modify_red_status_table(red_dir)
+    #modify_red_status_table(red_dir)
+    modify_reduction_parameters(red_dir)
