@@ -661,7 +661,7 @@ def set_calibration_limits(params,log):
                            'cat_merr_max': 0.03},
                     'ip': {'det_mags_max': 21.0,
                            'det_mags_min': 15.0,
-                           'cat_merr_max': 0.03}
+                           'cat_merr_max': 0.03},
                     'V': {'det_mags_max': 21.0,
                            'det_mags_min': 15.0,
                            'cat_merr_max': 0.2},
