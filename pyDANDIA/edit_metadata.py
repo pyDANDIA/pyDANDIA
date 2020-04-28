@@ -1,6 +1,7 @@
 import os
 import sys
 from pyDANDIA import metadata
+from astropy.io import fits
 
 def modify_red_status_table(red_dir):
 
@@ -24,6 +25,20 @@ def modify_reduction_parameters(red_dir):
     value = input('Enter new value of this keyword: ')
 
     reduction_metadata.update_a_cell_to_layer('reduction_parameters', 0, key, str(value))
+
+    reduction_metadata.save_updated_metadata(red_dir,'pyDANDIA_metadata.fits')
+
+def modify_headers_summary(red_dir):
+
+    reduction_metadata = metadata.MetaData()
+    reduction_metadata.load_all_metadata(red_dir, 'pyDANDIA_metadata.fits')
+
+    col_name = input('Enter name of column to update: ')
+    hdr_key = input('Enter name of FITS header keyword to update the column with: ')
+
+    for i, image in reduction_metadata.headers_summary[1]['IMAGES']:
+        hdr = fits.getheader(os.path.join(red_dir, 'data', image))
+        reduction_metadata.update_a_cell_to_layer('headers_summary', i, col_name, hdr[hdr_key])
 
     reduction_metadata.save_updated_metadata(red_dir,'pyDANDIA_metadata.fits')
 
