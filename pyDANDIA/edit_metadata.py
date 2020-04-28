@@ -36,7 +36,7 @@ def modify_headers_summary(red_dir):
     col_name = input('Enter name of column to update: ')
     hdr_key = input('Enter name of FITS header keyword to update the column with: ')
 
-    for i, image in reduction_metadata.headers_summary[1]['IMAGES']:
+    for i, image in enumerate(reduction_metadata.headers_summary[1]['IMAGES']):
         hdr = fits.getheader(os.path.join(red_dir, 'data', image))
         reduction_metadata.update_a_cell_to_layer('headers_summary', i, col_name, hdr[hdr_key])
 
@@ -49,4 +49,5 @@ if __name__ == '__main__':
         red_dir = sys.argv[1]
 
     #modify_red_status_table(red_dir)
-    modify_reduction_parameters(red_dir)
+    #modify_reduction_parameters(red_dir)
+    modify_headers_summary(red_dir)
