@@ -59,9 +59,13 @@ def calibrate_photometry(setup, reduction_metadata, log, cl_params={}):
     if len(match_index) > 0:
         fit = calc_phot_calib(params,star_catalog,match_index,log)
 
-        star_catalog = apply_phot_calib(star_catalog,fit,log)
+        # Update the star catalog with calibrated magnitdues only if a
+        # meaningful fit has been achieved
+        if fit != None:
+            star_catalog = apply_phot_calib(star_catalog,fit,log)
 
         output_to_metadata(setup, params, fit, star_catalog, reduction_metadata, log)
+        
     else:
 
         fit = [0,1]
@@ -474,17 +478,18 @@ def calc_phot_calib(params,star_catalog,match_index,log):
     fit = model_phot_transform2(params,star_catalog,
                                    match_index,fit,log)
 
-    for i in range(0,1,1):
+    if fit != None:
+        for i in range(0,1,1):
 
-        fit = model_phot_transform2(params,star_catalog,
-                                   match_index,fit,log, diagnostics=True)
+            fit = model_phot_transform2(params,star_catalog,
+                                       match_index,fit,log, diagnostics=True)
 
-        log.info('Fit result ['+str(i)+']: '+repr(fit))
+            log.info('Fit result ['+str(i)+']: '+repr(fit))
 
-        match_index = exclude_outliers(star_catalog,params,
-                                        match_index,fit,log)
+            match_index = exclude_outliers(star_catalog,params,
+                                            match_index,fit,log)
 
-    log.info('Final fitted photometric calibration: '+repr(fit))
+        log.info('Final fitted photometric calibration: '+repr(fit))
 
     return fit
 
@@ -671,108 +676,114 @@ def model_phot_transform2(params,star_catalog,match_index,fit,
     cmag = params['cat_mag_col']
     cerr = params['cat_err_col']
 
-    log.info('Using catalog photometry columns: '+cmag+', '+cerr)
+    if cmag not in star_catalog.colnames or cerr not in star_catalog.colnames:
+        log.info('WARNING: No catalog photometry available to automatically calibrate instrumental data in '+params['filter'])
 
-    cat_mags = star_catalog[cmag][match_index[:,1]]
-    cat_merrs = star_catalog[cerr][match_index[:,1]]
-    det_mags = star_catalog['mag'][match_index[:,0]]
-    det_mag_errs = star_catalog['mag_err'][match_index[:,0]]
+        return None
 
-    config = set_calibration_limits(params,log)
+    else:
+        log.info('Using catalog photometry columns: '+cmag+', '+cerr)
 
-    k = np.where(cat_merrs <= config['cat_merr_max'])[0]
-    cat_mags = cat_mags[k]
-    cat_merrs = cat_merrs[k]
-    det_mags = det_mags[k]
-    det_mag_errs = det_mag_errs[k]
+        cat_mags = star_catalog[cmag][match_index[:,1]]
+        cat_merrs = star_catalog[cerr][match_index[:,1]]
+        det_mags = star_catalog['mag'][match_index[:,0]]
+        det_mag_errs = star_catalog['mag_err'][match_index[:,0]]
 
-    xibin = 0.5
-    xbin1 = config['det_mags_max']
-    xbin2 = xbin1 - xibin
+        config = set_calibration_limits(params,log)
 
-    binned_data = []
-    peak_bin = []
-    xbins = []
-    ybins = []
+        k = np.where(cat_merrs <= config['cat_merr_max'])[0]
+        cat_mags = cat_mags[k]
+        cat_merrs = cat_merrs[k]
+        det_mags = det_mags[k]
+        det_mag_errs = det_mag_errs[k]
 
-    (hist_data,xedges,yedges) = np.histogram2d(det_mags,cat_mags,bins=24)
-    hist_data.T
+        xibin = 0.5
+        xbin1 = config['det_mags_max']
+        xbin2 = xbin1 - xibin
 
-    idx = np.where(hist_data < (hist_data.max()*0.05))
-    hist_data[idx] = 0
+        binned_data = []
+        peak_bin = []
+        xbins = []
+        ybins = []
 
-    idx = np.where(hist_data > (hist_data.max()*0.05))
-    xcenters = (xedges[:-1] + xedges[1:]) / 2
-    ycenters = (yedges[:-1] + yedges[1:]) / 2
+        (hist_data,xedges,yedges) = np.histogram2d(det_mags,cat_mags,bins=24)
+        hist_data.T
 
-    k1 = np.where(xcenters[idx[0]] < config['det_mags_max'])[0]
-    k2 = np.where(xcenters[idx[0]] >= config['det_mags_min'])[0]
-    k = list(set(k1).intersection(set(k2)))
+        idx = np.where(hist_data < (hist_data.max()*0.05))
+        hist_data[idx] = 0
 
-    xbins = xcenters[idx[0][k]]
-    ybins = []
-    for x in idx[0][k]:
+        idx = np.where(hist_data > (hist_data.max()*0.05))
+        xcenters = (xedges[:-1] + xedges[1:]) / 2
+        ycenters = (yedges[:-1] + yedges[1:]) / 2
 
-        k = np.where(hist_data[x,:] == (hist_data[x,:].max()))
-        ybins.append(ycenters[k][0])
+        k1 = np.where(xcenters[idx[0]] < config['det_mags_max'])[0]
+        k2 = np.where(xcenters[idx[0]] >= config['det_mags_min'])[0]
+        k = list(set(k1).intersection(set(k2)))
 
-    if len(xbins) <= 1 or len(ybins) <= 1:
-        raise ValueError('Insufficient datapoints selected by calibration magnitude limits')
-        exit()
+        xbins = xcenters[idx[0][k]]
+        ybins = []
+        for x in idx[0][k]:
 
-    fit = calc_transform(fit, xbins, ybins)
+            k = np.where(hist_data[x,:] == (hist_data[x,:].max()))
+            ybins.append(ycenters[k][0])
 
-    if diagnostics:
+        if len(xbins) <= 1 or len(ybins) <= 1:
+            raise ValueError('Insufficient datapoints selected by calibration magnitude limits')
+            exit()
 
-        f = open(os.path.join(params['red_dir'],'binned_phot.dat'),'w')
-        for i in range(0,len(xbins),1):
-            f.write(str(xbins[i])+' '+str(ybins[i])+'\n')
-        f.close()
+        fit = calc_transform(fit, xbins, ybins)
 
-        plot_file = os.path.join(params['red_dir'],
-                    'phot_model_transform_'+params['filter']+'.png')
-        if os.path.isfile(plot_file):
-            os.remove(plot_file)
+        if diagnostics:
 
-        fig = plt.figure(3)
+            f = open(os.path.join(params['red_dir'],'binned_phot.dat'),'w')
+            for i in range(0,len(xbins),1):
+                f.write(str(xbins[i])+' '+str(ybins[i])+'\n')
+            f.close()
 
-        plt_errs = False
-        if plt_errs:
-            plt.errorbar(star_catalog['mag'][match_index[:,0]],
-                     star_catalog[cmag][match_index[:,1]],
-                     xerr=star_catalog['mag_err'][match_index[:,0]],
-                     yerr=star_catalog[cerr][match_index[:,1]],
-                     color='m', fmt='none')
-        else:
-            plt.plot(star_catalog['mag'][match_index[:,0]],
-                     star_catalog[cmag][match_index[:,1]],'m.', markersize=1)
+            plot_file = os.path.join(params['red_dir'],
+                        'phot_model_transform_'+params['filter']+'.png')
+            if os.path.isfile(plot_file):
+                os.remove(plot_file)
 
-        plt.plot(xbins,ybins,'g+',markersize=4)
+            fig = plt.figure(3)
 
-        xplot = np.linspace(xbins.min(),xbins.max(),50)
-        yplot = phot_func(fit,xplot)
+            plt_errs = False
+            if plt_errs:
+                plt.errorbar(star_catalog['mag'][match_index[:,0]],
+                         star_catalog[cmag][match_index[:,1]],
+                         xerr=star_catalog['mag_err'][match_index[:,0]],
+                         yerr=star_catalog[cerr][match_index[:,1]],
+                         color='m', fmt='none')
+            else:
+                plt.plot(star_catalog['mag'][match_index[:,0]],
+                         star_catalog[cmag][match_index[:,1]],'m.', markersize=1)
 
-        plt.plot(xplot, yplot,'k-')
+            plt.plot(xbins,ybins,'g+',markersize=4)
 
-        plt.xlabel('Instrumental magnitude')
+            xplot = np.linspace(xbins.min(),xbins.max(),50)
+            yplot = phot_func(fit,xplot)
 
-        cat_name = 'VPHAS+'
-        if params['use_gaia_phot']: cat_name = 'Gaia'
-        plt.ylabel(cat_name+' catalog magnitude')
+            plt.plot(xplot, yplot,'k-')
 
-        [xmin,xmax,ymin,ymax] = plt.axis()
+            plt.xlabel('Instrumental magnitude')
 
-        plt.axis([xmax,xmin,ymax,ymin])
+            cat_name = 'VPHAS+'
+            if params['use_gaia_phot']: cat_name = 'Gaia'
+            plt.ylabel(cat_name+' catalog magnitude')
 
-        plt.grid()
+            [xmin,xmax,ymin,ymax] = plt.axis()
 
-        plt.savefig(plot_file)
+            plt.axis([xmax,xmin,ymax,ymin])
 
-        plt.close(3)
+            plt.grid()
 
-    log.info('Fitted parameters: '+repr(fit))
+            plt.savefig(plot_file)
 
-    return fit
+            plt.close(3)
+
+        log.info('Fitted parameters: '+repr(fit))
+
+        return fit
 
 def phot_weighted_mean(data,sigma):
     """Function to calculate the mean of a set of magnitude measurements,
