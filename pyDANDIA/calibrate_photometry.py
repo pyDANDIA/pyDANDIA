@@ -898,7 +898,8 @@ def output_to_metadata(setup, params, phot_fit, star_catalog, reduction_metadata
                                             params['metadata'],
                                             'star_catalog', log=log)
 
-    reduction_metadata.create_phot_calibration_layer(phot_fit)
+    if phot_fit != None:
+        reduction_metadata.create_phot_calibration_layer(phot_fit)
 
     reduction_metadata.save_a_layer_to_file(setup.red_dir,
                                             params['metadata'],
