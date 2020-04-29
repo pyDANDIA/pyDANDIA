@@ -595,8 +595,6 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
             import pdb;
             pdb.set_trace()
 
-        import pdb;
-        pdb.set_trace()
         log.info('Performing difference image photometry for '+str(len(ref_star_catalog))+' stars')
 
         for j in range(0, len(ref_star_catalog), 1):
