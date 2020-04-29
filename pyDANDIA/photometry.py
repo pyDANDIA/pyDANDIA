@@ -590,7 +590,8 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
         try:
             phot_table = aperture_photometry(difference_image-bkg.background, apertures, method='subpixel',
                          error=error)
-            print(phot_table)
+            for j in phot_table:
+                print(j)
             print(error.mean(), error.std(),ron, gain)
             print(bkg.background.mean(), bkg.background_rms.std())
             print(difference_image.mean(), difference_image.std())
