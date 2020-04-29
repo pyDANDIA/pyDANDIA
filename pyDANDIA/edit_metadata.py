@@ -42,6 +42,22 @@ def modify_headers_summary(red_dir):
 
     reduction_metadata.save_updated_metadata(red_dir,'pyDANDIA_metadata.fits')
 
+def restore_psf_dimensions_table(red_dir):
+
+    reduction_metadata = metadata.MetaData()
+    reduction_metadata.load_all_metadata(red_dir, 'pyDANDIA_metadata.fits')
+
+    reduction_metadata.remove_metadata_layer('psf_dimensions', red_dir,
+                                                'pyDANDIA_metadata.fits')
+
+    data = []
+    for i,factor in enumerate(range(2,4,1)):
+        r = input('Please enter the PSF radius for PSF factor '+str(factor)+': ')
+        data.append([str(i+1),factor,r])
+
+    reduction_metadata.create_psf_dimensions_layer(np.array(data))
+    reduction_metadata.save_updated_metadata(red_dir,'pyDANDIA_metadata.fits')
+
 if __name__ == '__main__':
     if len(sys.argv) == 1:
         red_dir = input('Please enter the path to the reduction directory: ')
@@ -50,4 +66,5 @@ if __name__ == '__main__':
 
     #modify_red_status_table(red_dir)
     #modify_reduction_parameters(red_dir)
-    modify_headers_summary(red_dir)
+    #modify_headers_summary(red_dir)
+    restore_psf_dimensions_table(red_dir)

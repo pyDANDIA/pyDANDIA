@@ -504,7 +504,7 @@ def update_reduction_metadata_with_config_file(reduction_metadata,
     if log != None:
         log.info('Updated metadata with pipeline configuration parameters')
 
-
+ 
 def parse_the_image_header(reduction_metadata, open_image):
     '''
     Update the metadata with the header keywords
