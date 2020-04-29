@@ -592,6 +592,7 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
                          error=error)
             print(phot_table)
             print(error)
+            print(bkg.background, bkg.background_rms)
         except ValueError:
             import pdb;
             pdb.set_trace()
