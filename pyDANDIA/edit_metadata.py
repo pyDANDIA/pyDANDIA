@@ -2,6 +2,7 @@ import os
 import sys
 from pyDANDIA import metadata
 from astropy.io import fits
+import numpy as np
 
 def modify_red_status_table(red_dir):
 
@@ -51,7 +52,7 @@ def restore_psf_dimensions_table(red_dir):
                                                 'pyDANDIA_metadata.fits')
 
     data = []
-    for i,factor in enumerate(range(2,4,1)):
+    for i,factor in enumerate(range(2,5,1)):
         r = input('Please enter the PSF radius for PSF factor '+str(factor)+': ')
         data.append([str(i+1),factor,r])
 
