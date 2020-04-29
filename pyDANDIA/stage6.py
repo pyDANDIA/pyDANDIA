@@ -621,6 +621,8 @@ def photometry_on_the_difference_image_stamp(setup, reduction_metadata, log, sta
                                                                                                 ref_exposure_time,
                                                                                                 image_id)
 
+    print('2', differential_photometry[3])
+
     table_data = [Column(name='star_id', data=differential_photometry[0]),
                   Column(name='diff_flux', data=differential_photometry[1]),
                   Column(name='diff_flux_err', data=differential_photometry[2]),
@@ -642,6 +644,8 @@ def photometry_on_the_difference_image_stamp(setup, reduction_metadata, log, sta
 
     photometric_table = Table(data=table_data)
 
+    print('3', photometric_table['magnitude'])
+    
     # return table
     return differential_photometry, control_zone, photometric_table
 
@@ -1158,7 +1162,7 @@ def store_stamp_photometry_to_array(setup, conn, params, reduction_metadata,
     photometry_data[star_dataset_index,image_dataset_index,22] = phot_table['local_background_err'][:].astype('float')
 
     print(phot_table['magnitude'][:].astype('float'))
-    
+
     log.info('Completed transfer of data to the photometry array')
 
     return photometry_data

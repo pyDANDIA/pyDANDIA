@@ -789,6 +789,9 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
                                        list_radius]
     log.info('Completed photometry on difference image')
 
+    print(list_mag)
+    print(list_cal_mag)
+    
     # return  difference_image_photometry, control_zone
     return np.array(difference_image_photometry), 1
 
