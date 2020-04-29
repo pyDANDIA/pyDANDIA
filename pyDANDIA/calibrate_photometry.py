@@ -61,7 +61,7 @@ def calibrate_photometry(setup, reduction_metadata, log, cl_params={}):
 
         # Update the star catalog with calibrated magnitdues only if a
         # meaningful fit has been achieved
-        if fit != None:
+        if fit[0] > -9999.0:
             star_catalog = apply_phot_calib(star_catalog,fit,log)
 
         output_to_metadata(setup, params, fit, star_catalog, reduction_metadata, log)
@@ -487,7 +487,7 @@ def calc_phot_calib(params,star_catalog,match_index,log):
     fit = model_phot_transform2(params,star_catalog,
                                    match_index,fit,log)
 
-    if fit != None:
+    if fit[0] > -9999.0:
         for i in range(0,1,1):
 
             fit = model_phot_transform2(params,star_catalog,
@@ -708,7 +708,7 @@ def model_phot_transform2(params,star_catalog,match_index,fit,
     if cmag not in star_catalog.colnames or cerr not in star_catalog.colnames:
         log.info('WARNING: No catalog photometry available to automatically calibrate instrumental data in '+params['filter'])
 
-        return None
+        return [-9999.9999, -9999.9999]
 
     else:
         log.info('Using catalog photometry columns: '+cmag+', '+cerr)
@@ -918,8 +918,7 @@ def output_to_metadata(setup, params, phot_fit, star_catalog, reduction_metadata
                                             params['metadata'],
                                             'star_catalog', log=log)
 
-    if phot_fit != None:
-        reduction_metadata.create_phot_calibration_layer(phot_fit)
+    reduction_metadata.create_phot_calibration_layer(phot_fit)
 
     reduction_metadata.save_a_layer_to_file(setup.red_dir,
                                             params['metadata'],
