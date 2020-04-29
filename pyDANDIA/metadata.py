@@ -152,14 +152,14 @@ class MetaData:
             if 'Y' in str(confirm).upper():
                 delattr(self, layer_name)
                 self.save_updated_metadata(red_dir,metadata_file)
-                print(layer_name+' table removed from '+os.path.join(red_dir, metadata_file)
+                print(layer_name+' table removed from '+os.path.join(red_dir, metadata_file))
 
             else:
                 print(layer_name+' NOT removed from metadata')
 
         else:
             print('No '+layer_name+' table found in metadata object')
-            
+
     def create_a_new_layer_from_table(self, layer_name, table_data):
         """
         Add a new layer to the metadata object from an astropy Table
