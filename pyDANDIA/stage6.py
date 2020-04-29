@@ -1157,7 +1157,7 @@ def store_stamp_photometry_to_array(setup, conn, params, reduction_metadata,
     photometry_data[star_dataset_index,image_dataset_index,21] = phot_table['local_background'][:].astype('float')
     photometry_data[star_dataset_index,image_dataset_index,22] = phot_table['local_background_err'][:].astype('float')
 
-    log.info('Completed build of the photometry array')
+    log.info('Completed transfer of data to the photometry array')
 
     return photometry_data
 
