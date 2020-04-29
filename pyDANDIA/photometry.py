@@ -612,6 +612,8 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
             if ref_flux <= 0.0 or error_ref_flux <= 0.0:
                 good_fit = False
 
+            print('PHOT 1: ',good_fit, ref_flux, error_ref_flux)
+
             use_psf_photometry = False
             if use_psf_photometry and good_fit:
 
@@ -661,6 +663,7 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
 
                 good_fit = False
 
+            print('PHOT 2: ', good_fit)
 
             if good_fit == True:
 
@@ -674,7 +677,7 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
                     flux_err_tot = (error_ref_flux ** 2*ref_exposure_time + flux_err**2/phot_scale_factor**2+
                                     (flux*error_phot_scale_factor/phot_scale_factor**2)**2) ** 0.5
 
-
+                    print('PHOT 3: ',flux_tot, flux_err_tot, difference_image[int(positions[j][1]),int(positions[j][0])], bkg.background[int(positions[j][1]),int(positions[j][0])])
 
                     if (flux_tot > 0.0) and (flux_err_tot > 0.0) and (difference_image[int(positions[j][1]),int(positions[j][0])] != 0) \
                                 and (bkg.background[int(positions[j][1]),int(positions[j][0])]!=0) and (flux!=0) and (flux_err!=0):
@@ -727,6 +730,8 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
                     #           ' No photometry possible due to poor reference frame measurement')
 
                     good_fit = False
+
+            print('PHOT 4: ', good_fit)
 
             if good_fit == False:
 
@@ -791,7 +796,7 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
 
     print(list_mag)
     print(list_cal_mag)
-    
+
     # return  difference_image_photometry, control_zone
     return np.array(difference_image_photometry), 1
 
