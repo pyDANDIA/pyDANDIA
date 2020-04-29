@@ -590,6 +590,7 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
         try:
             phot_table = aperture_photometry(difference_image-bkg.background, apertures, method='subpixel',
                          error=error)
+            print(phot_table)
         except ValueError:
             import pdb;
             pdb.set_trace()
@@ -677,7 +678,10 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
                     flux_err_tot = (error_ref_flux ** 2*ref_exposure_time + flux_err**2/phot_scale_factor**2+
                                     (flux*error_phot_scale_factor/phot_scale_factor**2)**2) ** 0.5
 
-                    print('PHOT 3: ',flux_tot, flux_err_tot, difference_image[int(positions[j][1]),int(positions[j][0])], bkg.background[int(positions[j][1]),int(positions[j][0])])
+                    print('PHOT 3: ',flux_tot, flux_err_tot,
+                        difference_image[int(positions[j][1]),int(positions[j][0])],
+                        bkg.background[int(positions[j][1]),int(positions[j][0])],
+                        flux, flux_err)
 
                     if (flux_tot > 0.0) and (flux_err_tot > 0.0) and (difference_image[int(positions[j][1]),int(positions[j][0])] != 0) \
                                 and (bkg.background[int(positions[j][1]),int(positions[j][0])]!=0) and (flux!=0) and (flux_err!=0):
