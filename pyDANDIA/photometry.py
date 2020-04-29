@@ -661,7 +661,6 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
 
                 good_fit = False
 
-            log.info('Star '+str(j)+' good fit '+repr(good_fit))
 
             if good_fit == True:
 
@@ -676,10 +675,7 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
                                     (flux*error_phot_scale_factor/phot_scale_factor**2)**2) ** 0.5
 
 
-                    log.info(str(flux_tot))
-                    log.info(str(flux_err_tot))
-                    log.info(str(difference_image[int(positions[j][1]),int(positions[j][0])]))
-                    log.info(str(bkg.background[int(positions[j][1]),int(positions[j][0])]))
+
                     if (flux_tot > 0.0) and (flux_err_tot > 0.0) and (difference_image[int(positions[j][1]),int(positions[j][0])] != 0) \
                                 and (bkg.background[int(positions[j][1]),int(positions[j][0])]!=0) and (flux!=0) and (flux_err!=0):
 
@@ -793,8 +789,6 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
                                        list_radius]
     log.info('Completed photometry on difference image')
 
-    exit()
-    
     # return  difference_image_photometry, control_zone
     return np.array(difference_image_photometry), 1
 
