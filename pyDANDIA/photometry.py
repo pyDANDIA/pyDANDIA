@@ -679,6 +679,8 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
                         log.info(' -> Star ' + str(j) + ' at position (' + \
                                    str(xstar) + ', ' + str(ystar) + ') flux='+str(flux)+', flux_err='+str(flux_err)+\
                                    ', flux_tot='+str(flux_tot)+', flux_err_tot='+str(flux_err_tot)+\
+                                   ', ref_flux='+str(ref_flux)+', ref_flux_err='+str(error_ref_flux)+\
+                                   ', phot_table entry='+str(phot_table[j][3])+'+/-'+str(phot_table[j][4])+', phot scale factor='+str(phot_scale_factor)+\
                                    ', diff image at position='+str(difference_image[int(positions[j][1]),int(positions[j][0])])+\
                                    ', bkgd at position='+str(bkg.background[int(positions[j][1]),int(positions[j][0])]))
 
