@@ -95,7 +95,7 @@ def run_stage_stand_alone():
 
     elif params['stage'] == 'stage6':
 
-        (status, report) = stage6.run_stage6(setup)
+        (status, report) = stage6.run_stage6(setup, per_star_logging=params['per_star_logging'])
 
     elif params['stage'] == 'image_coadd':
 
@@ -196,6 +196,11 @@ def get_args():
         params['use_gaia_phot'] = True
     else:
         params['use_gaia_phot'] = False
+
+    if '-per-star-logging' in argv or '-per_star_logging' in argv:
+        params['per_star_logging'] = True
+    else:
+        params['per_star_logging'] = False
 
     params['dx'] = 0.0
     params['dy'] = 0.0
