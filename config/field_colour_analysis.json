@@ -1,0 +1,178 @@
+{
+    "db_file_path": {
+        "value": "/Users/rstreet1/ROMEREA/ROME-FIELD-19/ROME-FIELD-19_phot.db",
+        "comment": "Path to the multi-filter photometry database for this field",
+        "format": "string",
+        "unit": ""
+    },
+    "target_lightcurve_files": {
+        "value": {"g": "/Users/rstreet1/ROMEREA/ROME-FIELD-19/star_78284_ROME-FIELD-01_lsc-doma-1m0-05-fa15_gp.dat",
+                  "r": "/Users/rstreet1/ROMEREA/ROME-FIELD-19/star_78284_ROME-FIELD-01_lsc-doma-1m0-05-fa15_rp.dat",
+                  "i": "/Users/rstreet1/ROMEREA/ROME-FIELD-19/star_78284_ROME-FIELD-01_lsc-doma-1m0-05-fa15_ip.dat"},
+        "comment": "Paths to photometry HDF5 files for g, r, i photometry data for the primary reference, or None",
+        "format": "string",
+        "unit": ""
+    },
+    "output_dir": {
+        "value": "/Users/rstreet1/ROMEREA/ROME-FIELD-19/",
+        "comment": "Directory path for output",
+        "format": "string",
+        "unit": ""
+    },
+    "target_field_id": {
+        "value": 78284,
+        "comment": "Field star ID of a specific star in the database or None",
+        "format": "integer",
+        "unit": ""
+    },
+    "target_ra": {
+        "value": "17:51:55.92",
+        "comment": "Right ascension of field centre or target in sexigesimal format, cannot be None",
+        "format": "string",
+        "unit": ""
+    },
+    "target_dec": {
+        "value": "-29:59:23.1",
+        "comment": "Declination of field centre or target in sexigesimal format, cannot be None",
+        "format": "string",
+        "unit": ""
+    },
+    "selection_radius": {
+        "value": 2.0,
+        "comment": "Maximum radius used to select stars close to the target location",
+        "format": "float",
+        "unit": "arcmin"
+    },
+    "source_fluxes": {
+        "value": ["None", "None", "None:"],
+        "comment": "Measured source flux values in SDSS g, r, and i bands, in order or list with None entries",
+        "format": "float",
+        "unit": "e-/s"
+    },
+    "source_flux_errors": {
+        "value": ["None", "None", "None:"],
+        "comment": "Uncertainties on measured source flux values in SDSS g, r, and i bands, in order or list with None entries",
+        "format": "float",
+        "unit": "e-/s"
+    },
+    "blend_fluxes": {
+        "value": ["None", "None", "None:"],
+        "comment": "Measured blend flux values in SDSS g, r, and i bands, in order or list with None entries",
+        "format": "float",
+        "unit": "e-/s"
+    },
+    "blend_flux_errors": {
+        "value": ["None", "None", "None:"],
+        "comment": "Uncertainties on measured blend flux values in SDSS g, r, and i bands, in order or list with None entries",
+        "format": "float",
+        "unit": "e-/s"
+    },
+    "RC_ri_range": {
+        "value": [0.8, 1.2],
+        "comment": "Minimum and maximum SDSS (r-i) colours to use for Red Clump star selection",
+        "format": "float",
+        "unit": "mag"
+    },
+    "RC_gi_range": {
+        "value": [2.5, 3.5],
+        "comment": "Minimum and maximum SDSS (g-i) colours to use for Red Clump star selection",
+        "format": "float",
+        "unit": "mag"
+    },
+    "RC_gr_range": {
+        "value": [1.5, 2.2],
+        "comment": "Minimum and maximum SDSS (g-r) colours to use for Red Clump star selection",
+        "format": "float",
+        "unit": "mag"
+    },
+    "RC_i_range": {
+        "value": [15.5, 16.5],
+        "comment": "Minimum and maximum SDSS-i magnitudes to use for Red Clump star selection",
+        "format": "float",
+        "unit": "mag"
+    },
+    "RC_r_range": {
+        "value": [16.2, 17.5],
+        "comment": "Minimum and maximum SDSS-r magnitudes to use for Red Clump star selection",
+        "format": "float",
+        "unit": "mag"
+    },
+    "RC_g_range": {
+        "value": [17.8, 19.5],
+        "comment": "Minimum and maximum SDSS-g magnitudes to use for Red Clump star selection",
+        "format": "float",
+        "unit": "mag"
+    },
+    "interactive": {
+        "value": "False",
+        "comment": "Switch to display interactive plots",
+        "format": "string",
+        "unit": ""
+    },
+    "plot_i_range": {
+        "value": [12.0, 20.0],
+        "comment": "Minimum and maximum SDSS-i magnitudes to use for plots",
+        "format": "float",
+        "unit": "mag"
+    },
+    "plot_r_range": {
+        "value": [13.0, 21.0],
+        "comment": "Minimum and maximum SDSS-r magnitudes to use for plots",
+        "format": "float",
+        "unit": "mag"
+    },
+    "plot_g_range": {
+        "value": [13.0, 22.5],
+        "comment": "Minimum and maximum SDSS-g magnitudes to use for plots",
+        "format": "float",
+        "unit": "mag"
+    },
+    "plot_ri_range": {
+        "value": [0.0, 2.0],
+        "comment": "Minimum and maximum SDSS-i magnitudes to use for plots",
+        "format": "float",
+        "unit": "mag"
+    },
+    "plot_gr_range": {
+        "value": [0.0, 3.0],
+        "comment": "Minimum and maximum SDSS-r magnitudes to use for plots",
+        "format": "float",
+        "unit": "mag"
+    },
+    "plot_gi_range": {
+        "value": [0.0, 6.0],
+        "comment": "Minimum and maximum SDSS-g magnitudes to use for plots",
+        "format": "float",
+        "unit": "mag"
+    },
+    "add_rc_centroid": {
+        "value": "true",
+        "comment": "Switch to add a marker for the Red Clump centroid on plots",
+        "format": "string",
+        "unit": ""
+    },
+    "add_blend": {
+        "value": "true",
+        "comment": "Switch to add a marker for the blend on plots",
+        "format": "string",
+        "unit": ""
+    },
+    "add_source": {
+        "value": "true",
+        "comment": "Switch to add a marker for the source on plots",
+        "format": "string",
+        "unit": ""
+    },
+    "add_source_trail": {
+        "value": "true",
+        "comment": "Switch to add a marker for the source colour trail on plots",
+        "format": "string",
+        "unit": ""
+    },
+    "add_crosshairs": {
+        "value": "true",
+        "comment": "Switch to add crosshairs to mark the position of the source in plots",
+        "format": "string",
+        "unit": ""
+    }
+}

@@ -20,6 +20,7 @@ from pyDANDIA import  event_colour_analysis
 from pyDANDIA import  spectral_type_data
 from pyDANDIA import  red_clump_utilities
 from pyDANDIA import  config_utils
+from pyDANDIA import  lightcurves
 
 def run_field_colour_analysis():
     """Function to analyse the colour information for a given field pointing"""
@@ -34,28 +35,30 @@ def run_field_colour_analysis():
 
     (photometry, stars) = extract_reference_instrument_calibrated_photometry(conn,log)
 
-    selected_stars = find_stars_close_to_target(config,stars,log)
+    target = load_target_timeseries_photometry(config,photometry,log)
+
+    selected_stars = find_stars_close_to_target(config,stars,target,log)
 
     photometry = calculate_colours(photometry,stars,log)
+
+    source = calc_source_lightcurve(source, target, log)
 
     # Add QC?
     selected_phot = extract_local_star_photometry(photometry,selected_stars,log)
 
-    # Add source star lightcurve
-    # Add to plots position of source and blend
-
     RC = localize_red_clump_db(config,photometry,stars,selected_phot,log)
 
-    # Add output latex table option
     RC = event_colour_analysis.measure_RC_offset(config,RC,log)
+    photometry_classes.output_red_clump_data_latex(config, RC, log)
 
-    plot_colour_mag_diagram(config, photometry, stars, selected_phot, RC, 'r', 'i', 'i', log)
-    plot_colour_mag_diagram(config, photometry, stars, selected_phot, RC, 'r', 'i', 'r', log)
-    plot_colour_mag_diagram(config, photometry, stars, selected_phot, RC, 'g', 'r', 'g', log)
-    plot_colour_mag_diagram(config, photometry, stars, selected_phot, RC, 'g', 'i', 'g', log)
+    plot_colour_mag_diagram(config, photometry, stars, selected_phot, RC, source, blend, 'r', 'i', 'i', log)
+    plot_colour_mag_diagram(config, photometry, stars, selected_phot, RC, source, blend, 'r', 'i', 'r', log)
+    plot_colour_mag_diagram(config, photometry, stars, selected_phot, RC, source, blend, 'g', 'r', 'g', log)
+    plot_colour_mag_diagram(config, photometry, stars, selected_phot, RC, source, blend, 'g', 'i', 'g', log)
 
     plot_colour_colour_diagram(config, photometry, RC, log)
 
+    # output source, blend, RC, target data in json
     conn.close()
 
     logs.close_log(log)
@@ -72,13 +75,27 @@ def get_args():
 
     config = config_utils.build_config_from_json(config_file)
 
-    for key in ['interactive', 'add_rc_centroid']:
+    # Handle those keywords which may have Boolean entries
+    boolean_keys = ['interactive', 'add_rc_centroid', 'add_blend',
+                    'add_source', 'add_source_trail', 'add_crosshairs']
+    for key in boolean_keys:
         if 'true' in str(config[key]).lower():
             config[key] = True
         else:
             config[key] = False
 
-    for key in ['source_fluxes', 'source_flux_errors', 'blend_fluxes', 'blend_flux_errors']:
+    # Handle those keywords which may have None values:
+    none_allowed_keys = ['target_field_id']
+    for key in none_allowed_keys:
+        if 'none' in str(config[key]).lower():
+            config[key] = None
+
+    # Handle those keuywords which have list entries which may have None
+    # entries
+    none_allowed_keys = ['source_fluxes', 'source_flux_errors',
+                         'blend_fluxes', 'blend_flux_errors']
+
+    for key in none_allowed_keys:
         list = config[key]
         new_list = []
         for item in list:
@@ -87,6 +104,18 @@ def get_args():
             else:
                 new_list.append(item)
         config[key] = new_list
+
+    # Handle dictionary keywords which may have None entries
+    none_allowed_keys = ['target_lightcurve_files']
+    for key in none_allowed_keys:
+        orig_dict = config[key]
+        new_dict = {}
+        for key, value in orig_dict.items():
+            if 'none' == str(value).lower():
+                new_dict[key] = None
+            else:
+                new_dict[key] = value
+        config[key] = new_dict
 
     return config
 
@@ -131,17 +160,18 @@ def calc_source_blend_params(params,log):
 
     return source, blend
 
-def extract_reference_instrument_calibrated_photometry(conn,log):
-    """Function to extract from the phot_db the calibrated photometry for stars
-    in the field from the data from the photometric reference instrument.
-    By default this is defined to be lsc.doma.1m0a.fa15.
-    """
-    def fetch_star_phot(star_id,phot_table):
+def fetch_star_phot(star_id,phot_table):
         jdx = np.where(phot_table['star_id'] == star_id)[0]
         if len(jdx) == 0:
             return 0.0,0.0
         else:
             return phot_table['calibrated_mag'][jdx],phot_table['calibrated_mag_err'][jdx]
+
+def extract_reference_instrument_calibrated_photometry(conn,log):
+    """Function to extract from the phot_db the calibrated photometry for stars
+    in the field from the data from the photometric reference instrument.
+    By default this is defined to be lsc.doma.1m0a.fa15.
+    """
 
     facility_code = phot_db.get_facility_code({'site': 'lsc',
                                                'enclosure': 'doma',
@@ -228,7 +258,7 @@ def extract_reference_instrument_calibrated_photometry(conn,log):
 
     return photometry, stars
 
-def find_stars_close_to_target(config,stars,log):
+def find_stars_close_to_target(config,stars,target,log):
     """Function to identify those stars which are within the search radius of
     the target_ra, dec given"""
 
@@ -323,13 +353,119 @@ def calculate_colours(photometry,stars,log):
 
     return photometry
 
+def load_target_timeseries_photometry(config,photometry,log):
+    """Function to read in timeseries photometry extracted for a single star"""
+
+    target = photometry_classes.Star()
+
+    if config['target_field_id'] != None:
+
+        target.star_index = config['target_field_id']
+        target.ra = config['target_ra']
+        target.dec = config['target_dec']
+        (target.g,target.sig_g) = fetch_star_phot(target.star_index,photometry['phot_table_g'])
+        (target.r,target.sig_r) = fetch_star_phot(target.star_index,photometry['phot_table_r'])
+        (target.i,target.sig_i) = fetch_star_phot(target.star_index,photometry['phot_table_i'])
+
+        log.info('\n')
+        log.info('Target identified as star '+str(target.star_index)+\
+                    ' in the combined ROME catalog, with parameters:')
+        log.info('RA = '+str(target.ra)+' Dec = '+str(target.dec))
+        log.info('Measured ROME photometry, calibrated to the VPHAS+ scale:')
+        log.info(target.summary(show_mags=True))
+
+        if target.i != None and target.r != None:
+
+            target.compute_colours(use_inst=True)
+
+            log.info(target.summary(show_mags=False,show_colours=True))
+
+        target.transform_to_JohnsonCousins()
+
+        log.info(target.summary(show_mags=False,johnsons=True))
+
+    for f in ['i', 'r', 'g']:
+
+        file_path = config['target_lightcurve_files'][f]
+
+        if file_path != None:
+
+            data = lightcurves.read_pydandia_lightcurve(file_path, skip_zero_entries=True)
+
+            lc = table.Table()
+            lc['hjd'] = data['hjd']
+            lc['mag'] = data['calibrated_mag']
+            lc['mag_err'] = data['calibrated_mag_err']
+            (fluxes,fluxerrs) = photometry_classes.mag_to_flux_pylima(lc['mag'],lc['mag_err'])
+            lc['flux'] = fluxes
+            lc['flux_err'] = fluxerrs
+
+            target.lightcurves[f] = lc
+
+            log.info('Read '+str(len(lc))+' datapoints from the '+f\
+                        +'-band lightcurve for the target')
+
+        else:
+
+            log.info('No lightcurve file specified for the target in '+f+'-band')
+
+    return target
+
+def calc_source_lightcurve(source, target, log):
+    """Function to calculate the lightcurve of the source, based on the
+    model source flux and the change in magnitude from the lightcurve"""
+
+    log.info('\n')
+
+    for f in ['i', 'r', 'g']:
+
+        idx = np.where(target.lightcurves[f]['mag_err'] > 0)[0]
+
+        dmag = np.zeros(len(target.lightcurves[f]['mag']))
+        dmag.fill(99.99999)
+        dmerr = np.zeros(len(target.lightcurves[f]['mag']))
+        dmerr.fill(-9.9999)
+
+        dmag[idx] = target.lightcurves[f]['mag'][idx] - getattr(target,f)
+        dmerr[idx] = np.sqrt( (target.lightcurves[f]['mag_err'][idx])**2 + getattr(target,'sig_'+f)**2 )
+
+        lc = Table()
+        lc['images'] = target.lightcurves[f]['images']
+        lc['hjd'] = target.lightcurves[f]['hjd']
+        lc['mag'] = getattr(source,f) + dmag
+        lc['mag_err'] = np.zeros(len(lc['mag']))
+        lc['mag_err'] = dmerr
+
+        lc['mag_err'][idx] = np.sqrt( dmerr[idx]*dmerr[idx] + (getattr(source,'sig_'+f))**2 )
+
+        log.info('Calculated the source flux lightcurve in '+f)
+
+        source.lightcurves[f] = lc
+
+    return source
+
 def plot_colour_mag_diagram(params, photometry, stars, selected_stars,
-                            RC, blue_filter, red_filter,
+                            RC, source, blend, blue_filter, red_filter,
                             yaxis_filter, log):
     """Function to plot a colour-magnitude diagram, highlighting the data for
     local stars close to the target in a different colour from the rest,
     and indicating the position of both the target and the Red Clump centroid.
     """
+
+    def calc_colour_lightcurve(blue_lc, red_lc, y_lc):
+
+        idx1 = np.where( red_lc['mag_err'] > 0.0 )[0]
+        idx2 = np.where( blue_lc['mag_err'] > 0.0 )[0]
+        idx3 = np.where( y_lc['mag_err'] > 0.0 )[0]
+        idx = set(idx1).intersection(set(idx2))
+        idx = list(idx.intersection(set(idx3)))
+
+        mags = y_lc['mag'][idx]
+        magerr = y_lc['mag_err'][idx]
+        cols = blue_lc['mag'][idx] - red_lc['mag'][idx]
+        colerr = np.sqrt(blue_lc['mag_err'][idx]**2 + red_lc['mag_err'][idx]**2)
+
+        return mags, magerr, cols, colerr
 
     col_key = blue_filter+red_filter
 
@@ -356,6 +492,35 @@ def plot_colour_mag_diagram(params, photometry, stars, selected_stars,
                  yerr=getattr(RC,'sig_'+yaxis_filter),
                  xerr=getattr(RC,'sig_'+col_key),
                  color='g', marker='s',markersize=10, label='Red Clump centroid')
+
+    if getattr(blend,blue_filter) != None and getattr(blend,red_filter) != None \
+        and params['add_blend']:
+
+        plt.errorbar(getattr(blend,col_key), getattr(blend,yaxis_filter),
+                 yerr = getattr(blend,'sig_'+yaxis_filter),
+                 xerr = getattr(blend,'sig_'+col_key), color='b',
+                 marker='v',markersize=10, label='Blend')
+
+    if getattr(source,blue_filter) != None and getattr(source,red_filter) != None\
+        and params['add_source']:
+
+        plt.errorbar(getattr(source,col_key), getattr(source,yaxis_filter),
+                 yerr = getattr(source,'sig_'+yaxis_filter),
+                 xerr = getattr(source,'sig_'+col_key), color='m',
+                 marker='d',markersize=10, label='Source crosshairs')
+
+        if params['add_crosshairs']:
+            plot_crosshairs(fig,getattr(source,col_key),getattr(source,yaxis_filter),'m')
+
+        if params['add_source_trail']:
+            red_lc = source.lightcurves[red_filter]
+            blue_lc = source.lightcurves[blue_filter]
+            y_lc = source.lightcurves[yaxis_filter]
+
+            (smags, smagerr, scols, scolerr) = calc_colour_lightcurve(blue_lc, red_lc, y_lc)
+
+            plt.errorbar(scols, smags, yerr = smagerr, xerr = scolerr,
+                         color='m', marker='d',markersize=10, label='Source')
 
     plt.xlabel('SDSS ('+blue_filter+'-'+red_filter+') [mag]')
 
@@ -499,6 +664,22 @@ def plot_colour_colour_diagram(params,photometry,RC,log):
     plt.close(1)
 
     log.info('Colour-colour diagram output to '+plot_file)
+
+def plot_crosshairs(fig,xvalue,yvalue,linecolour):
+
+    ([xmin,xmax,ymin,ymax]) = plt.axis()
+
+    xdata = np.linspace(xmin,xmax,10.0)
+    ydata = np.zeros(len(xdata))
+    ydata.fill(yvalue)
+
+    plt.plot(xdata, ydata, linecolour+'-', alpha=0.5)
+
+    ydata = np.linspace(ymin,ymax,10.0)
+    xdata = np.zeros(len(ydata))
+    xdata.fill(xvalue)
+
+    plt.plot(xdata, ydata, linecolour+'-', alpha=0.5)
 
 def localize_red_clump_db(config,photometry,stars,selected_phot,log):
     """Function to calculate the centroid of the Red Clump stars in a

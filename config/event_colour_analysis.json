@@ -1,0 +1,13 @@
+{  "event_cmd_analysis_results": {
+        "value": "/Users/rstreet1/ROMEREA/ROME-FIELD-19/star_78284_ROME-FIELD-01_CMD_analysis.dat",
+        "comment": "Path to file with event dereddened photometric parameters",
+        "format": "string",
+        "unit": ""
+    },
+    "output_dir": {
+        "value": "/Users/rstreet1/ROMEREA/ROME-FIELD-01/",
+        "comment": "Directory path for output",
+        "format": "string",
+        "unit": ""
+    },
+}
