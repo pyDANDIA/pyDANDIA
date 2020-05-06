@@ -11,7 +11,7 @@ from os import getcwd, path, remove, environ
 import numpy as np
 from astropy import table
 from astropy.coordinates import SkyCoord
-from astropy import units
+from astropy import units as u
 import matplotlib.pyplot as plt
 from pyDANDIA import  photometry_classes
 from pyDANDIA import  phot_db
@@ -51,10 +51,10 @@ def run_field_colour_analysis():
     RC = event_colour_analysis.measure_RC_offset(config,RC,log)
     photometry_classes.output_red_clump_data_latex(config, RC, log)
 
-    plot_colour_mag_diagram(config, photometry, stars, selected_phot, RC, source, blend, 'r', 'i', 'i', log)
-    plot_colour_mag_diagram(config, photometry, stars, selected_phot, RC, source, blend, 'r', 'i', 'r', log)
-    plot_colour_mag_diagram(config, photometry, stars, selected_phot, RC, source, blend, 'g', 'r', 'g', log)
-    plot_colour_mag_diagram(config, photometry, stars, selected_phot, RC, source, blend, 'g', 'i', 'g', log)
+    plot_colour_mag_diagram(config, photometry, stars, selected_stars, selected_phot, RC, source, blend, 'r', 'i', 'i', log)
+    plot_colour_mag_diagram(config, photometry, stars, selected_stars, selected_phot, RC, source, blend, 'r', 'i', 'r', log)
+    plot_colour_mag_diagram(config, photometry, stars, selected_stars, selected_phot, RC, source, blend, 'g', 'r', 'g', log)
+    plot_colour_mag_diagram(config, photometry, stars, selected_stars, selected_phot, RC, source, blend, 'g', 'i', 'g', log)
 
     plot_colour_colour_diagram(config, photometry, RC, log)
 
@@ -268,13 +268,15 @@ def find_stars_close_to_target(config,stars,target,log):
         det_stars = SkyCoord(stars['ra'], stars['dec'], unit="deg")
 
         t = SkyCoord(target.ra, target.dec, unit="deg")
-
         seps = det_stars.separation(t)
 
         jdx = np.where(seps.deg < tol)[0]
 
         log.info('Identified '+str(len(jdx))+' stars within '+str(round(tol*60.0,1))+\
                 'arcmin of the target')
+
+        if len(jdx) == 0:
+            raise ValueError('No stars identified within the given selection radius')
 
     else:
         jdx = np.arange(0,len(stars),1)
@@ -287,12 +289,12 @@ def extract_local_star_photometry(photometry,selected_stars,log):
     """Function to extract the photometry for stars local to the given
     target coordinates"""
 
-    g = table.MaskedColumn(data=photometry['g'], name='g', mask=selected_stars)
-    r = table.MaskedColumn(data=photometry['r'], name='r', mask=selected_stars)
-    i = table.MaskedColumn(data=photometry['i'], name='i', mask=selected_stars)
-    gr = table.MaskedColumn(data=photometry['gr'], name='gr', mask=selected_stars)
-    ri = table.MaskedColumn(data=photometry['ri'], name='ri', mask=selected_stars)
-    gi = table.MaskedColumn(data=photometry['gi'], name='gi', mask=selected_stars)
+    g = table.Column(data=photometry['g'][selected_stars], name='g')
+    r = table.Column(data=photometry['r'][selected_stars], name='r')
+    i = table.Column(data=photometry['i'][selected_stars], name='i')
+    gr = table.Column(data=photometry['gr'][selected_stars], name='gr')
+    ri = table.Column(data=photometry['ri'][selected_stars], name='ri')
+    gi = table.Column(data=photometry['gi'][selected_stars], name='gi')
     selected_phot = table.Table([g,r,i,gr,gi,ri])
 
     log.info('Extracted the photometry for '+str(len(selected_phot))+\
@@ -361,8 +363,10 @@ def load_target_timeseries_photometry(config,photometry,log):
     if config['target_field_id'] != None:
 
         target.star_index = config['target_field_id']
-        target.ra = config['target_ra']
-        target.dec = config['target_dec']
+        t = SkyCoord(config['target_ra']+' '+config['target_dec'],
+                        unit=(u.hourangle,u.degree), frame='icrs')
+        target.ra = t.ra.value
+        target.dec = t.dec.value
         (target.g,target.sig_g) = fetch_star_phot(target.star_index,photometry['phot_table_g'])
         (target.r,target.sig_r) = fetch_star_phot(target.star_index,photometry['phot_table_r'])
         (target.i,target.sig_i) = fetch_star_phot(target.star_index,photometry['phot_table_i'])
@@ -429,14 +433,19 @@ def calc_source_lightcurve(source, target, log):
         dmag[idx] = target.lightcurves[f]['mag'][idx] - getattr(target,f)
         dmerr[idx] = np.sqrt( (target.lightcurves[f]['mag_err'][idx])**2 + getattr(target,'sig_'+f)**2 )
 
-        lc = Table()
-        lc['images'] = target.lightcurves[f]['images']
+        lc = table.Table()
         lc['hjd'] = target.lightcurves[f]['hjd']
-        lc['mag'] = getattr(source,f) + dmag
+        if getattr(source,f) != None:
+            lc['mag'] = getattr(source,f) + dmag
+        else:
+            lc['mag'] = dmag
         lc['mag_err'] = np.zeros(len(lc['mag']))
         lc['mag_err'] = dmerr
 
-        lc['mag_err'][idx] = np.sqrt( dmerr[idx]*dmerr[idx] + (getattr(source,'sig_'+f))**2 )
+        if getattr(source,'sig_'+f) != None:
+            lc['mag_err'][idx] = np.sqrt( dmerr[idx]*dmerr[idx] + (getattr(source,'sig_'+f))**2 )
+        else:
+            lc['mag_err'][idx] = dmerr[idx]
 
         log.info('Calculated the source flux lightcurve in '+f)
 
@@ -444,7 +453,7 @@ def calc_source_lightcurve(source, target, log):
 
     return source
 
-def plot_colour_mag_diagram(params, photometry, stars, selected_stars,
+def plot_colour_mag_diagram(params, photometry, stars, selected_stars, selected_phot,
                             RC, source, blend, blue_filter, red_filter,
                             yaxis_filter, log):
     """Function to plot a colour-magnitude diagram, highlighting the data for

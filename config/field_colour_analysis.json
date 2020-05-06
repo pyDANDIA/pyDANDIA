@@ -1,20 +1,20 @@
 {
     "db_file_path": {
-        "value": "/Users/rstreet1/ROMEREA/ROME-FIELD-19/ROME-FIELD-19_phot.db",
+        "value": "/Users/rstreet1/ROMEREA/ROME-FIELD-01/ROME-FIELD-01_phot.db",
         "comment": "Path to the multi-filter photometry database for this field",
         "format": "string",
         "unit": ""
     },
     "target_lightcurve_files": {
-        "value": {"g": "/Users/rstreet1/ROMEREA/ROME-FIELD-19/star_78284_ROME-FIELD-01_lsc-doma-1m0-05-fa15_gp.dat",
-                  "r": "/Users/rstreet1/ROMEREA/ROME-FIELD-19/star_78284_ROME-FIELD-01_lsc-doma-1m0-05-fa15_rp.dat",
-                  "i": "/Users/rstreet1/ROMEREA/ROME-FIELD-19/star_78284_ROME-FIELD-01_lsc-doma-1m0-05-fa15_ip.dat"},
+        "value": {"g": "/Users/rstreet1/ROMEREA/ROME-FIELD-01/star_78284_ROME-FIELD-01_lsc-doma-1m0-05-fa15_gp.dat",
+                  "r": "/Users/rstreet1/ROMEREA/ROME-FIELD-01/star_78284_ROME-FIELD-01_lsc-doma-1m0-05-fa15_rp.dat",
+                  "i": "/Users/rstreet1/ROMEREA/ROME-FIELD-01/star_78284_ROME-FIELD-01_lsc-doma-1m0-05-fa15_ip.dat"},
         "comment": "Paths to photometry HDF5 files for g, r, i photometry data for the primary reference, or None",
         "format": "string",
         "unit": ""
     },
     "output_dir": {
-        "value": "/Users/rstreet1/ROMEREA/ROME-FIELD-19/",
+        "value": "/Users/rstreet1/ROMEREA/ROME-FIELD-01/",
         "comment": "Directory path for output",
         "format": "string",
         "unit": ""

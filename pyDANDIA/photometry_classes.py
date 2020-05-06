@@ -11,6 +11,8 @@ import numpy as np
 import stellar_radius_relations
 from astropy import constants
 from astropy.table import Column
+import json
+from os import path
 
 class Star:
     """Class describing the photometric parameters of a single stellar object"""
@@ -180,6 +182,16 @@ class Star:
                 pass
 
         return output
+
+    def output_json(self,file_path):
+
+        par_dict = {}
+        for key in self.parameter_list:
+            par_dict[key] = getattr(self,key)
+
+        f = open(file_path,'w')
+        f.write(json.dumps(par_dict, indent=4))
+        f.close()
 
     def transform_to_JohnsonCousins(self):
 
@@ -614,3 +626,20 @@ def output_red_clump_data_latex(params,RC,log):
 
     log.info('\n')
     log.info('Output red clump data in laTex table to '+file_path)
+
+def convert_ndp(value,ndp):
+    """Function to convert a given floating point value to a string,
+    rounded to the given number of decimal places, and suffix with zero
+    if the value rounds to fewer decimal places than expected"""
+
+    value = str(round(value,ndp))
+
+    dp = value.split('.')[-1]
+
+    while len(dp) < ndp:
+
+        value = value + '0'
+
+        dp = value.split('.')[-1]
+
+    return value

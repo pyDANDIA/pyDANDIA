@@ -255,7 +255,7 @@ def read_pydandia_lightcurve(file_path, skip_zero_entries=True):
 	data = np.loadtxt(file_path,skiprows=0)
 
 	if skip_zero_entries:
-		idx = np.where(data[:,0] != 0.0)
+		idx = np.where(data[:,0] != 0.0)[0]
 	else:
 		idx = np.arange(0,len(data),1)
 
@@ -263,8 +263,7 @@ def read_pydandia_lightcurve(file_path, skip_zero_entries=True):
 						table.Column(name='instrumental_mag', data=data[idx,1]),
 						table.Column(name='instrumental_mag_err', data=data[idx,2]),
 						 table.Column(name='calibrated_mag', data=data[idx,3]),
-						 table.Column(name='calibrated_mag_err', data=data[idx,4]),
-						 ] )
+						 table.Column(name='calibrated_mag_err', data=data[idx,4]) ] )
 
 	return lc
 
