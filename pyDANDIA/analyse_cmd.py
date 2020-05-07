@@ -58,7 +58,10 @@ def run_field_colour_analysis():
 
     plot_colour_colour_diagram(config, photometry, RC, log)
 
-    # output source, blend, RC, target data in json
+    source.output_json(path.join(config['output_dir'],'source_parameters.json'))
+    blend.output_json(path.join(config['output_dir'],'blend_parameters.json'))
+    RC.output_json(path.join(config['output_dir'],'red_clump_parameters.json'))
+
     conn.close()
 
     logs.close_log(log)
@@ -488,12 +491,18 @@ def plot_colour_mag_diagram(params, photometry, stars, selected_stars, selected_
     mdx = np.where(photometry[yaxis_filter] != 0.0)[0]
     jdx = list(set(cdx).intersection(set(mdx)))
 
+    default_marker_colour = '#8c6931'
+    field_marker_colour = '#E1AE13'
+    marker_colour = default_marker_colour
+    if len(selected_stars) < len(photometry['i']):
+        marker_colour = field_marker_colour
+
     plt.scatter(photometry[col_key][jdx],photometry[yaxis_filter][jdx],
-                 c='#8c6931', marker='.', s=1,
+                 c=marker_colour, marker='.', s=1,
                  label='Stars within field of view')
 
     plt.scatter(selected_phot[col_key],selected_phot[yaxis_filter],
-                  c='#8c6931', marker='*', s=4,
+                  c=default_marker_colour, marker='*', s=4,
                   label='Stars < '+str(round(params['selection_radius'],1))+'arcmin of target')
 
     if params['add_rc_centroid']:
@@ -529,7 +538,7 @@ def plot_colour_mag_diagram(params, photometry, stars, selected_stars, selected_
             (smags, smagerr, scols, scolerr) = calc_colour_lightcurve(blue_lc, red_lc, y_lc)
 
             plt.errorbar(scols, smags, yerr = smagerr, xerr = scolerr,
-                         color='m', marker='d',markersize=10, label='Source')
+                         color='m', marker='d',markersize=5, fmt='none', label='Source')
 
     plt.xlabel('SDSS ('+blue_filter+'-'+red_filter+') [mag]')
 

@@ -44,37 +44,37 @@
         "unit": "arcmin"
     },
     "source_fluxes": {
-        "value": ["None", "None", "None:"],
+        "value": [28.72093, 1251.48254, 7784.05576],
         "comment": "Measured source flux values in SDSS g, r, and i bands, in order or list with None entries",
         "format": "float",
         "unit": "e-/s"
     },
     "source_flux_errors": {
-        "value": ["None", "None", "None:"],
+        "value": [13.53316, 41.82985, 149.234],
         "comment": "Uncertainties on measured source flux values in SDSS g, r, and i bands, in order or list with None entries",
         "format": "float",
         "unit": "e-/s"
     },
     "blend_fluxes": {
-        "value": ["None", "None", "None:"],
+        "value": [1723.43824, 8078.1425, 21112.69562],
         "comment": "Measured blend flux values in SDSS g, r, and i bands, in order or list with None entries",
         "format": "float",
         "unit": "e-/s"
     },
     "blend_flux_errors": {
-        "value": ["None", "None", "None:"],
+        "value": [16.85739, 49.10606, 155.75005],
         "comment": "Uncertainties on measured blend flux values in SDSS g, r, and i bands, in order or list with None entries",
         "format": "float",
         "unit": "e-/s"
     },
     "RC_ri_range": {
-        "value": [0.8, 1.2],
+        "value": [1.25,1.50],
         "comment": "Minimum and maximum SDSS (r-i) colours to use for Red Clump star selection",
         "format": "float",
         "unit": "mag"
     },
     "RC_gi_range": {
-        "value": [2.5, 3.5],
+        "value": [3.0, 4.0],
         "comment": "Minimum and maximum SDSS (g-i) colours to use for Red Clump star selection",
         "format": "float",
         "unit": "mag"
@@ -92,13 +92,13 @@
         "unit": "mag"
     },
     "RC_r_range": {
-        "value": [16.2, 17.5],
+        "value": [17.5, 18.75],
         "comment": "Minimum and maximum SDSS-r magnitudes to use for Red Clump star selection",
         "format": "float",
         "unit": "mag"
     },
     "RC_g_range": {
-        "value": [17.8, 19.5],
+        "value": [19.0, 21.0],
         "comment": "Minimum and maximum SDSS-g magnitudes to use for Red Clump star selection",
         "format": "float",
         "unit": "mag"

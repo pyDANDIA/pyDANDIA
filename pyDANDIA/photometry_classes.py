@@ -17,7 +17,7 @@ from os import path
 class Star:
     """Class describing the photometric parameters of a single stellar object"""
 
-    def __init__(self):
+    def __init__(self, file_path=None):
 
         self.parameter_list = [ 'g', 'sig_g', 'r', 'sig_r', 'i', 'sig_i',
                                 'g_0', 'sig_g_0', 'r_0', 'sig_r_0', 'i_0', 'sig_i_0',
@@ -35,6 +35,17 @@ class Star:
             setattr(self, key, None)
 
         self.lightcurves = {'g': None, 'r': None, 'i': None}
+
+        if file_path != None and path.isfile(file_path):
+            f = open(file_path,'r')
+            par_dict = json.loads(f.read())
+            f.close()
+
+            for key, value in par_dict.items():
+                if 'null' not in str(value) and value != None:
+                    setattr(self,key,float(value))
+                else:
+                    setattr(self,key,None)
 
     def convert_fluxes_pylima(self, filter_name):
 

@@ -1,13 +1,31 @@
-{  "event_cmd_analysis_results": {
-        "value": "/Users/rstreet1/ROMEREA/ROME-FIELD-19/star_78284_ROME-FIELD-01_CMD_analysis.dat",
+{  "source_parameters_file": {
+        "value": "/Users/rstreet1/ROMEREA/ROME-FIELD-01/source_parameters.json",
         "comment": "Path to file with event dereddened photometric parameters",
         "format": "string",
         "unit": ""
+    },
+    "blend_parameters_file": {
+            "value": "/Users/rstreet1/ROMEREA/ROME-FIELD-01/blend_parameters.json",
+            "comment": "Path to file with event dereddened photometric parameters",
+            "format": "string",
+            "unit": ""
+    },
+    "red_clump_parameters_file": {
+            "value": "/Users/rstreet1/ROMEREA/ROME-FIELD-01/red_clump_parameters.json",
+            "comment": "Path to file with event dereddened photometric parameters",
+            "format": "string",
+            "unit": ""
+    },
+    "isochrone_file": {
+            "value": "None",
+            "comment": "Path to the isochrone data file or None",
+            "format": "string",
+            "unit": ""
     },
     "output_dir": {
         "value": "/Users/rstreet1/ROMEREA/ROME-FIELD-01/",
         "comment": "Directory path for output",
         "format": "string",
         "unit": ""
-    },
+    }
 }

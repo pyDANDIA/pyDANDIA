@@ -1457,32 +1457,36 @@ def match_source_blend_isochrones(params,source,blend,log):
     """Function to find the closest matching isochrone for both source
     and blend parameters"""
 
-    log.info('\n')
-    log.info('Analysing isochrones for source star\n')
-    star_data = isochrone_utilities.analyze_isochrones(source.gr_0,source.ri_0,
-                                                       params['isochrone_file'],
-                                                       log=log)
-    source.mass = star_data[0]
-    source.sig_mass = star_data[1]
-    source.teff = star_data[2]
-    source.sig_teff = star_data[3]
-    source.logg = star_data[4]
-    source.sig_logg = star_data[5]
-    source.estimate_luminosity_class(log=log)
+    if 'none' in str(params['isochrone_file']).lower():
+        log.info('No input file with isochrone data provided, skipping isochrone analysis.')
 
-    log.info('\n')
-    log.info('Analysing isochrones for blend\n')
+    else:
+        log.info('\n')
+        log.info('Analysing isochrones for source star\n')
+        star_data = isochrone_utilities.analyze_isochrones(source.gr_0,source.ri_0,
+                                                           params['isochrone_file'],
+                                                           log=log)
+        source.mass = star_data[0]
+        source.sig_mass = star_data[1]
+        source.teff = star_data[2]
+        source.sig_teff = star_data[3]
+        source.logg = star_data[4]
+        source.sig_logg = star_data[5]
+        source.estimate_luminosity_class(log=log)
 
-    star_data = isochrone_utilities.analyze_isochrones(blend.gr_0,blend.ri_0,
-                                                       params['isochrone_file'],
-                                                       log=log)
-    blend.mass = star_data[0]
-    blend.sig_mass = star_data[1]
-    blend.teff = star_data[2]
-    blend.sig_teff = star_data[3]
-    blend.logg = star_data[4]
-    blend.sig_logg = star_data[5]
-    blend.estimate_luminosity_class(log=log)
+        log.info('\n')
+        log.info('Analysing isochrones for blend\n')
+
+        star_data = isochrone_utilities.analyze_isochrones(blend.gr_0,blend.ri_0,
+                                                           params['isochrone_file'],
+                                                           log=log)
+        blend.mass = star_data[0]
+        blend.sig_mass = star_data[1]
+        blend.teff = star_data[2]
+        blend.sig_teff = star_data[3]
+        blend.logg = star_data[4]
+        blend.sig_logg = star_data[5]
+        blend.estimate_luminosity_class(log=log)
 
     return source, blend
 

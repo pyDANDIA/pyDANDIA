@@ -24,6 +24,29 @@ def test_output_json():
     for key, value in par_dict.items():
         assert value == getattr(star,key)
 
+def test_load_json():
+
+    star = photometry_classes.Star()
+
+    for key in star.parameter_list:
+        setattr(star,key,1.0)
+
+    file_path = 'data/test_phot_classes.json'
+
+    star.output_json(file_path)
+
+    par_dict = json.loads(open(file_path,'r').read())
+
+    for key, value in par_dict.items():
+        assert value == getattr(star,key)
+
+    test_star = photometry_classes.Star(file_path=file_path)
+
+    for key, value in par_dict.items():
+        assert value == getattr(test_star,key)
+
 if __name__ == '__main__':
 
     test_output_json()
+    test_load_json()
+    
