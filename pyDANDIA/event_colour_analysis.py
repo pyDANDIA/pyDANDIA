@@ -1333,32 +1333,6 @@ def measure_RC_offset(params,RC,log):
 
     return RC
 
-def calc_phot_properties(target, source, blend, RC, log):
-    """Function to calculate the de-reddened and extinction-corrected
-    photometric properties of the target
-    """
-    in_use = False
-
-    target.calibrate_phot_properties(RC,log=log)
-    source.calibrate_phot_properties(RC,log=log)
-    blend.calibrate_phot_properties(RC,log=log)
-
-    log.info('\nSource star extinction-corrected magnitudes and de-reddened colours:\n')
-    log.info(source.summary(show_mags=True))
-    log.info(source.summary(show_mags=False,show_colours=True))
-    log.info(source.summary(show_mags=False,show_cal=True))
-    log.info(source.summary(show_mags=False,show_cal=True,show_colours=True))
-    log.info(source.summary(show_mags=False,johnsons=True,show_cal=True))
-
-    log.info('\nBlend extinction-corrected magnitudes and de-reddened colours:\n')
-    log.info(blend.summary(show_mags=True))
-    log.info(blend.summary(show_mags=False,show_colours=True))
-    log.info(blend.summary(show_mags=False,show_cal=True))
-    log.info(blend.summary(show_mags=False,show_cal=True,show_colours=True))
-    log.info(blend.summary(show_mags=False,johnsons=True,show_cal=True))
-
-    return target,source,blend
-
 def calc_source_blend_ang_radii(source, blend, log):
     """Function to calculate the angular radius of the source star"""
 
@@ -1381,26 +1355,34 @@ def calc_source_blend_physical_radii(source, blend, log):
     Assumes a solar metallicity of Zsol = 0.0152.
     """
 
-    source.calc_physical_radius(log)
+    if 'teff' in dir(source) and source.teff != None:
+        source.calc_physical_radius(log)
 
-    blend.calc_physical_radius(log)
+        log.info('\n')
+        log.info('Stellar radii derived from Torres relation (applies to main sequence and giants):')
+        log.info('Source radius: '+\
+                        str(round(source.radius,2))+' +/- '+str(round(source.sig_radius,2))+' Rsol')
 
-    log.info('\n')
-    log.info('Stellar radii derived from Torres relation (applies to main sequence and giants):')
-    log.info('Source radius: '+\
-                    str(round(source.radius,2))+' +/- '+str(round(source.sig_radius,2))+' Rsol')
-    log.info('Blend radius: '+\
+        source.starR_large_giant = 14.2
+        source.sig_starR_large_giant = 0.2
+        source.starR_small_giant = 8.1
+        source.sig_starR_small_giant = 0.1
+
+        log.info('\n')
+        log.info('If the source were a giant, assigning possible physical radii values, based on data from Gaulme, P. et al. (2016), ApJ, 832, 121.')
+        log.info('Small giant radius = '+str(source.starR_small_giant)+' +/- '+str(source.sig_starR_small_giant)+' Rsol')
+        log.info('Large giant radius = '+str(source.starR_large_giant)+' +/- '+str(source.sig_starR_large_giant)+' Rsol')
+
+    else:
+        log.info('WARNING: Cannot infer source star physical radius without an estimate of Teff and log(g)')
+
+    if 'teff' in dir(blend) and blend.teff != None:
+        blend.calc_physical_radius(log)
+
+        log.info('Blend radius: '+\
                     str(round(blend.radius,2))+' +/- '+str(round(blend.sig_radius,2))+' Rsol')
-
-    source.starR_large_giant = 14.2
-    source.sig_starR_large_giant = 0.2
-    source.starR_small_giant = 8.1
-    source.sig_starR_small_giant = 0.1
-
-    log.info('\n')
-    log.info('If the source were a giant, assigning possible physical radii values, based on data from Gaulme, P. et al. (2016), ApJ, 832, 121.')
-    log.info('Small giant radius = '+str(source.starR_small_giant)+' +/- '+str(source.sig_starR_small_giant)+' Rsol')
-    log.info('Large giant radius = '+str(source.starR_large_giant)+' +/- '+str(source.sig_starR_large_giant)+' Rsol')
+    else:
+        log.info('WARNING: Cannot infer blend physical radius without an estimate of Teff and log(g)')
 
     return source, blend
 
@@ -1430,9 +1412,9 @@ def calc_source_blend_distance(source,blend,RC,log):
 
     source.calc_distance(log)
 
-    log.info('Inferred source distance: '+str(source.D)+' +/- '+str(source.sig_D)+' pc')
-
     try:
+        log.info('Inferred source distance: '+str(source.D)+' +/- '+str(source.sig_D)+' pc')
+
         log.info('Inferred source distance if its a small red giant: '+\
         str(source.D_small_giant)+' +/- '+str(source.sig_D_small_giant)+' pc')
 
@@ -1444,7 +1426,11 @@ def calc_source_blend_distance(source,blend,RC,log):
 
     blend.calc_distance(log)
 
-    log.info('Inferred blend distance: '+str(blend.D)+' +/- '+str(blend.sig_D)+' pc')
+    try:
+        log.info('Inferred blend distance: '+str(blend.D)+' +/- '+str(blend.sig_D)+' pc')
+
+    except AttributeError:
+        pass
 
     (Rstar, sig_Rstar) = stellar_radius_relations.scale_source_distance(source.ang_radius, source.sig_ang_radius, RC.D*1000.0 ,log)
 
@@ -1490,165 +1476,6 @@ def match_source_blend_isochrones(params,source,blend,log):
 
     return source, blend
 
-def calc_lens_parameters(params, source, RC, log):
-    """Function to compute the physical parameters of the lens"""
-
-    earth_position = pyslalib.slalib.sla_epv(params['t0']-2400000.0)
-
-    v_earth = earth_position[1]     # Earth's heliocentric velocity vector
-
-    pi_E = [ params['pi_E_N'], params['pi_E_E'] ]
-    sig_pi_E = [ params['sig_pi_E_N'], params['sig_pi_E_E'] ]
-
-    lens = lens_properties.Lens()
-    lens.ra = params['target_ra']
-    lens.dec = params['target_dec']
-    lens.tE = params['tE']
-    lens.sig_tE = params['sig_tE']
-    lens.t0 = params['t0']
-    lens.sig_t0 = params['sig_t0']
-    lens.rho = params['rho']
-    lens.sig_rho = params['sig_rho']
-    lens.pi_E = np.array([ params['pi_E_N'], params['pi_E_E'] ])
-    lens.sig_pi_E = np.array([ params['sig_pi_E_N'], params['sig_pi_E_E'] ])
-
-    lens.calc_angular_einstein_radius(source.ang_radius,source.sig_ang_radius,log=log)
-
-    lens.calc_distance(RC.D,0.0,log)
-    lens.calc_distance_modulus(log)
-    lens.calc_einstein_radius(log)
-
-    lens.q = 10**(params['logq'])
-    lens.sig_q = (params['sig_logq']/params['logq']) * lens.q
-    lens.s = 10**(params['logs'])
-    lens.sig_s = (params['sig_logs']/params['logs']) * lens.s
-
-    lens.calc_masses(log)
-
-    lens.calc_projected_separation(log)
-
-    if params['dsdt'] != None and params['dalphadt'] != None:
-        lens.dsdt = params['dsdt']
-        lens.sig_dsdt = params['sig_dsdt']
-        lens.dalphadt = params['dalphadt']
-        lens.sig_dalphadt = params['sig_dalphadt']
-
-        lens.calc_orbital_energies(log)
-
-    lens.calc_rel_proper_motion(log)
-
-    return lens
-
-def output_red_clump_data_latex(params,RC,log):
-    """Function to output a LaTeX format table with the data for the Red Clump"""
-
-    file_path = path.join(params['red_dir'],'red_clump_data_table.tex')
-
-    t = open(file_path, 'w')
-
-    t.write('\\begin{table}[h!]\n')
-    t.write('\\centering\n')
-    t.write('\\caption{Photometric properties of the Red Clump, with absolute magnitudes ($M_{\\lambda}$) taken from \cite{Ruiz-Dern2018}, and the measured properties from ROME data.} \label{tab:RCproperties}\n')
-    t.write('\\begin{tabular}{ll}\n')
-    t.write('\\hline\n')
-    t.write('\\hline\n')
-    t.write('$M_{g,RC,0}$ & '+convert_ndp(RC.M_g_0,3)+' $\pm$ '+convert_ndp(RC.sig_Mg_0,3)+'\,mag\\\\\n')
-    t.write('$M_{r,RC,0}$ & '+convert_ndp(RC.M_r_0,3)+' $\pm$ '+convert_ndp(RC.sig_Mr_0,3)+'\,mag\\\\\n')
-    t.write('$M_{i,RC,0}$ & '+convert_ndp(RC.M_i_0,3)+' $\pm$ '+convert_ndp(RC.sig_Mi_0,3)+'\,mag\\\\\n')
-    t.write('$(g-r)_{RC,0}$ & '+convert_ndp(RC.gr_0,3)+' $\pm$ '+convert_ndp(RC.sig_gr_0,3)+'\,mag\\\\\n')
-    t.write('$(g-i)_{RC,0}$ & '+convert_ndp(RC.gi_0,3)+' $\pm$ '+convert_ndp(RC.sig_gi_0,3)+'\,mag\\\\\n')
-    t.write('$(r-i)_{RC,0}$ & '+convert_ndp(RC.ri_0,3)+' $\pm$ '+convert_ndp(RC.sig_ri_0,3)+'\,mag\\\\\n')
-    t.write('$m_{g,RC,0}$ & '+convert_ndp(RC.m_g_0,3)+' $\pm$ '+convert_ndp(RC.sig_mg_0,3)+'\,mag\\\\\n')
-    t.write('$m_{r,RC,0}$ & '+convert_ndp(RC.m_r_0,3)+' $\pm$ '+convert_ndp(RC.sig_mr_0,3)+'\,mag\\\\\n')
-    t.write('$m_{i,RC,0}$ & '+convert_ndp(RC.m_i_0,3)+' $\pm$ '+convert_ndp(RC.sig_mi_0,3)+'\,mag\\\\\n')
-    t.write('$m_{g,RC,\\rm{centroid}}$  & '+convert_ndp(RC.g,2)+' $\pm$ '+convert_ndp(RC.sig_g,2)+'\,mag\\\\\n')
-    t.write('$m_{r,RC,\\rm{centroid}}$  & '+convert_ndp(RC.r,2)+' $\pm$ '+convert_ndp(RC.sig_r,2)+'\,mag\\\\\n')
-    t.write('$m_{i,RC,\\rm{centroid}}$  & '+convert_ndp(RC.i,2)+' $\pm$ '+convert_ndp(RC.sig_i,2)+'\,mag\\\\\n')
-    t.write('$(g-r)_{RC,\\rm{centroid}}$ & '+convert_ndp(RC.gr,2)+'  $\pm$ '+convert_ndp(RC.sig_gr,2)+'\,mag\\\\\n')
-    t.write('$(r-i)_{RC,\\rm{centroid}}$ & '+convert_ndp(RC.ri,2)+' $\pm$ '+convert_ndp(RC.sig_ri,2)+'\,mag\\\\\n')
-    t.write('$A_{g}$ & '+convert_ndp(RC.A_g,3)+' $\pm$ '+convert_ndp(RC.sig_A_g,3)+'\,mag\\\\\n')
-    t.write('$A_{r}$ & '+convert_ndp(RC.A_r,3)+' $\pm$ '+convert_ndp(RC.sig_A_r,3)+'\,mag\\\\\n')
-    t.write('$A_{i}$ & '+convert_ndp(RC.A_i,3)+' $\pm$ '+convert_ndp(RC.sig_A_i,3)+'\,mag\\\\\n')
-    t.write('$E(g-r)$ & '+convert_ndp(RC.Egr,3)+' $\pm$ '+convert_ndp(RC.sig_Egr,3)+'\,mag\\\\\n')
-    t.write('$E(r-i)$ & '+convert_ndp(RC.Eri,3)+' $\pm$ '+convert_ndp(RC.sig_Eri,3)+'\,mag\\\\\n')
-    t.write('\\hline\n')
-    t.write('\\end{tabular}\n')
-    t.write('\\end{table}\n')
-
-    t.close()
-
-    log.info('\n')
-    log.info('Output red clump data in laTex table to '+file_path)
-
-def output_source_blend_data_latex(params,source,blend,log):
-    """Function to output a LaTex format table with the source and blend data"""
-
-    file_path = path.join(params['red_dir'],'source_blend_data_table.tex')
-
-    t = open(file_path, 'w')
-
-    t.write('\\begin{table}[h!]\n')
-    t.write('\\centering\n')
-    t.write('\\caption{Photometric properties of the source star (S) and blend (b).} \label{tab:targetphot}\n')
-    t.write('\\begin{tabular}{llll}\n')
-    t.write('\\hline\n')
-    t.write('\\hline\n')
-    t.write('$m_{g,\\rm S}$ & '+convert_ndp(source.g,3)+' $\pm$ '+convert_ndp(source.sig_g,3)+'\,mag & $m_{g,b}$ & '+convert_ndp(blend.g,3)+' $\pm$ '+convert_ndp(blend.sig_g,3)+'\,mag\\\\\n')
-    t.write('$m_{r,\\rm S}$ & '+convert_ndp(source.r,3)+' $\pm$ '+convert_ndp(source.sig_r,3)+'\,mag & $m_{r,b}$ & '+convert_ndp(blend.r,3)+' $\pm$ '+convert_ndp(blend.sig_r,3)+'\,mag\\\\\n')
-    t.write('$m_{i,\\rm S}$ & '+convert_ndp(source.i,3)+' $\pm$ '+convert_ndp(source.sig_i,3)+'\,mag & $m_{i,b}$ & '+convert_ndp(blend.i,3)+' $\pm$ '+convert_ndp(blend.sig_i,3)+'\,mag\\\\\n')
-    t.write('$(g-r)_{\\rm S}$ & '+convert_ndp(source.gr,3)+' $\pm$ '+convert_ndp(source.sig_gr,3)+'\,mag & $(g-r)_{b}$ & '+convert_ndp(blend.gr,3)+' $\pm$ '+convert_ndp(blend.sig_gr,3)+'\,mag\\\\\n')
-    t.write('$(g-i)_{\\rm S}$ & '+convert_ndp(source.gi,3)+' $\pm$ '+convert_ndp(source.sig_gi,3)+'\,mag & $(g-i)_{b}$ & '+convert_ndp(blend.gi,3)+' $\pm$ '+convert_ndp(blend.sig_gi,3)+'\,mag\\\\\n')
-    t.write('$(r-i)_{\\rm S}$ & '+convert_ndp(source.ri,3)+' $\pm$ '+convert_ndp(source.sig_ri,3)+'\,mag & $(r-i)_{b}$ & '+convert_ndp(blend.ri,3)+' $\pm$ '+convert_ndp(blend.sig_ri,3)+'\,mag\\\\\n')
-#    t.write('$m_{g,s,0}$ & '+convert_ndp(source.g_0,3)+' $\pm$ '+convert_ndp(source.sig_g_0,3)+'\,mag & $m_{g,b,0}$ & '+convert_ndp(blend.g_0,3)+' $\pm$ '+convert_ndp(blend.sig_g_0,3)+'\,mag\\\\\n')
-#    t.write('$m_{r,s,0}$ & '+convert_ndp(source.r_0,3)+' $\pm$ '+convert_ndp(source.sig_r_0,3)+'\,mag & $m_{r,b,0}$ & '+convert_ndp(blend.r_0,3)+' $\pm$ '+convert_ndp(blend.sig_r_0,3)+'\,mag\\\\\n')
-#    t.write('$m_{i,s,0}$ & '+convert_ndp(source.i_0,3)+' $\pm$ '+convert_ndp(source.sig_i_0,3)+'\,mag & $m_{i,b,0}$ & '+convert_ndp(blend.i_0,3)+' $\pm$ '+convert_ndp(blend.sig_i_0,3)+'\,mag\\\\\n')
-#    t.write('$(g-r)_{s,0}$ & '+convert_ndp(source.gr_0,3)+' $\pm$ '+convert_ndp(source.sig_gr_0,3)+'\,mag & $(g-r)_{b,0}$ & '+convert_ndp(blend.gr_0,3)+' $\pm$ '+convert_ndp(blend.sig_gr_0,3)+'\,mag\\\\\n')
-#    t.write('$(r-i)_{s,0}$ & '+convert_ndp(source.ri_0,3)+' $\pm$ '+convert_ndp(source.sig_ri_0,3)+'\,mag & $(r-i)_{b,0}$ & '+convert_ndp(blend.ri_0,3)+' $\pm$ '+convert_ndp(blend.sig_ri_0,3)+'\,mag\\\\\n')
-    t.write('$m_{g,\\rm S,0}$ & '+convert_ndp(source.g_0,3)+' $\pm$ '+convert_ndp(source.sig_g_0,3)+'\,mag &  & \\\\\n')
-    t.write('$m_{r,\\rm S,0}$ & '+convert_ndp(source.r_0,3)+' $\pm$ '+convert_ndp(source.sig_r_0,3)+'\,mag &  & \\\\\n')
-    t.write('$m_{i,\\rm S,0}$ & '+convert_ndp(source.i_0,3)+' $\pm$ '+convert_ndp(source.sig_i_0,3)+'\,mag &  & \\\\\n')
-    t.write('$(g-r)_{\\rm S,0}$ & '+convert_ndp(source.gr_0,3)+' $\pm$ '+convert_ndp(source.sig_gr_0,3)+'\,mag &  & \\\\\n')
-    t.write('$(g-i)_{\\rm S,0}$ & '+convert_ndp(source.gi_0,3)+' $\pm$ '+convert_ndp(source.sig_gi_0,3)+'\,mag &  & \\\\\n')
-    t.write('$(r-i)_{\\rm S,0}$ & '+convert_ndp(source.ri_0,3)+' $\pm$ '+convert_ndp(source.sig_ri_0,3)+'\,mag &  & \\\\\n')
-    t.write('\\hline\n')
-    t.write('\\end{tabular}\n')
-    t.write('\\end{table}\n')
-
-    t.close()
-
-    log.info('Output source and blend data in laTex table to '+file_path)
-
-def output_lens_parameters_latex(params,source,lens,log):
-    """Function to output a LaTex format table with the lens parameters"""
-
-    file_path = path.join(params['red_dir'],'lens_data_table.tex')
-
-    t = open(file_path, 'w')
-
-    t.write('\\begin{table}[h!]\n')
-    t.write('\\centering\n')
-    t.write('\\caption{Physical properties of the source and lens system} \\label{tab:lensproperties}\n')
-    t.write('\\begin{tabular}{lll}\n')
-    t.write('\\hline\n')
-    t.write('\\hline\n')
-    t.write('Parameter   &   Units    &   Value \\\\\n')
-    t.write('$\\theta_{\\rm{S}}$  & $\\mu$as     & '+convert_ndp(source.ang_radius,3)+'$\pm$'+convert_ndp(source.sig_ang_radius,3)+'\\\\\n')
-    t.write('$\\theta_{\\rm{E}}$  & $\\mu$as     & '+convert_ndp(lens.thetaE,3)+'$\pm$'+convert_ndp(lens.sig_thetaE,3)+'\\\\\n')
-    t.write('$R_{\\rm{S}}$       & $R_{\\odot}$ & '+convert_ndp(source.radius,3)+'$\pm$'+convert_ndp(source.sig_radius,3)+'\\\\\n')
-    t.write('$M_{L,tot}$        & $M_{\\odot}$ & '+convert_ndp(lens.ML,3)+'$\pm$'+convert_ndp(lens.sig_ML,3)+'\\\\\n')
-    t.write('$M_{L,1}$          & $M_{\\odot}$ & '+convert_ndp(lens.M1,3)+'$\pm$'+convert_ndp(lens.sig_M1,3)+'\\\\\n')
-    t.write('$M_{L,2}$          & $M_{\\odot}$ & '+convert_ndp(lens.M2,3)+'$\pm$'+convert_ndp(lens.sig_M2,3)+'\\\\\n')
-    t.write('$D_{L}$            & Kpc         & '+convert_ndp(lens.D,3)+'$\pm$'+convert_ndp(lens.sig_D,3)+'\\\\\n')
-    t.write('$a_{\\perp}$       & AU          & '+convert_ndp(lens.a_proj,3)+'$\pm$'+convert_ndp(lens.sig_a_proj,3)+'\\\\\n')
-#    t.write('KE/PE              &             & '+convert_ndp(lens.kepe,3)+'$\pm$'+convert_ndp(lens.sig_kepe,3)+'\\\\\n')
-    t.write('$\mu$              & mas yr$^{-1}$ & '+convert_ndp(lens.mu_rel,2)+'$\pm$'+convert_ndp(lens.sig_mu_rel,2)+'\\\\\n')
-    t.write('\\hline\n')
-    t.write('\\end{tabular}\n')
-    t.write('\\end{table}\n')
-
-    t.close()
-
-    log.info('Output lens parameters in laTex table to '+file_path)
 
 if __name__ == '__main__':
 

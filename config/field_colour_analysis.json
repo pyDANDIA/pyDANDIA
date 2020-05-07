@@ -19,6 +19,20 @@
         "format": "string",
         "unit": ""
     },
+    "event_model_parameters_file": {
+            "value": "/Users/rstreet1/ROMEREA/ROME-FIELD-01/OB190011_model_parameters.json",
+            "comment": "Path to file with event model parameters",
+            "format": "string",
+            "unit": ""
+    },
+    "flux_reference_datasets": {
+            "value": {"g": "lsc-doma-fa15_gp",
+                      "r": "lsc-doma-fa15_rp",
+                      "i": "lsc-doma-fa15_ip"},
+            "comment": "Labels of datasets to use as flux references for colour analysis",
+            "format": "string",
+            "unit": ""
+    },
     "target_field_id": {
         "value": 78284,
         "comment": "Field star ID of a specific star in the database or None",
@@ -42,30 +56,6 @@
         "comment": "Maximum radius used to select stars close to the target location",
         "format": "float",
         "unit": "arcmin"
-    },
-    "source_fluxes": {
-        "value": [28.72093, 1251.48254, 7784.05576],
-        "comment": "Measured source flux values in SDSS g, r, and i bands, in order or list with None entries",
-        "format": "float",
-        "unit": "e-/s"
-    },
-    "source_flux_errors": {
-        "value": [13.53316, 41.82985, 149.234],
-        "comment": "Uncertainties on measured source flux values in SDSS g, r, and i bands, in order or list with None entries",
-        "format": "float",
-        "unit": "e-/s"
-    },
-    "blend_fluxes": {
-        "value": [1723.43824, 8078.1425, 21112.69562],
-        "comment": "Measured blend flux values in SDSS g, r, and i bands, in order or list with None entries",
-        "format": "float",
-        "unit": "e-/s"
-    },
-    "blend_flux_errors": {
-        "value": [16.85739, 49.10606, 155.75005],
-        "comment": "Uncertainties on measured blend flux values in SDSS g, r, and i bands, in order or list with None entries",
-        "format": "float",
-        "unit": "e-/s"
     },
     "RC_ri_range": {
         "value": [1.25,1.50],

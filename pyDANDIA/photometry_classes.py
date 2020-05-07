@@ -29,7 +29,8 @@ class Star:
                                 'BV_0', 'sig_BV_0', 'RI_0', 'sig_RI_0', 'VI_0', 'sig_VI_0', 'VR_0', 'sig_VR_0',
                                 'A_g', 'sig_A_g', 'A_r', 'sig_A_r', 'A_i', 'sig_A_i',
                                 'Egr', 'sig_Egr', 'Egi', 'sig_Egi', 'Eri', 'sig_Eri',
-                                'A_I', 'sig_A_I', 'A_V', 'sig_A_V', 'EVI', 'sig_EVI']
+                                'A_I', 'sig_A_I', 'A_V', 'sig_A_V', 'EVI', 'sig_EVI',
+                                'D']
 
         for key in self.parameter_list:
             setattr(self, key, None)
@@ -157,7 +158,7 @@ class Star:
         elif johnsons and show_mags == False and show_cal == False:
 
             if self.VR != None and self.RI != None:
-                output += '(V-R)_meas = '+self.outval('VR',3)+' +/- '+self.outval('sig_VR',3)+'mag '+\
+                output += ' (V-R)_meas = '+self.outval('VR',3)+' +/- '+self.outval('sig_VR',3)+'mag '+\
                          '(Rc-Ic)_meas = '+self.outval('RI',3)+' +/- '+self.outval('sig_RI',3)+'mag'
 
             if self.V != None and self.BV != None:
@@ -167,7 +168,7 @@ class Star:
 
             if self.V != None and self.VR != None:
 
-                output += 'V_meas = '+self.outval('V',3)+' +/- '+self.outval('sig_V',3)+'mag'+\
+                output += ' V_meas = '+self.outval('V',3)+' +/- '+self.outval('sig_V',3)+'mag'+\
                          ' I_meas = '+self.outval('I',3)+' +/- '+self.outval('sig_I',3)+'mag'+\
                          ' (V-I)_meas = '+self.outval('VI',3)+' +/- '+self.outval('sig_VI',3)+'mag'
 
@@ -180,14 +181,13 @@ class Star:
                 pass
 
             try:
-                output += 'V_0 = '+self.outval('V_0',3)+' +/- '+self.outval('sig_V_0',3)+'mag '+\
+                output += ' V_0 = '+self.outval('V_0',3)+' +/- '+self.outval('sig_V_0',3)+'mag '+\
                          '(B-V)_0 = '+self.outval('BV_0',3)+' +/- '+self.outval('sig_BV_0',3)+'mag'
             except AttributeError:
                 pass
 
             try:
-                output += 'V_0 = '+self.outval('V_0',3)+' +/- '+self.outval('sig_V_0',3)+'mag'+\
-                         ' I_0 = '+self.outval('I_0',3)+' +/- '+self.outval('sig_I_0',3)+'mag'+\
+                output += ' I_0 = '+self.outval('I_0',3)+' +/- '+self.outval('sig_I_0',3)+'mag'+\
                          ' (V-I)_0 = '+self.outval('VI_0',3)+' +/- '+self.outval('sig_VI_0',3)+'mag'
             except AttributeError:
                 pass
@@ -226,6 +226,8 @@ class Star:
             self.sig_V = target_phot['sigV']
             self.BV = target_phot['B-V']
             self.sig_BV = target_phot['sigBV']
+            self.B = self.BV + self.V
+            self.sig_B = np.sqrt( (self.sig_V*self.sig_V) + (self.sig_BV*self.sig_BV) )
 
         if self.V != None and self.VR != None:
             self.R = self.V - self.VR
@@ -459,6 +461,14 @@ class Star:
         if flag:
             radii.append(ang_radius)
 
+        if flag and use_index == None:
+            self.theta = theta_LD
+            self.sig_theta = sig_theta_LD
+            self.ang_radius = ang_radius
+            self.sig_ang_radius = sig_ang_radius
+
+            use_index = '(V-I)'
+
         if len(radii) > 0:
             radii = np.array(radii)
 
@@ -487,7 +497,10 @@ class Star:
         Assumes a solar metallicity of Zsol = 0.0152.
         """
 
-        (self.radius, self.sig_radius) = stellar_radius_relations.star_mass_radius_relation(self.teff,self.logg,0.0152,log=log)
+        if 'teff' in dir(self) and self.teff != None and self.logg != None:
+            (self.radius, self.sig_radius) = stellar_radius_relations.star_mass_radius_relation(self.teff,self.logg,0.0152,log=log)
+        else:
+            log.info('Could not infer a physical radius for this star with no Teff and.or log(g) values')
 
     def calc_distance(self,log):
         """Function to calculate the distance to the source star, given the
@@ -503,10 +516,13 @@ class Star:
         theta_S = ((self.ang_radius / 1e6)/3600.0)*(np.pi/180.0)  # radians
         sig_theta_S = ((self.sig_ang_radius / 1e6)/3600.0)*(np.pi/180.0)
 
-        R_S = self.radius * constants.R_sun.value  # units of m
-        sig_RS = self.sig_radius * constants.R_sun.value
+        if 'radius' in dir(self) and self.radius != None:
+            R_S = self.radius * constants.R_sun.value  # units of m
+            sig_RS = self.sig_radius * constants.R_sun.value
 
-        (self.D,self.sig_D) = calc_D(R_S, sig_RS, theta_S, sig_theta_S)
+            (self.D,self.sig_D) = calc_D(R_S, sig_RS, theta_S, sig_theta_S)
+        else:
+            log.info('WARNING: Cannot calculate distance without a stellar physical radius estimate')
 
         try:
             R_S = self.starR_small_giant * constants.R_sun.value

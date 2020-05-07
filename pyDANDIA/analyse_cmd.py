@@ -31,7 +31,9 @@ def run_field_colour_analysis():
 
     conn = phot_db.get_connection(dsn=config['db_file_path'])
 
-    (source, blend) = calc_source_blend_params(config,log)
+    event_model = config_utils.load_event_model(config['event_model_parameters_file'], log)
+
+    (source, blend) = calc_source_blend_params(config,event_model,log)
 
     (photometry, stars) = extract_reference_instrument_calibrated_photometry(conn,log)
 
@@ -93,21 +95,6 @@ def get_args():
         if 'none' in str(config[key]).lower():
             config[key] = None
 
-    # Handle those keuywords which have list entries which may have None
-    # entries
-    none_allowed_keys = ['source_fluxes', 'source_flux_errors',
-                         'blend_fluxes', 'blend_flux_errors']
-
-    for key in none_allowed_keys:
-        list = config[key]
-        new_list = []
-        for item in list:
-            if 'none' in str(item).lower():
-                new_list.append(None)
-            else:
-                new_list.append(item)
-        config[key] = new_list
-
     # Handle dictionary keywords which may have None entries
     none_allowed_keys = ['target_lightcurve_files']
     for key in none_allowed_keys:
@@ -122,26 +109,34 @@ def get_args():
 
     return config
 
-def calc_source_blend_params(params,log):
+
+def calc_source_blend_params(config,event_model,log):
     """Function to construct a dictionary of needed parameters for the
     source and blend"""
 
     source = photometry_classes.Star()
     blend = photometry_classes.Star()
 
-    filterset = { 0: 'g', 1: 'r', 2: 'i' }
+    filterset = ['g','r','i']
+    log.info('Using the following datasets as the flux references for the source and blend fluxes:')
+    for f in filterset:
 
-    for i,f in filterset.items():
+        ref_dataset = config['flux_reference_datasets'][f]
+        log.info(ref_dataset)
 
-        if params['source_fluxes'][i] != None and params['source_flux_errors'][i] != None:
-            setattr(source, 'fs_'+f, params['source_fluxes'][i])
-            setattr(source, 'sig_fs_'+f, params['source_flux_errors'][i])
+        if event_model['source_fluxes'][ref_dataset] != None and event_model['source_flux_errors'][ref_dataset] != None:
+            setattr(source, 'fs_'+f, event_model['source_fluxes'][ref_dataset])
+            setattr(source, 'sig_fs_'+f, event_model['source_flux_errors'][ref_dataset])
             source.convert_fluxes_pylima(f)
 
-        if params['blend_fluxes'][i] != None and params['blend_flux_errors'][i] != None:
-            setattr(blend, 'fs_'+f, params['blend_fluxes'][i])
-            setattr(blend, 'sig_fs_'+f, params['blend_flux_errors'][i])
+        log.info('Source: '+repr(event_model['source_fluxes'][ref_dataset])+' +/- '+repr(event_model['source_flux_errors'][ref_dataset]))
+
+        if event_model['blend_fluxes'][ref_dataset] != None and event_model['blend_flux_errors'][ref_dataset] != None:
+            setattr(blend, 'fs_'+f, event_model['blend_fluxes'][ref_dataset])
+            setattr(blend, 'sig_fs_'+f, event_model['blend_flux_errors'][ref_dataset])
             blend.convert_fluxes_pylima(f)
+
+        log.info('Blend: '+repr(event_model['blend_fluxes'][ref_dataset])+' +/- '+repr(event_model['blend_flux_errors'][ref_dataset]))
 
     source.compute_colours(use_inst=True)
     source.transform_to_JohnsonCousins()
