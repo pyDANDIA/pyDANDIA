@@ -749,6 +749,31 @@ def find_primary_reference_image_for_field(conn):
 
     return t['reference_image'][0]
 
+def load_reference_image_photometry(conn,facility_code,filter_id):
+    """Function to load the reference image stage 3 photometry for a given dataset,
+    specified by its facility code and filter passband.
+
+    Inputs:
+        facility_code int  DB PK of the required facility
+        filter_id     int  DB PK of the required filter
+
+    Outputs:
+        results_table Table photometry data
+    """
+
+    query = 'SELECT refimg_id FROM reference_images WHERE facility="'+str(facility_code)+'" AND filter="'+str(filter_id)+'"'
+    ref_image = query_to_astropy_table(conn, query, args=())
+
+    if len(ref_image) == 0:
+        raise ValueError('No reference image identifed in photometry database for facility '+str(facility_code)+' and filter '+str(filter_id))
+
+    query = 'SELECT * FROM phot WHERE facility="'+str(facility_code)+'" AND filter="'+str(filter_id)+\
+                    '" AND reference_image="'+str(ref_image['refimg_id'][0])+'" AND phot_type="PSF_FITTING"'
+
+    results_table = query_to_astropy_table(conn, query, args=())
+
+    return results_table
+
 def ingest_astropy_table(conn, db_table_name, table):
     """ingests an astropy table into db_table_name via conn.
     """
@@ -841,6 +866,17 @@ def fetch_filters(conn):
     filters = query_to_astropy_table(conn, query, args=())
 
     return filters
+
+def get_filter_id(filters,filter_name):
+    idx = np.where(filters['filter_name'] == f+'p')
+    filter_id = filters['filter_id'][idx][0]
+    return filter_id
+
+
+def get_facility_id(facilities,facility_code):
+    idx = np.where(facilities['facility_code'] == facility_code)
+    facility_id = facilities['facility_id'][idx][0]
+    return facility_id
 
 def get_stage_software_id(conn,stage_name):
     """Function to extract the ID of the software version used for a specific

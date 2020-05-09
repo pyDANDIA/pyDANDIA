@@ -409,7 +409,7 @@ class MetaData:
 
             log.info('Output software version table to reduction metadata')
 
-    def create_phot_calibration_layer(self,data):
+    def create_phot_calibration_layer(self,data,layer_name):
         """Function to create the layer in the reduction metadata file
         containing the star catalogue of objects detected within the reference
         image.
@@ -420,7 +420,7 @@ class MetaData:
         """
 
         layer_header = fits.Header()
-        layer_header.update({'NAME': 'phot_calib'})
+        layer_header.update({'NAME': layer_name})
 
         table_data = [ Column(name='a0', data=np.array([data[0]]), unit=u.mag, dtype='float'),
                        Column(name='a1', data=np.array([data[1]]), unit=None, dtype='float') ]
@@ -429,7 +429,7 @@ class MetaData:
 
         layer = [layer_header, layer_table]
 
-        setattr(self, 'phot_calib', layer)
+        setattr(self, layer_name, layer)
 
     def create_matched_stars_layer(self, matched_stars):
         """Method to output a new metadata layer tabulating the crossed-matched identifications between the

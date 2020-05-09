@@ -502,6 +502,25 @@ def test_add_table_to_existing_db():
 
     conn.close()
 
+def test_load_reference_image_photometry():
+
+    log = logs.start_stage_log( TEST_DIR, 'test_phot_db' )
+
+    (conn,params,ref_image_name) = setup_test_phot_db(log)
+
+    facility_code = 1   # lsc-doma-1m0a-fl15
+    filter_id = 3   # i in the test.db
+    results = phot_db.load_reference_image_photometry(conn,facility_code,filter_id)
+
+    assert type(results) == type(table.Table())
+    assert len(results) == 0
+
+    conn.close()
+    
+    logs.close_log(log)
+
+    conn.close()
+
 if __name__ == '__main__':
 
     #test_get_connection()
@@ -517,4 +536,5 @@ if __name__ == '__main__':
     #test_cascade_delete_reference_image()
     #test_find_reference_image_for_dataset()
     #test_find_primary_reference_image_for_field()
-    test_add_table_to_existing_db()
+    #test_add_table_to_existing_db()
+    test_load_reference_image_photometry()

@@ -10,10 +10,10 @@ from sys import path as systempath
 cwd = getcwd()
 systempath.append(path.join(cwd,'../'))
 import copy
-import pipeline_setup
+from pyDANDIA import pipeline_setup
+from pyDANDIA import logs
 import glob
 import subprocess
-import logs
 
 def pipeline_control():
     """Main driver program controlling the reduction of multiple datasets
