@@ -130,7 +130,7 @@ def load_primary_reference_photometry(conn,log):
     facilities = phot_db.fetch_facilities(conn)
 
     for f in primary_ref_phot.keys():
-        filter_id = phot_db.get_filter_id(filters, filters['filter_name'])
+        filter_id = phot_db.get_filter_id(filters, f+'p')
         log.info('Extracting photometry for filter '+f+', ID='+str(filter_id))
 
         results = phot_db.load_reference_image_photometry(conn,primary_ref_id,filter_id)
