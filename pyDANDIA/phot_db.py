@@ -868,7 +868,7 @@ def fetch_filters(conn):
     return filters
 
 def get_filter_id(filters,filter_name):
-    idx = np.where(filters['filter_name'] == f+'p')
+    idx = np.where(filters['filter_name'] == filter_name)
     filter_id = filters['filter_id'][idx][0]
     return filter_id
 
