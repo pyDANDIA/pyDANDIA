@@ -21,7 +21,7 @@ def run_cross_calibration(setup):
     primary reference dataset in each filter as the 'gold standard' of
     reference."""
 
-    log = logs.start_stage_log( setup.red_dir, 'cross_calibration', version=VERSION )
+    log = logs.start_stage_log( setup.log_dir, 'cross_calibration', version=VERSION )
 
     conn = phot_db.get_connection(dsn=setup.phot_db_path)
 
