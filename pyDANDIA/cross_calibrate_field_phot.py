@@ -34,7 +34,8 @@ def run_cross_calibration(setup):
 
     for red_dir,dataset_status in datasets.items():
         reduction_metadata = metadata.MetaData()
-        reduction_metadata.load_all_metadata(red_dir, 'pyDANDIA_metadata.fits')
+        reduction_metadata.load_all_metadata(path.join(setup.base_dir,red_dir),
+                                                'pyDANDIA_metadata.fits')
         matched_stars = reduction_metadata.load_matched_stars()
 
         dataset_params = stage3_db_ingest.harvest_stage3_parameters(setup,reduction_metadata)
