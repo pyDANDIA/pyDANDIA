@@ -45,7 +45,7 @@ def run_cross_calibration(setup):
                                                     'telescope': dataset_params['telescope'],
                                                     'instrument': dataset_params['instrument']})
 
-        if facility_code in primary_ref_phot['facility_code']:
+        if facility_code in primary_ref_facility['facility_code']:
             log.info('No cross-calibration required for dataset '+facility_code+\
                         ', since this is the primary reference for filter '+\
                         dataset_params['filter_name'])
