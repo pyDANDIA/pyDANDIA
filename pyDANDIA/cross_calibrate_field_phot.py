@@ -78,7 +78,7 @@ def run_cross_calibration(setup):
 
             dataset_photometry = load_dataset_timeseries_photometry(red_dir,log)
 
-            dataset_photometry = apply_photometric_transform(dataset_photometry,model,log
+            dataset_photometry = apply_photometric_transform(dataset_photometry,model,log)
 
             hd5_utils.write_phot_hd5(dataset_setup, photometry_data,log=log)
 
