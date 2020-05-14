@@ -236,6 +236,9 @@ def load_dataset_timeseries_photometry(setup,log):
 
     existing_phot = hd5_utils.read_phot_hd5(setup,log=log)
 
+    nstars = existing_phot.shape[0]
+    nimages = existing_phot.shape[1]
+    
     if len(existing_phot) > 0 and existing_phot.shape[2] != ncolumns:
         raise IOError('Existing matched photometry array has '+\
                         str(matched_existing_phot.shape[2])+
