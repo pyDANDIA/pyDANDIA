@@ -237,7 +237,7 @@ def load_dataset_timeseries_photometry(setup,log):
     ncolumns = 23
 
     existing_phot = hd5_utils.read_phot_hd5(setup,log=log)
-
+    print(setup.red_dir)
     print(existing_phot.shape)
     nstars = existing_phot.shape[0]
     nimages = existing_phot.shape[1]
