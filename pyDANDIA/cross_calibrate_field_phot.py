@@ -40,6 +40,7 @@ def run_cross_calibration(setup):
         matched_stars = reduction_metadata.load_matched_stars()
 
         dataset_params = stage3_db_ingest.harvest_stage3_parameters(setup,reduction_metadata)
+        dataset_params['filter_key'] = str(dataset_params['filter_name']).replace('p','')
 
         facility_code = phot_db.get_facility_code({'site': dataset_params['site'],
                                                     'enclosure': dataset_params['enclosure'],
@@ -63,11 +64,11 @@ def run_cross_calibration(setup):
 
             log.info(' -> Retrieved photometry for '+str(len(dataset_phot))+' stars')
 
-            matched_stars = match_phot_tables(primary_ref_phot[dataset_params['filter_name']],
+            matched_stars = match_phot_tables(primary_ref_phot[dataset_params['filter_key']],
                                                 dataset_phot,log)
 
             matched_phot = extract_matched_stars_phot(matched_stars,
-                                primary_ref_phot[dataset_params['filter_name']],
+                                primary_ref_phot[dataset_params['filter_key']],
                                 dataset_phot,log)
 
             phot_model = calc_cross_calibration(matched_phot, facility_code,
