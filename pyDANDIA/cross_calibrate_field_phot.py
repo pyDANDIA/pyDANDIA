@@ -83,13 +83,13 @@ def run_cross_calibration(setup):
 
             dataset_photometry = load_dataset_timeseries_photometry(dataset_setup,log)
 
-            dataset_photometry = apply_photometric_transform(dataset_photometry,model,log)
+            dataset_photometry = apply_photometric_transform(dataset_photometry,phot_model,log)
 
-            hd5_utils.write_phot_hd5(dataset_setup, photometry_data,log=log)
+            hd5_utils.write_phot_hd5(dataset_setup, dataset_photometry,log=log)
 
 
-    status = 'ERROR'
-    report = 'Failed sanity checks'
+    status = 'OK'
+    report = 'Completed photometric cross-calibration'
 
     log.info('Field photometric cross-calibration: '+report)
     logs.close_log(log)
@@ -268,6 +268,8 @@ def apply_photometric_transform(dataset_photometry,model,log):
 
     dataset_photometry[:,:,24] = phot_func(model, dataset_photometry[:,:,13])
     dataset_photometry[:,:,25] = phot_func(model, dataset_photometry[:,:,14])
+
+    log.info('Applied photometric transformation')
 
     return dataset_photometry
 
