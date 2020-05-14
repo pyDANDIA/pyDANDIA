@@ -73,8 +73,9 @@ def run_cross_calibration(setup):
                                 dataset_phot,log)
 
             phot_model = calc_cross_calibration(matched_phot,
-                                                facility_code, red_dir, log,
-                                                diagnostics=True)
+                                                facility_code,
+                                                path.join(setup.base_dir,red_dir),
+                                                log, diagnostics=True)
 
             reduction_metadata.create_phot_calibration_layer(phot_fit,'cross_phot_calib')
 
@@ -163,7 +164,7 @@ def calc_transform(pinit, x, y):
 
     return pfit
 
-def calc_cross_calibration(matched_phot,dataset_label,red_dir,log,
+def calc_cross_calibration(matched_phot,dataset_label,output_dir,log,
                             diagnostics=True):
     """Function to calculate a transformation function between two
     photometric datasets"""
@@ -187,7 +188,7 @@ def calc_cross_calibration(matched_phot,dataset_label,red_dir,log,
     plt.ylabel('Primary reference calibrated mag')
     plt.title(dataset_label)
     plt.grid()
-    plot_file = path.join(red_dir,'phot_cross_calibration.png')
+    plot_file = path.join(output_dir,'phot_cross_calibration.png')
     plt.savefig(plot_file)
     plt.close(1)
 
