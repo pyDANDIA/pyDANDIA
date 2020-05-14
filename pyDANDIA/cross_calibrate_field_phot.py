@@ -72,10 +72,10 @@ def run_cross_calibration(setup):
                                 primary_ref_phot[dataset_params['filter_key']],
                                 dataset_phot,log)
 
-            phot_model = calc_cross_calibration(matched_phot, facility_code,
-                                                red_dir, log,
+            phot_model = calc_cross_calibration(matched_phot, dataset_phot,
+                                                facility_code, red_dir, log,
                                                 diagnostics=True)
-
+                                                
             reduction_metadata.create_phot_calibration_layer(phot_fit,'cross_phot_calib')
 
             log.info('Reading timeseries photometry for '+facility_code)
@@ -163,7 +163,7 @@ def calc_transform(pinit, x, y):
 
     return pfit
 
-def calc_cross_calibration(matched_phot,dataset_label,red_dir,log,
+def calc_cross_calibration(matched_phot,dataset_phot,dataset_label,red_dir,log,
                             diagnostics=True):
     """Function to calculate a transformation function between two
     photometric datasets"""
