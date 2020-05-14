@@ -218,8 +218,10 @@ def extract_matched_stars_phot(matched_stars, primary_ref_phot_table1,
 
     phot = np.zeros([matched_stars.n_match,2])
     for j in range(0,matched_stars.n_match,1):
-        phot[j,0] = primary_ref_phot_table1['calibrated_mag'][matched_stars.cat1_index[j]]
-        phot[j,1] = dataset_phot_table2['calibrated_mag'][matched_stars.cat2_index[j]]
+        if primary_ref_phot_table1['calibrated_mag'][matched_stars.cat1_index[j]] > 0.0 and \
+            dataset_phot_table2['calibrated_mag'][matched_stars.cat2_index[j]] > 0.0:
+            phot[j,0] = primary_ref_phot_table1['calibrated_mag'][matched_stars.cat1_index[j]]
+            phot[j,1] = dataset_phot_table2['calibrated_mag'][matched_stars.cat2_index[j]]
 
     matched_phot = table.Table( [ table.Column(data=phot[:,0], name='primary_ref_calibrated_mag'),
                                   table.Column(data=phot[:,1], name='dataset_calibrated_mag') ] )
