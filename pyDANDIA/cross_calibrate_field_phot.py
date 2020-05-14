@@ -30,7 +30,7 @@ def run_cross_calibration(setup):
     primary_ref_facility = phot_db.find_primary_reference_facility(conn,log=log)
     filters = phot_db.fetch_filters(conn)
     facilities = phot_db.fetch_facilities(conn)
-    
+
     primary_ref_phot = load_primary_reference_photometry(conn,log)
 
     for red_dir,dataset_status in datasets.items():
@@ -61,7 +61,7 @@ def run_cross_calibration(setup):
 
             dataset_phot = phot_db.load_reference_image_photometry(conn,facility_id,filter_id)
 
-            log.info(' -> Retrieved photometry for '+str(len(results))+' stars')
+            log.info(' -> Retrieved photometry for '+str(len(dataset_phot))+' stars')
 
             matched_stars = match_phot_tables(primary_ref_phot[dataset_params['filter_name']],
                                                 dataset_phot,log)
