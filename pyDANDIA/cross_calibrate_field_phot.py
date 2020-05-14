@@ -56,7 +56,7 @@ def run_cross_calibration(setup):
         else:
             filter_id = phot_db.get_filter_id(filters, dataset_params['filter_name'])
             facility_id = phot_db.get_facility_id(facilities, facility_code)
-            dataset_setup = pipeline_setup.pipeline_setup({'red_dir': red_dir})
+            dataset_setup = pipeline_setup.pipeline_setup({'red_dir': path.join(setup.base_dir,red_dir)})
 
             log.info('-> Extracting photometry for facility '+facility_code+'='+str(facility_id)+\
                             ', filter '+dataset_params['filter_name']+'='+str(filter_id))
@@ -237,16 +237,18 @@ def load_dataset_timeseries_photometry(setup,log):
     ncolumns = 23
 
     existing_phot = hd5_utils.read_phot_hd5(setup,log=log)
-    print(setup.red_dir)
-    print(existing_phot.shape)
-    nstars = existing_phot.shape[0]
-    nimages = existing_phot.shape[1]
 
     if len(existing_phot) > 0 and existing_phot.shape[2] != ncolumns:
         raise IOError('Existing matched photometry array has '+\
                         str(matched_existing_phot.shape[2])+
                         ' which is incompatible with the expected '+\
                         str(ncolumns)+' columns')
+
+    if len(existing_phot) == 0:
+        raise IOError('No existing photometry found for '+setup.red_dir)
+
+    nstars = existing_phot.shape[0]
+    nimages = existing_phot.shape[1]
 
     # Add two columns for the cross-calibrated photometry:
     photometry_data = np.zeros((nstars,nimages,ncolumns+2))
