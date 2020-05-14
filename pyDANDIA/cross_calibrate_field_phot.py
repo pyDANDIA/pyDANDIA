@@ -218,7 +218,7 @@ def extract_matched_stars_phot(matched_stars, primary_ref_phot_table1,
 
     phot = np.zeros([matched_stars.n_match,2])
     for j in range(0,matched_stars.n_match,1):
-        if primary_ref_phot_table1['calibrated_mag'][matched_stars.cat1_index[j]] > 0.0 and \
+        if primary_ref_phot_table1['calibrated_mag'][matched_stars.cat1_index[j]] > 0.0 or \
             dataset_phot_table2['calibrated_mag'][matched_stars.cat2_index[j]] > 0.0:
             phot[j,0] = primary_ref_phot_table1['calibrated_mag'][matched_stars.cat1_index[j]]
             phot[j,1] = dataset_phot_table2['calibrated_mag'][matched_stars.cat2_index[j]]
@@ -238,7 +238,7 @@ def load_dataset_timeseries_photometry(setup,log):
 
     nstars = existing_phot.shape[0]
     nimages = existing_phot.shape[1]
-    
+
     if len(existing_phot) > 0 and existing_phot.shape[2] != ncolumns:
         raise IOError('Existing matched photometry array has '+\
                         str(matched_existing_phot.shape[2])+
