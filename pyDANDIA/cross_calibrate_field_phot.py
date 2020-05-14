@@ -12,6 +12,7 @@ from pyDANDIA import match_utils
 from scipy import optimize
 import matplotlib.pyplot as plt
 from pyDANDIA import  hd5_utils
+from astropy import table
 
 VERSION = 'cross_calibrate_field_phot_v0.1.0'
 
