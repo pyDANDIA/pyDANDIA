@@ -181,10 +181,10 @@ def calc_cross_calibration(matched_phot,dataset_label,output_dir,log,
 
     fig = plt.figure(1)
 
-    plt.plot(matched_phot['dataset_calibrated_mag'],
-            matched_phot['primary_ref_calibrated_mag'],'k.')
-    x = np.arange(matched_phot['dataset_calibrated_mag'].min(),
-                    matched_phot['dataset_calibrated_mag'].max(),0.2)
+    plt.plot(matched_phot['dataset_calibrated_mag'][idx],
+            matched_phot['primary_ref_calibrated_mag'][idx],'k.')
+    x = np.arange(matched_phot['dataset_calibrated_mag'][idx].min(),
+                    matched_phot['dataset_calibrated_mag'][idx].max(),0.2)
     plt.plot(x, phot_func(model, x), 'r-')
     plt.xlabel('Dataset calibrated mag')
     plt.ylabel('Primary reference calibrated mag')
