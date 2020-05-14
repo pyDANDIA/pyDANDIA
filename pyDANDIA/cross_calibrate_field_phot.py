@@ -81,7 +81,7 @@ def run_cross_calibration(setup):
 
             log.info('Reading timeseries photometry for '+facility_code)
 
-            dataset_photometry = load_dataset_timeseries_photometry(red_dir,log)
+            dataset_photometry = load_dataset_timeseries_photometry(path.join(setup.base_dir,red_dir),log)
 
             dataset_photometry = apply_photometric_transform(dataset_photometry,model,log)
 
