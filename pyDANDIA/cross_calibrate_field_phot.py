@@ -29,7 +29,8 @@ def run_cross_calibration(setup):
 
     primary_ref_facility = phot_db.find_primary_reference_facility(conn,log=log)
     filters = phot_db.fetch_filters(conn)
-
+    facilities = phot_db.fetch_facilities(conn)
+    
     primary_ref_phot = load_primary_reference_photometry(conn,log)
 
     for red_dir,dataset_status in datasets.items():
