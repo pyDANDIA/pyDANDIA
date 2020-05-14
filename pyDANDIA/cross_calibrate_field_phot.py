@@ -72,10 +72,10 @@ def run_cross_calibration(setup):
                                 primary_ref_phot[dataset_params['filter_key']],
                                 dataset_phot,log)
 
-            phot_model = calc_cross_calibration(matched_phot, dataset_phot,
+            phot_model = calc_cross_calibration(matched_phot,
                                                 facility_code, red_dir, log,
                                                 diagnostics=True)
-                                                
+
             reduction_metadata.create_phot_calibration_layer(phot_fit,'cross_phot_calib')
 
             log.info('Reading timeseries photometry for '+facility_code)
@@ -163,7 +163,7 @@ def calc_transform(pinit, x, y):
 
     return pfit
 
-def calc_cross_calibration(matched_phot,dataset_phot,dataset_label,red_dir,log,
+def calc_cross_calibration(matched_phot,dataset_label,red_dir,log,
                             diagnostics=True):
     """Function to calculate a transformation function between two
     photometric datasets"""
@@ -178,10 +178,10 @@ def calc_cross_calibration(matched_phot,dataset_phot,dataset_label,red_dir,log,
 
     fig = plt.figure(1)
 
-    plt.plot(dataset_phot['calibrated_mag'],
-            primary_ref_phot['calibrated_mag'],'k.')
-    x = np.arange(dataset_phot['calibrated_mag'].min(),
-                    dataset_phot['calibrated_mag'].max(),0.2)
+    plt.plot(matched_phot['dataset_calibrated_mag'],
+            matched_phot['primary_ref_calibrated_mag'],'k.')
+    x = np.arange(matched_phot['dataset_calibrated_mag'].min(),
+                    matched_phot['dataset_calibrated_mag'].max(),0.2)
     plt.plot(x, phot_func(model, x), 'r-')
     plt.xlabel('Dataset calibrated mag')
     plt.ylabel('Primary reference calibrated mag')
