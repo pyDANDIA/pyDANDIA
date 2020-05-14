@@ -171,8 +171,10 @@ def calc_cross_calibration(matched_phot,dataset_label,output_dir,log,
 
     pinit = [0.0, 0.0]
 
-    model = calc_transform(pinit, matched_phot['dataset_calibrated_mag'],
-                            matched_phot['primary_ref_calibrated_mag'])
+    idx = np.where(matched_phot['dataset_calibrated_mag'] > 0.0)
+
+    model = calc_transform(pinit, matched_phot['dataset_calibrated_mag'][idx],
+                            matched_phot['primary_ref_calibrated_mag'][idx])
 
     log.info('Calculated photometric cross-transform with coefficients '+\
                 str(model[0])+', '+str(model[1]))
@@ -218,7 +220,7 @@ def extract_matched_stars_phot(matched_stars, primary_ref_phot_table1,
 
     phot = np.zeros([matched_stars.n_match,2])
     for j in range(0,matched_stars.n_match,1):
-        if primary_ref_phot_table1['calibrated_mag'][matched_stars.cat1_index[j]] > 0.0 or \
+        if primary_ref_phot_table1['calibrated_mag'][matched_stars.cat1_index[j]] > 0.0 and \
             dataset_phot_table2['calibrated_mag'][matched_stars.cat2_index[j]] > 0.0:
             phot[j,0] = primary_ref_phot_table1['calibrated_mag'][matched_stars.cat1_index[j]]
             phot[j,1] = dataset_phot_table2['calibrated_mag'][matched_stars.cat2_index[j]]
