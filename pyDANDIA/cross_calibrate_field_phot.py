@@ -77,7 +77,7 @@ def run_cross_calibration(setup):
                                                 path.join(setup.base_dir,red_dir),
                                                 log, diagnostics=True)
 
-            reduction_metadata.create_phot_calibration_layer(phot_fit,'cross_phot_calib')
+            reduction_metadata.create_phot_calibration_layer(phot_model,'cross_phot_calib')
 
             log.info('Reading timeseries photometry for '+facility_code)
 
