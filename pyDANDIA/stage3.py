@@ -24,9 +24,9 @@ from pyDANDIA import  catalog_utils
 from pyDANDIA import  calibrate_photometry
 
 
-VERSION = 'pyDANDIA_stage3_v0.5'
+VERSION = 'pyDANDIA_stage3_v0.5.1'
 
-def run_stage3(setup):
+def run_stage3(setup, params={}):
     """Driver function for pyDANDIA Stage 3:
     Detailed star find and PSF modeling
     """
@@ -62,7 +62,8 @@ def run_stage3(setup):
 
         sky_model = sky_background.model_sky_background(setup,
                                         reduction_metadata,log,ref_star_catalog,
-                                        bandpass=meta_pars['bandpass'])
+                                        bandpass=meta_pars['bandpass'],
+                                        n_sky_bins=params['n_sky_bins'])
 
         ref_star_catalog = psf_selection.psf_star_selection(setup,
                                         reduction_metadata,

@@ -18,7 +18,7 @@ from astropy.io import fits
 from astropy import visualization
 
 def model_sky_background(setup,reduction_metadata,log,ref_star_catalog,
-                        image_path=None, bandpass=None,
+                        image_path=None, bandpass=None, n_sky_bins=None,
                         diagnostics=True):
     """Function to model the sky background of a real image by masking out
     the positions of the known stars in order to fit a better model to the
@@ -41,7 +41,10 @@ def model_sky_background(setup,reduction_metadata,log,ref_star_catalog,
     log.info('Std. dev = '+str(star_masked_image.std()))
     log.info('Median = '+str(np.median(star_masked_image)))
 
-    (bin_counts, bins) = np.histogram(star_masked_image.flatten(),1000,range=(-10000.0, 20000.0))
+    if n_sky_bins == None:
+        n_sky_bins = 1000
+    (bin_counts, bins) = np.histogram(star_masked_image.flatten(),n_sky_bins,
+                                range=(-10000.0, 20000.0))
     idx = np.where(bin_counts == bin_counts.max())
     most_freq_value = bins[idx[0]]
     log.info('Most frequent pixel value '+str(most_freq_value))
