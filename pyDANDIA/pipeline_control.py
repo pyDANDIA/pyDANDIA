@@ -174,7 +174,7 @@ def trigger_parallel_reduction(setup,dataset_dir,data_status,debug=False):
             args = args = ['python', command, dataset_dir, setup.phot_db_path, setup.red_mode]
 
     elif setup.red_mode in ['data_preparation', 'added_data_preparation',
-                            'reference_analysis', 'image_analysis']:
+                            'reference_analysis', 'image_analysis', 'analyse_residuals']:
 
         command = path.join(setup.software_dir,'reduction_control.py')
         args = ['python', command, dataset_dir, setup.phot_db_path, setup.red_mode, data_status]

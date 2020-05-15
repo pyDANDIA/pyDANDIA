@@ -47,6 +47,29 @@ def test_read_phot_hd5():
 
     logs.close_log(log)
 
+def test_load_dataset_timeseries_photometry():
+
+    setup = pipeline_setup.pipeline_setup({'red_dir': TEST_DIR})
+
+    log = logs.start_stage_log( cwd, 'test_photometry' )
+
+    nstars = 10
+    nimages = 10
+    ncol = 10
+    test_ncol = 12
+    dataset_phot_data = np.ones( (nstars, nimages, ncol) )
+
+    hd5_utils.write_phot_hd5(setup,dataset_phot_data,log=log)
+
+    dataset = hd5_utils.load_dataset_timeseries_photometry(setup,log,test_ncol)
+
+    assert dataset.shape == (nstars, nimages, test_ncol)
+    assert (dataset[0:nstars,0:nimages,0:ncol] == 1).all()
+    assert (dataset[0:nstars,0:nimages,ncol:test_ncol] == 0).all()
+
+    logs.close_log(log)
+
 if __name__ == '__main__':
     test_write_phot_hd5()
     test_read_phot_hd5()
+    test_load_dataset_timeseries_photometry()

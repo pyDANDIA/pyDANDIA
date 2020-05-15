@@ -237,12 +237,24 @@ def fetch_photometry_for_dataset(params, star_field_id, matched_stars, log):
 
     photometry_data = dataset_photometry[star_dataset_index,:,:]
 
-    photometry_data = table.Table( [ table.Column(name='hjd', data=dataset_photometry[star_dataset_index,:,9]),
+	if dataset_photometry.shape[2] == 25:
+    	photometry_data = table.Table( [ table.Column(name='hjd', data=dataset_photometry[star_dataset_index,:,9]),
                                      table.Column(name='instrumental_mag', data=dataset_photometry[star_dataset_index,:,11]),
                                      table.Column(name='instrumental_mag_err', data=dataset_photometry[star_dataset_index,:,12]),
                                       table.Column(name='calibrated_mag', data=dataset_photometry[star_dataset_index,:,13]),
                                       table.Column(name='calibrated_mag_err', data=dataset_photometry[star_dataset_index,:,14]),
-                                      ] )
+                                      table.Column(name='cross_calibrated_mag', data=dataset_photometry[star_dataset_index,:,23]),
+                                      table.Column(name='cross_calibrated_mag_err', data=dataset_photometry[star_dataset_index,:,24]),
+									  ] )
+	elif dataset_photometry.shape[2] == 23:
+    	photometry_data = table.Table( [ table.Column(name='hjd', data=dataset_photometry[star_dataset_index,:,9]),
+                                     table.Column(name='instrumental_mag', data=dataset_photometry[star_dataset_index,:,11]),
+                                     table.Column(name='instrumental_mag_err', data=dataset_photometry[star_dataset_index,:,12]),
+                                      table.Column(name='calibrated_mag', data=dataset_photometry[star_dataset_index,:,13]),
+                                      table.Column(name='calibrated_mag_err', data=dataset_photometry[star_dataset_index,:,14]),
+                                      table.Column(name='cross_calibrated_mag', data=np.zeros(len(dataset_photometry[star_dataset_index,:,9]))),
+                                      table.Column(name='cross_calibrated_mag_err', data=np.zeros(len(dataset_photometry[star_dataset_index,:,9]))),
+									  ] )
 
     return photometry_data
 

@@ -22,6 +22,7 @@ import stage5
 import stage6
 import logs
 import subprocess
+import analyse_residuals
 
 def reduction_control():
     """Main driver function for the pyDANDIA pipelined reduction of an
@@ -67,6 +68,10 @@ def reduction_control():
     elif setup.red_mode == 'stage6':
 
         run_stage6_db_ingest(setup,red_log,params)
+
+    elif setup.red_mode == 'analyse_residuals':
+
+        run_analysis_phot_residuals(setup,red_log)
 
     else:
         red_log.info('ERROR: unrecognised reduction mode ('+setup.red_mode+') selected')
@@ -167,6 +172,15 @@ def run_stage3_db_ingest(setup, red_log, params):
 
     red_log.info('Completed stage3_db_ingest for '+str(path.basename(setup.red_dir))+' with status '+repr(status))
     red_log.info(repr(report))
+
+def run_analysis_phot_residuals(setup,red_log):
+
+    red_log.info('Pipeline setup: '+setup.summary()+'\n')
+
+    status = 'OK'
+
+    status = execute_stage(analyse_residuals.run_residual_analyses,
+                           'analyse residuals', setup, status, red_log)
 
 def parse_dataset_list(file_path):
 
@@ -365,7 +379,8 @@ def get_args():
                        'reference_analysis',
                        'image_analysis',
                        'stage3_db_ingest',
-                       'stage6']
+                       'stage6',
+                       'analyse_residuals']
 
     params = {}
 

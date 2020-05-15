@@ -81,7 +81,7 @@ def run_cross_calibration(setup):
 
             log.info('Reading timeseries photometry for '+facility_code)
 
-            dataset_photometry = load_dataset_timeseries_photometry(dataset_setup,log)
+            dataset_photometry = hd5_utils.load_dataset_timeseries_photometry(dataset_setup,log,25)
 
             dataset_photometry = apply_photometric_transform(dataset_photometry,phot_model,log)
 
@@ -231,36 +231,6 @@ def extract_matched_stars_phot(matched_stars, primary_ref_phot_table1,
     log.info('Extracted photometry for matching stars')
 
     return matched_phot
-
-def load_dataset_timeseries_photometry(setup,log):
-
-    ncolumns = 23
-
-    existing_phot = hd5_utils.read_phot_hd5(setup,log=log)
-
-    if len(existing_phot) > 0 and existing_phot.shape[2] != ncolumns:
-        raise IOError('Existing matched photometry array has '+\
-                        str(matched_existing_phot.shape[2])+
-                        ' which is incompatible with the expected '+\
-                        str(ncolumns)+' columns')
-
-    if len(existing_phot) == 0:
-        raise IOError('No existing photometry found for '+setup.red_dir)
-
-    nstars = existing_phot.shape[0]
-    nimages = existing_phot.shape[1]
-
-    # Add two columns for the cross-calibrated photometry:
-    photometry_data = np.zeros((nstars,nimages,ncolumns+2))
-
-    # If available, transfer the existing photometry into the data arrays
-    if len(existing_phot) > 0:
-        for i in range(0,existing_phot.shape[1],1):
-            photometry_data[:,int(i),0:ncolumns] = existing_phot[:,int(i),:]
-
-    log.info('Completed build of the photometry array')
-
-    return photometry_data
 
 def apply_photometric_transform(dataset_photometry,model,log):
     """Function to apply the photometric model to the timeseries photometry of
