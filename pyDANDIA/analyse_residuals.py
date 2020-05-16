@@ -34,7 +34,7 @@ def run_residual_analyses(setup):
         report = 'No timeseries photometry found at '+photometry_file+\
                     ' so no residuals analysis performed'
 
-        log.info('Stage 3: '+report)
+        log.info('Analyse_residuals: '+report)
         logs.close_log(log)
         status = 'OK'
 

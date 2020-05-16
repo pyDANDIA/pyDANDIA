@@ -1,0 +1,47 @@
+{
+    "faint_limit": {
+            "value": 22.0,
+            "comment": "Faint limit used to select stars for red noise analysis",
+            "format": "float",
+            "unit": "mag"
+        },
+    "ccd_fit_degree": {
+            "value": 3,
+            "comment": "Degree of polynomial used for CCD fit",
+            "format": "integer",
+            "unit": ""
+    },
+    "mag_column": {
+            "value": 13,
+            "comment": "Magnitude column in timeseries photometry HDF5 file to be used {raw: 11, dataset calibrated: 13, cross-calibrated: 23, revised noise model: 25}",
+            "format": "integer",
+            "unit": ""
+    },
+    "mag_err_column": {
+            "value": 14,
+            "comment": "Magnitude error column in timeseries photometry HDF5 file to be used {raw: 12, dataset calibrated: 14, cross-calibrated: 24, revised noise model: 26}",
+            "format": "integer",
+            "unit": ""
+    },
+    "exclude_stars": {
+            "value": "[]",
+            "comment": "List of star identifiers to be excluded from the analysis",
+            "format": "string",
+            "unit": ""
+    },
+    "fit_parameters": {
+            "value": "['airmass','CCD_X','CCD_Y','exposure','background',
+                      'seeing','time','phot_scale_factor','frames']",
+            "comment": "List of parameters to be fitted, may include: ['airmass','CCD_X','CCD_Y','exposure','background',
+                      'seeing','time','phot_scale_factor','frames']",
+            "format": "string",
+            "unit": ""
+    },
+    "output_star_indices": {
+            "value": "[0]",
+            "comment": "List of star indices to produce diagnostic plots for [dataset star index]",
+            "format": "string",
+            "unit": ""
+
+    }
+}

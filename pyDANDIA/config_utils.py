@@ -54,7 +54,7 @@ def set_config_value(path_to_config_file, key_name, new_value):
 
     return True
 
-def build_config_from_json(config_file):
+def build_config_from_json(config_file,list_keywords=[]):
 
     config_dict = read_config(config_file)
 
@@ -62,6 +62,9 @@ def build_config_from_json(config_file):
     for key, value in config_dict.items():
         config[key] = config_dict[key]['value']
 
+        if key in list_keywords:
+            config[key] = list(config[key])
+            
     return config
 
 def load_event_model(file_path, log):
