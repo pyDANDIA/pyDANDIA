@@ -71,7 +71,7 @@ def run_stage_stand_alone():
 
     elif params['stage'] == 'stage3':
 
-        (status, report) = stage3.run_stage3(setup, params=params)
+        (status, report) = stage3.run_stage3(setup, cl_params=params)
 
     elif params['stage'] == 'calibrate_photometry':
 
