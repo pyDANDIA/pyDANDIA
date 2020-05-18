@@ -41,7 +41,7 @@ def model_sky_background(setup,reduction_metadata,log,ref_star_catalog,
     log.info('Std. dev = '+str(star_masked_image.std()))
     log.info('Median = '+str(np.median(star_masked_image)))
 
-    if n_sky_bins == None:
+    if n_sky_bins == None or n_sky_bins < 0:
         n_sky_bins = 1000
     (bin_counts, bins) = np.histogram(star_masked_image.flatten(),n_sky_bins,
                                 range=(-10000.0, 20000.0))
