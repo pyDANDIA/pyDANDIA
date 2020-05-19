@@ -46,7 +46,7 @@ from pyDANDIA import empirical_psf_simple
 
 ###############################################################################
 def starfind(setup, path_to_image, reduction_metadata, plot_it=False,
-                                                           thumbsize = 250,
+                                                           thumbsize = 500,
                                                            log=None):
     """
     The routine will quickly identify stars in a given image and return

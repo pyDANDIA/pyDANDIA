@@ -542,6 +542,7 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
 
         mask = difference_image == 0
         radius = psf_diameter/2.0
+
         apertures = CircularAperture(positions, r=radius)
 
 
