@@ -638,6 +638,8 @@ def construct_the_stamps(open_image, stamp_size=None, arcseconds_stamp_size=(110
         report = 'Completed successfully'
         return status, report, np.array(stamps)
 
+    log.info('Stamp size x:'+str(x_stamps_size)+' y:'+str(y_stamps_size))
+
     # overlapping fraction in pixels
     if number_of_overlaping_pixels:
         overlap_x = number_of_overlaping_pixels
@@ -645,6 +647,8 @@ def construct_the_stamps(open_image, stamp_size=None, arcseconds_stamp_size=(110
     else:
         overlap_x = int(fraction_of_overlaping_pixels * x_stamp_size)
         overlap_y = int(fraction_of_overlaping_pixels * y_stamp_size)
+    log.info('Stamp overlapping pixels x:'+str(overlap_x)+' y:'+str(overlap_y))
+
     x_stamps_center = np.arange(int(x_stamp_size / 2), full_image_x_size, x_stamp_size)
     y_stamps_center = np.arange(int(y_stamp_size / 2), full_image_y_size, y_stamp_size)
     if x_stamps_center.size == 0:
@@ -652,6 +656,8 @@ def construct_the_stamps(open_image, stamp_size=None, arcseconds_stamp_size=(110
     if y_stamps_center.size == 0:
         y_stamps_center = np.array([int(y_stamp_size / 2)])
     stamps_center_x, stamps_center_y = np.meshgrid(y_stamps_center, x_stamps_center)
+    log.info('Images will use '+repr(len(stamps_centre_x))+' stamps')
+    print(stamps_center_x, stamps_center_y)
 
     stamps_y_min = stamps_center_y - int(y_stamp_size / 2) - overlap_y
     mask = stamps_y_min < 0
@@ -667,6 +673,7 @@ def construct_the_stamps(open_image, stamp_size=None, arcseconds_stamp_size=(110
     stamps_x_min[mask] = 0
     stamps_x_max = stamps_center_x + int(x_stamp_size / 2) + overlap_x
 
+    print(stamps_x_max, image.shape)
     stamps_x_max[:,-1] = [image.shape[1]]*len(stamps_x_max[-1,:])
 
     mask = stamps_x_max > full_image_x_size
