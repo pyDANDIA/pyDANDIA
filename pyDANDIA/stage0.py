@@ -656,7 +656,7 @@ def construct_the_stamps(open_image, stamp_size=None, arcseconds_stamp_size=(110
         x_stamps_center = np.array([int(x_stamp_size / 2)])
     if y_stamps_center.size == 0:
         y_stamps_center = np.array([int(y_stamp_size / 2)])
-    stamps_center_x, stamps_center_y = np.meshgrid(y_stamps_center, x_stamps_center)
+    stamps_center_y, stamps_center_x = np.meshgrid(y_stamps_center, x_stamps_center)
     log.info('Images will use '+repr(len(stamps_center_x))+' stamps')
     print('X mesh: ',stamps_center_x)
     print('Y mesh: ',stamps_center_y)
