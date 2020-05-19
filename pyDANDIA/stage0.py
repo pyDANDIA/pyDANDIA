@@ -677,7 +677,7 @@ def construct_the_stamps(open_image, stamp_size=None, arcseconds_stamp_size=(110
 
     print(stamps_x_max, image.shape)
     import pdb; pdb.set_trace()
-    stamps_x_max[:,-1] = [image.shape[1]]*len(stamps_x_max[:,-1])
+    stamps_x_max[-1,:] = [image.shape[1]]*len(stamps_x_max[-1,:])
 
     mask = stamps_x_max > full_image_x_size
     stamps_x_max[mask] = full_image_x_size
