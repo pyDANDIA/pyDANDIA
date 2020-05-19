@@ -650,6 +650,7 @@ def construct_the_stamps(open_image, stamp_size=None, arcseconds_stamp_size=(110
     log.info('Stamp overlapping pixels x:'+str(overlap_x)+' y:'+str(overlap_y))
 
     x_stamps_center = np.arange(int(x_stamp_size / 2), full_image_x_size, x_stamp_size)
+    print('Xcen',x_stamps_center)
     y_stamps_center = np.arange(int(y_stamp_size / 2), full_image_y_size, y_stamp_size)
     if x_stamps_center.size == 0:
         x_stamps_center = np.array([int(x_stamp_size / 2)])
