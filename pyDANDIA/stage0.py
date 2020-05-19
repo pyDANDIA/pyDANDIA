@@ -657,7 +657,7 @@ def construct_the_stamps(open_image, stamp_size=None, arcseconds_stamp_size=(110
         y_stamps_center = np.array([int(y_stamp_size / 2)])
     stamps_center_x, stamps_center_y = np.meshgrid(y_stamps_center, x_stamps_center)
     log.info('Images will use '+repr(len(stamps_center_x))+' stamps')
-    print(stamps_center_x, stamps_center_y)
+    print(stamps_center_x)
 
     stamps_y_min = stamps_center_y - int(y_stamp_size / 2) - overlap_y
     mask = stamps_y_min < 0
