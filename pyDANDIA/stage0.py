@@ -638,7 +638,7 @@ def construct_the_stamps(open_image, stamp_size=None, arcseconds_stamp_size=(110
         report = 'Completed successfully'
         return status, report, np.array(stamps)
 
-    log.info('Stamp size x:'+str(x_stamps_size)+' y:'+str(y_stamps_size))
+    log.info('Stamp size x:'+str(x_stamp_size)+' y:'+str(y_stamp_size))
 
     # overlapping fraction in pixels
     if number_of_overlaping_pixels:
