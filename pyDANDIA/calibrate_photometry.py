@@ -254,10 +254,11 @@ def select_calibration_stars(star_catalog,params,log):
         med = np.median(star_catalog[col][np.where(star_catalog[col]>0)])
 
         max_err = 2.0 * med
+        if np.isnan(max_err):
+            max_err = 0.02
 
         if 'cat_merr_max' in params.keys():
-            if params['cat_merr_max'] > max_err:
-                max_err = params['cat_merr_max']
+            max_err = params['cat_merr_max']
 
         log.info('Median photometric uncertainty ('+f+'-band) of catalog stars: '+str(med))
         log.info('Excluding catalog stars ('+f+'-band) with uncertainty > '+str(max_err))
@@ -265,6 +266,18 @@ def select_calibration_stars(star_catalog,params,log):
         idx1 = np.where(star_catalog[col] <= max_err)
         idx2 = np.where(star_catalog[col] > 0)
         idx3 = np.where(star_catalog[cmag] < limit_mag)
+
+        if len(idx1[0]) == 0:
+            log.info('No catalog stars with magnitude errors <='+str(max_err))
+            raise ValueError('No catalog stars with magnitude errors <='+str(max_err))
+
+        if len(idx2[0]) == 0:
+            log.info('No catalog stars with magnitudes > 0.0')
+            raise ValueError('No catalog stars with magnitudes > 0.0')
+
+        if len(idx3[0]) == 0:
+            log.info('No catalog stars brighter than '+str(limit_mag))
+            raise ValueError('No catalog stars brighter than '+str(limit_mag))
 
         jdx = (set(idx1[0]).intersection(set(idx2[0]))).intersection(set(idx3[0]))
 

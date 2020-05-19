@@ -71,7 +71,7 @@ def run_stage_stand_alone():
 
     elif params['stage'] == 'stage3':
 
-        (status, report) = stage3.run_stage3(setup)
+        (status, report) = stage3.run_stage3(setup, cl_params=params)
 
     elif params['stage'] == 'calibrate_photometry':
 
@@ -193,11 +193,14 @@ def get_args():
 
     params['dx'] = 0.0
     params['dy'] = 0.0
+    params['n_sky_bins'] = -1
     for a in argv:
         if '-dx' in a:
             params['dx'] = float(str(a).split('=')[-1])
         if '-dy' in a:
             params['dy'] = float(str(a).split('=')[-1])
+        if '-n_sky_bins' in a:
+            params['n_sky_bins'] = float(str(a).split('=')[-1])
 
     if str(params['db_file_path']).split('.')[-1] != 'db':
         raise ValueError(params['db_file_path']+' does not end in .db.  Is this a database file path?')
