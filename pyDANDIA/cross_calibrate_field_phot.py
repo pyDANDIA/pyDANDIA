@@ -236,8 +236,8 @@ def apply_photometric_transform(dataset_photometry,model,log):
     """Function to apply the photometric model to the timeseries photometry of
     a dataset"""
 
-    dataset_photometry[:,:,24] = phot_func(model, dataset_photometry[:,:,13])
-    dataset_photometry[:,:,25] = phot_func(model, dataset_photometry[:,:,14])
+    dataset_photometry[:,:,23] = phot_func(model, dataset_photometry[:,:,13])
+    dataset_photometry[:,:,24] = phot_func(model, dataset_photometry[:,:,14])
 
     log.info('Applied photometric transformation')
 
