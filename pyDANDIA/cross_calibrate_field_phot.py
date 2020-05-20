@@ -170,15 +170,27 @@ def calc_cross_calibration(matched_phot,dataset_label,output_dir,log,
     photometric datasets"""
 
     pinit = [0.0, 0.0]
-
+    model_mags = np.zeros(len(matched_phot))
+    residuals = np.zeros(len(matched_phot))
     idx = np.where(matched_phot['dataset_calibrated_mag'] > 0.0)
 
-    model = calc_transform(pinit, matched_phot['dataset_calibrated_mag'][idx],
-                            matched_phot['primary_ref_calibrated_mag'][idx])
+    log.info('Calculating photometric cross-transform, starting with '+str(len(idx))+' stars')
 
-    log.info('Calculated photometric cross-transform with coefficients '+\
-                str(model[0])+', '+str(model[1]))
+    for it in range(0,4,1):
+        model = calc_transform(pinit, matched_phot['dataset_calibrated_mag'][idx],
+                                matched_phot['primary_ref_calibrated_mag'][idx])
 
+        log.info('-> Iteration '+str(it)+' model coefficients '+\
+                    str(model[0])+', '+str(model[1]))
+
+        model_mags[idx] = phot_func(model, matched_phot['dataset_calibrated_mag'][idx])
+        residuals[idx] = abs(matched_phot['primary_ref_calibrated_mag'][idx] - model_mags[idx])
+
+        max_res = residuals.max()
+        threshold = 0.9 * max_res
+        idx = residuals < threshold
+        log.info('-> Refined star selection after iteration '+str(it)+' using '+str(len(idx))+' stars')
+        
     fig = plt.figure(1)
 
     plt.plot(matched_phot['dataset_calibrated_mag'][idx],
