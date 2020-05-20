@@ -91,7 +91,6 @@ def assess_image(reduction_metadata,image_params,image_header,log):
         use_ref = 0
         report = append_errors(report, 'FWHM exceeds threshold')
 
-
     if image_params['sigma_x'] < 0.0 or image_params['sigma_y'] < 0.0:
         use_phot = 0
         use_ref = 0
