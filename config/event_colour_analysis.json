@@ -1,0 +1,55 @@
+{  "source_parameters_file": {
+        "value": "/Users/rstreet1/ROMEREA/ROME-FIELD-01/source_parameters.json",
+        "comment": "Path to file with event dereddened photometric parameters",
+        "format": "string",
+        "unit": ""
+    },
+    "blend_parameters_file": {
+            "value": "/Users/rstreet1/ROMEREA/ROME-FIELD-01/blend_parameters.json",
+            "comment": "Path to file with event dereddened photometric parameters",
+            "format": "string",
+            "unit": ""
+    },
+    "red_clump_parameters_file": {
+            "value": "/Users/rstreet1/ROMEREA/ROME-FIELD-01/red_clump_parameters.json",
+            "comment": "Path to file with event dereddened photometric parameters",
+            "format": "string",
+            "unit": ""
+    },
+    "target_field_id": {
+        "value": 78284,
+        "comment": "Field star ID of a specific star in the database or None",
+        "format": "integer",
+        "unit": ""
+    },
+    "target_ra": {
+        "value": "17:51:55.92",
+        "comment": "Right ascension of field centre or target in sexigesimal format, cannot be None",
+        "format": "string",
+        "unit": ""
+    },
+    "target_dec": {
+        "value": "-29:59:23.1",
+        "comment": "Declination of field centre or target in sexigesimal format, cannot be None",
+        "format": "string",
+        "unit": ""
+    },
+    "event_model_parameters_file": {
+            "value": "/Users/rstreet1/ROMEREA/ROME-FIELD-01/OB190011_model_parameters.json",
+            "comment": "Path to file with event model parameters",
+            "format": "string",
+            "unit": ""
+    },
+    "isochrone_file": {
+            "value": "/Users/rstreet1/software/pyDANDIA/config/solar_metallicity_age_range_isochrones.iso",
+            "comment": "Path to the isochrone data file or None",
+            "format": "string",
+            "unit": ""
+    },
+    "output_dir": {
+        "value": "/Users/rstreet1/ROMEREA/ROME-FIELD-01/",
+        "comment": "Directory path for output",
+        "format": "string",
+        "unit": ""
+    }
+}

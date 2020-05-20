@@ -561,7 +561,7 @@ def update_reduction_metadata_headers_summary_with_new_images(setup,
 
         if layer:
 
-            reduction_metadata.add_row_to_layer('headers_summary',  values)
+            reduction_metadata.add_row_to_layer('headers_summary',  values.astype(str))
 
 
         else:
@@ -651,7 +651,7 @@ def construct_the_stamps(open_image, stamp_size=None, arcseconds_stamp_size=(110
         x_stamps_center = np.array([int(x_stamp_size / 2)])
     if y_stamps_center.size == 0:
         y_stamps_center = np.array([int(y_stamp_size / 2)])
-    stamps_center_x, stamps_center_y = np.meshgrid(y_stamps_center, x_stamps_center)
+    stamps_center_x, stamps_center_y = np.meshgrid(x_stamps_center, y_stamps_center)
 
     stamps_y_min = stamps_center_y - int(y_stamp_size / 2) - overlap_y
     mask = stamps_y_min < 0
@@ -667,7 +667,7 @@ def construct_the_stamps(open_image, stamp_size=None, arcseconds_stamp_size=(110
     stamps_x_min[mask] = 0
     stamps_x_max = stamps_center_x + int(x_stamp_size / 2) + overlap_x
 
-    stamps_x_max[:,-1] = [image.shape[1]]*len(stamps_x_max[-1,:])
+    stamps_x_max[:,-1] = [image.shape[1]]*len(stamps_x_max[:,-1])
 
     mask = stamps_x_max > full_image_x_size
     stamps_x_max[mask] = full_image_x_size

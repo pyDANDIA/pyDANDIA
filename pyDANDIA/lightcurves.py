@@ -48,14 +48,14 @@ def extract_star_lightcurves_on_cone_to_list(params):
 	lcs = []
 	for star_field_id in results['star_id']:
 
-	
-	
+
+
 		photometry_data = fetch_photometry_for_dataset(params, star_field_id, matched_stars, log)
 
-		lcs.append(np.c_[photometry_data['hjd'],photometry_data['calibrated_mag'],photometry_data['calibrated_mag_err']])  
-	
+		lcs.append(np.c_[photometry_data['hjd'],photometry_data['calibrated_mag'],photometry_data['calibrated_mag_err']])
 
-	
+
+
 	return lcs
 
 
@@ -89,8 +89,8 @@ def extract_star_lightcurves_on_cone(params):
 
 	for star_field_id in results['star_id']:
 
-	
-	
+
+
 		photometry_data = fetch_photometry_for_dataset(params, star_field_id, matched_stars, log)
 
 		#setname = path.basename(params['red_dir']).split('_')[1]
@@ -109,7 +109,7 @@ def extract_star_lightcurves_on_cone(params):
 
 	message = 'OK'
 
-	
+
 	return message
 
 
@@ -245,6 +245,27 @@ def fetch_photometry_for_dataset(params, star_field_id, matched_stars, log):
                                       ] )
 
     return photometry_data
+
+def read_pydandia_lightcurve(file_path, skip_zero_entries=True):
+	"""Function to read the pyDANDIA lightcurve file format to an astropy Table"""
+
+	if path.isfile(file_path) == False:
+		raise IOError('Cannot find input lightcurve file '+file_path)
+
+	data = np.loadtxt(file_path,skiprows=0)
+
+	if skip_zero_entries:
+		idx = np.where(data[:,0] != 0.0)[0]
+	else:
+		idx = np.arange(0,len(data),1)
+
+	lc = table.Table( [ table.Column(name='hjd', data=data[idx,0]),
+						table.Column(name='instrumental_mag', data=data[idx,1]),
+						table.Column(name='instrumental_mag_err', data=data[idx,2]),
+						 table.Column(name='calibrated_mag', data=data[idx,3]),
+						 table.Column(name='calibrated_mag_err', data=data[idx,4]) ] )
+
+	return lc
 
 if __name__ == '__main__':
 

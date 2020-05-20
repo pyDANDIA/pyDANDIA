@@ -7,7 +7,7 @@ matplotlib
 photutils
 opencv-python
 Cython
-astroquery
+astroquery==0.4
 scikit-image
 ccdproc
 setuptools
