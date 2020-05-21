@@ -1,8 +1,12 @@
 from os import path, mkdir
 from sys import argv
 from astropy.io import fits
+from astropy.wcs import WCS as aWCS
+from astropy.coordinates import SkyCoord
+from astropy import units as u
 import glob
 import shutil
+import numpy as np
 
 def run_crop_dataset():
     """Function to crop a directory of images according to the parameters
@@ -64,7 +68,7 @@ def review_data(params):
                         ','+str(params['ycentre'])+\
                         ') is outside the image limits of ('+\
                         str(params['NAXIS2'])+','+str(params['NAXIS1'])+')')
-                        
+
     params['bkup_dir'] = path.join(params['red_dir'],'fullframe')
     if path.isdir(params['bkup_dir']) == False:
         mkdir(params['bkup_dir'])
@@ -96,13 +100,36 @@ def crop_images(params):
 
         data = hdu[0].data[params['ymin']:params['ymax'], params['xmin']:params['xmax']]
 
-        hdu_out = fits.PrimaryHDU(data=data, header=hdu[0].header)
+        new_header = update_wcs(hdu[0].header, data.shape[0], data.shape[1])
+
+        hdu_out = fits.PrimaryHDU(data=data, header=new_header)
 
         bkup_file = path.join(params['bkup_dir'], path.basename(image))
         shutil.move(image, bkup_file)
 
         hdu_out.writeto(image)
 
+def update_wcs(header, new_naxis1, new_naxis2):
+
+    image_wcs = aWCS(header)
+
+    xcentre = int(new_naxis2 / 2.0)
+    ycentre = int(new_naxis1 / 2.0)
+
+    centre_world_coords = image_wcs.wcs_pix2world(np.array([[xcentre, ycentre]]), 1)
+
+    pointing = SkyCoord(centre_world_coords[0,0], centre_world_coords[0,1],
+                        frame='icrs',unit=(u.deg, u.deg))
+    sexigesimal_coords = pointing.to_string(style='hmsdms',sep=':').split()
+    
+    header['RA'] = sexigesimal_coords[0]
+    header['DEC'] = sexigesimal_coords[1]
+    header['CRVAL1'] = float(centre_world_coords[0,0])
+    header['CRVAL2'] = float(centre_world_coords[0,1])
+    header['CRPIX1'] = xcentre
+    header['CRPIX2'] = ycentre
+
+    return header
 
 if __name__ == '__main__':
     run_crop_dataset()
