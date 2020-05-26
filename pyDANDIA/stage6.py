@@ -37,7 +37,7 @@ from pyDANDIA import photometry
 from pyDANDIA import stage3_db_ingest
 from pyDANDIA import hd5_utils
 
-def run_stage6(setup):
+def run_stage6(setup, per_star_logging=False):
     """Main driver function to run stage 6: image substraction and photometry.
     This stage align the images to the reference frame!
     :param object setup : an instance of the ReductionSetup class. See reduction_control.py
@@ -258,7 +258,8 @@ def run_stage6(setup):
                         diff_table, control_zone, phot_table = photometry_on_the_difference_image_stamp(setup, reduction_metadata, log,
                                                                                   stamp_star_catalog, difference_image, psf_model,
                                                                                   sky_model, kernel_image, kernel_error,
-                                                                                  ref_exposure_time,idx)
+                                                                                  ref_exposure_time,idx,
+                                                                                  per_star_logging=per_star_logging)
                         psf_model.update_psf_parameters(psf_parameters)
 
                         #commit_stamp_photometry_matching(conn, image_params, reduction_metadata, matched_stars, phot_table,
@@ -600,7 +601,8 @@ def photometry_on_the_difference_image(setup, reduction_metadata, log, star_cata
 
 
 def photometry_on_the_difference_image_stamp(setup, reduction_metadata, log, star_catalog, difference_image, psf_model,
-                                            sky_model, kernel, kernel_error, ref_exposure_time, image_id):
+                                            sky_model, kernel, kernel_error, ref_exposure_time, image_id,
+                                            per_star_logging=False):
     '''
     Find the appropriate kernel associated to an image
     :param object reduction_metadata: the metadata object
@@ -619,7 +621,8 @@ def photometry_on_the_difference_image_stamp(setup, reduction_metadata, log, sta
                                                                                                 psf_model, kernel,
                                                                                                 kernel_error,
                                                                                                 ref_exposure_time,
-                                                                                                image_id)
+                                                                                                image_id,
+                                                                                                per_star_logging=per_star_logging)
 
     table_data = [Column(name='star_id', data=differential_photometry[0]),
                   Column(name='diff_flux', data=differential_photometry[1]),
@@ -1157,7 +1160,7 @@ def store_stamp_photometry_to_array(setup, conn, params, reduction_metadata,
     photometry_data[star_dataset_index,image_dataset_index,21] = phot_table['local_background'][:].astype('float')
     photometry_data[star_dataset_index,image_dataset_index,22] = phot_table['local_background_err'][:].astype('float')
 
-    log.info('Completed build of the photometry array')
+    log.info('Completed transfer of data to the photometry array')
 
     return photometry_data
 

@@ -142,6 +142,24 @@ class MetaData:
 
         setattr(self, layer_name, layer)
 
+    def remove_metadata_layer(self, layer_name, red_dir, metadata_file):
+        """Function to remove a layer from an existing metadata file"""
+
+        if layer_name in dir(self):
+
+            confirm = input('Please confirm that you wish to remove the '+layer_name+\
+                            ' table from the metadata.  Y or N: ')
+            if 'Y' in str(confirm).upper():
+                delattr(self, layer_name)
+                self.save_updated_metadata(red_dir,metadata_file)
+                print(layer_name+' table removed from '+os.path.join(red_dir, metadata_file))
+
+            else:
+                print(layer_name+' NOT removed from metadata')
+
+        else:
+            print('No '+layer_name+' table found in metadata object')
+
     def create_a_new_layer_from_table(self, layer_name, table_data):
         """
         Add a new layer to the metadata object from an astropy Table
@@ -200,18 +218,21 @@ class MetaData:
                             astropy.units of 'pixels'
         """
 
-        layer_header = fits.Header()
-        layer_header.update({'NAME': 'psf_dimensions'})
+        existing_layers = dir(self)
 
-        table_data = [ Column(name='index', data=data[:,0], unit=None, dtype='int'),
-                       Column(name='psf_factor', data=data[:,1], unit=u.pix, dtype='float'),
-                       Column(name='psf_radius', data=data[:,2], unit=u.pix, dtype='float') ]
+        if 'psf_dimensions' not in existing_layers:
+            layer_header = fits.Header()
+            layer_header.update({'NAME': 'psf_dimensions'})
 
-        layer_table = Table(table_data)
+            table_data = [ Column(name='index', data=data[:,0], unit=None, dtype='int'),
+                           Column(name='psf_factor', data=data[:,1], unit=u.pix, dtype='float'),
+                           Column(name='psf_radius', data=data[:,2], unit=u.pix, dtype='float') ]
 
-        layer = [layer_header, layer_table]
+            layer_table = Table(table_data)
 
-        setattr(self, 'psf_dimensions', layer)
+            layer = [layer_header, layer_table]
+
+            setattr(self, 'psf_dimensions', layer)
 
     def create_headers_summary_layer(self, names, formats, units=None, data=None):
         '''
@@ -845,7 +866,7 @@ class MetaData:
         layer[1][column_name][row_index] = new_value
 
     def update_reduction_metadata_reduction_status(self, new_images, stage_number=0,
-        status = 0, log = None):
+        status = '0', log = None):
         '''
         Update the reduction_status layer with all images of the stage set to status
 
@@ -861,7 +882,7 @@ class MetaData:
         if len(layer[1])==0:
             for image in new_images:
 
-                    self.add_row_to_layer('reduction_status',[image]+number_of_columns*[0])
+                    self.add_row_to_layer('reduction_status',[image]+number_of_columns*['0'])
 
         else:
             column_name = 'STAGE_'+str(stage_number)
@@ -872,7 +893,7 @@ class MetaData:
                     self.update_a_cell_to_layer('reduction_status', index_image, column_name, status)
                 else:
 
-                    self.add_row_to_layer('reduction_status',[image]+number_of_columns*[0])
+                    self.add_row_to_layer('reduction_status',[image]+number_of_columns*['0'])
 
         if log != None:
             log.info('Updated the reduction status layer')

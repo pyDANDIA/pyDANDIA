@@ -73,7 +73,7 @@
     },
     "filtkey": {
         "comment": "filtkey - STRING - Header keyword recording the filter employed. The value of this keyword should be a STRING.",
-        "value": "FILTER2",
+        "value": "FILTER",
 	"format":"S200",
 	"unit":""
     },

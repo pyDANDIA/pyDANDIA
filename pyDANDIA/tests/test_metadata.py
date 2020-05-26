@@ -282,11 +282,30 @@ def test_load_field_dataset_transform():
     assert type(transform) == type(test_transform)
     assert (transform.params == test_transform.params).all()
 
-os.remove('./dummy_metadata.fits')
+def test_create_psf_dimensions_layer():
 
+    metad = metadata.MetaData()
+
+    data = []
+    for i in range(0,3,1):
+        data.append([str(i+1),i,0.0])
+
+    metad.create_psf_dimensions_layer(np.array(data))
+
+    assert 'psf_dimensions' in dir(metad)
+
+    metad.create_psf_dimensions_layer(np.array(data))
+
+    existing_layers = dir(metad)
+
+    assert existing_layers.count('psf_dimensions') == 1
+
+if os.path.isfile('./dummy_metadata.fits'):
+    os.remove('./dummy_metadata.fits')
 
 if __name__ == '__main__':
     #test_create_matched_stars_layer()
     #test_load_matched_stars()
     #test_create_transform_layer()
-    test_load_field_dataset_transform()
+    #test_load_field_dataset_transform()
+    test_create_psf_dimensions_layer()

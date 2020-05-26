@@ -158,12 +158,9 @@ def run_stage4(setup):
             except:
 
                 logs.ifverbose(log, setup,
-                               'I can not find the image translation to the reference for frame:' + new_image + '. Abort stage4!')
+                               'WARNING: I can not find the image translation to the reference for frame:' + new_image)
 
-                status = 'KO'
-                report = 'No shift  found for image:' + new_image + ' !'
-
-                return status, report
+                data.append([new_image, None, None])
 
         if ('SHIFT_X' in reduction_metadata.images_stats[1].keys()) and (
                 'SHIFT_Y' in reduction_metadata.images_stats[1].keys()):
@@ -668,7 +665,10 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
         reference_image = np.copy(reference_image_hdu[0].data)
 
         mask_reference = reference_image_hdu[mask_extension_in].data.astype(bool)
+    else:
+        log.info('No images available to resample, halting.')
 
+        raise ValueError('No images available to resample, halting.')
 
     ref_sources, ref_fwhm = extract_catalog(reduction_metadata, reference_image, ref_row_index, log)
 

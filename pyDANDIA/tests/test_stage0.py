@@ -472,4 +472,3 @@ def test_update_reduction_metadata_stamps():
     assert np.allclose(reduction_metadata.stamps[1]['Y_MAX'].data.astype(float), expected_values[:, 2])
     assert np.allclose(reduction_metadata.stamps[1]['X_MIN'].data.astype(float), expected_values[:, 3])
     assert np.allclose(reduction_metadata.stamps[1]['X_MAX'].data.astype(float), expected_values[:, 4])
-
