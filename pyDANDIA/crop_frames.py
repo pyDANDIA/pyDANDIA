@@ -30,10 +30,10 @@ def get_args():
     params = {}
     if len(argv) == 1:
         params['red_dir'] = input('Please enter the path to the directory of images: ')
-        params['xcentre'] = input('Please input the central position around which to crop in X [pixels]: ')
-        params['ycentre'] = input('Please input the central position around which to crop in Y [pixels]: ')
-        params['xwidth'] = input('Please input the full width of the box to crop to in X-direction [pixels]: ')
-        params['ywidth'] = input('Please input the full width of the box to crop to in Y-direction [pixels]: ')
+        params['xcentre'] = float(input('Please input the central position around which to crop in X [pixels]: '))
+        params['ycentre'] = float(input('Please input the central position around which to crop in Y [pixels]: '))
+        params['xwidth'] = float(input('Please input the full width of the box to crop to in X-direction [pixels]: '))
+        params['ywidth'] = float(input('Please input the full width of the box to crop to in Y-direction [pixels]: '))
     else:
         params['red_dir'] = argv[1]
         params['xcentre'] = float(argv[2])
@@ -121,7 +121,7 @@ def update_wcs(header, new_naxis1, new_naxis2):
     pointing = SkyCoord(centre_world_coords[0,0], centre_world_coords[0,1],
                         frame='icrs',unit=(u.deg, u.deg))
     sexigesimal_coords = pointing.to_string(style='hmsdms',sep=':').split()
-    
+
     header['RA'] = sexigesimal_coords[0]
     header['DEC'] = sexigesimal_coords[1]
     header['CRVAL1'] = float(centre_world_coords[0,0])
