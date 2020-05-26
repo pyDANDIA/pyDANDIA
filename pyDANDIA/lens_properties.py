@@ -87,13 +87,13 @@ class Lens:
         else:
             print('Lens-source relative parallax: ' + str(self.pi_rel)+'+/-'+str(self.sig_pi_rel)+' microarcsec')
 
-                # Projected velocities:  pi_E IS A VECTOR
-        def calc_v_geo( t, pi, pi_mag ):
-            """t must be in seconds, pi dimensionless"""
+    # Projected velocities:  pi_E IS A VECTOR
+    def calc_v_geo( t, pi, pi_mag ):
+        """t must be in seconds, pi dimensionless"""
 
-            v = ( au_km / t ) * ( pi / (pi_mag*pi_mag) )
+        v = ( au_km / t ) * ( pi / (pi_mag*pi_mag) )
 
-            return v
+        return v
 
     def calc_mag_piE(self):
 
