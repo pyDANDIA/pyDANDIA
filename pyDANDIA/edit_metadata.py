@@ -59,6 +59,31 @@ def restore_psf_dimensions_table(red_dir):
     reduction_metadata.create_psf_dimensions_layer(np.array(data))
     reduction_metadata.save_updated_metadata(red_dir,'pyDANDIA_metadata.fits')
 
+def edit_image_reduction_status(red_dir):
+
+    reduction_metadata = metadata.MetaData()
+    reduction_metadata.load_all_metadata(red_dir, 'pyDANDIA_metadata.fits')
+
+    if len(sys.argv) > 2:
+        image_name = sys.argv[2]
+        status = sys.argv[3]
+    else:
+        image_name = input('Please enter the name of the image whose status you want to edit: ')
+        status = input('Please enter, in list format, the updated status of this image in all stages (e.g. [0,0,0,0,0,0,0,0]): ')
+
+    status_list = status.replace('[','').replace(']','').replace(' ','').split(',')
+
+    if len(status_list) != 8:
+        raise IOError('Wrong number of entries for the status of the image in each stage (need 8)')
+
+    idx = np.where(reduction_metadata.reduction_status[1]['IMAGES'] == image_name)[0]
+
+    for i in range(0,8,1):
+        col_name = 'STAGE_'+str(i)
+        reduction_metadata.update_a_cell_to_layer('reduction_status', idx, col_name, status_list[i])
+
+    reduction_metadata.save_updated_metadata(red_dir,'pyDANDIA_metadata.fits')
+
 if __name__ == '__main__':
     if len(sys.argv) == 1:
         red_dir = input('Please enter the path to the reduction directory: ')
@@ -68,4 +93,5 @@ if __name__ == '__main__':
     #modify_red_status_table(red_dir)
     #modify_reduction_parameters(red_dir)
     #modify_headers_summary(red_dir)
-    restore_psf_dimensions_table(red_dir)
+    #restore_psf_dimensions_table(red_dir)
+    edit_image_reduction_status(red_dir)
