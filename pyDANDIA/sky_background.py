@@ -66,8 +66,9 @@ def model_sky_background(setup,reduction_metadata,log,ref_star_catalog,
         floor_value = [floor_value[0]]
     if len(most_freq_value) > 1:
         most_freq_value = [most_freq_value[0]]
-        
+
     log.info('Floor of most frequent pixel value curve '+str(floor_value))
+    log.info('Most frequent pixel value '+str(most_freq_value))
 
     if floor_value > 3.0*most_freq_value:
         bkgd_value = most_freq_value
