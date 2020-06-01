@@ -208,6 +208,7 @@ def calc_cross_calibration(matched_phot,dataset_label,output_dir,log,
     plt.ylabel('Primary reference calibrated mag')
     plt.title(dataset_label)
     plt.grid()
+    plt.legend()
     plot_file = path.join(output_dir,'phot_cross_calibration.png')
     plt.savefig(plot_file)
     plt.close(1)
