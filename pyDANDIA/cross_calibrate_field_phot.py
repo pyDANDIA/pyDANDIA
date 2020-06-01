@@ -78,6 +78,9 @@ def run_cross_calibration(setup):
                                                 log, diagnostics=True)
 
             reduction_metadata.create_phot_calibration_layer(phot_model,'cross_phot_calib')
+            reduction_metadata.save_updated_metadata(
+                path.join(setup.base_dir,red_dir), 'pyDANDIA_metadata.fits',
+                log=log)
 
             log.info('Reading timeseries photometry for '+facility_code)
 
