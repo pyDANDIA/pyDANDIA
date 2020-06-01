@@ -194,6 +194,7 @@ def get_args():
     params['dx'] = 0.0
     params['dy'] = 0.0
     params['n_sky_bins'] = -1
+    params['sky_value'] = None
     for a in argv:
         if '-dx' in a:
             params['dx'] = float(str(a).split('=')[-1])
@@ -201,7 +202,9 @@ def get_args():
             params['dy'] = float(str(a).split('=')[-1])
         if '-n_sky_bins' in a:
             params['n_sky_bins'] = int(str(a).split('=')[-1])
-
+        if '-sky_value' in a:
+            params['sky_value'] = float(str(a).split('=')[-1])
+            
     if str(params['db_file_path']).split('.')[-1] != 'db':
         raise ValueError(params['db_file_path']+' does not end in .db.  Is this a database file path?')
 

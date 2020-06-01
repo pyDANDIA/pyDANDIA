@@ -63,7 +63,8 @@ def run_stage3(setup, cl_params={}):
         sky_model = sky_background.model_sky_background(setup,
                                         reduction_metadata,log,ref_star_catalog,
                                         bandpass=meta_pars['bandpass'],
-                                        n_sky_bins=cl_params['n_sky_bins'])
+                                        n_sky_bins=cl_params['n_sky_bins'],
+                                        sky_value=cl_params['sky_value'])
 
         ref_star_catalog = psf_selection.psf_star_selection(setup,
                                         reduction_metadata,

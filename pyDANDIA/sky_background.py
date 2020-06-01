@@ -19,7 +19,7 @@ from astropy import visualization
 
 def model_sky_background(setup,reduction_metadata,log,ref_star_catalog,
                         image_path=None, bandpass=None, n_sky_bins=None,
-                        diagnostics=True):
+                        sky_value=None, diagnostics=True):
     """Function to model the sky background of a real image by masking out
     the positions of the known stars in order to fit a better model to the
     background
@@ -70,14 +70,17 @@ def model_sky_background(setup,reduction_metadata,log,ref_star_catalog,
     log.info('Floor of most frequent pixel value curve '+str(floor_value))
     log.info('Most frequent pixel value '+str(most_freq_value))
 
-    if floor_value > 3.0*most_freq_value:
+    if floor_value > 3.0*most_freq_value and sky_value == None:
         bkgd_value = most_freq_value
         log.info('Floor estimator seems to have over-estimated the sky background')
         log.info('Reverting to most frequent pixel value '+str(bkgd_value))
-    else:
+    elif floor_value <= 3.0*most_freq_value and sky_value == None:
         bkgd_value = floor_value
         log.info('Using the floor estimator for the sky background = '+str(bkgd_value))
-
+    elif sky_value !=None:
+        bkgd_value = sky_value
+        log.info('Using user-provided estimate of the sky background = '+str(bkgd_value))
+        
     if diagnostics:
         fig = plt.figure(1)
         plt.hist(star_masked_image.flatten(),1000,range=(0.0, 5000.0), log=True)
