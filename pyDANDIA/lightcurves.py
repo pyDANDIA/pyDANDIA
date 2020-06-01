@@ -220,43 +220,41 @@ def identify_unique_datasets(phot_table,facilities,filters):
 
 def fetch_photometry_for_dataset(params, star_field_id, matched_stars, log):
 
-    setup = pipeline_setup.pipeline_setup({'red_dir': params['red_dir']})
+	setup = pipeline_setup.pipeline_setup({'red_dir': params['red_dir']})
 
-    dataset_photometry = hd5_utils.read_phot_hd5(setup)
+	dataset_photometry = hd5_utils.read_phot_hd5(setup)
 
-    (star_field_ids, star_dataset_ids) = matched_stars.find_starlist_match_ids('cat1_index', np.array([star_field_id]), log,
+	(star_field_ids, star_dataset_ids) = matched_stars.find_starlist_match_ids('cat1_index', np.array([star_field_id]), log,
                                                                                 verbose=True)
-    star_dataset_id = star_dataset_ids[0]
+	star_dataset_id = star_dataset_ids[0]
+	print('Star field ID = '+str(star_field_id))
+	print('Star dataset ID = '+str(star_dataset_id))
 
-    print('Star field ID = '+str(star_field_id))
-    print('Star dataset ID = '+str(star_dataset_id))
+	star_dataset_index = star_dataset_id - 1
 
-    star_dataset_index = star_dataset_id - 1
+	print('Star array index: '+str(star_dataset_index))
 
-    print('Star array index: '+str(star_dataset_index))
-
-    photometry_data = dataset_photometry[star_dataset_index,:,:]
+	photometry_data = dataset_photometry[star_dataset_index,:,:]
 
 	if dataset_photometry.shape[2] == 25:
-    	photometry_data = table.Table( [ table.Column(name='hjd', data=dataset_photometry[star_dataset_index,:,9]),
-                                     table.Column(name='instrumental_mag', data=dataset_photometry[star_dataset_index,:,11]),
-                                     table.Column(name='instrumental_mag_err', data=dataset_photometry[star_dataset_index,:,12]),
-                                      table.Column(name='calibrated_mag', data=dataset_photometry[star_dataset_index,:,13]),
-                                      table.Column(name='calibrated_mag_err', data=dataset_photometry[star_dataset_index,:,14]),
-                                      table.Column(name='cross_calibrated_mag', data=dataset_photometry[star_dataset_index,:,23]),
-                                      table.Column(name='cross_calibrated_mag_err', data=dataset_photometry[star_dataset_index,:,24]),
-									  ] )
-	elif dataset_photometry.shape[2] == 23:
-    	photometry_data = table.Table( [ table.Column(name='hjd', data=dataset_photometry[star_dataset_index,:,9]),
-                                     table.Column(name='instrumental_mag', data=dataset_photometry[star_dataset_index,:,11]),
-                                     table.Column(name='instrumental_mag_err', data=dataset_photometry[star_dataset_index,:,12]),
-                                      table.Column(name='calibrated_mag', data=dataset_photometry[star_dataset_index,:,13]),
-                                      table.Column(name='calibrated_mag_err', data=dataset_photometry[star_dataset_index,:,14]),
-                                      table.Column(name='cross_calibrated_mag', data=np.zeros(len(dataset_photometry[star_dataset_index,:,9]))),
-                                      table.Column(name='cross_calibrated_mag_err', data=np.zeros(len(dataset_photometry[star_dataset_index,:,9]))),
-									  ] )
-
-    return photometry_data
+		photometry_data = table.Table( [ table.Column(name='hjd', data=dataset_photometry[star_dataset_index,:,9]),
+									table.Column(name='instrumental_mag', data=dataset_photometry[star_dataset_index,:,11]),
+									table.Column(name='instrumental_mag_err', data=dataset_photometry[star_dataset_index,:,12]),
+									table.Column(name='calibrated_mag', data=dataset_photometry[star_dataset_index,:,13]),
+									table.Column(name='calibrated_mag_err', data=dataset_photometry[star_dataset_index,:,14]),
+									table.Column(name='cross_calibrated_mag', data=dataset_photometry[star_dataset_index,:,23]),
+									table.Column(name='cross_calibrated_mag_err', data=dataset_photometry[star_dataset_index,:,24]),
+									] )
+	elif dataset_photometry.shape[2] == 23:\
+		photometry_data = table.Table( [ table.Column(name='hjd', data=dataset_photometry[star_dataset_index,:,9]),
+									table.Column(name='instrumental_mag', data=dataset_photometry[star_dataset_index,:,11]),
+									table.Column(name='instrumental_mag_err', data=dataset_photometry[star_dataset_index,:,12]),
+									table.Column(name='calibrated_mag', data=dataset_photometry[star_dataset_index,:,13]),
+									table.Column(name='calibrated_mag_err', data=dataset_photometry[star_dataset_index,:,14]),
+									table.Column(name='cross_calibrated_mag', data=np.zeros(len(dataset_photometry[star_dataset_index,:,9]))),
+									table.Column(name='cross_calibrated_mag_err', data=np.zeros(len(dataset_photometry[star_dataset_index,:,9]))),
+									] )
+	return photometry_data
 
 def read_pydandia_lightcurve(file_path, skip_zero_entries=True):
 	"""Function to read the pyDANDIA lightcurve file format to an astropy Table"""
