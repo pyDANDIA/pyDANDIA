@@ -86,9 +86,34 @@ def test_match_phot_tables():
 
     logs.close_log(log)
 
+def test_apply_photometric_transform():
+
+    log = logs.start_stage_log( TEST_DIR, 'test_cross_calib' )
+
+    nstars = 5
+    nimages = 5
+
+    data = np.zeros([ nstars, nimages, 25])
+    data[:,:,13] = 10
+    data[:,:,14] = 0.01
+    data[0,0,13] = 0.0
+    data[0,0,14] = 0.0
+
+    model = [2.0, 1.0]
+
+    new_data = cross_calibrate_field_phot.apply_photometric_transform(data,model,log)
+
+    for j in range(1,nstars,1):
+        for i in range(1,nimages,1):
+            assert new_data[j,i,23] == model[0] + model[1]*data[j,i,13]
+    assert new_data[0,0,23] == 0.0
+    
+    logs.close_log(log)
+
 if __name__ == '__main__':
 
     #test_get_args()
     #test_load_primary_reference_photometry()
     #test_calc_cross_calibration()
-    test_match_phot_tables()
+    #test_match_phot_tables()
+    test_apply_photometric_transform()

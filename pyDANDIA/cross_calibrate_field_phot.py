@@ -172,8 +172,7 @@ def calc_cross_calibration(matched_phot,dataset_label,output_dir,log,
     pinit = [0.0, 0.0]
     model_mags = np.zeros(len(matched_phot))
     residuals = np.zeros(len(matched_phot))
-    idx = np.where(matched_phot['dataset_calibrated_mag'] > 0.0)
-
+    idx = np.where(matched_phot['dataset_calibrated_mag'] > 0.0)[0]
     log.info('Calculating photometric cross-transform, starting with '+str(len(idx))+' stars')
 
     for it in range(0,4,1):
@@ -185,16 +184,23 @@ def calc_cross_calibration(matched_phot,dataset_label,output_dir,log,
 
         model_mags[idx] = phot_func(model, matched_phot['dataset_calibrated_mag'][idx])
         residuals[idx] = abs(matched_phot['primary_ref_calibrated_mag'][idx] - model_mags[idx])
-
+        sigma_threshold = np.median(residuals) + 3.0*residuals.std()
         max_res = residuals.max()
-        threshold = 0.9 * max_res
-        idx = residuals < threshold
-        log.info('-> Refined star selection after iteration '+str(it)+' using '+str(len(idx))+' stars')
-        
+        thresholds = np.percentile(residuals,[75.0,80.0,90.0])
+        idx = residuals < thresholds[2]
+
+        selected = np.where(idx == True)[0]
+        log.info('-> Refined star selection after iteration '+str(it)+' using '+str(len(selected))+' stars')
+
     fig = plt.figure(1)
 
+    plt.plot(matched_phot['dataset_calibrated_mag'],
+            matched_phot['primary_ref_calibrated_mag'],
+            marker='.',markersize=1, markerfacecolor='#969799',linestyle='',
+            label='All stars')
     plt.plot(matched_phot['dataset_calibrated_mag'][idx],
-            matched_phot['primary_ref_calibrated_mag'][idx],'k.',markersize=1)
+            matched_phot['primary_ref_calibrated_mag'][idx],'k.',markersize=1,
+            label='Selected stars')
     x = np.arange(matched_phot['dataset_calibrated_mag'][idx].min(),
                     matched_phot['dataset_calibrated_mag'][idx].max(),0.2)
     plt.plot(x, phot_func(model, x), 'r-')
@@ -230,12 +236,13 @@ def extract_matched_stars_phot(matched_stars, primary_ref_phot_table1,
     """Function to extract arrays of photometry for stars with measurements
     in both datasets"""
 
-    phot = np.zeros([matched_stars.n_match,2])
+    phot = []
     for j in range(0,matched_stars.n_match,1):
         if primary_ref_phot_table1['calibrated_mag'][matched_stars.cat1_index[j]] > 0.0 and \
             dataset_phot_table2['calibrated_mag'][matched_stars.cat2_index[j]] > 0.0:
-            phot[j,0] = primary_ref_phot_table1['calibrated_mag'][matched_stars.cat1_index[j]]
-            phot[j,1] = dataset_phot_table2['calibrated_mag'][matched_stars.cat2_index[j]]
+            phot.append( [primary_ref_phot_table1['calibrated_mag'][matched_stars.cat1_index[j]],
+                            dataset_phot_table2['calibrated_mag'][matched_stars.cat2_index[j]]] )
+    phot = np.array(phot)
 
     matched_phot = table.Table( [ table.Column(data=phot[:,0], name='primary_ref_calibrated_mag'),
                                   table.Column(data=phot[:,1], name='dataset_calibrated_mag') ] )
@@ -248,8 +255,9 @@ def apply_photometric_transform(dataset_photometry,model,log):
     """Function to apply the photometric model to the timeseries photometry of
     a dataset"""
 
-    dataset_photometry[:,:,23] = phot_func(model, dataset_photometry[:,:,13])
-    dataset_photometry[:,:,24] = phot_func(model, dataset_photometry[:,:,14])
+    mask = dataset_photometry[:,:,13] > 0.0
+    dataset_photometry[mask,23] = phot_func(model, dataset_photometry[mask,13])
+    dataset_photometry[mask,24] = dataset_photometry[mask,14]
 
     log.info('Applied photometric transformation')
 
