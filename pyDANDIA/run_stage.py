@@ -200,7 +200,7 @@ def get_args():
         if '-dy' in a:
             params['dy'] = float(str(a).split('=')[-1])
         if '-n_sky_bins' in a:
-            params['n_sky_bins'] = float(str(a).split('=')[-1])
+            params['n_sky_bins'] = int(str(a).split('=')[-1])
 
     if str(params['db_file_path']).split('.')[-1] != 'db':
         raise ValueError(params['db_file_path']+' does not end in .db.  Is this a database file path?')
