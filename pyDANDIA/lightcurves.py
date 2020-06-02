@@ -52,7 +52,8 @@ def extract_star_lightcurves_on_cone_to_list(params):
 
 		photometry_data = fetch_photometry_for_dataset(params, star_field_id, matched_stars, log)
 
-		lcs.append(np.c_[photometry_data['hjd'],photometry_data['calibrated_mag'],photometry_data['calibrated_mag_err']])
+		if photometry_data != None:
+			lcs.append(np.c_[photometry_data['hjd'],photometry_data['calibrated_mag'],photometry_data['calibrated_mag_err']])
 
 
 
@@ -158,19 +159,23 @@ def extract_star_lightcurves_on_position(params):
 
         photometry_data = fetch_photometry_for_dataset(params, star_field_id, matched_stars, log)
 
-        #setname = path.basename(params['red_dir']).split('_')[1]
-        setname = path.basename("_".join((params['red_dir']).split('_')[1:]))
+		if photometry_data != None:
+	        #setname = path.basename(params['red_dir']).split('_')[1]
+	        setname = path.basename("_".join((params['red_dir']).split('_')[1:]))
 
-        datafile = open(path.join(params['output_dir'],'star_'+str(star_field_id)+'_'+setname+'.dat'),'w')
+	        datafile = open(path.join(params['output_dir'],'star_'+str(star_field_id)+'_'+setname+'.dat'),'w')
 
-        for i in range(0,len(photometry_data),1):
+	        for i in range(0,len(photometry_data),1):
 
-            datafile.write(str(photometry_data['hjd'][i])+'  '+\
-                            str(photometry_data['instrumental_mag'][i])+'  '+str(photometry_data['instrumental_mag_err'][i])+'  '+\
-                            str(photometry_data['calibrated_mag'][i])+'  '+str(photometry_data['calibrated_mag_err'][i])+'\n')
+	            datafile.write(str(photometry_data['hjd'][i])+'  '+\
+	                            str(photometry_data['instrumental_mag'][i])+'  '+str(photometry_data['instrumental_mag_err'][i])+'  '+\
+	                            str(photometry_data['calibrated_mag'][i])+'  '+str(photometry_data['calibrated_mag_err'][i])+'  '+\)
+	                            str(photometry_data['cross_calibrated_mag'][i])+'  '+str(photometry_data['cross_calibrated_mag_err'][i])+'\n')
 
-        datafile.close()
-        print('-> Output dataset '+setname)
+	        datafile.close()
+	        print('-> Output dataset '+setname)
+		else:
+			print('No photometry could be extracted for these coordinates')
 
         message = 'OK'
 
@@ -230,30 +235,36 @@ def fetch_photometry_for_dataset(params, star_field_id, matched_stars, log):
 	print('Star field ID = '+str(star_field_id))
 	print('Star dataset ID = '+str(star_dataset_id))
 
-	star_dataset_index = star_dataset_id - 1
+	if star_dataset_id >= 1:
+		star_dataset_index = star_dataset_id - 1
 
-	print('Star array index: '+str(star_dataset_index))
+		print('Star array index: '+str(star_dataset_index))
 
-	photometry_data = dataset_photometry[star_dataset_index,:,:]
+		photometry_data = dataset_photometry[star_dataset_index,:,:]
 
-	if dataset_photometry.shape[2] == 25:
-		photometry_data = table.Table( [ table.Column(name='hjd', data=dataset_photometry[star_dataset_index,:,9]),
-									table.Column(name='instrumental_mag', data=dataset_photometry[star_dataset_index,:,11]),
-									table.Column(name='instrumental_mag_err', data=dataset_photometry[star_dataset_index,:,12]),
-									table.Column(name='calibrated_mag', data=dataset_photometry[star_dataset_index,:,13]),
-									table.Column(name='calibrated_mag_err', data=dataset_photometry[star_dataset_index,:,14]),
-									table.Column(name='cross_calibrated_mag', data=dataset_photometry[star_dataset_index,:,23]),
-									table.Column(name='cross_calibrated_mag_err', data=dataset_photometry[star_dataset_index,:,24]),
-									] )
-	elif dataset_photometry.shape[2] == 23:\
-		photometry_data = table.Table( [ table.Column(name='hjd', data=dataset_photometry[star_dataset_index,:,9]),
-									table.Column(name='instrumental_mag', data=dataset_photometry[star_dataset_index,:,11]),
-									table.Column(name='instrumental_mag_err', data=dataset_photometry[star_dataset_index,:,12]),
-									table.Column(name='calibrated_mag', data=dataset_photometry[star_dataset_index,:,13]),
-									table.Column(name='calibrated_mag_err', data=dataset_photometry[star_dataset_index,:,14]),
-									table.Column(name='cross_calibrated_mag', data=np.zeros(len(dataset_photometry[star_dataset_index,:,9]))),
-									table.Column(name='cross_calibrated_mag_err', data=np.zeros(len(dataset_photometry[star_dataset_index,:,9]))),
-									] )
+		if dataset_photometry.shape[2] == 25:
+			photometry_data = table.Table( [ table.Column(name='hjd', data=dataset_photometry[star_dataset_index,:,9]),
+										table.Column(name='instrumental_mag', data=dataset_photometry[star_dataset_index,:,11]),
+										table.Column(name='instrumental_mag_err', data=dataset_photometry[star_dataset_index,:,12]),
+										table.Column(name='calibrated_mag', data=dataset_photometry[star_dataset_index,:,13]),
+										table.Column(name='calibrated_mag_err', data=dataset_photometry[star_dataset_index,:,14]),
+										table.Column(name='cross_calibrated_mag', data=dataset_photometry[star_dataset_index,:,23]),
+										table.Column(name='cross_calibrated_mag_err', data=dataset_photometry[star_dataset_index,:,24]),
+										] )
+		elif dataset_photometry.shape[2] == 23:\
+			photometry_data = table.Table( [ table.Column(name='hjd', data=dataset_photometry[star_dataset_index,:,9]),
+										table.Column(name='instrumental_mag', data=dataset_photometry[star_dataset_index,:,11]),
+										table.Column(name='instrumental_mag_err', data=dataset_photometry[star_dataset_index,:,12]),
+										table.Column(name='calibrated_mag', data=dataset_photometry[star_dataset_index,:,13]),
+										table.Column(name='calibrated_mag_err', data=dataset_photometry[star_dataset_index,:,14]),
+										table.Column(name='cross_calibrated_mag', data=np.zeros(len(dataset_photometry[star_dataset_index,:,9]))),
+										table.Column(name='cross_calibrated_mag_err', data=np.zeros(len(dataset_photometry[star_dataset_index,:,9]))),
+										] )
+	else:
+		print('No matched star in datasets matched_star index')
+		
+		photometry_data = None
+
 	return photometry_data
 
 def read_pydandia_lightcurve(file_path, skip_zero_entries=True):
