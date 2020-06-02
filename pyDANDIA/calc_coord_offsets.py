@@ -254,7 +254,8 @@ def detect_correspondances(setup, detected_stars, catalog_stars,log):
 
     return [ dx, dy ]
 
-def calc_pixel_transform(setup, ref_catalog, catalog2, log):
+def calc_pixel_transform(setup, ref_catalog, catalog2, log,
+                        diagnostics=False):
     """Calculates the transformation from the reference catalog positions to
     those of the working catalog positions"""
 
@@ -279,6 +280,27 @@ def calc_pixel_transform(setup, ref_catalog, catalog2, log):
     log.info('Pixel scale factor '+repr(model.scale))
     log.info('Pixel rotation '+repr(model.rotation))
     log.info('Transform matrix '+repr(model.params))
+
+    if diagnostics:
+        fig = plt.figure(1)
+
+        dx = ref_array[:,0] - cat_array[:,0]
+        dy = ref_array[:,1] - cat_array[:,1]
+
+        ax = plt.subplot(121)
+        plt.hist(dx)
+        plt.xlabel('$\\Delta x [pixels]')
+        plt.ylabel('Frequency')
+
+        ax = plt.subplot(122)
+        plt.hist(dy)
+        plt.xlabel('$\\Delta y [pixels]')
+        plt.ylabel('Frequency')
+
+        plot_file = path.join(setup.red_dir, 'dataset_field_pixel_offsets.png')
+        plt.savefig(plot_file)
+
+        plt.close(1)
 
     return model
 

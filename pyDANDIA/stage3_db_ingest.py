@@ -829,7 +829,7 @@ def calc_transform_to_primary_ref(setup,matched_stars,log):
 
     transform = calc_coord_offsets.calc_pixel_transform(setup,
                                         refframe_cat, primary_cat,
-                                        log)
+                                        log, diagnostics=True)
 
     return transform
 
