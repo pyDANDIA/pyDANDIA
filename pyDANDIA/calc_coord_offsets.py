@@ -287,27 +287,27 @@ def calc_pixel_transform(setup, ref_catalog, catalog2, log,
         dx = ref_array[:,0] - cat_array[:,0]
         dy = ref_array[:,1] - cat_array[:,1]
 
-        ax = plt.subplot(126)
+        ax = plt.subplot(321)
         plt.hist(dx)
         plt.xlabel('$\\Delta x [pixels]')
         plt.ylabel('Frequency')
 
-        ax = plt.subplot(126)
+        ax = plt.subplot(322)
         plt.hist(dy)
         plt.xlabel('$\\Delta y [pixels]')
         plt.ylabel('Frequency')
 
-        ax = plt.subplot(216)
+        ax = plt.subplot(323)
         plt.plot(ref_array[:,0], dx)
         plt.xlabel('X pixel')
         plt.ylabel('$\\Delta x [pixels]')
 
-        ax = plt.subplot(226)
+        ax = plt.subplot(324)
         plt.plot(ref_array[:,0], dy)
         plt.xlabel('X pixel')
         plt.ylabel('$\\Delta y [pixels]')
 
-        ax = plt.subplot(316)
+        ax = plt.subplot(325)
         plt.plot(ref_array[:,1], dx)
         plt.xlabel('Y pixel')
         plt.ylabel('$\\Delta x [pixels]')
@@ -316,7 +316,7 @@ def calc_pixel_transform(setup, ref_catalog, catalog2, log,
         plt.plot(ref_array[:,1], dy)
         plt.xlabel('Y pixel')
         plt.ylabel('$\\Delta y [pixels]')
-        
+
         plot_file = path.join(setup.red_dir, 'dataset_field_pixel_offsets.png')
         plt.savefig(plot_file)
 
