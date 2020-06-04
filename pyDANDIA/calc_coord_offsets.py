@@ -317,6 +317,7 @@ def calc_pixel_transform(setup, ref_catalog, catalog2, log,
         plt.xlabel('Y pixel')
         plt.ylabel('\$\\Delta y [pixels]')
 
+        plt.subplots_adjust(wspace=0.3, hspace=0.3)
         plot_file = path.join(setup.red_dir, 'dataset_field_pixel_offsets.png')
         plt.savefig(plot_file)
 
