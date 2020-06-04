@@ -255,17 +255,26 @@ def detect_correspondances(setup, detected_stars, catalog_stars,log):
     return [ dx, dy ]
 
 def calc_pixel_transform(setup, ref_catalog, catalog2, log,
-                        diagnostics=False):
+                        coordinates='pixel', diagnostics=False, plot_path=None):
     """Calculates the transformation from the reference catalog positions to
     those of the working catalog positions"""
 
+    if coordinates == 'pixel':
+        col1 = 'x'
+        col2 = 'y'
+        log.info('Calculating transform using pixel coordinates')
+    else:
+        col1 = 'ra'
+        col2 = 'dec'
+        log.info('Calculating transform using sky coordinates')
+
     ref_array = np.zeros((len(ref_catalog),2))
-    ref_array[:,0] = ref_catalog['x'].data
-    ref_array[:,1] = ref_catalog['y'].data
+    ref_array[:,0] = ref_catalog[col1].data
+    ref_array[:,1] = ref_catalog[col2].data
 
     cat_array = np.zeros((len(catalog2),2))
-    cat_array[:,0] = catalog2['x'].data
-    cat_array[:,1] = catalog2['y'].data
+    cat_array[:,0] = catalog2[col1].data
+    cat_array[:,1] = catalog2[col2].data
 
     max_size = 2500
     if len(ref_array) > max_size:
@@ -276,7 +285,10 @@ def calc_pixel_transform(setup, ref_catalog, catalog2, log,
                                residual_threshold=2, max_trials=100)
 
     log.info('RANSAC identified '+str(len(inliers))+' inlying objects in the matched set')
-    log.info('Pixel offsets, dx='+str(model.translation[0])+', dy='+str(model.translation[1])+' pixel')
+    if coordinates == 'pixel':
+        log.info('Pixel offsets, dx='+str(model.translation[0])+', dy='+str(model.translation[1])+' pixel')
+    else:
+        log.info('Pixel offsets, dra='+str(model.translation[0])+', ddec='+str(model.translation[1])+' deg')
     log.info('Pixel scale factor '+repr(model.scale))
     log.info('Pixel rotation '+repr(model.rotation))
     log.info('Transform matrix '+repr(model.params))
@@ -318,7 +330,8 @@ def calc_pixel_transform(setup, ref_catalog, catalog2, log,
         plt.ylabel('\$\\Delta y [pixels]')
 
         plt.subplots_adjust(wspace=0.3, hspace=0.3)
-        plot_file = path.join(setup.red_dir, 'dataset_field_pixel_offsets.png')
+        if plot_path==None:
+            plot_path = path.join(setup.red_dir, 'dataset_field_pixel_offsets.png')
         plt.savefig(plot_file)
 
         plt.close(1)

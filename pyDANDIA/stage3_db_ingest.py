@@ -821,17 +821,28 @@ def match_catalog_entries_with_starlist(conn,params,starlist,reduction_metadata,
 
 def calc_transform_to_primary_ref(setup,matched_stars,log):
 
-    primary_cat = table.Table( [ table.Column(name='x', data=matched_stars.cat1_x),
+    primary_cat_cartesian = table.Table( [ table.Column(name='x', data=matched_stars.cat1_x),
                                  table.Column(name='y', data=matched_stars.cat1_y) ] )
 
-    refframe_cat = table.Table( [ table.Column(name='x', data=matched_stars.cat2_x),
+    refframe_cat_cartesian = table.Table( [ table.Column(name='x', data=matched_stars.cat2_x),
                                   table.Column(name='y', data=matched_stars.cat2_y) ] )
 
-    transform = calc_coord_offsets.calc_pixel_transform(setup,
-                                        refframe_cat, primary_cat,
-                                        log, diagnostics=True)
+    primary_cat_sky = table.Table( [ table.Column(name='ra', data=matched_stars.cat1_x),
+                                 table.Column(name='dec', data=matched_stars.cat1_y) ] )
 
-    return transform
+    refframe_cat_sky = table.Table( [ table.Column(name='ra', data=matched_stars.cat2_x),
+                                  table.Column(name='dec', data=matched_stars.cat2_y) ] )
+
+    transform_cartesian = calc_coord_offsets.calc_pixel_transform(setup,
+                                        refframe_cat_cartesian, primary_cat_cartesian,
+                                        log, coordinates='pixel', diagnostics=True)
+
+    transform_sky = calc_coord_offsets.calc_pixel_transform(setup,
+                                        refframe_cat_sky, primary_cat_sky,
+                                        log, pixel=False, diagnostics=True,
+                                        plot_path=setup.red_dir, 'dataset_field_sky_offsets.png')
+
+    return transform_cartesian
 
 def match_all_entries_with_starlist(setup,conn,params,starlist,reduction_metadata,
                                     refimg_id,transform,log, verbose=False):
