@@ -840,7 +840,7 @@ def calc_transform_to_primary_ref(setup,matched_stars,log):
     transform_sky = calc_coord_offsets.calc_pixel_transform(setup,
                                         refframe_cat_sky, primary_cat_sky,
                                         log, pixel=False, diagnostics=True,
-                                        plot_path=setup.red_dir, 'dataset_field_sky_offsets.png')
+                                        plot_path=path.join(setup.red_dir, 'dataset_field_sky_offsets.png'))
 
     return transform_cartesian
 
