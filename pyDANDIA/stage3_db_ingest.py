@@ -827,11 +827,11 @@ def calc_transform_to_primary_ref(setup,matched_stars,log):
     refframe_cat_cartesian = table.Table( [ table.Column(name='x', data=matched_stars.cat2_x),
                                   table.Column(name='y', data=matched_stars.cat2_y) ] )
 
-    primary_cat_sky = table.Table( [ table.Column(name='ra', data=matched_stars.cat1_x),
-                                 table.Column(name='dec', data=matched_stars.cat1_y) ] )
+    primary_cat_sky = table.Table( [ table.Column(name='ra', data=matched_stars.cat1_ra),
+                                 table.Column(name='dec', data=matched_stars.cat1_dec) ] )
 
-    refframe_cat_sky = table.Table( [ table.Column(name='ra', data=matched_stars.cat2_x),
-                                  table.Column(name='dec', data=matched_stars.cat2_y) ] )
+    refframe_cat_sky = table.Table( [ table.Column(name='ra', data=matched_stars.cat2_ra),
+                                  table.Column(name='dec', data=matched_stars.cat2_dec) ] )
 
     transform_cartesian = calc_coord_offsets.calc_pixel_transform(setup,
                                         refframe_cat_cartesian, primary_cat_cartesian,

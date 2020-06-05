@@ -294,6 +294,16 @@ def calc_pixel_transform(setup, ref_catalog, catalog2, log,
     log.info('Transform matrix '+repr(model.params))
 
     if diagnostics:
+
+        if coordinates == 'pixel':
+            units = 'pixels'
+            xdirection = 'X'
+            ydirection = 'Y'
+        else:
+            units = 'deg'
+            xdirection = 'RA'
+            ydirection = 'Dec'
+
         fig = plt.figure(1)
 
         dx = ref_array[:,0] - cat_array[:,0]
@@ -301,35 +311,35 @@ def calc_pixel_transform(setup, ref_catalog, catalog2, log,
 
         ax = plt.subplot(321)
         plt.hist(dx)
-        plt.xlabel('$\\Delta x [pixels]')
+        plt.xlabel('$\\Delta x$ ['+units+']')
         plt.ylabel('Frequency')
 
         ax = plt.subplot(322)
         plt.hist(dy)
-        plt.xlabel('$\\Delta y [pixels]')
+        plt.xlabel('$\\Delta y$ ['+units+']')
         plt.ylabel('Frequency')
 
         ax = plt.subplot(323)
         plt.plot(ref_array[:,0], dx, 'b.')
-        plt.xlabel('X pixel')
-        plt.ylabel('\$\\Delta x [pixels]')
+        plt.xlabel(xdirection+' '+units)
+        plt.ylabel('$\\Delta x$ ['+units+']')
 
         ax = plt.subplot(324)
         plt.plot(ref_array[:,0], dy, 'b.')
-        plt.xlabel('X pixel')
-        plt.ylabel('\$\\Delta y [pixels]')
+        plt.xlabel(xdirection+' '+units)
+        plt.ylabel('$\\Delta y$ ['+units+']')
 
         ax = plt.subplot(325)
         plt.plot(ref_array[:,1], dx, 'b.')
-        plt.xlabel('Y pixel')
-        plt.ylabel('\$\\Delta x [pixels]')
+        plt.xlabel(ydirection+' '+units)
+        plt.ylabel('$\\Delta x$ ['+units+']')
 
         ax = plt.subplot(326)
         plt.plot(ref_array[:,1], dy, 'b.')
-        plt.xlabel('Y pixel')
-        plt.ylabel('\$\\Delta y [pixels]')
+        plt.xlabel(ydirection+' '+units)
+        plt.ylabel('$\\Delta y$ ['+units+']')
 
-        plt.subplots_adjust(wspace=0.3, hspace=0.3)
+        plt.subplots_adjust(wspace=0.4, hspace=0.4)
         if plot_path==None:
             plot_path = path.join(setup.red_dir, 'dataset_field_pixel_offsets.png')
         plt.savefig(plot_path)
