@@ -332,7 +332,7 @@ def calc_pixel_transform(setup, ref_catalog, catalog2, log,
         plt.subplots_adjust(wspace=0.3, hspace=0.3)
         if plot_path==None:
             plot_path = path.join(setup.red_dir, 'dataset_field_pixel_offsets.png')
-        plt.savefig(plot_file)
+        plt.savefig(plot_path)
 
         plt.close(1)
 
