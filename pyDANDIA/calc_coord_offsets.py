@@ -311,35 +311,35 @@ def calc_pixel_transform(setup, ref_catalog, catalog2, log,
 
         ax = plt.subplot(321)
         plt.hist(dx)
-        plt.xlabel('$\\Delta x$ ['+units+']')
+        plt.xlabel('$\\Delta$ '+xdirection+' ['+units+']')
         plt.ylabel('Frequency')
 
         ax = plt.subplot(322)
         plt.hist(dy)
-        plt.xlabel('$\\Delta y$ ['+units+']')
+        plt.xlabel('$\\Delta$ '+ydirection+' ['+units+']')
         plt.ylabel('Frequency')
 
         ax = plt.subplot(323)
         plt.plot(ref_array[:,0], dx, 'b.')
         plt.xlabel(xdirection+' '+units)
-        plt.ylabel('$\\Delta x$ ['+units+']')
+        plt.ylabel('$\\Delta$ '+xdirection+' ['+units+']')
 
         ax = plt.subplot(324)
         plt.plot(ref_array[:,0], dy, 'b.')
         plt.xlabel(xdirection+' '+units)
-        plt.ylabel('$\\Delta y$ ['+units+']')
+        plt.ylabel('$\\Delta$ '+ydirection+' ['+units+']')
 
         ax = plt.subplot(325)
         plt.plot(ref_array[:,1], dx, 'b.')
         plt.xlabel(ydirection+' '+units)
-        plt.ylabel('$\\Delta x$ ['+units+']')
+        plt.ylabel('$\\Delta$ '+xdirection+' ['+units+']')
 
         ax = plt.subplot(326)
         plt.plot(ref_array[:,1], dy, 'b.')
         plt.xlabel(ydirection+' '+units)
-        plt.ylabel('$\\Delta y$ ['+units+']')
+        plt.ylabel('$\\Delta$ '+ydirection+' ['+units+']')
 
-        plt.subplots_adjust(wspace=0.4, hspace=0.4)
+        plt.subplots_adjust(wspace=0.5, hspace=0.6)
         if plot_path==None:
             plot_path = path.join(setup.red_dir, 'dataset_field_pixel_offsets.png')
         plt.savefig(plot_path)
