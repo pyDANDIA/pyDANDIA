@@ -724,11 +724,11 @@ def match_dataset_with_field_primary_reference(setup,conn,dataset_params,
                                                         primary_refimg_id,log,
                                                         verbose=True)
 
-    transform = stage3_db_ingest.calc_transform_to_primary_ref(setup,matched_stars,log)
+    (transform_xy, transform_sky) = stage3_db_ingest.calc_transform_to_primary_ref(setup,matched_stars,log)
 
     matched_stars = stage3_db_ingest.match_all_entries_with_starlist(setup,conn,dataset_params,
                                                     starlist,reduction_metadata,
-                                                    primary_refimg_id,transform,log,
+                                                    primary_refimg_id,transform_sky,log,
                                                     verbose=True)
 
     return transform, matched_stars

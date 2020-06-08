@@ -120,11 +120,11 @@ def run_stage3_db_ingest(setup, primary_ref=False, add_matched_stars=False):
                                                             primary_refimg_id,log,
                                                             verbose=True)
 
-        transform = calc_transform_to_primary_ref(setup,matched_stars,log)
+        (transform_xy,transform_sky) = calc_transform_to_primary_ref(setup,matched_stars,log)
 
         matched_stars = match_all_entries_with_starlist(setup,conn,dataset_params,
                                                         starlist,reduction_metadata,
-                                                        primary_refimg_id,transform,log,
+                                                        primary_refimg_id,transform_sky,log,
                                                         verbose=True)
 
         if not add_matched_stars:
@@ -794,9 +794,14 @@ def match_catalog_entries_with_starlist(conn,params,starlist,reduction_metadata,
             query = 'SELECT star_id,x,y FROM phot WHERE reference_image="'+str(refimg_id)+'" AND star_id="'+str(star['star_id'])+'"'
             phot_data = phot_db.query_to_astropy_table(conn, query, args=())
 
-            dx = phot_data['x'] - reduction_metadata.star_catalog[1]['x'][jdx[kdx[0]]]
-            dy = phot_data['y'] - reduction_metadata.star_catalog[1]['y'][jdx[kdx[0]]]
-            separation = np.sqrt( dx*dx + dy*dy )
+            dataset_star = SkyCoord( reduction_metadata.star_catalog[1]['ra'][jdx[kdx[0]]],
+                          reduction_metadata.star_catalog[1]['dec'][jdx[kdx[0]]],
+                          frame='ircs', unit=(units.deg, units.deg) )
+
+            field_star = SkyCoord( phot_data['ra'], phot_data['dec'],
+                                    frame='ircs', unit=(units.deg, units.deg) )
+
+            separation = s.separation(field_star)
 
             jj = jdx[kdx[0]][0]
 
@@ -842,15 +847,15 @@ def calc_transform_to_primary_ref(setup,matched_stars,log):
                                         log, coordinates='sky', diagnostics=True,
                                         plot_path=path.join(setup.red_dir, 'dataset_field_sky_offsets.png'))
 
-    return transform_cartesian
+    return transform_cartesian, transform_sky
 
 def match_all_entries_with_starlist(setup,conn,params,starlist,reduction_metadata,
-                                    refimg_id,transform,log, verbose=False):
+                                    refimg_id,transform_sky,log, verbose=False):
 
-    tol = 2.0  # pixels
+    tol = (2.0 * params['PIXSCALE'])/3600.0  # pixels -> deg
 
     log.info('Matching all stars from starlist with the transformed coordinates of stars detected in the new reference image')
-    log.info('Match tolerance: '+str(tol)+' pixels')
+    log.info('Match tolerance: '+str(tol)+' deg')
 
     matched_stars = match_utils.StarMatchIndex()
 
@@ -862,19 +867,23 @@ def match_all_entries_with_starlist(setup,conn,params,starlist,reduction_metadat
                         ' AND software="'+str(software)+'"'
     phot_data = phot_db.query_to_astropy_table(conn, query, args=())
 
-    refframe_coords = table.Table( [ table.Column(name='x', data=reduction_metadata.star_catalog[1]['x']),
-                                     table.Column(name='y', data=reduction_metadata.star_catalog[1]['y']) ] )
+    refframe_coords = table.Table( [ table.Column(name='ra', data=reduction_metadata.star_catalog[1]['ra']),
+                                     table.Column(name='dec', data=reduction_metadata.star_catalog[1]['dec']) ] )
 
-    refframe_coords = calc_coord_offsets.transform_coordinates(setup, refframe_coords, transform, coords='pixel')
+    refframe_coords = calc_coord_offsets.transform_coordinates(setup, refframe_coords, transform_sky, coords='radec')
+
+    dataset_stars = SkyCoords( refframe_coords['ra'], refframe_coords['dec'],
+                              frame='icrs', unit=(units.deg, units.deg) )
 
     log.info('Transformed star coordinates from the reference image')
     log.info('Matching all stars against field starlist of '+str(len(phot_data))+':')
 
     for j in range(0,len(phot_data),1):
 
-        dx = phot_data['x'][j] - refframe_coords['x1']
-        dy = phot_data['y'][j] - refframe_coords['y1']
-        separation = np.sqrt( dx*dx + dy*dy )
+        field_star = SkyCoords( phot_data['ra'][j], phot_data['dec'][j],
+                                frame='ircs', unit=(units.deg, units.deg) )
+
+        separation = field_star.separation(dataset_stars)
 
         jdx = np.where(separation == separation.min())[0]
 
