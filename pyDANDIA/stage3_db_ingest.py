@@ -11,7 +11,7 @@ from astropy.io import fits
 from astropy import table
 from astropy import time
 from astropy import units
-from astropy.coordinates import SkyCoord
+from astropy.coordinates import SkyCoord, Angle
 from skimage.transform import AffineTransform
 import numpy as np
 import glob
@@ -46,30 +46,7 @@ def run_stage3_db_ingest(setup, primary_ref=False, add_matched_stars=False):
     conn = phot_db.get_connection(dsn=setup.phot_db_path)
 
     reduction_metadata = metadata.MetaData()
-    reduction_metadata.load_a_layer_from_file( setup.red_dir,
-                                          'pyDANDIA_metadata.fits',
-                                          'data_architecture' )
-    reduction_metadata.load_a_layer_from_file( setup.red_dir,
-                                          'pyDANDIA_metadata.fits',
-                                          'reduction_parameters' )
-    reduction_metadata.load_a_layer_from_file( setup.red_dir,
-                                          'pyDANDIA_metadata.fits',
-                                          'headers_summary' )
-    reduction_metadata.load_a_layer_from_file( setup.red_dir,
-                                          'pyDANDIA_metadata.fits',
-                                          'images_stats' )
-    reduction_metadata.load_a_layer_from_file( setup.red_dir,
-                                          'pyDANDIA_metadata.fits',
-                                          'psf_dimensions' )
-    reduction_metadata.load_a_layer_from_file( setup.red_dir,
-                                          'pyDANDIA_metadata.fits',
-                                          'software' )
-    reduction_metadata.load_a_layer_from_file( setup.red_dir,
-                                          'pyDANDIA_metadata.fits',
-                                          'star_catalog' )
-    reduction_metadata.load_a_layer_from_file(setup.red_dir,
-                                              'pyDANDIA_metadata.fits',
-                                              'stamps')
+    reduction_metadata.load_all_metadata(setup.red_dir, 'pyDANDIA_metadata.fits')
 
     dataset_params = harvest_stage3_parameters(setup,reduction_metadata)
 
@@ -796,12 +773,12 @@ def match_catalog_entries_with_starlist(conn,params,starlist,reduction_metadata,
 
             dataset_star = SkyCoord( reduction_metadata.star_catalog[1]['ra'][jdx[kdx[0]]],
                           reduction_metadata.star_catalog[1]['dec'][jdx[kdx[0]]],
-                          frame='ircs', unit=(units.deg, units.deg) )
+                          frame='icrs', unit=(units.deg, units.deg) )
 
-            field_star = SkyCoord( phot_data['ra'], phot_data['dec'],
-                                    frame='ircs', unit=(units.deg, units.deg) )
+            field_star = SkyCoord( star['ra'], star['dec'],
+                                    frame='icrs', unit=(units.deg, units.deg) )
 
-            separation = s.separation(field_star)
+            separation = dataset_star.separation(field_star)
 
             jj = jdx[kdx[0]][0]
 
@@ -852,7 +829,8 @@ def calc_transform_to_primary_ref(setup,matched_stars,log):
 def match_all_entries_with_starlist(setup,conn,params,starlist,reduction_metadata,
                                     refimg_id,transform_sky,log, verbose=False):
 
-    tol = (2.0 * params['PIXSCALE'])/3600.0  # pixels -> deg
+    psf_radius = reduction_metadata.psf_dimensions[1]['psf_radius'][0]
+    tol = Angle( (((psf_radius/2.0) * params['secpix1'])/3600.0) * units.deg )
 
     log.info('Matching all stars from starlist with the transformed coordinates of stars detected in the new reference image')
     log.info('Match tolerance: '+str(tol)+' deg')
@@ -872,7 +850,7 @@ def match_all_entries_with_starlist(setup,conn,params,starlist,reduction_metadat
 
     refframe_coords = calc_coord_offsets.transform_coordinates(setup, refframe_coords, transform_sky, coords='radec')
 
-    dataset_stars = SkyCoords( refframe_coords['ra'], refframe_coords['dec'],
+    dataset_stars = SkyCoord( refframe_coords['ra'], refframe_coords['dec'],
                               frame='icrs', unit=(units.deg, units.deg) )
 
     log.info('Transformed star coordinates from the reference image')
@@ -880,8 +858,8 @@ def match_all_entries_with_starlist(setup,conn,params,starlist,reduction_metadat
 
     for j in range(0,len(phot_data),1):
 
-        field_star = SkyCoords( phot_data['ra'][j], phot_data['dec'][j],
-                                frame='ircs', unit=(units.deg, units.deg) )
+        field_star = SkyCoord( starlist['ra'][j], starlist['dec'][j],
+                                frame='icrs', unit=(units.deg, units.deg) )
 
         separation = field_star.separation(dataset_stars)
 
@@ -897,13 +875,13 @@ def match_all_entries_with_starlist(setup,conn,params,starlist,reduction_metadat
              'cat2_dec': reduction_metadata.star_catalog[1]['dec'][jdx[0]],
              'cat2_x': reduction_metadata.star_catalog[1]['x'][jdx[0]],
              'cat2_y': reduction_metadata.star_catalog[1]['y'][jdx[0]],
-             'separation': separation[jdx[0]]}
+             'separation': separation[jdx[0]].value}
 
         if separation[jdx[0]] <= tol:
             matched_stars.add_match(p)
 
             if verbose:
-                log.info(matched_stars.summarize_last(units='pixels'))
+                log.info(matched_stars.summarize_last(units='deg'))
 
     log.info('Matched '+str(matched_stars.n_match)+' stars')
 
