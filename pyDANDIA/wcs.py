@@ -766,6 +766,111 @@ def match_stars_world_coords(detected_sources,catalog_sources,log,catalog_name,
 
     return matched_stars
 
+def cross_match_star_catalogs(detected_sources, catalog_sources, star_index, log,
+                                dra=30.0, ddec=30.0, tol=1.0):
+    """Function to identify those stars which are present in both detected
+    and catalog source Tables based on their RA, Dec positions, while eliminating
+     duplicate entries.
+
+     Inputs:
+     detected_sources  Table   Table of stars detected in working dataset
+     catalog_sources   Table   Table of stars from reference catalog
+     star_index        int array Array of Table indices to use in cross-match
+     log               logger  Open logging object
+     dra               float   Search box width around each star [arcsec]
+     ddec              float   Search box height around each star [arcsec]
+     tol               float   Match tolerance in arcsec
+     """
+
+    # Convert search and match parameters to decimal degrees
+    tol = tol/3600.0
+    dra = dra/3600.0
+    ddec = ddec/3600.0
+
+    det_sources = coordinates.SkyCoord(detected_sources['ra'],
+                                       detected_sources['dec'],
+                                       frame='icrs',
+                                       unit=(units.deg, units.deg))
+
+    matched_stars = match_utils.StarMatchIndex()
+
+    jincr = int(float(len(catalog_sources))*0.01)
+
+    nm = 0
+
+    for j in star_index:
+
+        c = coordinates.SkyCoord(catalog_sources['ra'][j],
+                                 catalog_sources['dec'][j],
+                                 frame='icrs', unit=(units.deg, units.deg))
+
+        kdx1 = np.where(detected_sources['ra'] >= (c.ra.value-dra))[0]
+        kdx2 = np.where(detected_sources['ra'] <= (c.ra.value+dra))[0]
+        kdx3 = np.where(detected_sources['dec'] >= (c.dec.value-ddec))[0]
+        kdx4 = np.where(detected_sources['dec'] <= (c.dec.value+ddec))[0]
+        kdx = set(kdx1).intersection(set(kdx2))
+        kdx = kdx.intersection(set(kdx3))
+        kdx = list(kdx.intersection(set(kdx4)))
+
+        if len(kdx) > 0:
+
+            (idx, d2d, d3d) = c.match_to_catalog_sky(det_sources[kdx])
+            i = int(idx)
+
+            if d2d.value < tol:
+
+                add_star = True
+
+                # Check for any pre-existing matches to this detected objects,
+                # and replace the entry if the current catalog star is a
+                # better match.
+                if kdx[i] in matched_stars.cat1_index:
+
+                    kk = matched_stars.cat1_index.index(kdx[i])
+
+                    if d2d.value[0] < matched_stars.separation[kk]:
+
+                        matched_stars.remove_match(kk)
+
+                        nm -= 1
+
+                        add_star = True
+
+                    else:
+
+                        add_star = False
+
+                if add_star:
+
+                    p = {'cat1_index': kdx[i],
+                         'cat1_ra': detected_sources['ra'][kdx[i]],
+                         'cat1_dec': detected_sources['dec'][kdx[i]],
+                         'cat1_x': detected_sources['x'][kdx[i]],
+                         'cat1_y': detected_sources['y'][kdx[i]],
+                         'cat2_index': j,
+                         'cat2_ra': catalog_sources['ra'][j],
+                         'cat2_dec': catalog_sources['dec'][j],
+                         'cat2_x': catalog_sources['x'][j],
+                         'cat2_y': catalog_sources['y'][j],
+                         'separation': d2d.value[0]}
+
+                    matched_stars.add_match(p)
+                    nm += 1
+
+                    if verbose:
+                        log.info(matched_stars.summarize_last(units='deg'))
+
+            if j%jincr == 0:
+                percentage = round((float(j)/float(len(catalog_sources)))*100.0,0)
+                log.info(' -> Completed cross-match of '+str(percentage)+\
+                            '% ('+str(j)+' of catalog stars out of '+\
+                            str(len(catalog_sources))+')')
+
+    log.info(' -> Matched '+str(matched_stars.n_match)+' stars')
+    log.info(' -> Sanity check matched star count: '+str(nm))
+
+    return matched_stars
+
 def match_stars_pixel_coords(detected_sources,catalog_sources,log,
                              radius=None, x_centre=None, y_centre=None,
                              verbose=False, tol=1.5):
