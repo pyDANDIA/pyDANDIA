@@ -805,7 +805,7 @@ def cross_match_star_catalogs(detected_sources, catalog_sources, star_index, log
         nearest_stars_index = select_nearest_stars_in_catalog(catalog_sources, detected_sources,
                                             c,dra,ddec)
 
-        matched_stars = match_star_without_duplication(catalog_star,det_sources,nearest_stars_index,
+        matched_stars = match_star_without_duplication(c,j,det_sources,nearest_stars_index,
                                             detected_sources, catalog_sources,
                                             tol,matched_stars,log,verbose=True)
 
@@ -841,7 +841,7 @@ def cross_match_star_catalogs(detected_sources, catalog_sources, star_index, log
                     if jj in matched_stars.cat2_index:
                         kk = nearest_stars_index.pop(jj)
 
-                matched_stars = match_star_without_duplication(catalog_star,j,
+                matched_stars = match_star_without_duplication(c,j,
                                                     det_sources,nearest_stars_index,
                                                     detected_sources, catalog_sources,
                                                     tol,matched_stars,log,verbose=True)
