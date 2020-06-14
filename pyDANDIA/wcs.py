@@ -815,7 +815,7 @@ def cross_match_star_catalogs(detected_sources, catalog_sources, star_index, log
                         '% ('+str(j)+' of catalog stars out of '+\
                         str(len(catalog_sources))+')')
 
-    log.info(' -> Matched '+str(matched_stars.n_match)+' stars on first pass')
+    log.info(' -> Matched '+str(matched_stars.n_match)+' stars after first pass')
 
     # The function above replaces matched_stars entries if a closer match
     # is found.  This can result in star entries being dropped if they happen
@@ -845,6 +845,8 @@ def cross_match_star_catalogs(detected_sources, catalog_sources, star_index, log
                                                     det_sources,nearest_stars_index,
                                                     detected_sources, catalog_sources,
                                                     tol,matched_stars,log,verbose=True)
+
+    log.info(' -> Matched '+str(matched_stars.n_match)+' stars after second pass')
 
     return matched_stars
 
