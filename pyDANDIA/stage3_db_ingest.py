@@ -23,6 +23,7 @@ from pyDANDIA import  pipeline_setup
 from pyDANDIA import  time_utils
 from pyDANDIA import  match_utils
 from pyDANDIA import  calc_coord_offsets
+from pyDANDIA import  wcs
 
 VERSION = 'stage3_ingest_v1.0'
 
