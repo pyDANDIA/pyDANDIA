@@ -851,7 +851,7 @@ def match_all_entries_with_starlist(setup,conn,params,starlist,reduction_metadat
     field_stars = table.Table( [table.Column(name='star_id', data=starlist['star_id']),
                                 table.Column(name='ra', data=starlist['ra']),
                                 table.Column(name='dec', data=starlist['dec']),
-                                table.Column(name='x', data=phot_data['x'],
+                                table.Column(name='x', data=phot_data['x']),
                                 table.Column(name='y', data=phot_data['y'])] )
 
     refframe_coords = table.Table( [ table.Column(name='star_id', data=reduction_metadata.star_catalog[1]['index']),
