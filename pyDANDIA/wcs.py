@@ -837,12 +837,13 @@ def cross_match_star_catalogs(detected_sources, catalog_sources, star_index, log
 
                 # Remove from the list of potential matches all stars that have
                 # already been matched
+                revised_nearest_stars = []
                 for jj in nearest_stars_index:
-                    if jj in matched_stars.cat2_index:
-                        kk = nearest_stars_index.pop(jj)
+                    if jj not in matched_stars.cat2_index:
+                        revised_nearest_stars.append(jj)
 
                 matched_stars = match_star_without_duplication(c,j,
-                                                    det_sources,nearest_stars_index,
+                                                    det_sources,revised_nearest_stars,
                                                     detected_sources, catalog_sources,
                                                     tol,matched_stars,log,verbose=True)
 
