@@ -775,7 +775,7 @@ def cross_match_star_catalogs(detected_sources, catalog_sources, star_index, log
      Inputs:
      detected_sources  Table   Table of stars detected in working dataset
      catalog_sources   Table   Table of stars from reference catalog
-     star_index        int array Array of Table indices to use in cross-match
+     star_index        int array Array of Table indices to use in cross-match NOT star IDs
      log               logger  Open logging object
      dra               float   Search box width around each star [arcsec]
      ddec              float   Search box height around each star [arcsec]
@@ -802,6 +802,7 @@ def cross_match_star_catalogs(detected_sources, catalog_sources, star_index, log
                                  catalog_sources['dec'][j],
                                  frame='icrs', unit=(units.deg, units.deg))
 
+        # Returns star array indices
         nearest_stars_index = select_nearest_stars_in_catalog(catalog_sources, detected_sources,
                                             c,dra,ddec)
 
@@ -874,6 +875,7 @@ def match_star_without_duplication(catalog_star,cat_idx,det_sources,nearest_star
     if len(nearest_stars_index) > 0:
         (idx, d2d, d3d) = catalog_star.match_to_catalog_sky(det_sources[nearest_stars_index])
         i = int(idx)
+        match_star_id = detected_sources['star_id'][nearest_stars_index[i]]
 
         if d2d.value < tol:
 
@@ -882,9 +884,10 @@ def match_star_without_duplication(catalog_star,cat_idx,det_sources,nearest_star
             # Check for any pre-existing matches to this detected objects,
             # and replace the entry if the current catalog star is a
             # better match.
-            if nearest_stars_index[i] in matched_stars.cat1_index:
+            #if nearest_stars_index[i] in matched_stars.cat1_index:
+            if match_star_id in matched_stars.cat1_index:
 
-                kk = matched_stars.cat1_index.index(nearest_stars_index[i])
+                kk = matched_stars.cat1_index.index(match_star_id)
 
                 if d2d.value[0] < matched_stars.separation[kk]:
 
@@ -898,12 +901,13 @@ def match_star_without_duplication(catalog_star,cat_idx,det_sources,nearest_star
 
             if add_star:
 
-                p = {'cat1_index': nearest_stars_index[i],
+                # Records star array indices NOT star ID
+                p = {'cat1_index': match_star_id,
                      'cat1_ra': detected_sources['ra'][nearest_stars_index[i]],
                      'cat1_dec': detected_sources['dec'][nearest_stars_index[i]],
                      'cat1_x': detected_sources['x'][nearest_stars_index[i]],
                      'cat1_y': detected_sources['y'][nearest_stars_index[i]],
-                     'cat2_index': cat_idx,
+                     'cat2_index': catalog_sources['star_id'][cat_idx],
                      'cat2_ra': catalog_sources['ra'][cat_idx],
                      'cat2_dec': catalog_sources['dec'][cat_idx],
                      'cat2_x': catalog_sources['x'][cat_idx],

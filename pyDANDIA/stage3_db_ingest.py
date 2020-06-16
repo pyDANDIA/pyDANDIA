@@ -869,7 +869,7 @@ def match_all_entries_with_starlist(setup,conn,params,starlist,reduction_metadat
     log.info('Transformed star coordinates from the reference image')
     log.info('Matching all stars against field starlist of '+str(len(phot_data))+':')
 
-    star_index = jdx = np.arange(0,len(refframe_coords),1)
+    star_index = np.arange(0,len(refframe_coords),1)
 
     matched_stars = wcs.cross_match_star_catalogs(field_stars, refframe_coords, star_index, log,
                                     dra=dra, ddec=ddec, tol=tol)

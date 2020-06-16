@@ -12,11 +12,11 @@ import logs
 import wcs
 import stage3
 import pipeline_setup
-import match_utils
+from pyDANDIA import match_utils
 import calc_coord_offsets
 from astropy.io import fits
 from astropy.table import Table, Column
-from astropy.wcs import WCS as aWCS
+from astropy import wcs as aWCS
 from astropy.coordinates import SkyCoord
 from astropy import units
 import catalog_utils
@@ -783,6 +783,54 @@ def test_match_star_without_duplication():
 
     logs.close_log(log)
 
+def test_cross_match_star_catalogs():
+
+    log = logs.start_stage_log( cwd, 'test_wcs' )
+
+    header = { 'NAXIS1': 4096, 'NAXIS2': 4096,
+               'CTYPE1': 'RA---TAN', 'CTYPE2': 'DEC--TAN',
+               'CRPIX1': 2048.0, 'CRPIX2': 2048.0,
+               'CRVAL1': 267.8358954, 'CRVAL2': -30.0608178,
+               'CUNIT1': 'deg', 'CUNIT2': 'deg',
+               'CD1_1': -0.0001081, 'CD1_2': 0.0,
+               'CD2_1': 0.0, 'CD2_2': 0.0001081 }
+    image_wcs = aWCS.WCS(header)
+
+    nstars = 100000
+    star_index = list(range(0,nstars,1))
+    pix_coords = np.zeros([len(star_index),2])
+    for j in star_index:
+        pix_coords[j-1,0] = np.random.uniform(1.0,4096.0)
+        pix_coords[j-1,1] = np.random.uniform(1.0,4096.0)
+    world_coords = image_wcs.wcs_pix2world(pix_coords,1)
+
+    catalog_sources = Table( [Column(name='star_id', data=star_index),
+                                Column(name='ra', data=world_coords[:,0]),
+                                Column(name='dec', data=world_coords[:,1]),
+                                Column(name='x', data=pix_coords[:,0]),
+                                Column(name='y', data=pix_coords[:,1])] )
+
+    star_index2 = list(np.array(star_index) + 1)
+    ra_offset = 0.000025
+    dec_offset = 0.0
+    world_coords2 = np.zeros([len(star_index),2])
+    world_coords2[:,0] = world_coords[:,0] + ra_offset
+    world_coords2[:,1] = world_coords[:,1] + dec_offset
+
+    detected_sources = Table( [Column(name='star_id', data=star_index2),
+                                Column(name='ra', data=world_coords2[:,0]),
+                                Column(name='dec', data=world_coords2[:,1]),
+                                Column(name='x', data=pix_coords[:,0]),
+                                Column(name='y', data=pix_coords[:,1])] )
+
+    matched_stars = wcs.cross_match_star_catalogs(detected_sources,
+                                                    catalog_sources,
+                                                    star_index, log)
+
+    assert type(matched_stars) == type(match_utils.StarMatchIndex())
+
+    logs.close_log(log)
+
 if __name__ == '__main__':
 
     #test_reference_astrometry()
@@ -800,4 +848,5 @@ if __name__ == '__main__':
     #test_match_stars_pixel_coords()
     #test_image_wcs_object()
     #test_select_nearest_stars_in_catalog()
-    test_match_star_without_duplication()
+    #test_match_star_without_duplication()
+    test_cross_match_star_catalogs()
