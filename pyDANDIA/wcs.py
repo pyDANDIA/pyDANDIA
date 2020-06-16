@@ -802,7 +802,7 @@ def cross_match_star_catalogs(detected_sources, catalog_sources, star_index, log
                                  catalog_sources['dec'][j],
                                  frame='icrs', unit=(units.deg, units.deg))
 
-        # Returns star array indices
+        # Returns star array indices in the detected_sources array
         nearest_stars_index = select_nearest_stars_in_catalog(catalog_sources, detected_sources,
                                             c,dra,ddec)
 
@@ -856,6 +856,7 @@ def select_nearest_stars_in_catalog(catalog_sources, detected_sources,
                                     catalog_star,dra,ddec):
     """Function to identify the detected_source array indices of stars close
     to catalog_sources star j
+    Returns a list of array indices of nearby stars in detected_sources
     """
 
     kdx1 = np.where(detected_sources['ra'] >= (catalog_star.ra.value-dra))[0]
@@ -895,9 +896,15 @@ def match_star_without_duplication(catalog_star,cat_idx,det_sources,nearest_star
 
                     add_star = True
 
+                    if verbose:
+                        log.info('Replacing previous match')
+
                 else:
 
                     add_star = False
+
+                    if verbose:
+                        log.info('Existing match at a smaller separation, retaining')
 
             if add_star:
 
@@ -919,13 +926,13 @@ def match_star_without_duplication(catalog_star,cat_idx,det_sources,nearest_star
                 if verbose:
                     log.info(matched_stars.summarize_last(units='deg'))
 
-            else:
-                if verbose:
-                    log.info('Nearest match outside tolerance')
-
         else:
             if verbose:
-                log.info('No nearby catalog stars to match to')
+                log.info('Catalog 2 star array index '+str(cat_idx)+': Nearest match outside tolerance')
+
+    else:
+        if verbose:
+            log.info('Catalog 2 star array index '+str(cat_idx)+': No nearby catalog stars to match to')
 
     return matched_stars
 
