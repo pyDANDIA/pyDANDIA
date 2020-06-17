@@ -797,7 +797,6 @@ def cross_match_star_catalogs(detected_sources, catalog_sources, star_index, log
     jincr = int(float(len(catalog_sources))*0.01)
 
     for j in star_index:
-
         c = coordinates.SkyCoord(catalog_sources['ra'][j],
                                  catalog_sources['dec'][j],
                                  frame='icrs', unit=(units.deg, units.deg))
@@ -810,7 +809,7 @@ def cross_match_star_catalogs(detected_sources, catalog_sources, star_index, log
                                             detected_sources, catalog_sources,
                                             tol,matched_stars,log,verbose=True)
 
-        if j%jincr == 0:
+        if jincr > 0 and j%jincr == 0:
             percentage = round((float(j)/float(len(catalog_sources)))*100.0,0)
             log.info(' -> Completed cross-match of '+str(percentage)+\
                         '% ('+str(j)+' of catalog stars out of '+\
@@ -890,23 +889,34 @@ def match_star_without_duplication(catalog_star,cat_idx,det_sources,nearest_star
 
                 kk = matched_stars.cat1_index.index(match_star_id)
 
-                if d2d.value[0] < matched_stars.separation[kk]:
+                if matched_stars.cat2_index[kk] != catalog_sources['star_id'][cat_idx]:
+                    if d2d.value[0] < matched_stars.separation[kk]:
 
-                    matched_stars.remove_match(kk)
+                        matched_stars.remove_match(kk)
 
-                    add_star = True
+                        add_star = True
 
-                    if verbose:
-                        log.info('Replacing previous match')
+                        if verbose:
+                            log.info('Replacing previous match')
+
+                    else:
+
+                        add_star = False
+
+                        if verbose:
+                            log.info('Existing match at a smaller separation:'
+                            log.info(' -> Catalog 2 star '+\
+                                        str(matched_stars.cat2_index[kk])+' at '+\
+                                        str(matched_stars.separation[kk])+') - retaining')
+                            log.info(' -> compared with Catalog 2 star '+\
+                                        str(catalog_sources['star_id'][cat_idx])+' at '+\
+                                        str(d2d.value[0])+'\n')
 
                 else:
-
-                    add_star = False
-
                     if verbose:
-                        log.info('Existing match at a smaller separation (catalog 2 star '+\
+                        log.info('Existing match of same star (catalog 2 star '+\
                                     str(matched_stars.cat2_index[kk])+' at '+\
-                                    str(matched_stars.separation[kk])+'), retaining')
+                                    str(matched_stars.separation[kk])+'), retaining\n')
 
             if add_star:
 

@@ -787,48 +787,70 @@ def test_cross_match_star_catalogs():
 
     log = logs.start_stage_log( cwd, 'test_wcs' )
 
-    header = { 'NAXIS1': 4096, 'NAXIS2': 4096,
-               'CTYPE1': 'RA---TAN', 'CTYPE2': 'DEC--TAN',
-               'CRPIX1': 2048.0, 'CRPIX2': 2048.0,
-               'CRVAL1': 267.8358954, 'CRVAL2': -30.0608178,
-               'CUNIT1': 'deg', 'CUNIT2': 'deg',
-               'CD1_1': -0.0001081, 'CD1_2': 0.0,
-               'CD2_1': 0.0, 'CD2_2': 0.0001081 }
-    image_wcs = aWCS.WCS(header)
+    do_full_frame_test = False
+    if do_full_frame_test:
+        header = { 'NAXIS1': 4096, 'NAXIS2': 4096,
+                   'CTYPE1': 'RA---TAN', 'CTYPE2': 'DEC--TAN',
+                   'CRPIX1': 2048.0, 'CRPIX2': 2048.0,
+                   'CRVAL1': 267.8358954, 'CRVAL2': -30.0608178,
+                   'CUNIT1': 'deg', 'CUNIT2': 'deg',
+                   'CD1_1': -0.0001081, 'CD1_2': 0.0,
+                   'CD2_1': 0.0, 'CD2_2': 0.0001081 }
+        image_wcs = aWCS.WCS(header)
 
-    nstars = 100000
-    star_index = list(range(0,nstars,1))
-    pix_coords = np.zeros([len(star_index),2])
-    for j in star_index:
-        pix_coords[j-1,0] = np.random.uniform(1.0,4096.0)
-        pix_coords[j-1,1] = np.random.uniform(1.0,4096.0)
-    world_coords = image_wcs.wcs_pix2world(pix_coords,1)
+        nstars = 100000
+        star_index = list(range(0,nstars,1))
+        pix_coords = np.zeros([len(star_index),2])
+        for j in star_index:
+            pix_coords[j-1,0] = np.random.uniform(1.0,4096.0)
+            pix_coords[j-1,1] = np.random.uniform(1.0,4096.0)
+        world_coords = image_wcs.wcs_pix2world(pix_coords,1)
 
-    catalog_sources = Table( [Column(name='star_id', data=star_index),
-                                Column(name='ra', data=world_coords[:,0]),
-                                Column(name='dec', data=world_coords[:,1]),
-                                Column(name='x', data=pix_coords[:,0]),
-                                Column(name='y', data=pix_coords[:,1])] )
+        catalog_sources = Table( [Column(name='star_id', data=star_index),
+                                    Column(name='ra', data=world_coords[:,0]),
+                                    Column(name='dec', data=world_coords[:,1]),
+                                    Column(name='x', data=pix_coords[:,0]),
+                                    Column(name='y', data=pix_coords[:,1])] )
 
-    star_index2 = list(np.array(star_index) + 1)
-    ra_offset = 0.000025
-    dec_offset = 0.0
-    world_coords2 = np.zeros([len(star_index),2])
-    world_coords2[:,0] = world_coords[:,0] + ra_offset
-    world_coords2[:,1] = world_coords[:,1] + dec_offset
+        star_index2 = list(np.array(star_index) + 1)
+        ra_offset = 0.000025
+        dec_offset = 0.0
+        world_coords2 = np.zeros([len(star_index),2])
+        world_coords2[:,0] = world_coords[:,0] + ra_offset
+        world_coords2[:,1] = world_coords[:,1] + dec_offset
 
-    detected_sources = Table( [Column(name='star_id', data=star_index2),
-                                Column(name='ra', data=world_coords2[:,0]),
-                                Column(name='dec', data=world_coords2[:,1]),
-                                Column(name='x', data=pix_coords[:,0]),
-                                Column(name='y', data=pix_coords[:,1])] )
+        detected_sources = Table( [Column(name='star_id', data=star_index2),
+                                    Column(name='ra', data=world_coords2[:,0]),
+                                    Column(name='dec', data=world_coords2[:,1]),
+                                    Column(name='x', data=pix_coords[:,0]),
+                                    Column(name='y', data=pix_coords[:,1])] )
 
+        matched_stars = wcs.cross_match_star_catalogs(detected_sources,
+                                                        catalog_sources,
+                                                        star_index, log)
+
+        assert type(matched_stars) == type(match_utils.StarMatchIndex())
+
+    star_id = [84291, 84292]
+    x = [3233.74923, 3237.4708]
+    y = [1381.30456, 1381.39523]
+    ra = [267.98273, 267.9832]
+    dec = [-29.98989, -29.9899]
+    catalog_sources = Table( [Column(name='star_id', data=star_id),
+                                Column(name='ra', data=ra),
+                                Column(name='dec', data=dec),
+                                Column(name='x', data=x),
+                                Column(name='y', data=y)] )
+    star_index = [0,1]
+    detected_sources = Table( [Column(name='star_id', data=[78284]),
+                                Column(name='ra', data=[267.98297]),
+                                Column(name='dec', data=[-29.98976]),
+                                Column(name='x', data=[3259.79919]),
+                                Column(name='y', data=[1489.70321])] )
     matched_stars = wcs.cross_match_star_catalogs(detected_sources,
                                                     catalog_sources,
                                                     star_index, log)
-
-    assert type(matched_stars) == type(match_utils.StarMatchIndex())
-
+    print(matched_stars.summary())
     logs.close_log(log)
 
 if __name__ == '__main__':
