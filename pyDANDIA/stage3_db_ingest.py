@@ -111,7 +111,7 @@ def run_stage3_db_ingest(setup, primary_ref=False, add_matched_stars=False):
                                                         verbose=False)
 
     reduction_metadata.create_matched_stars_layer(matched_stars)
-    reduction_metadata.create_transform_layer(transform_sky)
+    reduction_metadata.create_transform_layer(transform_xy)
     reduction_metadata.save_a_layer_to_file(setup.red_dir,
                                           'pyDANDIA_metadata.fits',
                                           'matched_stars', log)
