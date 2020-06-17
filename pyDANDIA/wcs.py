@@ -904,10 +904,10 @@ def match_star_without_duplication(catalog_star,cat_idx,det_sources,nearest_star
                         add_star = False
 
                         if verbose:
-                            log.info('Existing match at a smaller separation:'
+                            log.info('Existing match at a smaller separation:')
                             log.info(' -> Catalog 2 star '+\
                                         str(matched_stars.cat2_index[kk])+' at '+\
-                                        str(matched_stars.separation[kk])+') - retaining')
+                                        str(matched_stars.separation[kk])+' - retaining')
                             log.info(' -> compared with Catalog 2 star '+\
                                         str(catalog_sources['star_id'][cat_idx])+' at '+\
                                         str(d2d.value[0])+'\n')
