@@ -861,12 +861,12 @@ def match_all_entries_with_starlist(setup,conn,params,starlist,reduction_metadat
                                      table.Column(name='x', data=reduction_metadata.star_catalog[1]['x']),
                                      table.Column(name='y', data=reduction_metadata.star_catalog[1]['y']) ] )
 
-    refframe_coords = calc_coord_offsets.transform_coordinates(setup, refframe_coords, transform_sky, coords='radec')
+    #refframe_coords = calc_coord_offsets.transform_coordinates(setup, refframe_coords, transform_sky, coords='radec')
 
     #dataset_stars = SkyCoord( refframe_coords['ra'], refframe_coords['dec'],
     #                          frame='icrs', unit=(units.deg, units.deg) )
 
-    log.info('Transformed star coordinates from the reference image')
+    #log.info('Transformed star coordinates from the reference image')
     log.info('Matching all stars against field starlist of '+str(len(phot_data))+':')
 
     star_index = np.arange(0,len(refframe_coords),1)
