@@ -25,7 +25,7 @@ from pyDANDIA import  match_utils
 from pyDANDIA import  calc_coord_offsets
 from pyDANDIA import  wcs
 
-VERSION = 'stage3_ingest_v1.0'
+VERSION = 'stage3_ingest_v1.1'
 
 def run_stage3_db_ingest(setup, primary_ref=False, add_matched_stars=False):
     """Function to commit the information on, and measurements from, the
