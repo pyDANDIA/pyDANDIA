@@ -831,7 +831,6 @@ def match_all_entries_with_starlist(setup,conn,params,starlist,reduction_metadat
                                     refimg_id,transform_sky,log, verbose=False):
 
     psf_radius = reduction_metadata.psf_dimensions[1]['psf_radius'][0]
-    #tol = Angle( (((psf_radius) * params['secpix1'])/3600.0) * units.deg )
     tol = psf_radius * params['secpix1']    # arcsec
     dra = 2.0*tol                           # arcsec
     ddec = 2.0*tol                          # arcsec
@@ -861,29 +860,11 @@ def match_all_entries_with_starlist(setup,conn,params,starlist,reduction_metadat
                                      table.Column(name='x', data=reduction_metadata.star_catalog[1]['x']),
                                      table.Column(name='y', data=reduction_metadata.star_catalog[1]['y']) ] )
 
-    #refframe_coords = calc_coord_offsets.transform_coordinates(setup, refframe_coords, transform_sky, coords='radec')
-
-    #dataset_stars = SkyCoord( refframe_coords['ra'], refframe_coords['dec'],
-    #                          frame='icrs', unit=(units.deg, units.deg) )
-
-    #log.info('Transformed star coordinates from the reference image')
     log.info('Matching all stars against field starlist of '+str(len(phot_data))+':')
 
     star_index = np.arange(0,len(refframe_coords),1)
 
-    matched_stars = wcs.cross_match_star_catalogs(field_stars, refframe_coords, star_index, log,
-                                    dra=dra, ddec=ddec, tol=tol)
-
-#    for j in range(0,len(phot_data),1):
-
-#        field_star = SkyCoord( starlist['ra'][j], starlist['dec'][j],
-#                                frame='icrs', unit=(units.deg, units.deg) )
-
-#        separation = field_star.separation(dataset_stars)
-
-#        jdx = np.where(separation == separation.min())[0]
-
-#        p = {'cat1_index': phot_data['star_id'][j],
+#   Returns: p = {'cat1_index': phot_data['star_id'][j],
 #             'cat1_ra': starlist['ra'][j],
 #             'cat1_dec': starlist['dec'][j],
 #             'cat1_x': phot_data['x'][j],
@@ -894,16 +875,8 @@ def match_all_entries_with_starlist(setup,conn,params,starlist,reduction_metadat
 #             'cat2_x': reduction_metadata.star_catalog[1]['x'][jdx[0]],
 #             'cat2_y': reduction_metadata.star_catalog[1]['y'][jdx[0]],
 #             'separation': separation[jdx[0]].value}
-
-#        if separation[jdx[0]] <= tol:
-#            matched_stars.add_match(p)
-
-#            if verbose:
-#                log.info(matched_stars.summarize_last(units='deg'))
-#        else:
-#            log.info('No match found for '+repr(p))
-
-#    log.info('Matched '+str(matched_stars.n_match)+' stars')
+    matched_stars = wcs.cross_match_star_catalogs(field_stars, refframe_coords, star_index, log,
+                                    dra=dra, ddec=ddec, tol=tol)
 
     return matched_stars
 
