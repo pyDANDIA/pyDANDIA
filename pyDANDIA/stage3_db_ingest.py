@@ -84,7 +84,7 @@ def run_stage3_db_ingest(setup, primary_ref=False, add_matched_stars=False):
 
             commit_photometry(conn, dataset_params, reduction_metadata, star_ids, log)
 
-        (matched_stars, transform) = generate_primary_ref_match_table(reduction_metadata,log)
+        (matched_stars, transform_xy) = generate_primary_ref_match_table(reduction_metadata,log)
 
     else:
 
