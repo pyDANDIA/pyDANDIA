@@ -13,7 +13,7 @@ from sys import argv
 import glob
 from shutil import move
 
-def sort_data(data_dir):
+def sort_data(data_dir,log=None):
     """Function to sort a directory of FITS frames into per-target, per-filter
     sub-directories"""
 
@@ -23,7 +23,7 @@ def sort_data(data_dir):
 
         ds = get_image_dataset(image)
 
-        sort_image_to_dataset(image,ds,data_dir)
+        sort_image_to_dataset(image,ds,data_dir,log=log)
 
 class Dataset():
     """Class describing a unique dataset from the LCO Network"""
@@ -105,7 +105,7 @@ def make_image_list(data_dir):
 
     return frame_list
 
-def sort_image_to_dataset(image,ds,data_dir):
+def sort_image_to_dataset(image,ds,data_dir,log=None):
     """Function to move the given image to a sub-directory determined by
     its dataset ID code"""
 
@@ -116,7 +116,10 @@ def sort_image_to_dataset(image,ds,data_dir):
 
     move(image,path.join(dest_dir,path.basename(image)))
 
-    print(path.basename(image)+' --> '+dest_dir)
+    if log == None:
+        print(path.basename(image)+' --> '+dest_dir)
+    else:
+        log.info(path.basename(image)+' --> '+dest_dir)
 
 if __name__ == '__main__':
 

@@ -836,7 +836,7 @@ def match_all_entries_with_starlist(setup,conn,params,starlist,reduction_metadat
     ddec = 2.0*tol                          # arcsec
 
     log.info('Matching all stars from starlist with the transformed coordinates of stars detected in the new reference image')
-    log.info('Match tolerance: '+str(tol)+' deg')
+    log.info('Match tolerance: '+str(tol)+' arcsec')
 
     matched_stars = match_utils.StarMatchIndex()
 
