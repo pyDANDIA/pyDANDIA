@@ -643,7 +643,7 @@ def plot_colour_colour_diagram(params,photometry,RC,log):
 
     plot_file = path.join(params['output_dir'],'colour_colour_diagram.pdf')
 
-    scale_axes = False
+    scale_axes = True
     if scale_axes:
         plt.axis([-2.0,2.0,-1.0,2.0])
 
