@@ -117,44 +117,48 @@ def calc_source_blend_params(config,event_model,log):
     source = photometry_classes.Star()
     blend = photometry_classes.Star()
 
-    filterset = ['g','r','i']
-    log.info('Using the following datasets as the flux references for the source and blend fluxes:')
-    for f in filterset:
+    if len(event_model) > 0:
+        filterset = ['g','r','i']
+        log.info('Using the following datasets as the flux references for the source and blend fluxes:')
+        for f in filterset:
 
-        ref_dataset = config['flux_reference_datasets'][f]
-        log.info(ref_dataset)
+            ref_dataset = config['flux_reference_datasets'][f]
+            log.info(ref_dataset)
 
-        if event_model['source_fluxes'][ref_dataset] != None and event_model['source_flux_errors'][ref_dataset] != None:
-            setattr(source, 'fs_'+f, event_model['source_fluxes'][ref_dataset])
-            setattr(source, 'sig_fs_'+f, event_model['source_flux_errors'][ref_dataset])
-            source.convert_fluxes_pylima(f)
+            if event_model['source_fluxes'][ref_dataset] != None and event_model['source_flux_errors'][ref_dataset] != None:
+                setattr(source, 'fs_'+f, event_model['source_fluxes'][ref_dataset])
+                setattr(source, 'sig_fs_'+f, event_model['source_flux_errors'][ref_dataset])
+                source.convert_fluxes_pylima(f)
 
-        log.info('Source: '+repr(event_model['source_fluxes'][ref_dataset])+' +/- '+repr(event_model['source_flux_errors'][ref_dataset]))
+            log.info('Source: '+repr(event_model['source_fluxes'][ref_dataset])+' +/- '+repr(event_model['source_flux_errors'][ref_dataset]))
 
-        if event_model['blend_fluxes'][ref_dataset] != None and event_model['blend_flux_errors'][ref_dataset] != None:
-            setattr(blend, 'fs_'+f, event_model['blend_fluxes'][ref_dataset])
-            setattr(blend, 'sig_fs_'+f, event_model['blend_flux_errors'][ref_dataset])
-            blend.convert_fluxes_pylima(f)
+            if event_model['blend_fluxes'][ref_dataset] != None and event_model['blend_flux_errors'][ref_dataset] != None:
+                setattr(blend, 'fs_'+f, event_model['blend_fluxes'][ref_dataset])
+                setattr(blend, 'sig_fs_'+f, event_model['blend_flux_errors'][ref_dataset])
+                blend.convert_fluxes_pylima(f)
 
-        log.info('Blend: '+repr(event_model['blend_fluxes'][ref_dataset])+' +/- '+repr(event_model['blend_flux_errors'][ref_dataset]))
+            log.info('Blend: '+repr(event_model['blend_fluxes'][ref_dataset])+' +/- '+repr(event_model['blend_flux_errors'][ref_dataset]))
 
-    source.compute_colours(use_inst=True)
-    source.transform_to_JohnsonCousins()
+        source.compute_colours(use_inst=True)
+        source.transform_to_JohnsonCousins()
 
-    log.info('\n')
-    log.info('Source measured photometry:')
-    log.info(source.summary(show_mags=True))
-    log.info(source.summary(show_mags=False,show_colours=True))
-    log.info(source.summary(show_mags=False,johnsons=True))
+        log.info('\n')
+        log.info('Source measured photometry:')
+        log.info(source.summary(show_mags=True))
+        log.info(source.summary(show_mags=False,show_colours=True))
+        log.info(source.summary(show_mags=False,johnsons=True))
 
-    blend.compute_colours(use_inst=True)
-    blend.transform_to_JohnsonCousins()
+        blend.compute_colours(use_inst=True)
+        blend.transform_to_JohnsonCousins()
 
-    log.info('\n')
-    log.info('Blend measured photometry:')
-    log.info(blend.summary(show_mags=True))
-    log.info(blend.summary(show_mags=False,show_colours=True))
-    log.info(blend.summary(show_mags=False,johnsons=True))
+        log.info('\n')
+        log.info('Blend measured photometry:')
+        log.info(blend.summary(show_mags=True))
+        log.info(blend.summary(show_mags=False,show_colours=True))
+        log.info(blend.summary(show_mags=False,johnsons=True))
+
+    else:
+        log.info('No event model supplied, so no source and blend information available')
 
     return source, blend
 
