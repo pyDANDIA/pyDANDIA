@@ -645,7 +645,7 @@ def plot_colour_colour_diagram(params,photometry,RC,log):
 
     scale_axes = False
     if scale_axes:
-        plt.axis([-1.0,2.0,-1.0,1.0])
+        plt.axis([-2.0,2.0,-1.0,2.0])
 
     plt.grid()
 
