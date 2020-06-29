@@ -60,6 +60,8 @@ def run_field_colour_analysis():
 
     plot_colour_colour_diagram(config, photometry, RC, log)
 
+    output_photometry(config, photometry, log)
+
     source.output_json(path.join(config['output_dir'],'source_parameters.json'))
     blend.output_json(path.join(config['output_dir'],'blend_parameters.json'))
     RC.output_json(path.join(config['output_dir'],'red_clump_parameters.json'))
@@ -765,6 +767,29 @@ def localize_red_clump_db(config,photometry,stars,selected_phot,log):
     log.info(RC.summary(show_mags=False,johnsons=True))
 
     return RC
+
+def output_photometry(config, photometry, log):
+
+    if str(config['photometry_data_file']).lower() != 'none':
+
+        log.info('Outputting multiband photometry to file')
+
+        f = open(path.join(config['output_dir'],config['photometry_data_file']), 'w')
+        f.write('# All measured quantities in units of magnitude')
+        f.write('# Star   g  sigma_g    r  sigma_r    i  sigma_i   (g-i)  sigma(g-i) (g-r)  sigma(g-r)  (r-i) sigma(r-i)\n')
+
+        for j in range(0,len(photometry),1):
+            f.write( str(j)+' '+\
+                        str(photometry['g'])+' '+str(photometry['g_err'])+' '+\
+                        str(photometry['r'])+' '+str(photometry['r_err'])+' '+\
+                        str(photometry['i'])+' '+str(photometry['i_err'])+' '+\
+                        str(photometry['gi'])+' '+str(photometry['gi_err'])+' '+\
+                        str(photometry['gr'])+' '+str(photometry['gr_err'])+' '+\
+                        str(photometry['ri'])+' '+str(photometry['ri_err'])+'\n' )
+
+        f.close()
+
+        log.info('Completed output of multiband photometry')
 
 if __name__ == '__main__':
 
