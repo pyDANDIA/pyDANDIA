@@ -775,10 +775,10 @@ def output_photometry(config, photometry, log):
         log.info('Outputting multiband photometry to file')
 
         f = open(path.join(config['output_dir'],config['photometry_data_file']), 'w')
-        f.write('# All measured quantities in units of magnitude')
+        f.write('# All measured quantities in units of magnitude\n')
         f.write('# Star   g  sigma_g    r  sigma_r    i  sigma_i   (g-i)  sigma(g-i) (g-r)  sigma(g-r)  (r-i) sigma(r-i)\n')
 
-        for j in range(0,len(photometry),1):
+        for j in range(0,len(photometry['i']),1):
             f.write( str(j)+' '+\
                         str(photometry['g'][j])+' '+str(photometry['gerr'][j])+' '+\
                         str(photometry['r'][j])+' '+str(photometry['rerr'][j])+' '+\
