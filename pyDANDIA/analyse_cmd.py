@@ -60,7 +60,7 @@ def run_field_colour_analysis():
 
     plot_colour_colour_diagram(config, photometry, RC, log)
 
-    output_photometry(config, photometry, log)
+    output_photometry(config, stars, photometry, log)
 
     source.output_json(path.join(config['output_dir'],'source_parameters.json'))
     blend.output_json(path.join(config['output_dir'],'blend_parameters.json'))
@@ -768,7 +768,7 @@ def localize_red_clump_db(config,photometry,stars,selected_phot,log):
 
     return RC
 
-def output_photometry(config, photometry, log):
+def output_photometry(config, stars, photometry, log):
 
     if str(config['photometry_data_file']).lower() != 'none':
 
@@ -779,7 +779,8 @@ def output_photometry(config, photometry, log):
         f.write('# Star   g  sigma_g    r  sigma_r    i  sigma_i   (g-i)  sigma(g-i) (g-r)  sigma(g-r)  (r-i) sigma(r-i)\n')
 
         for j in range(0,len(photometry['i']),1):
-            f.write( str(j)+' '+\
+            sid = stars['star_id'][j]
+            f.write( str(sid)+' '+\
                         str(photometry['g'][j])+' '+str(photometry['gerr'][j])+' '+\
                         str(photometry['r'][j])+' '+str(photometry['rerr'][j])+' '+\
                         str(photometry['i'][j])+' '+str(photometry['ierr'][j])+' '+\
