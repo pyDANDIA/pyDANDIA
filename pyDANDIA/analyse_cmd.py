@@ -780,12 +780,12 @@ def output_photometry(config, photometry, log):
 
         for j in range(0,len(photometry),1):
             f.write( str(j)+' '+\
-                        str(photometry['g'])+' '+str(photometry['gerr'])+' '+\
-                        str(photometry['r'])+' '+str(photometry['rerr'])+' '+\
-                        str(photometry['i'])+' '+str(photometry['ierr'])+' '+\
-                        str(photometry['gi'])+' '+str(photometry['gi_err'])+' '+\
-                        str(photometry['gr'])+' '+str(photometry['gr_err'])+' '+\
-                        str(photometry['ri'])+' '+str(photometry['ri_err'])+'\n' )
+                        str(photometry['g'][j])+' '+str(photometry['gerr'][j])+' '+\
+                        str(photometry['r'][j])+' '+str(photometry['rerr'][j])+' '+\
+                        str(photometry['i'][j])+' '+str(photometry['ierr'][j])+' '+\
+                        str(photometry['gi'][j])+' '+str(photometry['gi_err'][j])+' '+\
+                        str(photometry['gr'][j])+' '+str(photometry['gr_err'][j])+' '+\
+                        str(photometry['ri'][j])+' '+str(photometry['ri_err'][j])+'\n' )
 
         f.close()
 
