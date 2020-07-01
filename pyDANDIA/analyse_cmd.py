@@ -60,7 +60,7 @@ def run_field_colour_analysis():
 
     plot_colour_colour_diagram(config, photometry, RC, log)
 
-    output_photometry(config, stars, photometry, log)
+    output_photometry(config, stars, photometry, selected_stars, log)
 
     source.output_json(path.join(config['output_dir'],'source_parameters.json'))
     blend.output_json(path.join(config['output_dir'],'blend_parameters.json'))
@@ -289,7 +289,7 @@ def find_stars_close_to_target(config,stars,target,log):
 
     return jdx
 
-def extract_local_star_photometry(photometry,selected_stars,log):
+def extract_local_star_photometry(photometry,selected_stars,log,extract_errors=False):
     """Function to extract the photometry for stars local to the given
     target coordinates"""
 
@@ -299,7 +299,19 @@ def extract_local_star_photometry(photometry,selected_stars,log):
     gr = table.Column(data=photometry['gr'][selected_stars], name='gr')
     ri = table.Column(data=photometry['ri'][selected_stars], name='ri')
     gi = table.Column(data=photometry['gi'][selected_stars], name='gi')
-    selected_phot = table.Table([g,r,i,gr,gi,ri])
+
+    if extract_errors:
+        gerr = table.Column(data=photometry['gerr'][selected_stars], name='gerr')
+        rerr = table.Column(data=photometry['rerr'][selected_stars], name='rerr')
+        ierr = table.Column(data=photometry['ierr'][selected_stars], name='ierr')
+        gr_err = table.Column(data=photometry['gr_err'][selected_stars], name='gr_err')
+        ri_err = table.Column(data=photometry['ri_err'][selected_stars], name='ri_err')
+        gi_err = table.Column(data=photometry['gi_err'][selected_stars], name='gi_err')
+
+        selected_phot = table.Table([g,gerr,r,rerr,i,ierr,gr,gr_err,gi,gi_err,ri, ri_err])
+
+    else:
+        selected_phot = table.Table([g,r,i,gr,gi,ri])
 
     log.info('Extracted the photometry for '+str(len(selected_phot))+\
              ' stars close to the target coordinates')
@@ -768,25 +780,31 @@ def localize_red_clump_db(config,photometry,stars,selected_phot,log):
 
     return RC
 
-def output_photometry(config, stars, photometry, log):
+def output_photometry(config, stars, photometry, selected_stars, log):
 
     if str(config['photometry_data_file']).lower() != 'none':
 
         log.info('Outputting multiband photometry to file')
 
         f = open(path.join(config['output_dir'],config['photometry_data_file']), 'w')
-        f.write('# All measured quantities in units of magnitude\n')
-        f.write('# Star   g  sigma_g    r  sigma_r    i  sigma_i   (g-i)  sigma(g-i) (g-r)  sigma(g-r)  (r-i) sigma(r-i)\n')
+        f.write('# All measured floating point quantities in units of magnitude\n')
+        f.write('# Selected indicates whether a star lies within the selection radius of a given location, if any.  1=true, 0=false\n')
+        f.write('# Star   g  sigma_g    r  sigma_r    i  sigma_i   (g-i)  sigma(g-i) (g-r)  sigma(g-r)  (r-i) sigma(r-i)  Selected\n')
 
         for j in range(0,len(photometry['i']),1):
             sid = stars['star_id'][j]
+            if j in selected_stars:
+                selected = 1
+            else:
+                selected = 0
             f.write( str(sid)+' '+\
                         str(photometry['g'][j])+' '+str(photometry['gerr'][j])+' '+\
                         str(photometry['r'][j])+' '+str(photometry['rerr'][j])+' '+\
                         str(photometry['i'][j])+' '+str(photometry['ierr'][j])+' '+\
                         str(photometry['gi'][j])+' '+str(photometry['gi_err'][j])+' '+\
                         str(photometry['gr'][j])+' '+str(photometry['gr_err'][j])+' '+\
-                        str(photometry['ri'][j])+' '+str(photometry['ri_err'][j])+'\n' )
+                        str(photometry['ri'][j])+' '+str(photometry['ri_err'][j])+' '+\
+                        str(selected)+'\n' )
 
         f.close()
 
