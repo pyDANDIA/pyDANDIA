@@ -22,6 +22,9 @@ import stage5
 import stage6
 import logs
 import subprocess
+import datetime as datetime
+import glob
+import reset_stage_metadata
 
 def reduction_control():
     """Main driver function for the pyDANDIA pipelined reduction of an
@@ -67,6 +70,10 @@ def reduction_control():
     elif setup.red_mode == 'stage6':
 
         run_stage6_db_ingest(setup,red_log,params)
+
+    elif setup.red_mode == 'auto':
+
+        run_automatic_reduction(setup,red_log,params)
 
     else:
         red_log.info('ERROR: unrecognised reduction mode ('+setup.red_mode+') selected')
@@ -221,6 +228,124 @@ def run_stage6_db_ingest(setup,red_log,params):
 
     (status,report) = stage6.run_stage6(setup)
 
+def run_automatic_reduction(setup,red_log,params):
+    """Function to run an automatic reduction of a single dataset"""
+
+    red_log.info('Starting automatic reduction of '+path.basename(setup.red_dir))
+
+    locked = check_dataset_lock(setup,red_log)
+
+    if not locked:
+        lock_dataset(setup,red_log)
+
+        existing_reduction = got_existing_reference(setup,red_log)
+
+        if existing_reduction:
+            status = run_existing_reduction(setup, red_log)
+
+        else:
+            status = run_new_reduction(setup, red_log)
+
+        unlock_dataset(setup,log)
+
+def run_existing_reduction(setup, red_log):
+
+    (status,report,meta_data) = stage0.run_stage0(setup)
+    red_log.info('Completed stage 0 with status '+repr(status)+': '+report)
+
+    status = execute_stage(stage1.run_stage1, 'stage 1', setup, status, red_log)
+
+    status = execute_stage(stage4.run_stage4, 'stage 4', setup, status, red_log)
+
+    reset_red_status_for_stage(setup.red_dir,5)
+    red_log.info('Reset stage 5 of existing reduction')
+
+    status = execute_stage(stage5.run_stage5, 'stage 5', setup, status, red_log)
+
+    return status
+
+def run_new_reduction(setup, red_log):
+
+    (status,report,meta_data) = stage0.run_stage0(setup)
+    red_log.info('Completed stage 0 with status '+repr(status)+': '+report)
+
+    status = execute_stage(stage1.run_stage1, 'stage 1', setup, status, red_log)
+
+    status = execute_stage(stage2.run_stage2, 'stage 2', setup, status, red_log)
+
+    status = execute_stage(reference_astrometry.run_reference_astrometry,
+                           'reference astrometry', setup, status, red_log)
+
+    status = execute_stage(stage3.run_stage3, 'stage 3', setup, status, red_log)
+
+    status = execute_stage(stage4.run_stage4, 'stage 4', setup, status, red_log)
+
+    status = execute_stage(stage5.run_stage5, 'stage 5', setup, status, red_log)
+
+    return status
+
+def check_dataset_lock(setup,log):
+    """Function to check for a lockfile in a given dataset before starting
+    a reduction"""
+
+    lockfile = path.isfile(path.join(setup.red_dir),'dataset.lock')
+    status = path.isfile(lockfile)
+
+    if status:
+        log.info(path.basename(setup.red_dir)+' is locked')
+    else:
+        log.info(path.basename(setup.red_dir)+' is not locked')
+
+    return status
+
+def lock_dataset(setup,log):
+    """Function to set a lock on a dataset to prevent simultaneous reductions"""
+
+    lockfile = path.isfile(path.join(setup.red_dir),'dataset.lock')
+    ts = datetime.utcnow()
+
+    f = open(lockfile,'w')
+    f.write(ts.strftime('%Y-%m-%dT%H:%M:%S'))
+    f.close()
+
+    log.info('-> Locked dataset '+path.basename(setup.red_dir))
+
+def unlock_dataset(setup,log):
+    """Function to remove a lock on a dataset once reductions have completed"""
+
+    lockfile = path.isfile(path.join(setup.red_dir),'dataset.lock')
+
+    if path.isfile(lockfile):
+        remove(lockfile)
+        log.info('-> Unlocked dataset '+path.basename(setup.red_dir))
+
+    else:
+        log.info('-> WARNING dataset '+path.basename(setup.red_dir)+' found unlocked when lock expected')
+
+def got_existing_reference(setup,log):
+    """Function to check whether a dataset has already been reduced i.e.
+    whether there is an existing reference image"""
+
+    existing_reduction = False
+
+    if path.join(setup.red_dir, 'ref'):
+
+        list_red_ref_image = glob.glob(path.join(setup.red_dir, 'ref', '*_res.fits'))
+
+        if len(list_red_ref_image) > 0:
+
+            existing_reduction = True
+
+            log.info('Found a reduced reference image for dataset '+path.basename(setup.red_dir))
+
+        else:
+            log.info('Found ref sub-directory but no reduced reference image for dataset '+path.basename(setup.red_dir))
+
+    else:
+        log.info('Found no pre-existing reduction for dataset '+path.basename(setup.red_dir))
+
+    return existing_reduction
+
 def execute_stage(run_stage_func, stage_name, setup, status, red_log):
     """Function to execute a stage and verify whether it completed successfully
     before continuing.
@@ -365,7 +490,8 @@ def get_args():
                        'reference_analysis',
                        'image_analysis',
                        'stage3_db_ingest',
-                       'stage6']
+                       'stage6',
+                       'auto']
 
     params = {}
 
