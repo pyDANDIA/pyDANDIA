@@ -191,10 +191,17 @@ def get_args():
     else:
         params['trust_wcs'] = False
 
+    if '-set-phot-calib' in argv:
+        params['set_phot_calib'] = True
+    else:
+        params['set_phot_calib'] = False
+
     params['dx'] = 0.0
     params['dy'] = 0.0
     params['n_sky_bins'] = -1
     params['sky_value'] = None
+    params['a0'] = None
+    params['a1'] = None
     for a in argv:
         if '-dx' in a:
             params['dx'] = float(str(a).split('=')[-1])
@@ -204,10 +211,17 @@ def get_args():
             params['n_sky_bins'] = int(str(a).split('=')[-1])
         if '-sky_value' in a:
             params['sky_value'] = float(str(a).split('=')[-1])
-            
+        if '-a0' in a:
+            params['a0'] = float(str(a).split('=')[-1])
+        if '-a1' in a:
+            params['a1'] = float(str(a).split('=')[-1])
+
     if str(params['db_file_path']).split('.')[-1] != 'db':
         raise ValueError(params['db_file_path']+' does not end in .db.  Is this a database file path?')
 
+    if params['set_phot_calib'] and (params['a0'] == None or params['a1'] == None):
+        raise ValueError('Set photometric calibration flag set to True but no coefficients provided')
+        
     return params
 
 

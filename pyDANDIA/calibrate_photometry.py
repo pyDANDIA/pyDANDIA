@@ -51,19 +51,30 @@ def calibrate_photometry(setup, reduction_metadata, log, cl_params={}):
 
     (reduction_metadata, params, star_catalog) = extract_params_from_metadata(reduction_metadata, params, log)
 
-    star_catalog = select_calibration_stars(star_catalog,params,log)
+    if params['set_phot_calib'] == False:
+        star_catalog = select_calibration_stars(star_catalog,params,log)
 
-    match_index = extract_matched_stars_index(star_catalog,log)
+        match_index = extract_matched_stars_index(star_catalog,log)
 
-    if len(match_index) > 0:
-        fit = calc_phot_calib(params,star_catalog,match_index,log)
+        if len(match_index) > 0:
+            fit = calc_phot_calib(params,star_catalog,match_index,log)
+
+            star_catalog = apply_phot_calib(star_catalog,fit,log)
+
+            output_to_metadata(setup, params, fit, star_catalog, reduction_metadata, log)
+        else:
+
+            fit = [0,1]
+            output_to_metadata(setup, params, fit, star_catalog, reduction_metadata, log)
+
+    else:
+        log.info('Using provided photometric transformation parameters: a0='+\
+                    str(params['a0'])+' a1='+str(params['a1']))
+
+        fit = [params['a0'], params['a1']]
 
         star_catalog = apply_phot_calib(star_catalog,fit,log)
 
-        output_to_metadata(setup, params, fit, star_catalog, reduction_metadata, log)
-    else:
-
-        fit = [0,1]
         output_to_metadata(setup, params, fit, star_catalog, reduction_metadata, log)
 
     return reduction_metadata
