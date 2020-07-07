@@ -57,6 +57,18 @@ class Dataset():
                     str(self.instrument).lower()+'_'+\
                     self.filter
 
+def get_image_parameters(hdr):
+
+    ds = Dataset()
+    ds.target = hdr['OBJECT'].replace('/','').replace(' ','-')
+    ds.site = hdr['SITEID'].replace('/','')
+    ds.enclosure = hdr['ENCID'].replace('/','')
+    ds.tel = hdr['TELESCOP'].replace('/','')
+    ds.instrument = hdr['INSTRUME'].replace('/','').replace('fl','fa')
+    ds.filter = hdr['FILTER']
+
+    return ds
+
 def get_image_dataset(image):
     """Function to identify what dataset an image belongs to, based on the
     target, instrument and filter information from its FITS header.
@@ -69,19 +81,14 @@ def get_image_dataset(image):
                   'Faulkes Telescope North': ['LCOGT','OGG','CLMA', 'FTN'],
         		'Liverpool Telescope': ['LJMU','LAP','LT','LT'] }
 
-    hdr = fits.getheader(image)
+    hdu = fits.open(image)
 
     try:
-        ds = Dataset()
-        ds.target = hdr['OBJECT'].replace('/','').replace(' ','-')
-        ds.site = hdr['SITEID'].replace('/','')
-        ds.enclosure = hdr['ENCID'].replace('/','')
-        ds.tel = hdr['TELESCOP'].replace('/','')
-        ds.instrument = hdr['INSTRUME'].replace('/','').replace('fl','fa')
-        ds.filter = hdr['FILTER']
-    except:
-        print(image)
-        print(hdr)
+        hdr = hdu[0].header
+        ds = get_image_parameters(hdu[0].header)
+    except KeyError:
+        ds = get_image_parameters(hdu[1].header)
+        
     ds.parse_telescope()
 
     ds.get_dataset_code()
