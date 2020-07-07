@@ -71,14 +71,17 @@ def get_image_dataset(image):
 
     hdr = fits.getheader(image)
 
-    ds = Dataset()
-    ds.target = hdr['OBJECT'].replace('/','').replace(' ','-')
-    ds.site = hdr['SITEID'].replace('/','')
-    ds.enclosure = hdr['ENCID'].replace('/','')
-    ds.tel = hdr['TELESCOP'].replace('/','')
-    ds.instrument = hdr['INSTRUME'].replace('/','').replace('fl','fa')
-    ds.filter = hdr['FILTER']
-
+    try:
+        ds = Dataset()
+        ds.target = hdr['OBJECT'].replace('/','').replace(' ','-')
+        ds.site = hdr['SITEID'].replace('/','')
+        ds.enclosure = hdr['ENCID'].replace('/','')
+        ds.tel = hdr['TELESCOP'].replace('/','')
+        ds.instrument = hdr['INSTRUME'].replace('/','').replace('fl','fa')
+        ds.filter = hdr['FILTER']
+    except:
+        print(image)
+        print(hdr)
     ds.parse_telescope()
 
     ds.get_dataset_code()
