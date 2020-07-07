@@ -22,7 +22,7 @@ import stage5
 import stage6
 import logs
 import subprocess
-import datetime as datetime
+from datetime import datetime
 import glob
 import reset_stage_metadata
 
@@ -288,20 +288,21 @@ def check_dataset_lock(setup,log):
     """Function to check for a lockfile in a given dataset before starting
     a reduction"""
 
-    lockfile = path.isfile(path.join(setup.red_dir),'dataset.lock')
-    status = path.isfile(lockfile)
+    lockfile = path.join(setup.red_dir,'dataset.lock')
 
-    if status:
+    if path.isfile(lockfile) == True:
         log.info(path.basename(setup.red_dir)+' is locked')
+        status = True
     else:
         log.info(path.basename(setup.red_dir)+' is not locked')
+        status = False
 
     return status
 
 def lock_dataset(setup,log):
     """Function to set a lock on a dataset to prevent simultaneous reductions"""
 
-    lockfile = path.isfile(path.join(setup.red_dir),'dataset.lock')
+    lockfile = path.join(setup.red_dir,'dataset.lock')
     ts = datetime.utcnow()
 
     f = open(lockfile,'w')
@@ -313,7 +314,7 @@ def lock_dataset(setup,log):
 def unlock_dataset(setup,log):
     """Function to remove a lock on a dataset once reductions have completed"""
 
-    lockfile = path.isfile(path.join(setup.red_dir),'dataset.lock')
+    lockfile = path.join(setup.red_dir,'dataset.lock')
 
     if path.isfile(lockfile):
         remove(lockfile)
