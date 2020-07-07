@@ -43,7 +43,7 @@ def calibrate_photometry_catalog(setup, cl_params={}):
 
     return status, report
 
-def calibrate_photometry(setup, reduction_metadata, log, cl_params={}):
+def calibrate_photometry(setup, reduction_metadata, log, **kwargs):
     """Function to perform a photometric calibration where the cross-matching
     with the VPHAS catalog has already been performed"""
 
