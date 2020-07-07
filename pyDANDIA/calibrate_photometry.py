@@ -24,17 +24,17 @@ import matplotlib.pyplot as plt
 
 VERSION = 'calibrate_photometry_0.3'
 
-def calibrate_photometry_catalog(setup, cl_params={}):
+def calibrate_photometry_catalog(setup, **kwargs):
     """Function to calculate the photometric transform between the instrumental
     magnitudes produced by the pyDANDIA pipeline and catalog data."""
 
     log = logs.start_stage_log( setup.red_dir, 'phot_calib', version=VERSION )
 
-    params = assign_parameters(setup,cl_params,log)
+    params = assign_parameters(setup,kwargs,log)
 
     (reduction_metadata, params) = fetch_metadata(setup,params,log)
 
-    reduction_metadata = calibrate_photometry(setup, reduction_metadata, log, cl_params=params)
+    reduction_metadata = calibrate_photometry(setup, reduction_metadata, log, **kwargs)
 
     logs.close_log(log)
 
@@ -47,7 +47,7 @@ def calibrate_photometry(setup, reduction_metadata, log, **kwargs):
     """Function to perform a photometric calibration where the cross-matching
     with the VPHAS catalog has already been performed"""
 
-    params = assign_parameters(setup,cl_params,log)
+    params = assign_parameters(setup,kwargs,log)
 
     (reduction_metadata, params, star_catalog) = extract_params_from_metadata(reduction_metadata, params, log)
 
@@ -832,11 +832,11 @@ def output_to_metadata(setup, params, phot_fit, star_catalog, reduction_metadata
 def run_calibration():
     """Function to run this stage independently of the pipeline infrastructure"""
 
-    cl_params = get_args()
+    kwargs = get_args()
 
-    setup = pipeline_setup.pipeline_setup(cl_params)
+    setup = pipeline_setup.pipeline_setup(kwargs)
 
-    (status, report) = calibrate_photometry_catalog(setup, cl_params=cl_params)
+    (status, report) = calibrate_photometry_catalog(setup, **kwargs)
 
 if __name__ == '__main__':
 
