@@ -26,7 +26,9 @@ from pyDANDIA import  calibrate_photometry
 
 VERSION = 'pyDANDIA_stage3_v0.5.1'
 
-def run_stage3(setup, cl_params={}):
+def run_stage3(setup,
+    cl_params={'n_sky_bins': None, 'sky_value': None,
+                'set_phot_calib': False, 'a0': None, 'a1': None}):
     """Driver function for pyDANDIA Stage 3:
     Detailed star find and PSF modeling
     """
