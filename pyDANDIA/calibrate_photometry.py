@@ -117,7 +117,10 @@ def get_args():
             params[key] = float(params[key])
         else:
             params[key] = None
-
+            
+    params['set_phot_calib'] = False
+    params['a0'] = 0.0
+    params['a1'] = 0.0
 
     return params
 
