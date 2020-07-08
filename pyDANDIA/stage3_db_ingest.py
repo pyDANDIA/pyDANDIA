@@ -11,7 +11,7 @@ from astropy.io import fits
 from astropy import table
 from astropy import time
 from astropy import units
-from astropy.coordinates import SkyCoord
+from astropy.coordinates import SkyCoord, Angle
 from skimage.transform import AffineTransform
 import numpy as np
 import glob
@@ -23,8 +23,9 @@ from pyDANDIA import  pipeline_setup
 from pyDANDIA import  time_utils
 from pyDANDIA import  match_utils
 from pyDANDIA import  calc_coord_offsets
+from pyDANDIA import  wcs
 
-VERSION = 'stage3_ingest_v1.0'
+VERSION = 'stage3_ingest_v1.1'
 
 def run_stage3_db_ingest(setup, primary_ref=False, add_matched_stars=False):
     """Function to commit the information on, and measurements from, the
@@ -46,30 +47,7 @@ def run_stage3_db_ingest(setup, primary_ref=False, add_matched_stars=False):
     conn = phot_db.get_connection(dsn=setup.phot_db_path)
 
     reduction_metadata = metadata.MetaData()
-    reduction_metadata.load_a_layer_from_file( setup.red_dir,
-                                          'pyDANDIA_metadata.fits',
-                                          'data_architecture' )
-    reduction_metadata.load_a_layer_from_file( setup.red_dir,
-                                          'pyDANDIA_metadata.fits',
-                                          'reduction_parameters' )
-    reduction_metadata.load_a_layer_from_file( setup.red_dir,
-                                          'pyDANDIA_metadata.fits',
-                                          'headers_summary' )
-    reduction_metadata.load_a_layer_from_file( setup.red_dir,
-                                          'pyDANDIA_metadata.fits',
-                                          'images_stats' )
-    reduction_metadata.load_a_layer_from_file( setup.red_dir,
-                                          'pyDANDIA_metadata.fits',
-                                          'psf_dimensions' )
-    reduction_metadata.load_a_layer_from_file( setup.red_dir,
-                                          'pyDANDIA_metadata.fits',
-                                          'software' )
-    reduction_metadata.load_a_layer_from_file( setup.red_dir,
-                                          'pyDANDIA_metadata.fits',
-                                          'star_catalog' )
-    reduction_metadata.load_a_layer_from_file(setup.red_dir,
-                                              'pyDANDIA_metadata.fits',
-                                              'stamps')
+    reduction_metadata.load_all_metadata(setup.red_dir, 'pyDANDIA_metadata.fits')
 
     dataset_params = harvest_stage3_parameters(setup,reduction_metadata)
 
@@ -106,7 +84,7 @@ def run_stage3_db_ingest(setup, primary_ref=False, add_matched_stars=False):
 
             commit_photometry(conn, dataset_params, reduction_metadata, star_ids, log)
 
-        (matched_stars, transform) = generate_primary_ref_match_table(reduction_metadata,log)
+        (matched_stars, transform_xy) = generate_primary_ref_match_table(reduction_metadata,log)
 
     else:
 
@@ -120,11 +98,11 @@ def run_stage3_db_ingest(setup, primary_ref=False, add_matched_stars=False):
                                                             primary_refimg_id,log,
                                                             verbose=True)
 
-        transform = calc_transform_to_primary_ref(setup,matched_stars,log)
+        (transform_xy,transform_sky) = calc_transform_to_primary_ref(setup,matched_stars,log)
 
         matched_stars = match_all_entries_with_starlist(setup,conn,dataset_params,
                                                         starlist,reduction_metadata,
-                                                        primary_refimg_id,transform,log,
+                                                        primary_refimg_id,transform_sky,log,
                                                         verbose=True)
 
         if not add_matched_stars:
@@ -133,7 +111,7 @@ def run_stage3_db_ingest(setup, primary_ref=False, add_matched_stars=False):
                                                         verbose=False)
 
     reduction_metadata.create_matched_stars_layer(matched_stars)
-    reduction_metadata.create_transform_layer(transform)
+    reduction_metadata.create_transform_layer(transform_xy)
     reduction_metadata.save_a_layer_to_file(setup.red_dir,
                                           'pyDANDIA_metadata.fits',
                                           'matched_stars', log)
@@ -794,9 +772,14 @@ def match_catalog_entries_with_starlist(conn,params,starlist,reduction_metadata,
             query = 'SELECT star_id,x,y FROM phot WHERE reference_image="'+str(refimg_id)+'" AND star_id="'+str(star['star_id'])+'"'
             phot_data = phot_db.query_to_astropy_table(conn, query, args=())
 
-            dx = phot_data['x'] - reduction_metadata.star_catalog[1]['x'][jdx[kdx[0]]]
-            dy = phot_data['y'] - reduction_metadata.star_catalog[1]['y'][jdx[kdx[0]]]
-            separation = np.sqrt( dx*dx + dy*dy )
+            dataset_star = SkyCoord( reduction_metadata.star_catalog[1]['ra'][jdx[kdx[0]]],
+                          reduction_metadata.star_catalog[1]['dec'][jdx[kdx[0]]],
+                          frame='icrs', unit=(units.deg, units.deg) )
+
+            field_star = SkyCoord( star['ra'], star['dec'],
+                                    frame='icrs', unit=(units.deg, units.deg) )
+
+            separation = dataset_star.separation(field_star)
 
             jj = jdx[kdx[0]][0]
 
@@ -821,25 +804,39 @@ def match_catalog_entries_with_starlist(conn,params,starlist,reduction_metadata,
 
 def calc_transform_to_primary_ref(setup,matched_stars,log):
 
-    primary_cat = table.Table( [ table.Column(name='x', data=matched_stars.cat1_x),
+    primary_cat_cartesian = table.Table( [ table.Column(name='x', data=matched_stars.cat1_x),
                                  table.Column(name='y', data=matched_stars.cat1_y) ] )
 
-    refframe_cat = table.Table( [ table.Column(name='x', data=matched_stars.cat2_x),
+    refframe_cat_cartesian = table.Table( [ table.Column(name='x', data=matched_stars.cat2_x),
                                   table.Column(name='y', data=matched_stars.cat2_y) ] )
 
-    transform = calc_coord_offsets.calc_pixel_transform(setup,
-                                        refframe_cat, primary_cat,
-                                        log)
+    primary_cat_sky = table.Table( [ table.Column(name='ra', data=matched_stars.cat1_ra),
+                                 table.Column(name='dec', data=matched_stars.cat1_dec) ] )
 
-    return transform
+    refframe_cat_sky = table.Table( [ table.Column(name='ra', data=matched_stars.cat2_ra),
+                                  table.Column(name='dec', data=matched_stars.cat2_dec) ] )
+
+    transform_cartesian = calc_coord_offsets.calc_pixel_transform(setup,
+                                        refframe_cat_cartesian, primary_cat_cartesian,
+                                        log, coordinates='pixel', diagnostics=True)
+
+    transform_sky = calc_coord_offsets.calc_pixel_transform(setup,
+                                        refframe_cat_sky, primary_cat_sky,
+                                        log, coordinates='sky', diagnostics=True,
+                                        plot_path=path.join(setup.red_dir, 'dataset_field_sky_offsets.png'))
+
+    return transform_cartesian, transform_sky
 
 def match_all_entries_with_starlist(setup,conn,params,starlist,reduction_metadata,
-                                    refimg_id,transform,log, verbose=False):
+                                    refimg_id,transform_sky,log, verbose=False):
 
-    tol = 2.0  # pixels
+    psf_radius = reduction_metadata.psf_dimensions[1]['psf_radius'][0]
+    tol = psf_radius * params['secpix1']    # arcsec
+    dra = 2.0*tol                           # arcsec
+    ddec = 2.0*tol                          # arcsec
 
     log.info('Matching all stars from starlist with the transformed coordinates of stars detected in the new reference image')
-    log.info('Match tolerance: '+str(tol)+' pixels')
+    log.info('Match tolerance: '+str(tol)+' arcsec')
 
     matched_stars = match_utils.StarMatchIndex()
 
@@ -851,41 +848,35 @@ def match_all_entries_with_starlist(setup,conn,params,starlist,reduction_metadat
                         ' AND software="'+str(software)+'"'
     phot_data = phot_db.query_to_astropy_table(conn, query, args=())
 
-    refframe_coords = table.Table( [ table.Column(name='x', data=reduction_metadata.star_catalog[1]['x']),
+    field_stars = table.Table( [table.Column(name='star_id', data=starlist['star_id']),
+                                table.Column(name='ra', data=starlist['ra']),
+                                table.Column(name='dec', data=starlist['dec']),
+                                table.Column(name='x', data=phot_data['x']),
+                                table.Column(name='y', data=phot_data['y'])] )
+
+    refframe_coords = table.Table( [ table.Column(name='star_id', data=reduction_metadata.star_catalog[1]['index']),
+                                     table.Column(name='ra', data=reduction_metadata.star_catalog[1]['ra']),
+                                     table.Column(name='dec', data=reduction_metadata.star_catalog[1]['dec']),
+                                     table.Column(name='x', data=reduction_metadata.star_catalog[1]['x']),
                                      table.Column(name='y', data=reduction_metadata.star_catalog[1]['y']) ] )
 
-    refframe_coords = calc_coord_offsets.transform_coordinates(setup, refframe_coords, transform, coords='pixel')
-
-    log.info('Transformed star coordinates from the reference image')
     log.info('Matching all stars against field starlist of '+str(len(phot_data))+':')
 
-    for j in range(0,len(phot_data),1):
+    star_index = np.arange(0,len(refframe_coords),1)
 
-        dx = phot_data['x'][j] - refframe_coords['x1']
-        dy = phot_data['y'][j] - refframe_coords['y1']
-        separation = np.sqrt( dx*dx + dy*dy )
-
-        jdx = np.where(separation == separation.min())[0]
-
-        p = {'cat1_index': phot_data['star_id'][j],
-             'cat1_ra': starlist['ra'][j],
-             'cat1_dec': starlist['dec'][j],
-             'cat1_x': phot_data['x'][j],
-             'cat1_y': phot_data['y'][j],
-             'cat2_index': jdx[0]+1,
-             'cat2_ra': reduction_metadata.star_catalog[1]['ra'][jdx[0]],
-             'cat2_dec': reduction_metadata.star_catalog[1]['dec'][jdx[0]],
-             'cat2_x': reduction_metadata.star_catalog[1]['x'][jdx[0]],
-             'cat2_y': reduction_metadata.star_catalog[1]['y'][jdx[0]],
-             'separation': separation[jdx[0]]}
-
-        if separation[jdx[0]] <= tol:
-            matched_stars.add_match(p)
-
-            if verbose:
-                log.info(matched_stars.summarize_last(units='pixels'))
-
-    log.info('Matched '+str(matched_stars.n_match)+' stars')
+#   Returns: p = {'cat1_index': phot_data['star_id'][j],
+#             'cat1_ra': starlist['ra'][j],
+#             'cat1_dec': starlist['dec'][j],
+#             'cat1_x': phot_data['x'][j],
+#             'cat1_y': phot_data['y'][j],
+#             'cat2_index': jdx[0]+1,
+#             'cat2_ra': reduction_metadata.star_catalog[1]['ra'][jdx[0]],
+#             'cat2_dec': reduction_metadata.star_catalog[1]['dec'][jdx[0]],
+#             'cat2_x': reduction_metadata.star_catalog[1]['x'][jdx[0]],
+#             'cat2_y': reduction_metadata.star_catalog[1]['y'][jdx[0]],
+#             'separation': separation[jdx[0]].value}
+    matched_stars = wcs.cross_match_star_catalogs(field_stars, refframe_coords, star_index, log,
+                                    dra=dra, ddec=ddec, tol=tol)
 
     return matched_stars
 

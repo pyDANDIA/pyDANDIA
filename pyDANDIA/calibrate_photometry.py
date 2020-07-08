@@ -25,17 +25,17 @@ import matplotlib.pyplot as plt
 
 VERSION = 'calibrate_photometry_0.4'
 
-def calibrate_photometry_catalog(setup, cl_params={}):
+def calibrate_photometry_catalog(setup, **kwargs):
     """Function to calculate the photometric transform between the instrumental
     magnitudes produced by the pyDANDIA pipeline and catalog data."""
 
     log = logs.start_stage_log( setup.red_dir, 'phot_calib', version=VERSION )
 
-    params = assign_parameters(setup,cl_params,log)
+    params = assign_parameters(setup,kwargs,log)
 
     (reduction_metadata, params) = fetch_metadata(setup,params,log)
 
-    reduction_metadata = calibrate_photometry(setup, reduction_metadata, log, cl_params=params)
+    reduction_metadata = calibrate_photometry(setup, reduction_metadata, log, **kwargs)
 
     logs.close_log(log)
 
@@ -44,31 +44,38 @@ def calibrate_photometry_catalog(setup, cl_params={}):
 
     return status, report
 
-def calibrate_photometry(setup, reduction_metadata, log, cl_params={}):
+def calibrate_photometry(setup, reduction_metadata, log, **kwargs):
     """Function to perform a photometric calibration where the cross-matching
     with the VPHAS catalog has already been performed"""
 
-    params = assign_parameters(setup,cl_params,log)
+    params = assign_parameters(setup,kwargs,log)
 
     (reduction_metadata, params, star_catalog) = extract_params_from_metadata(reduction_metadata, params, log)
 
-    star_catalog = select_calibration_stars(star_catalog,params,log)
+    if params['set_phot_calib'] == False:
+        star_catalog = select_calibration_stars(star_catalog,params,log)
 
-    match_index = extract_matched_stars_index(star_catalog,log)
+        match_index = extract_matched_stars_index(star_catalog,log)
 
-    if len(match_index) > 0:
-        fit = calc_phot_calib(params,star_catalog,match_index,log)
+        if len(match_index) > 0:
+            fit = calc_phot_calib(params,star_catalog,match_index,log)
 
-        # Update the star catalog with calibrated magnitdues only if a
-        # meaningful fit has been achieved
-        if fit[0] > -9999.0:
             star_catalog = apply_phot_calib(star_catalog,fit,log)
 
-        output_to_metadata(setup, params, fit, star_catalog, reduction_metadata, log)
+            output_to_metadata(setup, params, fit, star_catalog, reduction_metadata, log)
+        else:
+
+            fit = [0,1]
+            output_to_metadata(setup, params, fit, star_catalog, reduction_metadata, log)
 
     else:
+        log.info('Using provided photometric transformation parameters: a0='+\
+                    str(params['a0'])+' a1='+str(params['a1']))
 
-        fit = [0,1]
+        fit = [params['a0'], params['a1']]
+
+        star_catalog = apply_phot_calib(star_catalog,fit,log)
+
         output_to_metadata(setup, params, fit, star_catalog, reduction_metadata, log)
 
     return reduction_metadata
@@ -112,6 +119,9 @@ def get_args():
         else:
             params[key] = None
 
+    params['set_phot_calib'] = False
+    params['a0'] = 0.0
+    params['a1'] = 0.0
     params['use_gaia_phot'] = False
     for a in sys.argv:
         if '-use-gaia-phot' in a or '-use_gaia_phot' in a:
@@ -927,11 +937,11 @@ def output_to_metadata(setup, params, phot_fit, star_catalog, reduction_metadata
 def run_calibration():
     """Function to run this stage independently of the pipeline infrastructure"""
 
-    cl_params = get_args()
+    kwargs = get_args()
 
-    setup = pipeline_setup.pipeline_setup(cl_params)
+    setup = pipeline_setup.pipeline_setup(kwargs)
 
-    (status, report) = calibrate_photometry_catalog(setup, cl_params=cl_params)
+    (status, report) = calibrate_photometry_catalog(setup, **kwargs)
 
 if __name__ == '__main__':
 

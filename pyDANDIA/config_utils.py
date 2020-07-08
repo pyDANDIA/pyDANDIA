@@ -66,30 +66,34 @@ def build_config_from_json(config_file):
 
 def load_event_model(file_path, log):
 
-    event_model = build_config_from_json(file_path)
+    if file_path.lower() != 'none':
+        event_model = build_config_from_json(file_path)
 
-    # Handle those keuywords which have list entries which may have None
-    # entries
-    dict_keys = ['source_fluxes', 'source_flux_errors',
-                         'blend_fluxes', 'blend_flux_errors']
+        # Handle those keuywords which have list entries which may have None
+        # entries
+        dict_keys = ['source_fluxes', 'source_flux_errors',
+                             'blend_fluxes', 'blend_flux_errors']
 
-    for key in dict_keys:
-        dd = event_model[key]
-        new_dd = {}
-        for ddkey,ddvalue in dd.items():
-            if 'none' in str(ddvalue).lower():
-                new_dd[ddkey] = None
-            else:
-                new_dd[ddkey] = ddvalue
-        event_model[key] = new_dd
+        for key in dict_keys:
+            dd = event_model[key]
+            new_dd = {}
+            for ddkey,ddvalue in dd.items():
+                if 'none' in str(ddvalue).lower():
+                    new_dd[ddkey] = None
+                else:
+                    new_dd[ddkey] = ddvalue
+            event_model[key] = new_dd
 
-    keys = ['pi_E_N','pi_E_E','logq','logs','dsdt','dalphadt']
-    for key in keys:
-        if 'none' in str(event_model[key]).lower():
-            event_model[key] = None
-        if 'none' in str(event_model['sig_'+key]).lower():
-            event_model['sig_'+key] = None
+        keys = ['pi_E_N','pi_E_E','logq','logs','dsdt','dalphadt']
+        for key in keys:
+            if 'none' in str(event_model[key]).lower():
+                event_model[key] = None
+            if 'none' in str(event_model['sig_'+key]).lower():
+                event_model['sig_'+key] = None
 
-    log.info('Loaded the parameters of the event model from '+file_path)
+        log.info('Loaded the parameters of the event model from '+file_path)
 
-    return event_model
+        return event_model
+
+    else:
+        return {}

@@ -60,6 +60,8 @@ def run_field_colour_analysis():
 
     plot_colour_colour_diagram(config, photometry, RC, log)
 
+    output_photometry(config, stars, photometry, selected_stars, log)
+
     source.output_json(path.join(config['output_dir'],'source_parameters.json'))
     blend.output_json(path.join(config['output_dir'],'blend_parameters.json'))
     RC.output_json(path.join(config['output_dir'],'red_clump_parameters.json'))
@@ -117,44 +119,48 @@ def calc_source_blend_params(config,event_model,log):
     source = photometry_classes.Star()
     blend = photometry_classes.Star()
 
-    filterset = ['g','r','i']
-    log.info('Using the following datasets as the flux references for the source and blend fluxes:')
-    for f in filterset:
+    if len(event_model) > 0:
+        filterset = ['g','r','i']
+        log.info('Using the following datasets as the flux references for the source and blend fluxes:')
+        for f in filterset:
 
-        ref_dataset = config['flux_reference_datasets'][f]
-        log.info(ref_dataset)
+            ref_dataset = config['flux_reference_datasets'][f]
+            log.info(ref_dataset)
 
-        if event_model['source_fluxes'][ref_dataset] != None and event_model['source_flux_errors'][ref_dataset] != None:
-            setattr(source, 'fs_'+f, event_model['source_fluxes'][ref_dataset])
-            setattr(source, 'sig_fs_'+f, event_model['source_flux_errors'][ref_dataset])
-            source.convert_fluxes_pylima(f)
+            if event_model['source_fluxes'][ref_dataset] != None and event_model['source_flux_errors'][ref_dataset] != None:
+                setattr(source, 'fs_'+f, event_model['source_fluxes'][ref_dataset])
+                setattr(source, 'sig_fs_'+f, event_model['source_flux_errors'][ref_dataset])
+                source.convert_fluxes_pylima(f)
 
-        log.info('Source: '+repr(event_model['source_fluxes'][ref_dataset])+' +/- '+repr(event_model['source_flux_errors'][ref_dataset]))
+            log.info('Source: '+repr(event_model['source_fluxes'][ref_dataset])+' +/- '+repr(event_model['source_flux_errors'][ref_dataset]))
 
-        if event_model['blend_fluxes'][ref_dataset] != None and event_model['blend_flux_errors'][ref_dataset] != None:
-            setattr(blend, 'fs_'+f, event_model['blend_fluxes'][ref_dataset])
-            setattr(blend, 'sig_fs_'+f, event_model['blend_flux_errors'][ref_dataset])
-            blend.convert_fluxes_pylima(f)
+            if event_model['blend_fluxes'][ref_dataset] != None and event_model['blend_flux_errors'][ref_dataset] != None:
+                setattr(blend, 'fs_'+f, event_model['blend_fluxes'][ref_dataset])
+                setattr(blend, 'sig_fs_'+f, event_model['blend_flux_errors'][ref_dataset])
+                blend.convert_fluxes_pylima(f)
 
-        log.info('Blend: '+repr(event_model['blend_fluxes'][ref_dataset])+' +/- '+repr(event_model['blend_flux_errors'][ref_dataset]))
+            log.info('Blend: '+repr(event_model['blend_fluxes'][ref_dataset])+' +/- '+repr(event_model['blend_flux_errors'][ref_dataset]))
 
-    source.compute_colours(use_inst=True)
-    source.transform_to_JohnsonCousins()
+        source.compute_colours(use_inst=True)
+        source.transform_to_JohnsonCousins()
 
-    log.info('\n')
-    log.info('Source measured photometry:')
-    log.info(source.summary(show_mags=True))
-    log.info(source.summary(show_mags=False,show_colours=True))
-    log.info(source.summary(show_mags=False,johnsons=True))
+        log.info('\n')
+        log.info('Source measured photometry:')
+        log.info(source.summary(show_mags=True))
+        log.info(source.summary(show_mags=False,show_colours=True))
+        log.info(source.summary(show_mags=False,johnsons=True))
 
-    blend.compute_colours(use_inst=True)
-    blend.transform_to_JohnsonCousins()
+        blend.compute_colours(use_inst=True)
+        blend.transform_to_JohnsonCousins()
 
-    log.info('\n')
-    log.info('Blend measured photometry:')
-    log.info(blend.summary(show_mags=True))
-    log.info(blend.summary(show_mags=False,show_colours=True))
-    log.info(blend.summary(show_mags=False,johnsons=True))
+        log.info('\n')
+        log.info('Blend measured photometry:')
+        log.info(blend.summary(show_mags=True))
+        log.info(blend.summary(show_mags=False,show_colours=True))
+        log.info(blend.summary(show_mags=False,johnsons=True))
+
+    else:
+        log.info('No event model supplied, so no source and blend information available')
 
     return source, blend
 
@@ -283,7 +289,7 @@ def find_stars_close_to_target(config,stars,target,log):
 
     return jdx
 
-def extract_local_star_photometry(photometry,selected_stars,log):
+def extract_local_star_photometry(photometry,selected_stars,log,extract_errors=False):
     """Function to extract the photometry for stars local to the given
     target coordinates"""
 
@@ -293,7 +299,19 @@ def extract_local_star_photometry(photometry,selected_stars,log):
     gr = table.Column(data=photometry['gr'][selected_stars], name='gr')
     ri = table.Column(data=photometry['ri'][selected_stars], name='ri')
     gi = table.Column(data=photometry['gi'][selected_stars], name='gi')
-    selected_phot = table.Table([g,r,i,gr,gi,ri])
+
+    if extract_errors:
+        gerr = table.Column(data=photometry['gerr'][selected_stars], name='gerr')
+        rerr = table.Column(data=photometry['rerr'][selected_stars], name='rerr')
+        ierr = table.Column(data=photometry['ierr'][selected_stars], name='ierr')
+        gr_err = table.Column(data=photometry['gr_err'][selected_stars], name='gr_err')
+        ri_err = table.Column(data=photometry['ri_err'][selected_stars], name='ri_err')
+        gi_err = table.Column(data=photometry['gi_err'][selected_stars], name='gi_err')
+
+        selected_phot = table.Table([g,gerr,r,rerr,i,ierr,gr,gr_err,gi,gi_err,ri, ri_err])
+
+    else:
+        selected_phot = table.Table([g,r,i,gr,gi,ri])
 
     log.info('Extracted the photometry for '+str(len(selected_phot))+\
              ' stars close to the target coordinates')
@@ -639,9 +657,9 @@ def plot_colour_colour_diagram(params,photometry,RC,log):
 
     plot_file = path.join(params['output_dir'],'colour_colour_diagram.pdf')
 
-    scale_axes = False
+    scale_axes = True
     if scale_axes:
-        plt.axis([-1.0,2.0,-1.0,1.0])
+        plt.axis([-2.0,2.0,-1.0,2.0])
 
     plt.grid()
 
@@ -761,6 +779,36 @@ def localize_red_clump_db(config,photometry,stars,selected_phot,log):
     log.info(RC.summary(show_mags=False,johnsons=True))
 
     return RC
+
+def output_photometry(config, stars, photometry, selected_stars, log):
+
+    if str(config['photometry_data_file']).lower() != 'none':
+
+        log.info('Outputting multiband photometry to file')
+
+        f = open(path.join(config['output_dir'],config['photometry_data_file']), 'w')
+        f.write('# All measured floating point quantities in units of magnitude\n')
+        f.write('# Selected indicates whether a star lies within the selection radius of a given location, if any.  1=true, 0=false\n')
+        f.write('# Star   g  sigma_g    r  sigma_r    i  sigma_i   (g-i)  sigma(g-i) (g-r)  sigma(g-r)  (r-i) sigma(r-i)  Selected\n')
+
+        for j in range(0,len(photometry['i']),1):
+            sid = stars['star_id'][j]
+            if j in selected_stars:
+                selected = 1
+            else:
+                selected = 0
+            f.write( str(sid)+' '+\
+                        str(photometry['g'][j])+' '+str(photometry['gerr'][j])+' '+\
+                        str(photometry['r'][j])+' '+str(photometry['rerr'][j])+' '+\
+                        str(photometry['i'][j])+' '+str(photometry['ierr'][j])+' '+\
+                        str(photometry['gi'][j])+' '+str(photometry['gi_err'][j])+' '+\
+                        str(photometry['gr'][j])+' '+str(photometry['gr_err'][j])+' '+\
+                        str(photometry['ri'][j])+' '+str(photometry['ri_err'][j])+' '+\
+                        str(selected)+'\n' )
+
+        f.close()
+
+        log.info('Completed output of multiband photometry')
 
 if __name__ == '__main__':
 

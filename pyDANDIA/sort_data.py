@@ -13,7 +13,7 @@ from sys import argv
 import glob
 from shutil import move
 
-def sort_data(data_dir):
+def sort_data(data_dir,log=None):
     """Function to sort a directory of FITS frames into per-target, per-filter
     sub-directories"""
 
@@ -23,7 +23,7 @@ def sort_data(data_dir):
 
         ds = get_image_dataset(image)
 
-        sort_image_to_dataset(image,ds,data_dir)
+        sort_image_to_dataset(image,ds,data_dir,log=log)
 
 class Dataset():
     """Class describing a unique dataset from the LCO Network"""
@@ -57,6 +57,18 @@ class Dataset():
                     str(self.instrument).lower()+'_'+\
                     self.filter
 
+def get_image_parameters(hdr):
+
+    ds = Dataset()
+    ds.target = hdr['OBJECT'].replace('/','').replace(' ','-')
+    ds.site = hdr['SITEID'].replace('/','')
+    ds.enclosure = hdr['ENCID'].replace('/','')
+    ds.tel = hdr['TELESCOP'].replace('/','')
+    ds.instrument = hdr['INSTRUME'].replace('/','').replace('fl','fa')
+    ds.filter = hdr['FILTER']
+
+    return ds
+
 def get_image_dataset(image):
     """Function to identify what dataset an image belongs to, based on the
     target, instrument and filter information from its FITS header.
@@ -69,16 +81,14 @@ def get_image_dataset(image):
                   'Faulkes Telescope North': ['LCOGT','OGG','CLMA', 'FTN'],
         		'Liverpool Telescope': ['LJMU','LAP','LT','LT'] }
 
-    hdr = fits.getheader(image)
+    hdu = fits.open(image)
 
-    ds = Dataset()
-    ds.target = hdr['OBJECT'].replace('/','').replace(' ','-')
-    ds.site = hdr['SITEID'].replace('/','')
-    ds.enclosure = hdr['ENCID'].replace('/','')
-    ds.tel = hdr['TELESCOP'].replace('/','')
-    ds.instrument = hdr['INSTRUME'].replace('/','').replace('fl','fa')
-    ds.filter = hdr['FILTER']
-
+    try:
+        hdr = hdu[0].header
+        ds = get_image_parameters(hdu[0].header)
+    except KeyError:
+        ds = get_image_parameters(hdu[1].header)
+        
     ds.parse_telescope()
 
     ds.get_dataset_code()
@@ -105,7 +115,7 @@ def make_image_list(data_dir):
 
     return frame_list
 
-def sort_image_to_dataset(image,ds,data_dir):
+def sort_image_to_dataset(image,ds,data_dir,log=None):
     """Function to move the given image to a sub-directory determined by
     its dataset ID code"""
 
@@ -116,7 +126,10 @@ def sort_image_to_dataset(image,ds,data_dir):
 
     move(image,path.join(dest_dir,path.basename(image)))
 
-    print(path.basename(image)+' --> '+dest_dir)
+    if log == None:
+        print(path.basename(image)+' --> '+dest_dir)
+    else:
+        log.info(path.basename(image)+' --> '+dest_dir)
 
 if __name__ == '__main__':
 

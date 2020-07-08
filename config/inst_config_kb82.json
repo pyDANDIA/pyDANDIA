@@ -1,7 +1,7 @@
 {
     "instrid": {
         "comment": "instrid - STRING  - The instrument name.",
-        "value": "kb88",
+        "value": "kb82",
 	"format":"S200",
 	"unit":""
     },
@@ -78,8 +78,8 @@
 	"unit":""
     },
     "pix_scale": {
-        "comment": "pix_scale - DOUBLE - The pixel scale in arcsec per pixel",
-        "value": 1.160,
+        "comment": "pix_scale - DOUBLE - The pixel scale in arcsec per pixel (bin 1x1)",
+        "value": 0.580,
 	"format":"float",
 	"unit":"arcsec/pixel"
     },
@@ -91,13 +91,13 @@
     },
     "gain": {
         "comment": "gain - DOUBLE - CCD gain (e-/ADU). This parameter should be positive (Default value = 1.0)",
-        "value": 1.0,
+        "value": 2.56,
 	"format":"float",
 	"unit":"e/adu"
     },
     "ron": {
         "comment": "ron - DOUBLE - CCD readout noise (ADU). This parameter should be non-negative (Default value = 0.0)",
-        "value": 16.40,
+        "value": 14.5,
 	"format":"float",
 	"unit":"adu"
     },
@@ -109,7 +109,7 @@
     },
     "imagex2": {
         "comment": "imagex2 - INT - Image region bottom left hand corner (x1,y1) and top right hand corner (x2,y2) in pixel number coordinates.",
-        "value": 1523,
+        "value": 2042,
 	"format":"int",
 	"unit":"pixel"
     },
@@ -121,13 +121,13 @@
     },
     "imagey2": {
         "comment": "imagey2 - INT - Image region bottom left hand corner (x1,y1) and top right hand corner (x2,y2) in pixel number coordinates.",
-        "value": 1020,
+        "value": 3054,
 	"format":"int",
 	"unit":"pixel"
     },
     "maxval": {
         "comment": "maxval - DOUBLE - Maximum useful pixel value in a raw image (ADU).",
-        "value": 120000.0,
+        "value": 102400.0,
 	"format":"float",
 	"unit":"adu"
     },

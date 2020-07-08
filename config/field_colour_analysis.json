@@ -19,6 +19,12 @@
         "format": "string",
         "unit": ""
     },
+    "photometry_data_file": {
+        "value": "ROME-FIELD-01_colour_photometry.txt",
+        "comment": "Filename for output of multi-band photometry [or None]",
+        "format": "string",
+        "unit": ""
+    },
     "event_model_parameters_file": {
             "value": "/Users/rstreet1/ROMEREA/ROME-FIELD-01/OB190011_model_parameters.json",
             "comment": "Path to file with event model parameters",

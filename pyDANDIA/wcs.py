@@ -766,6 +766,188 @@ def match_stars_world_coords(detected_sources,catalog_sources,log,catalog_name,
 
     return matched_stars
 
+def cross_match_star_catalogs(detected_sources, catalog_sources, star_index, log,
+                                dra=30.0, ddec=30.0, tol=1.0):
+    """Function to identify those stars which are present in both detected
+    and catalog source Tables based on their RA, Dec positions, while eliminating
+     duplicate entries.
+
+     Inputs:
+     detected_sources  Table   Table of stars detected in working dataset
+     catalog_sources   Table   Table of stars from reference catalog
+     star_index        int array Array of Table indices to use in cross-match NOT star IDs
+     log               logger  Open logging object
+     dra               float   Search box width around each star [arcsec]
+     ddec              float   Search box height around each star [arcsec]
+     tol               float   Match tolerance in arcsec
+     """
+
+    # Convert search and match parameters to decimal degrees
+    tol = tol/3600.0
+    dra = dra/3600.0
+    ddec = ddec/3600.0
+
+    det_sources = coordinates.SkyCoord(detected_sources['ra'],
+                                       detected_sources['dec'],
+                                       frame='icrs',
+                                       unit=(units.deg, units.deg))
+
+    matched_stars = match_utils.StarMatchIndex()
+
+    jincr = int(float(len(catalog_sources))*0.01)
+
+    for j in star_index:
+        c = coordinates.SkyCoord(catalog_sources['ra'][j],
+                                 catalog_sources['dec'][j],
+                                 frame='icrs', unit=(units.deg, units.deg))
+
+        # Returns star array indices in the detected_sources array
+        nearest_stars_index = select_nearest_stars_in_catalog(catalog_sources, detected_sources,
+                                            c,dra,ddec)
+
+        matched_stars = match_star_without_duplication(c,j,det_sources,nearest_stars_index,
+                                            detected_sources, catalog_sources,
+                                            tol,matched_stars,log,verbose=True)
+
+        if jincr > 0 and j%jincr == 0:
+            percentage = round((float(j)/float(len(catalog_sources)))*100.0,0)
+            log.info(' -> Completed cross-match of '+str(percentage)+\
+                        '% ('+str(j)+' of catalog stars out of '+\
+                        str(len(catalog_sources))+')')
+
+    log.info(' -> Matched '+str(matched_stars.n_match)+' stars after first pass')
+
+    # The function above replaces matched_stars entries if a closer match
+    # is found.  This can result in star entries being dropped if they happen
+    # to lie close to more than one potential match.  Here we loop through
+    # the list of remaining unmatched stars again, to see if other matches
+    # are possible.
+    if matched_stars.n_match < len(star_index):
+
+        for j in star_index:
+
+            if j not in matched_stars.cat2_index:
+
+                c = coordinates.SkyCoord(catalog_sources['ra'][j],
+                                         catalog_sources['dec'][j],
+                                         frame='icrs', unit=(units.deg, units.deg))
+
+                nearest_stars_index = select_nearest_stars_in_catalog(catalog_sources, detected_sources,
+                                                    c,dra,ddec)
+
+                # Remove from the list of potential matches all stars that have
+                # already been matched
+                revised_nearest_stars = []
+                for jj in nearest_stars_index:
+                    if jj not in matched_stars.cat2_index:
+                        revised_nearest_stars.append(jj)
+
+                matched_stars = match_star_without_duplication(c,j,
+                                                    det_sources,revised_nearest_stars,
+                                                    detected_sources, catalog_sources,
+                                                    tol,matched_stars,log,verbose=True)
+
+    log.info(' -> Matched '+str(matched_stars.n_match)+' stars after second pass')
+
+    return matched_stars
+
+def select_nearest_stars_in_catalog(catalog_sources, detected_sources,
+                                    catalog_star,dra,ddec):
+    """Function to identify the detected_source array indices of stars close
+    to catalog_sources star j
+    Returns a list of array indices of nearby stars in detected_sources
+    """
+
+    kdx1 = np.where(detected_sources['ra'] >= (catalog_star.ra.value-dra))[0]
+    kdx2 = np.where(detected_sources['ra'] <= (catalog_star.ra.value+dra))[0]
+    kdx3 = np.where(detected_sources['dec'] >= (catalog_star.dec.value-ddec))[0]
+    kdx4 = np.where(detected_sources['dec'] <= (catalog_star.dec.value+ddec))[0]
+    kdx = set(kdx1).intersection(set(kdx2))
+    kdx = kdx.intersection(set(kdx3))
+    nearest_stars_index = list(kdx.intersection(set(kdx4)))
+
+    return nearest_stars_index
+
+def match_star_without_duplication(catalog_star,cat_idx,det_sources,nearest_stars_index,
+                                    detected_sources, catalog_sources,
+                                    tol,matched_stars,log,verbose=True):
+
+    if len(nearest_stars_index) > 0:
+        (idx, d2d, d3d) = catalog_star.match_to_catalog_sky(det_sources[nearest_stars_index])
+        i = int(idx)
+        match_star_id = detected_sources['star_id'][nearest_stars_index[i]]
+
+        if d2d.value < tol:
+
+            add_star = True
+
+            # Check for any pre-existing matches to this detected objects,
+            # and replace the entry if the current catalog star is a
+            # better match.
+            #if nearest_stars_index[i] in matched_stars.cat1_index:
+            if match_star_id in matched_stars.cat1_index:
+
+                kk = matched_stars.cat1_index.index(match_star_id)
+
+                if matched_stars.cat2_index[kk] != catalog_sources['star_id'][cat_idx]:
+                    if d2d.value[0] < matched_stars.separation[kk]:
+
+                        matched_stars.remove_match(kk)
+
+                        add_star = True
+
+                        if verbose:
+                            log.info('Replacing previous match')
+
+                    else:
+
+                        add_star = False
+
+                        if verbose:
+                            log.info('Existing match at a smaller separation:')
+                            log.info(' -> Catalog 2 star '+\
+                                        str(matched_stars.cat2_index[kk])+' at '+\
+                                        str(matched_stars.separation[kk])+' - retaining')
+                            log.info(' -> compared with Catalog 2 star '+\
+                                        str(catalog_sources['star_id'][cat_idx])+' at '+\
+                                        str(d2d.value[0])+'\n')
+
+                else:
+                    if verbose:
+                        log.info('Existing match of same star (catalog 2 star '+\
+                                    str(matched_stars.cat2_index[kk])+' at '+\
+                                    str(matched_stars.separation[kk])+'), retaining\n')
+
+            if add_star:
+
+                # Records star array indices NOT star ID
+                p = {'cat1_index': match_star_id,
+                     'cat1_ra': detected_sources['ra'][nearest_stars_index[i]],
+                     'cat1_dec': detected_sources['dec'][nearest_stars_index[i]],
+                     'cat1_x': detected_sources['x'][nearest_stars_index[i]],
+                     'cat1_y': detected_sources['y'][nearest_stars_index[i]],
+                     'cat2_index': catalog_sources['star_id'][cat_idx],
+                     'cat2_ra': catalog_sources['ra'][cat_idx],
+                     'cat2_dec': catalog_sources['dec'][cat_idx],
+                     'cat2_x': catalog_sources['x'][cat_idx],
+                     'cat2_y': catalog_sources['y'][cat_idx],
+                     'separation': d2d.value[0]}
+
+                matched_stars.add_match(p)
+
+                if verbose:
+                    log.info(matched_stars.summarize_last(units='deg'))
+
+        else:
+            if verbose:
+                log.info('Catalog 2 star array index '+str(cat_idx)+': Nearest match outside tolerance')
+
+    else:
+        if verbose:
+            log.info('Catalog 2 star array index '+str(cat_idx)+': No nearby catalog stars to match to')
+
+    return matched_stars
+
 def match_stars_pixel_coords(detected_sources,catalog_sources,log,
                              radius=None, x_centre=None, y_centre=None,
                              verbose=False, tol=1.5):

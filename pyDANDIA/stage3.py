@@ -26,7 +26,9 @@ from pyDANDIA import  calibrate_photometry
 
 VERSION = 'pyDANDIA_stage3_v0.5.1'
 
-def run_stage3(setup, cl_params={}):
+def run_stage3(setup,
+    cl_params={'n_sky_bins': None, 'sky_value': None,
+                'set_phot_calib': False, 'a0': None, 'a1': None}):
     """Driver function for pyDANDIA Stage 3:
     Detailed star find and PSF modeling
     """
@@ -63,7 +65,8 @@ def run_stage3(setup, cl_params={}):
         sky_model = sky_background.model_sky_background(setup,
                                         reduction_metadata,log,ref_star_catalog,
                                         bandpass=meta_pars['bandpass'],
-                                        n_sky_bins=cl_params['n_sky_bins'])
+                                        n_sky_bins=cl_params['n_sky_bins'],
+                                        sky_value=cl_params['sky_value'])
 
         ref_star_catalog = psf_selection.psf_star_selection(setup,
                                         reduction_metadata,
@@ -109,9 +112,10 @@ def run_stage3(setup, cl_params={}):
                                                 'pyDANDIA_metadata.fits',
                                                 'star_catalog', log=log)
 
-        reduction_metadata = calibrate_photometry.calibrate_photometry(setup,
-                                                        reduction_metadata, log,
-                                                        cl_params)
+        kwargs = {'set_phot_calib': cl_params['set_phot_calib'],
+        'a0': cl_params['a0'], 'a1': cl_params['a1']}
+        reduction_metadata = calibrate_photometry.calibrate_photometry(setup, reduction_metadata, log,
+                                                                        **kwargs)
 
         reduction_metadata.create_software_layer(np.array([VERSION,'NONE']),
                                                      log=log)

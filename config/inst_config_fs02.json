@@ -85,19 +85,19 @@
     },
     "fov": {
         "comment": "fov - DOUBLE - Field of view of the CCD camera (deg). This parameter should be positive and less than or equal to 90.0 (Default value = 0.1).",
-        "value": 0.029,
+        "value": 0.168,
 	"format":"float",
 	"unit":"deg"
     },
     "gain": {
         "comment": "gain - DOUBLE - CCD gain (e-/ADU). This parameter should be positive (Default value = 1.0)",
-        "value": 1.0,
+        "value": 59.29,
 	"format":"float",
 	"unit":"e/adu"
     },
     "ron": {
         "comment": "ron - DOUBLE - CCD readout noise (ADU). This parameter should be non-negative (Default value = 0.0)",
-        "value": 11.31,
+        "value": 10.5,
 	"format":"float",
 	"unit":"adu"
     },
@@ -127,7 +127,7 @@
     },
     "maxval": {
         "comment": "maxval - DOUBLE - Maximum useful pixel value in a raw image (ADU).",
-        "value": 476000.0,
+        "value": 453530.0,
 	"format":"float",
 	"unit":"adu"
     },

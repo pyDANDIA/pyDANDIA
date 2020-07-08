@@ -126,7 +126,7 @@ def run_reference_astrometry(setup, force_rotate_ref=False,
                 transform = calc_coord_offsets.calc_pixel_transform(setup,
                                             bright_central_gaia_stars[matched_stars.cat2_index],
                                             bright_central_detected_stars[matched_stars.cat1_index],
-                                            log)
+                                            log, coordinates='pixel')
 
         else:
             while iterate:
@@ -179,7 +179,7 @@ def run_reference_astrometry(setup, force_rotate_ref=False,
                         transform = calc_coord_offsets.calc_pixel_transform(setup,
                                                     bright_central_gaia_stars[matched_stars.cat2_index],
                                                     bright_central_detected_stars[matched_stars.cat1_index],
-                                                    log)
+                                                    log, coordinates='pixel')
 
                     else:
                         raise ValueError('No matched stars')

@@ -254,17 +254,27 @@ def detect_correspondances(setup, detected_stars, catalog_stars,log):
 
     return [ dx, dy ]
 
-def calc_pixel_transform(setup, ref_catalog, catalog2, log):
+def calc_pixel_transform(setup, ref_catalog, catalog2, log,
+                        coordinates='pixel', diagnostics=False, plot_path=None):
     """Calculates the transformation from the reference catalog positions to
     those of the working catalog positions"""
 
+    if coordinates == 'pixel':
+        col1 = 'x'
+        col2 = 'y'
+        log.info('Calculating transform using pixel coordinates')
+    else:
+        col1 = 'ra'
+        col2 = 'dec'
+        log.info('Calculating transform using sky coordinates')
+
     ref_array = np.zeros((len(ref_catalog),2))
-    ref_array[:,0] = ref_catalog['x'].data
-    ref_array[:,1] = ref_catalog['y'].data
+    ref_array[:,0] = ref_catalog[col1].data
+    ref_array[:,1] = ref_catalog[col2].data
 
     cat_array = np.zeros((len(catalog2),2))
-    cat_array[:,0] = catalog2['x'].data
-    cat_array[:,1] = catalog2['y'].data
+    cat_array[:,0] = catalog2[col1].data
+    cat_array[:,1] = catalog2[col2].data
 
     max_size = 2500
     if len(ref_array) > max_size:
@@ -275,10 +285,66 @@ def calc_pixel_transform(setup, ref_catalog, catalog2, log):
                                residual_threshold=2, max_trials=100)
 
     log.info('RANSAC identified '+str(len(inliers))+' inlying objects in the matched set')
-    log.info('Pixel offsets, dx='+str(model.translation[0])+', dy='+str(model.translation[1])+' pixel')
+    if coordinates == 'pixel':
+        log.info('Pixel offsets, dx='+str(model.translation[0])+', dy='+str(model.translation[1])+' pixel')
+    else:
+        log.info('Pixel offsets, dra='+str(model.translation[0])+', ddec='+str(model.translation[1])+' deg')
     log.info('Pixel scale factor '+repr(model.scale))
     log.info('Pixel rotation '+repr(model.rotation))
     log.info('Transform matrix '+repr(model.params))
+
+    if diagnostics:
+
+        if coordinates == 'pixel':
+            units = 'pixels'
+            xdirection = 'X'
+            ydirection = 'Y'
+        else:
+            units = 'deg'
+            xdirection = 'RA'
+            ydirection = 'Dec'
+
+        fig = plt.figure(1)
+
+        dx = ref_array[:,0] - cat_array[:,0]
+        dy = ref_array[:,1] - cat_array[:,1]
+
+        ax = plt.subplot(321)
+        plt.hist(dx)
+        plt.xlabel('$\\Delta$ '+xdirection+' ['+units+']')
+        plt.ylabel('Frequency')
+
+        ax = plt.subplot(322)
+        plt.hist(dy)
+        plt.xlabel('$\\Delta$ '+ydirection+' ['+units+']')
+        plt.ylabel('Frequency')
+
+        ax = plt.subplot(323)
+        plt.plot(ref_array[:,0], dx, 'b.')
+        plt.xlabel(xdirection+' '+units)
+        plt.ylabel('$\\Delta$ '+xdirection+' ['+units+']')
+
+        ax = plt.subplot(324)
+        plt.plot(ref_array[:,0], dy, 'b.')
+        plt.xlabel(xdirection+' '+units)
+        plt.ylabel('$\\Delta$ '+ydirection+' ['+units+']')
+
+        ax = plt.subplot(325)
+        plt.plot(ref_array[:,1], dx, 'b.')
+        plt.xlabel(ydirection+' '+units)
+        plt.ylabel('$\\Delta$ '+xdirection+' ['+units+']')
+
+        ax = plt.subplot(326)
+        plt.plot(ref_array[:,1], dy, 'b.')
+        plt.xlabel(ydirection+' '+units)
+        plt.ylabel('$\\Delta$ '+ydirection+' ['+units+']')
+
+        plt.subplots_adjust(wspace=0.5, hspace=0.6)
+        if plot_path==None:
+            plot_path = path.join(setup.red_dir, 'dataset_field_pixel_offsets.png')
+        plt.savefig(plot_path)
+
+        plt.close(1)
 
     return model
 
