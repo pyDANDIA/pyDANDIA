@@ -22,12 +22,13 @@ from pyDANDIA import  phot_db
 from pyDANDIA import  pipeline_setup
 from pyDANDIA import  time_utils
 from pyDANDIA import  match_utils
+from pyDANDIA import config_utils
 from pyDANDIA import  calc_coord_offsets
 from pyDANDIA import  wcs
 
 VERSION = 'stage3_ingest_v1.1'
 
-def run_stage3_db_ingest(setup, primary_ref=False, add_matched_stars=False):
+def run_stage3_db_ingest(setup, **kwargs):
     """Function to commit the information on, and measurements from, the
     reference image(s) used to reduce the data for a given field.
     """
@@ -36,6 +37,9 @@ def run_stage3_db_ingest(setup, primary_ref=False, add_matched_stars=False):
 
     log = logs.start_stage_log( setup.red_dir, 'stage3_db_ingest',
                                version=VERSION )
+
+    kwargs = get_default_config(kwargs, log)
+
     if primary_ref:
         log.info('Running in PRIMARY-REF mode.')
 
@@ -127,6 +131,14 @@ def run_stage3_db_ingest(setup, primary_ref=False, add_matched_stars=False):
     logs.close_log(log)
 
     return status, report
+
+def get_default_config(kwargs, log):
+
+    default_config = {'primary_ref': False, 'add_matched_stars': False}
+
+    kwargs = config_utils.set_default_config(default_config, kwargs, log)
+
+    return kwargs
 
 def define_table_keys():
 

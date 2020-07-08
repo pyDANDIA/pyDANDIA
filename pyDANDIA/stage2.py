@@ -35,7 +35,7 @@ from pyDANDIA import  logs
 from pyDANDIA import  empirical_psf_simple
 
 
-def run_stage2(setup, empirical_ranking=False, n_stack = 1):
+def run_stage2(setup, **kwargs):
     """Main driver function to run stage 2: reference selection.
 
     This stage is processing the metadata file, looks for the output of
@@ -56,6 +56,8 @@ def run_stage2(setup, empirical_ranking=False, n_stack = 1):
 
     log = logs.start_stage_log(setup.red_dir, 'stage2', version=stage2_version)
     log.info('Setup:\n' + setup.summary() + '\n')
+
+    kwargs = get_default_config(kwargs,log)
 
     reduction_metadata = metadata.MetaData()
 
@@ -143,7 +145,7 @@ def run_stage2(setup, empirical_ranking=False, n_stack = 1):
 
     else:
         for stats_entry in reduction_metadata.images_stats[1]:
-            if stats_entry[9] == 1 and empirical_ranking == False:
+            if stats_entry[9] == 1 and kwargs['empirical_ranking'] == False:
                 image_filename = stats_entry[0]
                 row_idx = np.where(reduction_metadata.images_stats[1]['IM_NAME'] == image_filename)[0][0]
                 moon_status = 'dark'
@@ -163,7 +165,7 @@ def run_stage2(setup, empirical_ranking=False, n_stack = 1):
                                                         new_row=entry)
 
     #relax criteria...
-    if reference_ranking == [] or empirical_ranking:
+    if reference_ranking == [] or kwargs['empirical_ranking']:
         log.info('No meaningful automatic selection can be made. Assigning empirical reference.')
         for stats_entry in reduction_metadata.images_stats[1]:
             if stats_entry[9] == 1:
@@ -190,7 +192,7 @@ def run_stage2(setup, empirical_ranking=False, n_stack = 1):
                                             metadata_name='pyDANDIA_metadata.fits',
                                             key_layer='reference_inventory')
 
-    if reference_ranking != [] and n_stack == 1:
+    if reference_ranking != [] and kwargs['n_stack'] == 1:
         best_image = sorted(reference_ranking, key=itemgetter(1))[-1]
         ref_directory_path = os.path.join(setup.red_dir, 'ref')
         if not os.path.exists(ref_directory_path):
@@ -239,9 +241,9 @@ def run_stage2(setup, empirical_ranking=False, n_stack = 1):
 
         return status, report
 
-    if reference_ranking != [] and n_stack > 1 :
+    if reference_ranking != [] and kwargs['n_stack'] > 1 :
         best_image = sorted(reference_ranking, key=itemgetter(1))[-1]
-        n_min_stack  = min(len(reference_ranking), n_stack+1)
+        n_min_stack  = min(len(reference_ranking), kwargs['n_stack']+1)
         best_images = sorted(reference_ranking, key=itemgetter(1))[-n_min_stack:]
         ref_hdu = fits.open(os.path.join(reduction_metadata.data_architecture[1]['IMAGES_PATH'][0],best_image[0]))
         coadd = np.copy(ref_hdu[0].data)
@@ -328,6 +330,15 @@ def run_stage2(setup, empirical_ranking=False, n_stack = 1):
         logs.close_log(log)
 
         return status, report
+
+def get_default_config(kwargs,log):
+
+    default_config = { 'empirical_ranking': False,
+                        'n_stack': 1 }
+
+    kwargs = config_utils.set_default_config(default_config,kwargs,log)
+
+    return kwargs
 
 def find_shift(reference_image, target_image):
     """

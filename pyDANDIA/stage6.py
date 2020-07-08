@@ -37,7 +37,7 @@ from pyDANDIA import photometry
 from pyDANDIA import stage3_db_ingest
 from pyDANDIA import hd5_utils
 
-def run_stage6(setup, per_star_logging=False):
+def run_stage6(setup, **kwargs):
     """Main driver function to run stage 6: image substraction and photometry.
     This stage align the images to the reference frame!
     :param object setup : an instance of the ReductionSetup class. See reduction_control.py
@@ -51,6 +51,8 @@ def run_stage6(setup, per_star_logging=False):
 
     log = logs.start_stage_log(setup.red_dir, 'stage6', version=stage6_version)
     log.info('Setup:\n' + setup.summary() + '\n')
+
+    kwargs = get_default_config(kwargs, log)
 
     # find the metadata
     reduction_metadata = metadata.MetaData()
@@ -259,7 +261,7 @@ def run_stage6(setup, per_star_logging=False):
                                                                                   stamp_star_catalog, difference_image, psf_model,
                                                                                   sky_model, kernel_image, kernel_error,
                                                                                   ref_exposure_time,idx,
-                                                                                  per_star_logging=per_star_logging)
+                                                                                  per_star_logging=kwargs['per_star_logging'])
                         psf_model.update_psf_parameters(psf_parameters)
 
                         #commit_stamp_photometry_matching(conn, image_params, reduction_metadata, matched_stars, phot_table,
@@ -310,6 +312,13 @@ def run_stage6(setup, per_star_logging=False):
 
     return status, report
 
+def get_default_config(kwargs,log):
+
+    default_config = {'per_star_logging': False}
+
+    kwargs = config_utils.set_default_config(default_config, kwargs, log)
+
+    return kwargs
 
 def background_subtract(setup, image, max_adu):
     masked_image = mask_saturated_pixels(setup, image, max_adu, log=None)

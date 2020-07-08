@@ -8,23 +8,22 @@ from os import getcwd, path, remove
 from sys import argv, exit
 from sys import path as systempath
 import copy
-cwd = getcwd()
-systempath.append(path.join(cwd,'../'))
-import pipeline_setup
-import stage0
-import stage1
-import stage2
-import reference_astrometry
-import stage3
-import stage3_db_ingest
-import stage4
-import stage5
-import stage6
-import logs
-import subprocess
-from datetime import datetime
 import glob
-import reset_stage_metadata
+from pyDANDIA import pipeline_setup
+from pyDANDIA import stage0
+from pyDANDIA import stage1
+from pyDANDIA import stage2
+from pyDANDIA import reference_astrometry
+from pyDANDIA import stage3
+from pyDANDIA import stage3_db_ingest
+from pyDANDIA import stage4
+from pyDANDIA import stage5
+from pyDANDIA import stage6
+from pyDANDIA import logs
+from pyDANDIA import subprocess
+from datetime import datetime
+from pyDANDIA import reset_stage_metadata
+from pyDANDIA import config_utils
 
 def reduction_control():
     """Main driver function for the pyDANDIA pipelined reduction of an
@@ -228,10 +227,23 @@ def run_stage6_db_ingest(setup,red_log,params):
 
     (status,report) = stage6.run_stage6(setup)
 
+def get_auto_config(setup,log):
+    """Function to read in the configuration file for automatic reductions"""
+
+    config_file = path.join(setup.config_dir, 'auto_pipeline_config.json')
+
+    config = config_utils.build_config_from_json(config_file)
+
+    log.info('Read in configuration for automatic reductions')
+
+    return config
+
 def run_automatic_reduction(setup,red_log,params):
     """Function to run an automatic reduction of a single dataset"""
 
     red_log.info('Starting automatic reduction of '+path.basename(setup.red_dir))
+
+    config = get_auto_config(setup,red_log)
 
     locked = check_dataset_lock(setup,red_log)
 
@@ -241,14 +253,14 @@ def run_automatic_reduction(setup,red_log,params):
         existing_reduction = got_existing_reference(setup,red_log)
 
         if existing_reduction:
-            status = run_existing_reduction(setup, red_log)
+            status = run_existing_reduction(setup, config, red_log)
 
         else:
-            status = run_new_reduction(setup, red_log)
+            status = run_new_reduction(setup, config, red_log)
 
         unlock_dataset(setup,log)
 
-def run_existing_reduction(setup, red_log):
+def run_existing_reduction(setup, config, red_log):
 
     (status,report,meta_data) = stage0.run_stage0(setup)
     red_log.info('Completed stage 0 with status '+repr(status)+': '+report)
@@ -264,19 +276,19 @@ def run_existing_reduction(setup, red_log):
 
     return status
 
-def run_new_reduction(setup, red_log):
+def run_new_reduction(setup, config, red_log):
 
     (status,report,meta_data) = stage0.run_stage0(setup)
     red_log.info('Completed stage 0 with status '+repr(status)+': '+report)
 
-    status = execute_stage(stage1.run_stage1, 'stage 1', setup, status, red_log)
+    status = execute_stage(stage1.run_stage1, 'stage 1', setup, status, red_log, **config)
 
-    status = execute_stage(stage2.run_stage2, 'stage 2', setup, status, red_log)
+    status = execute_stage(stage2.run_stage2, 'stage 2', setup, status, red_log, **config)
 
     status = execute_stage(reference_astrometry.run_reference_astrometry,
-                           'reference astrometry', setup, status, red_log)
+                           'reference astrometry', setup, status, red_log, **config)
 
-    status = execute_stage(stage3.run_stage3, 'stage 3', setup, status, red_log)
+    status = execute_stage(stage3.run_stage3, 'stage 3', setup, status, red_log, **config)
 
     status = execute_stage(stage4.run_stage4, 'stage 4', setup, status, red_log)
 
@@ -347,7 +359,7 @@ def got_existing_reference(setup,log):
 
     return existing_reduction
 
-def execute_stage(run_stage_func, stage_name, setup, status, red_log):
+def execute_stage(run_stage_func, stage_name, setup, status, red_log, **kwargs):
     """Function to execute a stage and verify whether it completed successfully
     before continuing.
 
@@ -374,7 +386,7 @@ def execute_stage(run_stage_func, stage_name, setup, status, red_log):
 
         else:
 
-            (status, report) = run_stage_func(setup)
+            (status, report) = run_stage_func(setup, **kwargs)
 
         red_log.info('Completed '+stage_name+' with status '+\
                     repr(status)+': '+report)

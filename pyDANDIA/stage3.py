@@ -20,15 +20,14 @@ from pyDANDIA import  psf_selection
 from pyDANDIA import  photometry
 from pyDANDIA import  phot_db
 from pyDANDIA import  utilities
+from pyDANDIA import  config_utils
 from pyDANDIA import  catalog_utils
 from pyDANDIA import  calibrate_photometry
 
 
 VERSION = 'pyDANDIA_stage3_v0.5.1'
 
-def run_stage3(setup,
-    cl_params={'n_sky_bins': None, 'sky_value': None,
-                'set_phot_calib': False, 'a0': None, 'a1': None}):
+def run_stage3(setup, **kwargs):
     """Driver function for pyDANDIA Stage 3:
     Detailed star find and PSF modeling
     """
@@ -39,6 +38,8 @@ def run_stage3(setup,
     log = logs.start_stage_log( setup.red_dir, 'stage3', version=VERSION )
 
     log.info('Applying Naylors photometric algorithm? '+repr(use_naylor_phot))
+
+    kwargs = get_default_config(kwargs,log)
 
     reduction_metadata = metadata.MetaData()
     reduction_metadata.load_all_metadata(metadata_directory=setup.red_dir,
@@ -65,8 +66,8 @@ def run_stage3(setup,
         sky_model = sky_background.model_sky_background(setup,
                                         reduction_metadata,log,ref_star_catalog,
                                         bandpass=meta_pars['bandpass'],
-                                        n_sky_bins=cl_params['n_sky_bins'],
-                                        sky_value=cl_params['sky_value'])
+                                        n_sky_bins=kwargs['n_sky_bins'],
+                                        sky_value=kwargs['sky_value'])
 
         ref_star_catalog = psf_selection.psf_star_selection(setup,
                                         reduction_metadata,
@@ -112,8 +113,6 @@ def run_stage3(setup,
                                                 'pyDANDIA_metadata.fits',
                                                 'star_catalog', log=log)
 
-        kwargs = {'set_phot_calib': cl_params['set_phot_calib'],
-        'a0': cl_params['a0'], 'a1': cl_params['a1']}
         reduction_metadata = calibrate_photometry.calibrate_photometry(setup, reduction_metadata, log,
                                                                         **kwargs)
 
@@ -142,6 +141,16 @@ def run_stage3(setup,
     logs.close_log(log)
 
     return status, report
+
+def get_default_config(kwargs,log):
+
+    default_config = {'n_sky_bins': None, 'sky_value': None,
+                'set_phot_calib': False, 'a0': None, 'a1': None,
+                'use_gaia_phot': False}
+
+    kwargs = config_utils.set_default_config(default_config, kwargs, log)
+
+    return kwargs
 
 def check_metadata(reduction_metadata,log):
     """Function to verify sufficient information has been extracted from

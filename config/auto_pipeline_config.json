@@ -34,5 +34,11 @@
       "comment": "Maximum number of data groups to process at any one time",
       "format": "string",
       "unit": ""
+  },
+  "use_gaia_phot": {
+      "value": True,
+      "comment": "Switch to enable use of Gaia photometry for calibration",
+      "format": "string",
+      "unit": ""
   }
 }

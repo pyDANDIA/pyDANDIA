@@ -20,9 +20,10 @@ from pyDANDIA import  metadata
 from pyDANDIA import  logs
 from pyDANDIA import  quality_control
 from pyDANDIA import  psf
+from pyDANDIA import config_utils
 from astropy.io import fits
 
-def run_stage1(setup, rerun_all=None):
+def run_stage1(setup, **kwargs):
     """
     Main driver function to run stage 1 of pyDANDIA: measurement of image
     properties. This stage populates the metadata with the FWHM, sky
@@ -49,6 +50,8 @@ def run_stage1(setup, rerun_all=None):
     log = logs.start_stage_log(setup.red_dir, 'stage1', version=stage1_version)
     log.info('Setup:\n' + setup.summary() + '\n')
 
+    kwargs = get_default_config(kwargs, log)
+
     # Attempt to load the metadata file
 
     reduction_metadata = metadata.MetaData()
@@ -72,7 +75,7 @@ def run_stage1(setup, rerun_all=None):
 
     images = reduction_metadata.find_images_need_to_be_process(setup,
                                                                all_images, stage_number=1,
-                                                               rerun_all=rerun_all, log=log)
+                                                               rerun_all=kwargs['rerun_all'], log=log)
 
     full_path_to_images = [os.path.join(
         setup.red_dir, 'data', i) for i in images]
@@ -124,7 +127,7 @@ def run_stage1(setup, rerun_all=None):
             image_red_status.append(1)
         else:
             image_red_status.append(-1)
-            
+
         # Add a new row to the images_stats layer
         # (if it doesn't already exist)
 
@@ -158,3 +161,11 @@ def run_stage1(setup, rerun_all=None):
     logs.close_log(log)
 
     return status, report
+
+def get_default_config(kwargs,log):
+
+    default_config = {'rerun_all': None}
+
+    kwargs = config_utils.set_default_config(default_config, kwargs, log)
+
+    return kwargs

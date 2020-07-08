@@ -35,7 +35,7 @@ from pyDANDIA import stage4
 import matplotlib.pyplot as plt
 
 
-def run_stage5(setup):
+def run_stage5(setup, **kwargs):
     """Main driver function to run stage 5: kernel_solution
     This stage finds the kernel solution and (optionally) subtracts the model
     image

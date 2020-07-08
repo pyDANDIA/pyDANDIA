@@ -18,6 +18,7 @@ from pyDANDIA import  wcs
 from pyDANDIA import  psf
 from pyDANDIA import  stage0
 from pyDANDIA import  stage3
+from pyDANDIA import  config_utils
 from pyDANDIA import  catalog_utils
 from pyDANDIA import  calc_coord_offsets
 from pyDANDIA import  shortest_string
@@ -29,9 +30,7 @@ from skimage.transform import AffineTransform
 
 VERSION = 'pyDANDIA_reference_astrometry_v0.2'
 
-def run_reference_astrometry(setup, force_rotate_ref=False,
-                                    dx=0.0, dy=0.0,
-                                    trust_wcs=False):
+def run_reference_astrometry(setup, **kwargs):
     """Driver function to perform the object detection and astrometric analysis
     of the reference frame from a given dataset.
 
@@ -42,6 +41,7 @@ def run_reference_astrometry(setup, force_rotate_ref=False,
 
     log = logs.start_stage_log( setup.red_dir, 'reference_astrometry', version=VERSION )
 
+    kwargs = get_default_config(kwargs, log)
 
     reduction_metadata = metadata.MetaData()
     reduction_metadata.load_a_layer_from_file( setup.red_dir,
@@ -88,7 +88,8 @@ def run_reference_astrometry(setup, force_rotate_ref=False,
         gaia_sources = catalog_objects_in_reference_image(setup, header,
                                                           image_wcs, log,
                                                           stellar_density,
-                                                          rotate_wcs, force_rotate_ref,
+                                                          rotate_wcs,
+                                                          kwargs['force_rotate_ref'],
                                                           stellar_density_threshold)
 
         vphas_sources = phot_catalog_objects_in_reference_image(setup, header, fov,
@@ -110,7 +111,7 @@ def run_reference_astrometry(setup, force_rotate_ref=False,
         method = 'ransac'
         old_n_match = 0
 
-        if trust_wcs == True:
+        if kwargs['trust_wcs'] == True:
             log.info('Trusting original WCS solution, transformation will be calculated after catalog match to original pixel positions')
             transform = AffineTransform(translation=(0.0, 0.0))
 
@@ -133,9 +134,9 @@ def run_reference_astrometry(setup, force_rotate_ref=False,
                 it += 1
                 log.info('STAR MATCHING ITERATION '+str(it))
 
-                if it == 1 and (dx != 0.0 or dy != 0.0):
-                    log.info('Applying initial transformation of catalog positions, dx='+str(dx)+', dy='+str(dy)+' pixels')
-                    transform = AffineTransform(translation=(dx, dy))
+                if it == 1 and (kwargs['dx'] != 0.0 or kwargs['dy'] != 0.0):
+                    log.info('Applying initial transformation of catalog positions, dx='+str(kwargs['dx'])+', dy='+str(kwargs['dy'])+' pixels')
+                    transform = AffineTransform(translation=(kwargs['dx'], kwargs['dy']))
                     stellar_density = utilities.stellar_density(bright_central_gaia_stars,
                                                         selection_radius)
                     matched_stars = match_utils.StarMatchIndex()
@@ -201,7 +202,7 @@ def run_reference_astrometry(setup, force_rotate_ref=False,
                     bright_central_gaia_stars = update_catalog_image_coordinates(setup, image_wcs,
                                                                 bright_central_gaia_stars, log,
                                                                 'catalog_stars_bright_revised_'+str(it)+'.reg',
-                                                                stellar_density, rotate_wcs, force_rotate_ref,
+                                                                stellar_density, rotate_wcs, kwargs['force_rotate_ref'],
                                                                 stellar_density_threshold,
                                                                 transform=transform, radius=selection_radius)
 
@@ -225,7 +226,7 @@ def run_reference_astrometry(setup, force_rotate_ref=False,
 
         gaia_sources = update_catalog_image_coordinates(setup, image_wcs,
                                                         gaia_sources, log, 'catalog_stars_full_revised_'+str(it)+'.reg',
-                                                        stellar_density, rotate_wcs, force_rotate_ref,
+                                                        stellar_density, rotate_wcs, kwargs['force_rotate_ref'],
                                                         stellar_density_threshold,
                                                         transform=transform, radius=None)
 
@@ -268,6 +269,16 @@ def run_reference_astrometry(setup, force_rotate_ref=False,
     logs.close_log(log)
 
     return 'OK', 'Reference astrometry complete'
+
+def get_default_config(kwargs, log):
+
+    default_config = {'force_rotate_ref': False,
+                      'dx': 0.0, 'dy': 0.0,
+                      'trust_wcs': False}
+
+    kwargs = config_utils.set_default_config(default_config, kwargs, log)
+
+    return kwargs
 
 def detect_objects_in_reference_image(setup, reduction_metadata, meta_pars,
                                       image_wcs, log):

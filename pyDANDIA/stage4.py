@@ -74,7 +74,7 @@ def polyfit2d(x, y, z, order=3,errors=None):
     m, _, _, _ = np.linalg.lstsq(G, Z)
     return m
 
-def run_stage4(setup):
+def run_stage4(setup, **kwargs):
     """Main driver function to run stage 4: image alignement.
     This stage align the images to the reference frame!
     :param object setup : an instance of the ReductionSetup class. See reduction_control.py
