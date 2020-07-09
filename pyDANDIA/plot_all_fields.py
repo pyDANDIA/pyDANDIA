@@ -86,7 +86,7 @@ def plot_all_fields(data_dir):
         fontsize=100, c='gray',
         transform = ax.transAxes)
 
-    plt.text(0.5, -0.16, '1 million stars  $\\bullet$  3 filters  $\\bullet$  3 years',
+    plt.text(0.5, -0.16, '4.65 million stars  $\\bullet$  3 filters  $\\bullet$  3 years',
         horizontalalignment='center',
         fontsize=80, c='gray',
         transform = ax.transAxes)
