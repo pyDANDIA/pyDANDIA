@@ -36,7 +36,7 @@
       "unit": ""
   },
   "use_gaia_phot": {
-      "value": True,
+      "value": "True",
       "comment": "Switch to enable use of Gaia photometry for calibration",
       "format": "string",
       "unit": ""

@@ -9,6 +9,8 @@ from sys import argv, exit
 from sys import path as systempath
 import copy
 import glob
+import subprocess
+from datetime import datetime
 from pyDANDIA import pipeline_setup
 from pyDANDIA import stage0
 from pyDANDIA import stage1
@@ -20,8 +22,6 @@ from pyDANDIA import stage4
 from pyDANDIA import stage5
 from pyDANDIA import stage6
 from pyDANDIA import logs
-from pyDANDIA import subprocess
-from datetime import datetime
 from pyDANDIA import reset_stage_metadata
 from pyDANDIA import config_utils
 
@@ -230,7 +230,7 @@ def run_stage6_db_ingest(setup,red_log,params):
 def get_auto_config(setup,log):
     """Function to read in the configuration file for automatic reductions"""
 
-    config_file = path.join(setup.config_dir, 'auto_pipeline_config.json')
+    config_file = path.join(setup.pipeline_config_dir, 'auto_pipeline_config.json')
 
     config = config_utils.build_config_from_json(config_file)
 

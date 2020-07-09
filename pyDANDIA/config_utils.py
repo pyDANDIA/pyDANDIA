@@ -66,7 +66,7 @@ def build_config_from_json(config_file):
 
 def set_default_config(defaults, kwargs, log):
 
-    for key, value in default_config.items():
+    for key, value in defaults.items():
         if key not in kwargs.keys():
             kwargs[key] = value
 
