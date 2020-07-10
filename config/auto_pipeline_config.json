@@ -35,8 +35,14 @@
       "format": "string",
       "unit": ""
   },
+  "catalog_xmatch": {
+      "value": "False",
+      "comment": "Switch to enable the cross-match against a catalog",
+      "format": "string",
+      "unit": ""
+  },
   "use_gaia_phot": {
-      "value": "True",
+      "value": "False",
       "comment": "Switch to enable use of Gaia photometry for calibration",
       "format": "string",
       "unit": ""

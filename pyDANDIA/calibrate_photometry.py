@@ -767,8 +767,9 @@ def model_phot_transform2(params,star_catalog,match_index,fit,
             ybins.append(ycenters[k][0])
 
         if len(xbins) <= 1 or len(ybins) <= 1:
-            raise ValueError('Insufficient datapoints selected by calibration magnitude limits')
-            exit()
+            log.info('Insufficient datapoints selected by calibration magnitude limits')
+
+            return [-9999.9999, -9999.9999]
 
         fit = calc_transform(fit, xbins, ybins)
 
@@ -891,22 +892,26 @@ def apply_phot_calib(star_catalog,fit_params,log):
 
     mags = star_catalog['mag']
 
-    cal_mags = phot_func(fit_params,mags)
+    if fit_params[0] > -9999.0 and fit_params[1] > -9999.0:
+        cal_mags = phot_func(fit_params,mags)
 
-    idx = np.where(star_catalog['mag'] < 7.0)
-    cal_mags[idx] = 0.0
+        idx = np.where(star_catalog['mag'] < 7.0)
+        cal_mags[idx] = 0.0
 
-    star_catalog['cal_ref_mag'] = cal_mags
-    star_catalog['cal_ref_mag_err'] = star_catalog['mag_err']
+        star_catalog['cal_ref_mag'] = cal_mags
+        star_catalog['cal_ref_mag_err'] = star_catalog['mag_err']
 
-    (cal_flux, cal_flux_error) = photometry.convert_mag_to_flux(star_catalog['cal_ref_mag'],
-                                                                star_catalog['cal_ref_mag_err'])
+        (cal_flux, cal_flux_error) = photometry.convert_mag_to_flux(star_catalog['cal_ref_mag'],
+                                                                    star_catalog['cal_ref_mag_err'])
 
-    star_catalog['cal_ref_flux'] = cal_flux
-    star_catalog['cal_ref_flux_err'] = cal_flux_error
+        star_catalog['cal_ref_flux'] = cal_flux
+        star_catalog['cal_ref_flux_err'] = cal_flux_error
 
-    log.info('Calculated calibrated reference magnitudes for all detected stars')
+        log.info('Calculated calibrated reference magnitudes for all detected stars')
 
+    else:
+        log.info('Photometric transformation invalid, no calibrated magnitudes produced')
+        
     return star_catalog
 
 def output_to_metadata(setup, params, phot_fit, star_catalog, reduction_metadata, log):
