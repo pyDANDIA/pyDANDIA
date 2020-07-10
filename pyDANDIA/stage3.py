@@ -40,6 +40,8 @@ def run_stage3(setup, **kwargs):
     log.info('Applying Naylors photometric algorithm? '+repr(use_naylor_phot))
 
     kwargs = get_default_config(kwargs,log)
+    for key, value in kwargs.items():
+        log.info(str(key)+', '+str(value)+', '+repr(type(value)))
 
     reduction_metadata = metadata.MetaData()
     reduction_metadata.load_all_metadata(metadata_directory=setup.red_dir,

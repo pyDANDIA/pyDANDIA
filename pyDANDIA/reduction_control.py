@@ -234,6 +234,11 @@ def get_auto_config(setup,log):
 
     config = config_utils.build_config_from_json(config_file)
 
+    boolean_keys = ['use_gaia_phot']
+    for key in boolean_keys:
+        if key in config.keys():
+            config[key] = bool(config[key])
+            
     log.info('Read in configuration for automatic reductions')
 
     return config

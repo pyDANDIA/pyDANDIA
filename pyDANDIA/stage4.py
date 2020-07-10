@@ -805,6 +805,9 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
 
             image_red_status[new_image] = 1
 
+    if type(master_mask) == int:
+        raise ValueError('No valid mask data found in dataset')
+
     mask = np.abs(master_mask) < 1.0
     master_mask[mask] = 0
     master_mask_hdu = fits.PrimaryHDU(master_mask)
