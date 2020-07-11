@@ -201,6 +201,11 @@ def get_args():
     else:
         params['set_phot_calib'] = False
 
+    if '-no-xmatch' in argv:
+        params['catalog_xmatch'] = False
+    else:
+        params['catalog_xmatch'] = True
+
     params['dx'] = 0.0
     params['dy'] = 0.0
     params['n_sky_bins'] = -1
