@@ -26,6 +26,7 @@ from pyDANDIA import  calibrate_photometry
 from pyDANDIA import  vizier_tools
 from pyDANDIA import  match_utils
 from pyDANDIA import  utilities
+from pyDANDIA import  image_handling
 from skimage.transform import AffineTransform
 
 VERSION = 'pyDANDIA_reference_astrometry_v0.2'
@@ -70,7 +71,7 @@ def run_reference_astrometry(setup, **kwargs):
 
     if sane:
 
-        header = fits.getheader(meta_pars['ref_image_path'])
+        header = image_handling.get_science_header(meta_pars['ref_image_path'])
 
         image_wcs = aWCS(header)
 
@@ -294,17 +295,22 @@ def get_default_config(kwargs, log):
 def detect_objects_in_reference_image(setup, reduction_metadata, meta_pars,
                                       image_wcs, log):
 
+    ref_image_path = os.path.join(setup.red_dir,'ref',os.path.basename(meta_pars['ref_image_path']))
+
+    image_structure = image_handling.determine_image_struture(ref_image_path, log=log)
+
     scidata = stage0.open_an_image(setup, os.path.join(setup.red_dir,'ref'),
                                os.path.basename(meta_pars['ref_image_path']),
-                               log,  image_index=0)
+                               log,  image_index=image_structure['sci'])
 
-    image_bpm = stage0.open_an_image(setup, os.path.join(setup.red_dir,'ref'),
-                               os.path.basename(meta_pars['ref_image_path']),
-                               log,  image_index=2)
-    if image_bpm == None:
+    if image_structure['bpm'] != None:
         image_bpm = stage0.open_an_image(setup, os.path.join(setup.red_dir,'ref'),
-                                   os.path.basename(meta_pars['ref_image_path']),
-                                   log,  image_index=1)
+                               os.path.basename(meta_pars['ref_image_path']),
+                               log,  image_index=image_structure['bpm'])
+#    if image_bpm == None:
+#        image_bpm = stage0.open_an_image(setup, os.path.join(setup.red_dir,'ref'),
+#                                   os.path.basename(meta_pars['ref_image_path']),
+#                                   log,  image_index=1)
 
     scidata = scidata.data - meta_pars['ref_sky_bkgd']
     idx = np.where(image_bpm.data != 0)

@@ -36,6 +36,7 @@ from pyDANDIA import psf
 from pyDANDIA import photometry
 from pyDANDIA import stage3_db_ingest
 from pyDANDIA import hd5_utils
+from pyDANDIA import image_handling
 
 def run_stage6(setup, **kwargs):
     """Main driver function to run stage 6: image substraction and photometry.
@@ -149,7 +150,8 @@ def run_stage6(setup, **kwargs):
         try:
             reference_image_name = reduction_metadata.data_architecture[1]['REF_IMAGE'].data[0]
             reference_image_directory = reduction_metadata.data_architecture[1]['REF_PATH'].data[0]
-            reference_image, date = open_an_image(setup, reference_image_directory, reference_image_name, log, image_index=0)
+            ref_structure = image_handling.determine_image_struture(os.path.join(reference_image_directory, reference_image_name), log=log)
+            reference_image, date = open_an_image(setup, reference_image_directory, reference_image_name, log, image_index=ref_structure['sci'])
 
             ref_image_name = reduction_metadata.data_architecture[1]['REF_IMAGE'].data[0]
             index_reference = np.where(ref_image_name == reduction_metadata.headers_summary[1]['IMAGES'].data)[0][0]

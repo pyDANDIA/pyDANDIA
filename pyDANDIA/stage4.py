@@ -43,6 +43,7 @@ from pyDANDIA import logs
 from pyDANDIA import convolution
 from pyDANDIA import psf
 from pyDANDIA import quality_control
+from pyDANDIA import image_handling
 from skimage.feature import register_translation
 
 from skimage.feature import (ORB, match_descriptors,
@@ -125,7 +126,8 @@ def run_stage4(setup, **kwargs):
 
         # find the reference image
         try:
-            reference_image = open_an_image(setup, reference_image_directory, reference_image_name, log, image_index=0)
+            ref_structure = image_handling.determine_image_struture(os.path.join(reference_image_directory, reference_image_name), log=log)
+            reference_image = open_an_image(setup, reference_image_directory, reference_image_name, log, image_index=ref_structure['sci'])
             logs.ifverbose(log, setup,
                            'I found the reference frame:' + reference_image_name)
         except KeyError:
@@ -141,7 +143,8 @@ def run_stage4(setup, **kwargs):
         images_directory = reduction_metadata.data_architecture[1]['IMAGES_PATH'].data[0]
 
         for new_image in new_images:
-            target_image = open_an_image(setup, images_directory, new_image, log, image_index=0)
+            image_structure = image_handling.determine_image_struture(os.path.join(images_directory, new_image), log=log)
+            target_image = open_an_image(setup, images_directory, new_image, log, image_index=image_structure['sci'])
 
             try:
 

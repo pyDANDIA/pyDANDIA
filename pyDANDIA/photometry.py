@@ -23,6 +23,7 @@ from pyDANDIA import starfind
 from pyDANDIA import psf
 from pyDANDIA import convolution
 from pyDANDIA import calibrate_photometry
+from pyDANDIA import image_handling
 from scipy.odr import *
 import scipy.optimize as so
 import scipy.ndimage as sndi
@@ -57,7 +58,8 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
 
     log.info('Starting photometry of ' + os.path.basename(image_path))
 
-    data = fits.getdata(image_path)
+    data = image_handling.get_science_image(image_path)
+
     if psf_diameter == None:
         psf_diameter = (reduction_metadata.psf_dimensions[1]['psf_radius'][0]*2.0)
 
@@ -257,7 +259,7 @@ def run_psf_photometry_naylor(setup,reduction_metadata,log,ref_star_catalog,
 
     log.info('Starting photometry of ' + os.path.basename(image_path))
 
-    data = fits.getdata(image_path)
+    data = image_handling.get_science_image(image_path)
 
     if psf_diameter == None:
         psf_diameter = (reduction_metadata.psf_dimensions[1]['psf_radius'][0]*2.0)

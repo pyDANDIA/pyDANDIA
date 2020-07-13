@@ -31,6 +31,7 @@ from pyDANDIA import metadata
 from pyDANDIA import logs
 from pyDANDIA import psf
 from pyDANDIA import stage4
+from pyDANDIA import image_handling
 
 import matplotlib.pyplot as plt
 
@@ -487,11 +488,11 @@ def subtract_with_constant_kernel(new_images, reference_image_name, reference_im
                                             row_index)
 
         try:
-
+            image_structure = image_handling.determine_image_struture(os.path.join(data_image_directory, new_image),log=log)
             data_image, data_image_unmasked = open_data_image(setup, data_image_directory, new_image,
                                                               bright_reference_mask, kernel_size, max_adu,
                                                               xshift=x_shift, yshift=y_shift, sigma_smooth=smoothing,
-                                                              central_crop=maxshift)
+                                                              central_crop=maxshift, data_extension=image_structure['sci'])
 
             missing_data_mask = (data_image == 0.)
             b_vector = bvector_constant(reference_image, data_image, kernel_size, noise_image)
@@ -604,9 +605,10 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
 
         for idx in range(len(kernel_size_array)):
             log.info(' -> Starting image ' + str(idx) + ', kernel size ' + str(kernel_size_array[idx]))
+            ref_structure = image_handling.determine_image_struture(os.path.join(reference_image_directory, reference_image_name),log=log)
             reference_images.append(
                 open_reference(setup, reference_image_directory, reference_image_name, kernel_size_array[idx], max_adu,
-                               ref_extension=0, log=log, central_crop=maxshift, master_mask=master_mask,
+                               ref_extension=ref_structure['sci'], log=log, central_crop=maxshift, master_mask=master_mask,
                                external_weight=None))
             log.info(' -> Completed image masking')
 
@@ -851,6 +853,7 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
 def open_reference_stamps(setup, reduction_metadata, reference_image_directory, reference_image_name, kernel_size,
                           max_adu, log, maxshift, min_adu=None):
     reference_pool_stamps = []
+    ref_structure = image_handling.determine_image_struture(os.path.join(reference_image_directory, reference_image_name))
     ref_image1 = fits.open(os.path.join(reference_image_directory, reference_image_name), mmap=True)
     # load all reference subimages
     for substamp_idx in range(len(reduction_metadata.stamps[1])):
@@ -865,7 +868,7 @@ def open_reference_stamps(setup, reduction_metadata, reference_image_directory, 
                                                                                           reference_image_directory,
                                                                                           reference_image_name,
                                                                                           kernel_size, max_adu,
-                                                                                          ref_extension=0, log=log,
+                                                                                          ref_extension=ref_structure['sci'], log=log,
                                                                                           central_crop=maxshift,
                                                                                           subset=subset_slice,
                                                                                           ref_image1=ref_image1,
@@ -895,6 +898,7 @@ def subtract_large_format_image(new_images, reference_image_name, reference_imag
 
     # iterate over all images and subimages
     for new_image in new_images:
+        image_structure = image_handling.determine_image_struture(os.path.join(data_image_directory, new_image),log=log)
         kernel_stamps = []
         pool_stamps = []
         data_image1 = fits.open(os.path.join(data_image_directory, new_image), mmap=True)
@@ -910,7 +914,8 @@ def subtract_large_format_image(new_images, reference_image_name, reference_imag
                                                               reference_pool_stamps[substamp_idx][2], kernel_size,
                                                               max_adu, xshift=x_shift, yshift=y_shift, sigma_smooth=0,
                                                               central_crop=maxshift, subset=subset_slice,
-                                                              data_image1=data_image1, min_adu=200.)
+                                                              data_image1=data_image1, min_adu=200.,
+                                                              data_extension=image_structure['sci'])
             missing_data_mask = (data_image == 0.)
             pool_stamps.append(
                 [umatrix_stamps[substamp_idx], reference_pool_stamps[substamp_idx][0], data_image, kernel_size])

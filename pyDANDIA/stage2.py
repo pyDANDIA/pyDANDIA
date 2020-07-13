@@ -33,6 +33,7 @@ from pyDANDIA import  metadata
 from pyDANDIA import  pixelmasks
 from pyDANDIA import  logs
 from pyDANDIA import  empirical_psf_simple
+from pyDANDIA import image_handling
 
 
 def run_stage2(setup, **kwargs):
@@ -135,8 +136,9 @@ def run_stage2(setup, **kwargs):
                 # extract data inventory row for image and calculate sorting key
                 # if a sufficient number of stars has been detected at s1 (40)
                 if int(stats_entry['NSTARS'])>34 and fwhm_arcsec<3. and (not 'bright' in moon_status):
+                    image_structure = image_handling.determine_image_struture(os.path.join(data_image_directory, image_filename), log=log)
                     hdulist = fits.open(os.path.join(data_image_directory, image_filename), memmap = True)
-                    image = hdulist[0].data
+                    image = hdulist[image_structure['sci']].data
                     ranking_key = empirical_psf_simple.empirical_snr_subframe(image, psf_size, max_adu)
                     hdulist.close()
                     reference_ranking.append([image_filename, ranking_key])
@@ -176,8 +178,9 @@ def run_stage2(setup, **kwargs):
                 # extract data inventory row for image and calculate sorting key
                 fwhm_value = float(stats_entry['FWHM'])
                 data_directory_path = os.path.join(setup.red_dir, 'data')
+                image_structure = image_handling.determine_image_struture(os.path.join(data_directory_path,image_filename), log=log)
                 hl_data = fits.open(os.path.join(data_directory_path,image_filename))
-                data = hl_data[0].data
+                data = hl_data[image_structure['sci']].data
                 mean, median, std = sigma_clipped_stats(data, sigma=3.0)
                 fraction_3sig = float(len(np.where(data>3.*std+median)[1]))/data.size
                 hl_data.close()
@@ -245,16 +248,18 @@ def run_stage2(setup, **kwargs):
         best_image = sorted(reference_ranking, key=itemgetter(1))[-1]
         n_min_stack  = min(len(reference_ranking), kwargs['n_stack']+1)
         best_images = sorted(reference_ranking, key=itemgetter(1))[-n_min_stack:]
+        ref_structure = image_handling.determine_image_struture(os.path.join(reduction_metadata.data_architecture[1]['IMAGES_PATH'][0],best_image[0]), log=log)
         ref_hdu = fits.open(os.path.join(reduction_metadata.data_architecture[1]['IMAGES_PATH'][0],best_image[0]))
-        coadd = np.copy(ref_hdu[0].data)
+        coadd = np.copy(ref_hdu[ref_structure['sci']].data)
         shift_mask = np.ones(np.shape(coadd))
         ref_directory_path = os.path.join(setup.red_dir, 'ref')
         if not os.path.exists(ref_directory_path):
             os.mkdir(ref_directory_path)
         accepted = 0
         for image in best_images:
+            image_structure = image_handling.determine_image_struture(os.path.join(reduction_metadata.data_architecture[1]['IMAGES_PATH'][0],image[0]), log=log)
             data_hdu = fits.open(os.path.join(reduction_metadata.data_architecture[1]['IMAGES_PATH'][0],image[0]))
-            xs,ys =  find_shift(ref_hdu[0].data, data_hdu[0].data)
+            xs,ys =  find_shift(ref_hdu[image_structure['sci']].data, data_hdu[image_structure['sci']].data)
             shifted = shift(data_hdu[0].data, (ys,xs), cval=0.)
             #limit shift to 30
             if xs**2+ys**2<900.:
@@ -264,15 +269,20 @@ def run_stage2(setup, **kwargs):
             data_hdu.close()
 
         coadd[shift_mask==0] = 0.0
-        ref_hdu[0].data = coadd/float(accepted)
-        try:
-            ref_hdu[1].data[shift_mask==0] = 1
-        except:
+        ref_hdu[ref_structure['sci']].data = coadd/float(accepted)
+        if ref_structure['bpm'] != None:
+            ref_hdu[ref_structure['bpm']].data[shift_mask==0] = 1
+        else:
             log.info('no mask in extension 1')
-        try:
-            ref_hdu[2].data[shift_mask==0] = 1
-        except:
-            log.info('no mask in extension 2')
+# DEPRECIATED?
+#        try:
+#            ref_hdu[1].data[shift_mask==0] = 1
+#        except:
+#            log.info('no mask in extension 1')
+#        try:
+#            ref_hdu[2].data[shift_mask==0] = 1
+#        except:
+#            log.info('no mask in extension 2')
 
         ref_hdu.writeto(os.path.join(reduction_metadata.data_architecture[1]['IMAGES_PATH'][0],'ref.fits'),overwrite = True)
         ref_hdu.writeto(os.path.join(ref_directory_path,'ref.fits'),overwrite = True)

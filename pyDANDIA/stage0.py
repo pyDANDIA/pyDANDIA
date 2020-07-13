@@ -25,6 +25,7 @@ from pyDANDIA import pixelmasks
 from pyDANDIA import logs
 from pyDANDIA import quality_control
 from pyDANDIA import bad_pixel_mask
+from pyDANDIA import image_handling
 
 def run_stage0(setup):
     """Main driver function to run stage 0: data preparation.
@@ -59,10 +60,12 @@ def run_stage0(setup):
     # find and update the inst pipeline config
 
     image_name = all_images[0]
+    image_structure = image_handling.determine_image_struture(os.path.join(setup.red_dir, 'data', image_name), log)
 
     inst_config_file_name = find_the_inst_config_file_name(setup, reduction_metadata, image_name,
                                                            setup.pipeline_config_dir,
-                                                           image_index=0, log=None)
+                                                           image_index=image_structure['sci'],
+                                                           log=None)
 
     if inst_config_file_name == None:
 
@@ -89,8 +92,10 @@ def run_stage0(setup):
         pass
     else:
 
+        image_structure = image_handling.determine_image_struture(os.path.join(setup.red_dir, 'data',new_images[0]), log)
+
         open_image = open_an_image(setup, reduction_metadata.data_architecture[1]['IMAGES_PATH'][0],
-                                   new_images[0], log,  image_index=0)
+                                   new_images[0], log,  image_index=image_structure['sci'])
 
         update_reduction_metadata_stamps(setup, reduction_metadata, open_image,
                                          stamp_size=(1000,1000),
@@ -114,20 +119,13 @@ def run_stage0(setup):
         logs.ifverbose(log, setup, 'Updating metadata with info on new images...')
 
         for new_image in new_images:
+            image_structure = image_handling.determine_image_struture(os.path.join(setup.red_dir, 'data',new_images[0]), log)
+
             open_image = open_an_image(setup, reduction_metadata.data_architecture[1]['IMAGES_PATH'][0],
-                                       new_image, log, image_index=0)
+                                       new_image, log, image_index=image_structure['sci'])
 
             image_bpm = open_an_image(setup, reduction_metadata.data_architecture[1]['BPM_PATH'][0],
-                                           new_image, log, image_index=2)
-
-            # Occasionally, the LCO BANZAI pipeline fails to produce an image
-            # catalogue for an image.  If this happens, there will only be 2
-            # extensions to the FITS image HDU, the PrimaryHDU (main image data)
-            # and the ImageHDU (BPM).
-            if image_bpm == None:
-
-                image_bpm = open_an_image(setup, reduction_metadata.data_architecture[1]['BPM_PATH'][0],
-                                           new_image, log, image_index=1)
+                                           new_image, log, image_index=image_structure['bpm'])
 
             bpm = bad_pixel_mask.construct_the_pixel_mask(setup, reduction_metadata,
                                                   open_image, image_bpm, [1,3], log,
@@ -149,7 +147,6 @@ def run_stage0(setup):
     logs.close_log(log)
 
     return status, report, reduction_metadata
-
 
 def open_the_variables_catalog(variables_catalog_directory, variables_catalog_name):
     '''
@@ -504,7 +501,7 @@ def update_reduction_metadata_with_config_file(reduction_metadata,
     if log != None:
         log.info('Updated metadata with pipeline configuration parameters')
 
- 
+
 def parse_the_image_header(reduction_metadata, open_image):
     '''
     Update the metadata with the header keywords
@@ -550,8 +547,10 @@ def update_reduction_metadata_headers_summary_with_new_images(setup,
     for image_name in new_images:
         layer = reduction_metadata.headers_summary[1]
 
+        image_structure = image_handling.determine_image_struture(os.path.join(setup.red_dir, 'data', image_name), log=log)
+
         open_image = open_an_image(setup, reduction_metadata.data_architecture[1]['IMAGES_PATH'][0],
-                                   image_name, log)
+                                   image_name, log, image_index=image_structure['sci'])
 
         header_infos = parse_the_image_header(reduction_metadata, open_image)
 

@@ -23,6 +23,7 @@ from pyDANDIA import  utilities
 from pyDANDIA import  config_utils
 from pyDANDIA import  catalog_utils
 from pyDANDIA import  calibrate_photometry
+from pyDANDIA import  image_handling
 
 
 VERSION = 'pyDANDIA_stage3_v0.5.1'
@@ -58,7 +59,9 @@ def run_stage3(setup, **kwargs):
 
     if sane:
 
-        scidata = fits.getdata(meta_pars['ref_image_path'])
+        ref_structure = image_handling.determine_image_struture(meta_pars['ref_image_path'], log=None)
+
+        scidata = image_handling.get_science_image(meta_pars['ref_image_path'], image_structure=ref_structure)
 
         if use_naylor_phot:
             ref_flux = find_reference_flux(detected_sources,log)

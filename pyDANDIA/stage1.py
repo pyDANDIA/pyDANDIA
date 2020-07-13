@@ -21,6 +21,7 @@ from pyDANDIA import  logs
 from pyDANDIA import  quality_control
 from pyDANDIA import  psf
 from pyDANDIA import config_utils
+from pyDANDIA import image_handling
 from astropy.io import fits
 
 def run_stage1(setup, **kwargs):
@@ -103,8 +104,8 @@ def run_stage1(setup, **kwargs):
     image_red_status = []
 
     for im in full_path_to_images:
-
-        image_header = fits.getheader(im)
+        
+        image_header = image_handling.get_science_header(im)
 
         (status, report, params) = starfind.starfind(setup, im, reduction_metadata,
                                                      plot_it=False, log=log)
