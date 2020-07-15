@@ -43,7 +43,7 @@ def run_stage3_db_ingest(setup, **kwargs):
     if kwargs['primary_ref']:
         log.info('Running in PRIMARY-REF mode.')
 
-    if not add_matched_stars:
+    if not kwargs['add_matched_stars']:
         archive_existing_db(setup,kwargs['primary_ref'],log)
     else:
         log.info('Running to add the matched stars table to the metadata only')
@@ -69,21 +69,21 @@ def run_stage3_db_ingest(setup, **kwargs):
 
     phot_db.check_before_commit(conn, dataset_params, 'images', image_keys, 'filename')
 
-    if not add_matched_stars:
+    if not kwargs['add_matched_stars']:
         commit_stamps_to_db(conn, reduction_metadata)
 
     ref_id_list = phot_db.find_reference_image_for_dataset(conn,dataset_params)
 
-    if ref_id_list != None and len(ref_id_list) > 0 and add_matched_stars == False:
+    if ref_id_list != None and len(ref_id_list) > 0 and kwargs['add_matched_stars'] == False:
         phot_db.cascade_delete_reference_images(conn, ref_id_list, log)
 
-    if not add_matched_stars:
+    if not kwargs['add_matched_stars']:
         commit_reference_image(conn, dataset_params, log)
         commit_reference_component(conn, dataset_params, log)
 
     if kwargs['primary_ref']:
 
-        if not add_matched_stars:
+        if not kwargs['add_matched_stars']:
             star_ids = commit_stars(conn, dataset_params, reduction_metadata, log)
 
             commit_photometry(conn, dataset_params, reduction_metadata, star_ids, log)
@@ -109,7 +109,7 @@ def run_stage3_db_ingest(setup, **kwargs):
                                                         primary_refimg_id,transform_sky,log,
                                                         verbose=True)
 
-        if not add_matched_stars:
+        if not kwargs['add_matched_stars']:
             commit_photometry_matching(conn, dataset_params, reduction_metadata,
                                                         matched_stars, log,
                                                         verbose=False)
