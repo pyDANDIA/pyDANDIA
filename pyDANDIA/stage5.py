@@ -282,7 +282,7 @@ def fit_kernel(params, data_image, ref_image, mask):
     weights[mask] = 0
 
     chi = np.sum(res ** 2 * weights ** 2)
-    print(chi)
+    #print(chi)
     return chi
 
 
@@ -301,7 +301,7 @@ def round_unc(val, err):
         try:
             digs = abs(int(np.log10(err / abs(val))))
         except ValueError:
-            print('ERROR in round_unc, inputs: ',err, val)
+            #print('ERROR in round_unc, inputs: ',err, val)
             exit()
         val_round = round(val, digs)
         unc_round = round(err, digs)
@@ -842,8 +842,8 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
             if log is not None:
                 logs.ifverbose(log, setup,
                                'kernel matrix computation or shift failed:' + new_image + '. skipping! ' + str(e))
-            else:
-                print(str(e))
+            #else:
+                #print(str(e))
 
         log.info(' -> ' + repr(quality_metrics[-1]))
 
@@ -857,7 +857,7 @@ def open_reference_stamps(setup, reduction_metadata, reference_image_directory, 
     ref_image1 = fits.open(os.path.join(reference_image_directory, reference_image_name), mmap=True)
     # load all reference subimages
     for substamp_idx in range(len(reduction_metadata.stamps[1])):
-        print(substamp_idx, 'of', len(reduction_metadata.stamps[1]))
+        log.info(substamp_idx, 'of', len(reduction_metadata.stamps[1]))
         # prepare subset slice based on metadata
 
         subset_slice = [int(reduction_metadata.stamps[1][substamp_idx]['Y_MIN']),
@@ -933,8 +933,8 @@ def subtract_large_format_image(new_images, reference_image_name, reference_imag
             if log is not None:
                 logs.ifverbose(log, setup,
                                'kernel matrix computation or shift failed:' + new_image + '. skipping!' + str(e))
-            else:
-                print(str(e))
+            #else:
+            #    print(str(e))
         subtract_subimage(setup, kernel_directory_path, new_image, reduction_metadata)
 
 
@@ -1007,7 +1007,7 @@ def umatrix_constant(reference_image, ker_size, noise_image, model_image=None, s
         from umatrix_routine import umatrix_construction_nobkg, bvector_construction_nobkg
 
     except ImportError:
-        print('cannot import cython module umatrix_routine')
+        raise ImportError('cannot import cython module umatrix_routine')
         return []
 
     if ker_size:
@@ -1053,7 +1053,7 @@ def umatrix_constant_clean(reference_image, ker_size, first_umatrix, outliers, m
         from umatrix_routine import umatrix_construction_nobkg, bvector_construction_nobkg
         from umatrix_routine import umatrix_construction_clean, bvector_construction_clean
     except ImportError:
-        print('cannot import cython module umatrix_routine')
+        raise ImportError('cannot import cython module umatrix_routine')
         return []
 
     if ker_size:
@@ -1100,7 +1100,7 @@ def umatrix_constant_threading(reference_image, ker_size, model_image=None, sigm
         from umatrix_routine import umatrix_construction_nobkg, bvector_construction_nobkg
 
     except ImportError:
-        print('cannot import cython module umatrix_routine')
+        raise ImportError('cannot import cython module umatrix_routine')
         return []
 
     if ker_size:
@@ -1144,7 +1144,7 @@ def umatrix_single_pool(input_arg):
     reference_image = input_arg[0]
     ker_size = input_arg[1]
     pq_subset = input_arg[2]
-    print("umatrix threaded single start")
+    #print("umatrix threaded single start")
     return umatrix_constant(reference_image, ker_size, model_image=None, sigma_max=None, bright_mask=None)
 
 
@@ -1156,7 +1156,7 @@ def umatrix_pool(input_arg):
     '''
     reference_image = input_arg[0]
     ker_size = input_arg[1]
-    print("umatrix start")
+    #print("umatrix start")
     return umatrix_constant(reference_image, ker_size, model_image=None, sigma_max=None, bright_mask=None)
 
 
@@ -1180,7 +1180,7 @@ def bvector_constant(reference_image, data_image, ker_size, noise_image, model_i
         from umatrix_routine import umatrix_construction_nobkg, bvector_construction_nobkg
 
     except ImportError:
-        print('cannot import cython module umatrix_routine')
+        raise ImportError('cannot import cython module umatrix_routine')
         return []
 
     if ker_size:
@@ -1228,7 +1228,7 @@ def bvector_constant_clean(reference_image, data_image, ker_size, first_b_vector
         from umatrix_routine import umatrix_construction_nobkg, bvector_construction_nobkg
         from umatrix_routine import umatrix_construction_clean, bvector_construction_clean
     except ImportError:
-        print('cannot import cython module umatrix_routine')
+        raise ImportError('cannot import cython module umatrix_routine')
         return []
 
     if ker_size:
@@ -1435,7 +1435,7 @@ def difference_image_subimages(ref_imagename, data_imagename,
     subimages_args = []
     for idx in range(subimage_shape[0]):
         for jdx in range(subimage_shape[1]):
-            print('Solving for subimage ', [idx + 1, jdx + 1], ' of ', subimage_shape)
+            #print('Solving for subimage ', [idx + 1, jdx + 1], ' of ', subimage_shape)
             x_shape, y_shape = np.shape(ref_image)
             x_subsize, y_subsize = x_shape / subimage_shape[0], y_shape / subimage_shape[1]
             subimage_element = subimage_shape + [idx, jdx]

@@ -210,7 +210,7 @@ def run_stage2(setup, **kwargs):
         try:
             copyfile(reduction_metadata.data_architecture[1]['IMAGES_PATH'][0]+'/'+best_image[0],ref_directory_path+'/'+best_image[0])
         except:
-            print('copy ref failed: ',best_image[0])
+            log.info('WARNING: Copy ref failed: ',best_image[0])
 
         if not 'REF_PATH' in reduction_metadata.data_architecture[1].keys():
             reduction_metadata.add_column_to_layer('data_architecture',
@@ -326,9 +326,9 @@ def run_stage2(setup, **kwargs):
 
 
         (status_s0, report_s0, reduction_metadata_s0) = stage0.run_stage0(setup)
-        print(status_s0, report_s0)
+        #print(status_s0, report_s0)
         (status_s1, report_s1) = stage1.run_stage1(setup)
-        print(status_s1, report_s1)
+        #print(status_s1, report_s1)
 
         return status, report
 
