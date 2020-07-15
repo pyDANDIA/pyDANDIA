@@ -165,7 +165,6 @@ def run_stage4(setup, **kwargs):
 
                 data.append([new_image, None, None])
 
-        print('IMAGES_STATS: ',reduction_metadata.images_stats[1])
         if ('SHIFT_X' in reduction_metadata.images_stats[1].keys()) and (
                 'SHIFT_Y' in reduction_metadata.images_stats[1].keys()):
 
@@ -186,6 +185,7 @@ def run_stage4(setup, **kwargs):
 
             sorted_data = [['None',0,0]]*len(image_red_status)
 
+            print('IMAGES_STATS: ',reduction_metadata.images_stats[1])
             for index in range(len(data)):
                 target_image = data[index][0]
                 print(data, index, ':'+target_image+':')
