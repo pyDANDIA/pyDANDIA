@@ -185,13 +185,14 @@ def run_stage4(setup, **kwargs):
 
             sorted_data = [['None',0,0]]*len(image_red_status)
 
-            print('IMAGES_STATS: ',reduction_metadata.images_stats[1])
             for index in range(len(data)):
                 target_image = data[index][0]
-                print(data, index, ':'+target_image+':')
-                print(np.where(reduction_metadata.images_stats[1]['IM_NAME'].data == target_image))
-                row_index = np.where(reduction_metadata.images_stats[1]['IM_NAME'].data == target_image)[0][0]
-                sorted_data[row_index] = data[index]
+                try:
+                    row_index = np.where(reduction_metadata.images_stats[1]['IM_NAME'].data == target_image)[0][0]
+                    sorted_data[row_index] = data[index]
+                except IndexError:
+                    log.info('ERROR: Cannot find an entry for '+target_image+' in the IMAGES STATS table.  Re-run stages 0 & 1?')
+                    raise IndexError('Cannot find an entry for '+target_image+' in the IMAGES STATS table.  Re-run stages 0 & 1?')
 
             sorted_data = np.array(sorted_data)
             column_format = 'float'

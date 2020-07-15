@@ -40,11 +40,11 @@ def run_stage3_db_ingest(setup, **kwargs):
 
     kwargs = get_default_config(kwargs, log)
 
-    if primary_ref:
+    if kwargs['primary_ref']:
         log.info('Running in PRIMARY-REF mode.')
 
     if not add_matched_stars:
-        archive_existing_db(setup,primary_ref,log)
+        archive_existing_db(setup,kwargs['primary_ref'],log)
     else:
         log.info('Running to add the matched stars table to the metadata only')
 
@@ -81,7 +81,7 @@ def run_stage3_db_ingest(setup, **kwargs):
         commit_reference_image(conn, dataset_params, log)
         commit_reference_component(conn, dataset_params, log)
 
-    if primary_ref:
+    if kwargs['primary_ref']:
 
         if not add_matched_stars:
             star_ids = commit_stars(conn, dataset_params, reduction_metadata, log)
