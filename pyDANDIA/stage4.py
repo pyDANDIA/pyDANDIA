@@ -172,6 +172,7 @@ def run_stage4(setup, **kwargs):
                 target_image = data[index][0]
                 x_shift = data[index][1]
                 y_shift = data[index][2]
+                print(data, index, (target_image in reduction_metadata.images_stats[1]['IM_NAME'].data))
                 row_index = np.where(reduction_metadata.images_stats[1]['IM_NAME'].data == target_image)[0][0]
                 reduction_metadata.update_a_cell_to_layer('images_stats', row_index, 'SHIFT_X', x_shift)
                 reduction_metadata.update_a_cell_to_layer('images_stats', row_index, 'SHIFT_Y', y_shift)
