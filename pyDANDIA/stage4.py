@@ -188,7 +188,7 @@ def run_stage4(setup, **kwargs):
             for index in range(len(data)):
                 target_image = data[index][0]
                 print(data, index, target_image)
-                print(target_image in reduction_metadata.images_stats[1]['IM_NAME'].data)
+                print(np.where(reduction_metadata.images_stats[1]['IM_NAME'].data == target_image))
                 row_index = np.where(reduction_metadata.images_stats[1]['IM_NAME'].data == target_image)[0][0]
                 sorted_data[row_index] = data[index]
 
