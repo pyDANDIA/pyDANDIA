@@ -22,9 +22,10 @@ from pyDANDIA import  phot_db
 from pyDANDIA import  pipeline_setup
 from pyDANDIA import  time_utils
 from pyDANDIA import  match_utils
-from pyDANDIA import config_utils
+from pyDANDIA import  config_utils
 from pyDANDIA import  calc_coord_offsets
 from pyDANDIA import  wcs
+from pyDANDIA import  image_handling
 
 VERSION = 'stage3_ingest_v1.1'
 
@@ -306,7 +307,7 @@ def harvest_stage3_parameters(setup,reduction_metadata):
 
 def harvest_image_params(reduction_metadata, image_path, ref_image_path):
 
-    image_header = fits.getheader(image_path)
+    image_header = image_handling.get_science_header(image_path)
 
     image_params = {}
 
