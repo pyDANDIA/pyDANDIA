@@ -699,7 +699,9 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
 
 
         image_directory = reduction_metadata.data_architecture[1]['IMAGES_PATH'][0]
-        data_image = fits.open(os.path.join(image_directory, new_image))[0].data
+        image_file_path = os.path.join(image_directory, new_image)
+        image_structure = image_handling.determine_image_struture(image_file_path, log=log)
+        data_image = fits.open(image_file_path)[image_structure['sci']].data
 
         stamps_directory = os.path.join(data_image_directory, new_image)
 
