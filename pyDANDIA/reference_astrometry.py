@@ -346,7 +346,7 @@ def catalog_objects_in_reference_image(setup, header, image_wcs, log,
     field = str(header['OBJECT']).replace(' ','-')
 
     gaia_sources = wcs.fetch_catalog_sources_for_field(setup, field, header,
-                                                      image_wcs,log,'Gaia')
+                                                      image_wcs,log,'Gaia-DR2')
 
     gaia_sources = wcs.calc_image_coordinates_astropy(setup, image_wcs,
                                                       gaia_sources, log,

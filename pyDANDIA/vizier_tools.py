@@ -8,10 +8,11 @@ Created on Wed May  9 11:35:31 2018
 from sys import argv
 from astroquery.vizier import Vizier
 from astroquery.gaia import Gaia
-from astropy import wcs, coordinates, units, visualization
+from astropy import wcs, coordinates, units, visualization, table
+import requests
 
 def search_vizier_for_sources(ra, dec, radius, catalog, row_limit=-1,
-                              coords='sexigesimal'):
+                              coords='sexigesimal', log=None):
     """Function to perform online query of the 2MASS catalogue and return
     a catalogue of known objects within the field of view
 
@@ -24,17 +25,26 @@ def search_vizier_for_sources(ra, dec, radius, catalog, row_limit=-1,
     """
 
     supported_catalogs = { '2MASS': ['2MASS',
-                                     ['_RAJ2000', '_DEJ2000', 'Jmag', 'e_Jmag', \
-                                    'Hmag', 'e_Hmag','Kmag', 'e_Kmag'],
+                                     {'_RAJ2000':'_RAJ2000', '_DEJ2000':'_DEJ2000', 'Jmag':'Jmag', 'e_Jmag':'e_Jmag', \
+                                    'Hmag':'Hmag', 'e_Hmag':'e_Hmag','Kmag':'Kmag', 'e_Kmag':'e_Kmag'},
                                     {'Jmag':'<20'}],
                            'VPHAS+': ['II/341',
-                                      ['sourceID', '_RAJ2000', '_DEJ2000', 'gmag', 'e_gmag', 'rmag', 'e_rmag', 'imag', 'e_imag', 'clean'],
+                                      {'sourceID':'sourceID', '_RAJ2000':'_RAJ2000', '_DEJ2000':'_DEJ2000',
+                                      'gmag':'gmag', 'e_gmag':'e_gmag', 'rmag':'rmag', 'e_rmag':'e_rmag',
+                                      'imag':'imag', 'e_imag':'e_imag', 'clean':'clean'},
+                                    {}],
+                            'Gaia-DR2': ['I/345/gaia2',
+                                      {'RAJ2000':'ra', 'DEJ2000':'dec', 'Source':'source_id',
+                                      'e_RAJ2000':'ra_error', 'e_DEJ2000':'dec_error',
+                                      'FG':'phot_g_mean_flux', 'e_FG':'phot_g_mean_flux_error',
+                                      'FBP':'phot_bp_mean_flux', 'e_FBP':'phot_bp_mean_flux_error',
+                                      'FRP':'phot_rp_mean_flux', 'e_FRP':'phot_rp_mean_flux_error' },
                                     {}]
                            }
 
-    (cat_id,cat_col_list,cat_filters) = supported_catalogs[catalog]
+    (cat_id,cat_col_dict,cat_filters) = supported_catalogs[catalog]
 
-    v = Vizier(columns=cat_col_list,\
+    v = Vizier(columns=list(cat_col_dict.keys()),\
                 column_filters=cat_filters)
 
     v.ROW_LIMIT = row_limit
@@ -48,14 +58,77 @@ def search_vizier_for_sources(ra, dec, radius, catalog, row_limit=-1,
 
     catalog_list = Vizier.find_catalogs(cat_id)
 
-    result=v.query_region(c,radius=r,catalog=[cat_id])
+    (status, result) = query_vizier_servers(v, c, r, [cat_id])
 
     if len(result) == 1:
-        result = result[0]
+
+        col_list = []
+        for col_id, col_name in cat_col_dict.items():
+            col = table.Column(name=col_name, data=result[0][col_id].data)
+            col_list.append(col)
+
+        result = table.Table( col_list )
 
     return result
 
-def search_vizier_for_gaia_sources(ra, dec, radius):
+def query_vizier_servers(query_service, coord, search_radius, catalog_id, log=None):
+    """Function to query different ViZier servers in order of preference, as
+    a fail-safe against server outages.  Based on code from NEOExchange by
+    T. Lister
+    Input:
+    query_service  Astroquery Vizier service object
+    coord   SkyCoord Target coordinates
+    search_radius   Angle    Search radius (deg)
+    catalog_id  str      Name of catalog to be searched in ViZier's notation
+    """
+
+    vizier_servers_list = ['vizier.cfa.harvard.edu', 'vizier.hia.nrc.ca']
+
+    query_service.VIZIER_SERVER = vizier_servers_list[0]
+
+    query_service.TIMEOUT = 60
+
+    continue_query = True
+    iserver = 0
+    status = True
+
+    while continue_query:
+        query_service.VIZIER_SERVER = vizier_servers_list[iserver]
+        query_service.TIMEOUT = 60
+
+        if log != None:
+            log.warning('Searching catalog server '+repr(query_service.VIZIER_SERVER))
+
+        try:
+            result = query_service.query_region(coord, radius=search_radius, catalog=catalog_id)
+
+        # Handle long timeout requests:
+        except (requests.exceptions.ReadTimeout, requests.exceptionsConnectionError):
+            if log!= None:
+                log.warning('Catalog server '+repr(query_service.VIZIER_SERVER)+' timed out, trying longer timeout')
+
+            query_service.TIMEOUT = 120
+            result = query_service.query_region(coord, radius=search_radius, catalog=catalog_id)
+
+        # Handle preferred-server timeout by trying the alternative server:
+        except requests.exceptions.ConnectTimeout:
+            if log != None:
+                log.warning('Catalog server '+repr(query_service.VIZIER_SERVER)+' timed out again')
+
+            iserver += 1
+            if iserver >= len(vizier_servers_list):
+                continue_query = False
+                result = []
+                status = False
+
+                return status, result
+
+        if len(result) > 0:
+            continue_query = False
+
+    return status, result
+
+def search_vizier_for_gaia_sources(ra, dec, radius, log=None):
     """Function to perform online query of the 2MASS catalogue and return
     a catalogue of known objects within the field of view
     """
@@ -63,10 +136,24 @@ def search_vizier_for_gaia_sources(ra, dec, radius):
     c = coordinates.SkyCoord(ra+' '+dec, frame='icrs', unit=(units.deg, units.deg))
     r = units.Quantity(radius/60.0, units.deg)
 
+    query_service = Vizier(row_limit=1e6, column_filters={},
+    columns=['RAJ2000', 'DEJ2000', 'e_RAJ2000', 'e_DEJ2000', 'Gmag', 'e_Gmag', 'Dup'])
+
+
+    if log!=None:
+        log.info('Searching for gaia sources within '+repr(r)+' of '+repr(c))
+
     try:
         qs = Gaia.cone_search_async(c, r)
     except AttributeError:
+        if log!=None:
+            log.info('No search results received from Vizier service')
         raise IOError('No search results received from Vizier service')
+    except requests.exceptions.HTTPError:
+        if log!=None:
+            log.info('HTTP error while contacting ViZier')
+        raise requests.exceptions.HTTPError()
+
     result = qs.get_results()
 
     catalog = result['ra','dec','source_id','ra_error','dec_error',
@@ -83,7 +170,7 @@ if __name__ == '__main__':
         ra = input('Please enter search centroid RA in sexigesimal format: ')
         dec = input('Please enter search centroid Dec in sexigesimal format: ')
         radius = input('Please enter search radius in arcmin: ')
-        catalog = input('Please enter the ID of the catalog to search [2MASS, VPHAS+]: ')
+        catalog = input('Please enter the ID of the catalog to search [2MASS, VPHAS+, Gaia-DR2]: ')
 
     else:
 
@@ -94,7 +181,7 @@ if __name__ == '__main__':
 
     radius = float(radius)
 
-    #qs = search_vizier_for_sources(ra, dec, radius, catalog)
-    qs = search_vizier_for_gaia_sources(ra, dec, radius)
+    qs = search_vizier_for_sources(ra, dec, radius, catalog)
+    #qs = search_vizier_for_gaia_sources(ra, dec, radius)
 
     print(repr(qs))
