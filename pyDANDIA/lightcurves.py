@@ -122,10 +122,15 @@ def extract_star_lightcurves_on_position(params):
     log = logs.start_stage_log( params['red_dir'], 'lightcurves' )
 
     reduction_metadata = metadata.MetaData()
+    reduction_metadata.load_a_layer_from_file( setup.red_dir,
+                                              'pyDANDIA_metadata.fits',
+                                              'data_architecture' )
     reduction_metadata.load_a_layer_from_file( params['red_dir'],
                                                       'pyDANDIA_metadata.fits',
                                                       'matched_stars' )
     matched_stars = reduction_metadata.load_matched_stars()
+
+	setname =path.basename(str(reduction_metadata.data_architecture[1]['OUTPUT_DIRECTORY'][0]))
 
     conn = phot_db.get_connection(dsn=params['db_file_path'])
 
@@ -158,14 +163,12 @@ def extract_star_lightcurves_on_position(params):
 
         photometry_data = fetch_photometry_for_dataset(params, star_field_id, matched_stars, log)
 
-        #setname = path.basename(params['red_dir']).split('_')[1]
-        setname = path.basename("_".join((params['red_dir']).split('_')[1:]))
-
         datafile = open(path.join(params['output_dir'],'star_'+str(star_field_id)+'_'+setname+'.dat'),'w')
 
         for i in range(0,len(photometry_data),1):
 
-            datafile.write(str(photometry_data['hjd'][i])+'  '+\
+			if photometry_data['hjd'][i] > 0.0:
+            	datafile.write(str(photometry_data['hjd'][i])+'  '+\
                             str(photometry_data['instrumental_mag'][i])+'  '+str(photometry_data['instrumental_mag_err'][i])+'  '+\
                             str(photometry_data['calibrated_mag'][i])+'  '+str(photometry_data['calibrated_mag_err'][i])+'\n')
 
