@@ -117,42 +117,37 @@ def extract_star_lightcurves_on_cone(params):
 
 
 def extract_star_lightcurves_on_position(params):
-    """Function to extract a lightcurve from a phot_db"""
+	"""Function to extract a lightcurve from a phot_db"""
+	log = logs.start_stage_log( params['red_dir'], 'lightcurves' )
 
-    log = logs.start_stage_log( params['red_dir'], 'lightcurves' )
-
-    reduction_metadata = metadata.MetaData()
-    reduction_metadata.load_a_layer_from_file( setup.red_dir,
-                                              'pyDANDIA_metadata.fits',
-                                              'data_architecture' )
-    reduction_metadata.load_a_layer_from_file( params['red_dir'],
-                                                      'pyDANDIA_metadata.fits',
-                                                      'matched_stars' )
-    matched_stars = reduction_metadata.load_matched_stars()
+	reduction_metadata = metadata.MetaData()
+	reduction_metadata.load_a_layer_from_file(params['red_dir'], 'pyDANDIA_metadata.fits', 'data_architecture')
+	reduction_metadata.load_a_layer_from_file(params['red_dir'], 'pyDANDIA_metadata.fits', 'matched_stars')
+	matched_stars = reduction_metadata.load_matched_stars()
 
 	setname = path.basename(str(reduction_metadata.data_architecture[1]['OUTPUT_DIRECTORY'][0]))
 
-    conn = phot_db.get_connection(dsn=params['db_file_path'])
+	conn = phot_db.get_connection(dsn=params['db_file_path'])
 
-    facilities = phot_db.fetch_facilities(conn)
-    filters = phot_db.fetch_filters(conn)
-    code_id = phot_db.get_stage_software_id(conn,'stage6')
+	facilities = phot_db.fetch_facilities(conn)
+	filters = phot_db.fetch_filters(conn)
+	code_id = phot_db.get_stage_software_id(conn,'stage6')
 
-    c = SkyCoord(params['ra'], params['dec'], frame='icrs', unit=(units.hourangle, units.deg))
+	c = SkyCoord(params['ra'], params['dec'], frame='icrs', unit=(units.hourangle, units.deg))
 
-    if 'radius' in params.keys():
-        radius = float(params['radius'])
-    else:
-        radius = 2.0 / 3600.0
+	if 'radius' in params.keys():
+		radius = float(params['radius'])
+	else:
+		radius = 2.0 / 3600.0
 
-    results = phot_db.box_search_on_position(conn, c.ra.deg, c.dec.deg, radius, radius)
+	results = phot_db.box_search_on_position(conn, c.ra.deg, c.dec.deg, radius, radius)
 
-    if len(results) > 0:
+	if len(results) > 0:
 
-        star_idx = np.where(results['separation'] == results['separation'].min())
-        star_field_id = results['star_id'][star_idx][0]
+		star_idx = np.where(results['separation'] == results['separation'].min())
+		star_field_id = results['star_id'][star_idx][0]
 
-        print('Identifed nearest star as '+str(results['star_id'][star_idx][0]))
+		print('Identifed nearest star as '+str(results['star_id'][star_idx][0]))
 
         #query = 'SELECT filter, facility, hjd, calibrated_mag, calibrated_mag_err FROM phot WHERE star_id="'+str(results['star_id'][star_idx][0])+\
         #            '" AND software="'+str(code_id)+'"'
@@ -161,30 +156,30 @@ def extract_star_lightcurves_on_position(params):
 
         #datasets = identify_unique_datasets(phot_table,facilities,filters)
 
-        photometry_data = fetch_photometry_for_dataset(params, star_field_id, matched_stars, log)
+		photometry_data = fetch_photometry_for_dataset(params, star_field_id, matched_stars, log)
 
-        datafile = open(path.join(params['output_dir'],'star_'+str(star_field_id)+'_'+setname+'.dat'),'w')
+		datafile = open(path.join(params['output_dir'],'star_'+str(star_field_id)+'_'+setname+'.dat'),'w')
 
-        for i in range(0,len(photometry_data),1):
+		for i in range(0,len(photometry_data),1):
 
 			if photometry_data['hjd'][i] > 0.0:
-            	datafile.write(str(photometry_data['hjd'][i])+'  '+\
+				datafile.write(str(photometry_data['hjd'][i])+'  '+\
                             str(photometry_data['instrumental_mag'][i])+'  '+str(photometry_data['instrumental_mag_err'][i])+'  '+\
                             str(photometry_data['calibrated_mag'][i])+'  '+str(photometry_data['calibrated_mag_err'][i])+'\n')
 
-        datafile.close()
-        print('-> Output dataset '+setname)
+		datafile.close()
+		print('-> Output dataset '+setname)
 
-        message = 'OK'
+		message = 'OK'
 
-    else:
-        message = 'No stars within search region'
+	else:
+		message = 'No stars within search region'
 
-    conn.close()
+	conn.close()
 
-    logs.close_log(log)
+	logs.close_log(log)
 
-    return message
+	return message
 
 def identify_unique_datasets(phot_table,facilities,filters):
     """Function to extract a list of the unique datasets from a table of
