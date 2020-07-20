@@ -103,7 +103,7 @@ def query_vizier_servers(query_service, coord, search_radius, catalog_id, log=No
             result = query_service.query_region(coord, radius=search_radius, catalog=catalog_id)
 
         # Handle long timeout requests:
-        except (requests.exceptions.ReadTimeout, requests.exceptionsConnectionError):
+        except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectionError):
             if log!= None:
                 log.warning('Catalog server '+repr(query_service.VIZIER_SERVER)+' timed out, trying longer timeout')
 

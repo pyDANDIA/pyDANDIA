@@ -389,7 +389,7 @@ def phot_catalog_objects_in_reference_image(setup, header, fov, image_wcs, log, 
         log.info('RA = '+str(ra)+', Dec = '+str(dec))
         log.info('Radius: '+str(radius)+' arcmin')
 
-        vphas_sources = vizier_tools.search_vizier_for_sources(ra, dec, radius, 'VPHAS+', coords='degrees')
+        vphas_sources = vizier_tools.search_vizier_for_sources(ra, dec, radius, 'VPHAS+', coords='degrees',log=log)
 
         if len(vphas_sources)>0:
 
