@@ -130,7 +130,7 @@ def extract_star_lightcurves_on_position(params):
                                                       'matched_stars' )
     matched_stars = reduction_metadata.load_matched_stars()
 
-	setname =path.basename(str(reduction_metadata.data_architecture[1]['OUTPUT_DIRECTORY'][0]))
+	setname = path.basename(str(reduction_metadata.data_architecture[1]['OUTPUT_DIRECTORY'][0]))
 
     conn = phot_db.get_connection(dsn=params['db_file_path'])
 
