@@ -46,7 +46,7 @@ def run_reference_astrometry(setup, **kwargs):
     xmatch = True
     if 'catalog_xmatch' in kwargs.keys() and kwargs['catalog_xmatch'] == False:
         xmatch = False
-        log.info('CATALOG XMATCH SWITCHED OFF')
+        log.info('CATALOG FULL CROSS-MATCH SWITCHED OFF')
 
     reduction_metadata = metadata.MetaData()
     reduction_metadata.load_a_layer_from_file( setup.red_dir,

@@ -12,7 +12,7 @@ from astropy import wcs, coordinates, units, visualization, table
 import requests
 
 def search_vizier_for_sources(ra, dec, radius, catalog, row_limit=-1,
-                              coords='sexigesimal', log=None):
+                              coords='sexigesimal', log=None, debug=False):
     """Function to perform online query of the 2MASS catalogue and return
     a catalogue of known objects within the field of view
 
@@ -58,7 +58,7 @@ def search_vizier_for_sources(ra, dec, radius, catalog, row_limit=-1,
 
     catalog_list = Vizier.find_catalogs(cat_id)
 
-    (status, result) = query_vizier_servers(v, c, r, [cat_id])
+    (status, result) = query_vizier_servers(v, c, r, [cat_id], debug=debug)
 
     if len(result) == 1:
 
@@ -71,7 +71,8 @@ def search_vizier_for_sources(ra, dec, radius, catalog, row_limit=-1,
 
     return result
 
-def query_vizier_servers(query_service, coord, search_radius, catalog_id, log=None):
+def query_vizier_servers(query_service, coord, search_radius, catalog_id, log=None,
+                        debug=False):
     """Function to query different ViZier servers in order of preference, as
     a fail-safe against server outages.  Based on code from NEOExchange by
     T. Lister
@@ -96,6 +97,9 @@ def query_vizier_servers(query_service, coord, search_radius, catalog_id, log=No
         query_service.VIZIER_SERVER = vizier_servers_list[iserver]
         query_service.TIMEOUT = 60
 
+        if debug:
+            print('Searching catalog server '+repr(query_service.VIZIER_SERVER))
+
         if log != None:
             log.warning('Searching catalog server '+repr(query_service.VIZIER_SERVER))
 
@@ -104,6 +108,8 @@ def query_vizier_servers(query_service, coord, search_radius, catalog_id, log=No
 
         # Handle long timeout requests:
         except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectionError):
+            if debug:
+                print('Catalog server '+repr(query_service.VIZIER_SERVER)+' timed out, trying longer timeout')
             if log!= None:
                 log.warning('Catalog server '+repr(query_service.VIZIER_SERVER)+' timed out, trying longer timeout')
 
@@ -112,6 +118,8 @@ def query_vizier_servers(query_service, coord, search_radius, catalog_id, log=No
 
         # Handle preferred-server timeout by trying the alternative server:
         except requests.exceptions.ConnectTimeout:
+            if debug:
+                print('Catalog server '+repr(query_service.VIZIER_SERVER)+' timed out again')
             if log != None:
                 log.warning('Catalog server '+repr(query_service.VIZIER_SERVER)+' timed out again')
 
@@ -125,6 +133,12 @@ def query_vizier_servers(query_service, coord, search_radius, catalog_id, log=No
 
         if len(result) > 0:
             continue_query = False
+        elif len(result) == 0:
+            iserver += 1
+            if iserver >= len(vizier_servers_list):
+                continue_query = False
+                result = []
+                status = False
 
     return status, result
 
@@ -181,7 +195,7 @@ if __name__ == '__main__':
 
     radius = float(radius)
 
-    qs = search_vizier_for_sources(ra, dec, radius, catalog)
+    qs = search_vizier_for_sources(ra, dec, radius, catalog, debug=True)
     #qs = search_vizier_for_gaia_sources(ra, dec, radius)
 
     print(repr(qs))
