@@ -78,6 +78,8 @@ def extract_star_lightcurves_on_cone(params):
 	filters = phot_db.fetch_filters(conn)
 	code_id = phot_db.get_stage_software_id(conn,'stage6')
 
+	log.info('Searching for star at RA,Dec='+str(params['ra'])+', '+str(params['dec']))
+
 	c = SkyCoord(params['ra'], params['dec'], frame='icrs', unit=(units.hourangle, units.deg))
 
 	if 'radius' in params.keys():

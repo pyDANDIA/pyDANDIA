@@ -4,7 +4,7 @@ Created on Mon Oct  9 11:01:19 2017
 
 @author: rstreet
 """
-from os import getcwd, path, remove
+from os import getcwd, path, remove, mkdir
 from sys import argv, exit
 from sys import path as systempath
 import copy
@@ -24,6 +24,10 @@ from pyDANDIA import stage6
 from pyDANDIA import logs
 from pyDANDIA import reset_stage_metadata
 from pyDANDIA import config_utils
+from pyDANDIA import metadata
+from pyDANDIA import phot_db as db_phot
+from pyDANDIA import image_handling
+from pyDANDIA import lightcurves
 
 def reduction_control():
     """Main driver function for the pyDANDIA pipelined reduction of an
@@ -255,7 +259,7 @@ def run_automatic_reduction(setup,red_log,params):
     red_log.info('Starting automatic reduction of '+path.basename(setup.red_dir))
 
     config = get_auto_config(setup,red_log)
-    config['primary_ref'] = params['primary_ref']
+    config['primary_flag'] = params['primary_flag']
 
     locked = check_dataset_lock(setup,red_log)
 
@@ -273,6 +277,10 @@ def run_automatic_reduction(setup,red_log,params):
         unlock_dataset(setup,red_log)
 
 def run_existing_reduction(setup, config, red_log):
+    """Function to reduce a dataset with existing data that has been
+    reduced at least once successfully already.  This assumes that a reference
+    image has been selected and reduced, and the reference photometry stored
+    in the corresponding photometric DB."""
 
     (status,report,meta_data) = stage0.run_stage0(setup)
     red_log.info('Completed stage 0 with status '+repr(status)+': '+report)
@@ -285,6 +293,15 @@ def run_existing_reduction(setup, config, red_log):
     red_log.info('Reset stage 5 of existing reduction')
 
     status = execute_stage(stage5.run_stage5, 'stage 5', setup, status, red_log)
+
+    sane = check_stage3_db_ingest(setup,log)
+
+    if sane == False:
+        run_stage3_db_ingest(setup,red_log,config)
+
+    status = execute_stage(stage6.run_stage6, 'stage 6', setup, status, red_log, **config)
+
+    extract_target_lightcurve(setup, log)
 
     return status
 
@@ -310,7 +327,75 @@ def run_new_reduction(setup, config, red_log):
 
     status = execute_stage(stage6.run_stage6, 'stage 6', setup, status, red_log, **config)
 
+    extract_target_lightcurve(setup, log)
+
     return status
+
+def extract_target_lightcurve(setup, log):
+    """Function to extract the lightcurve of the target indicated in the
+    FITS image header."""
+
+    reduction_metadata = metadata.MetaData()
+    reduction_metadata.load_a_layer_from_file( setup.red_dir,
+                                              'pyDANDIA_metadata.fits',
+                                              'data_architecture' )
+
+    ref_path = str(reduction_metadata.data_architecture[1]['REF_PATH'][0]) +'/'+\
+                str(reduction_metadata.data_architecture[1]['REF_IMAGE'][0])
+
+    ref_header = image_handling.get_science_header(ref_path)
+
+    lc_dir = path.join(setup.red_dir, 'lc')
+    if path.isdir(lc_dir) == False:
+        mkdir(lc_dir)
+
+    params = {'red_dir': setup.red_dir, 'db_file_path': setup.phot_db_path,
+                'ra': ref_header['CAT-RA'], 'dec': ref_header['CAT-DEC'],
+                'radius': (2.0 / 3600.0), 'output_dir': lc_dir }
+
+    log.info('Searching phot DB '+setup.phot_db_path+' for '+ref_header['OBJECT'])
+
+    lightcurves.extract_star_lightcurves_on_cone(params)
+
+    log.info('Extracted lightcurve for '+ref_header['OBJECT']+' at RA,Dec='+\
+            repr(ref_header['CAT-RA'])+', '+repr(ref_header['CAT-DEC'])+\
+            ' and output to '+lc_dir)
+
+def check_stage3_db_ingest(setup,log):
+    """Function to verify whether the photometry for a dataset has been
+    ingested into the corresponding photometric database."""
+
+    sane = False
+
+    if path.isfile(setup.phot_db_path):
+
+        conn = db_phot.get_connection(dsn=setup.phot_db_path)
+        conn.execute('pragma synchronous=OFF')
+
+        reduction_metadata = metadata.MetaData()
+        reduction_metadata.load_a_layer_from_file( setup.red_dir,
+                                                  'pyDANDIA_metadata.fits',
+                                                  'data_architecture' )
+        ref_filename = str(reduction_metadata.data_architecture[1]['REF_IMAGE'][0])
+
+        log.info('Checking phot DB '+str(setup.phot_db_path)+' for photometry from dataset reference image '+ref_filename)
+
+        query = 'SELECT refimg_id, filename FROM reference_images WHERE filename ="' + ref_filename + '"'
+        refimage = db_phot.query_to_astropy_table(conn, query, args=())
+
+        if len(refimage) == 0:
+            sane = False
+        else:
+            sane = True
+
+            log.info(' -> '+repr(sane))
+
+    else:
+        log.info('No phot DB found for this field at '+str(setup.phot_db_path))
+
+    conn.close()
+
+    return sane
 
 def check_dataset_lock(setup,log):
     """Function to check for a lockfile in a given dataset before starting
