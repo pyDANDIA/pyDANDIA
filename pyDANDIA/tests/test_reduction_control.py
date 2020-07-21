@@ -150,11 +150,25 @@ def test_unlock_dataset():
 
     logs.close_log(log)
 
+def test_get_auto_config():
+
+    setup = pipeline_setup.pipeline_setup(params)
+
+    log = logs.start_pipeline_log(setup.log_dir, 'test_reduction_control',
+                               version=VERSION)
+
+    config = reduction_control.get_auto_config(setup,log)
+
+    for key, value in config.items():
+        print(key+': '+repr(value))
+
+    logs.close_log(log)
 
 if __name__ == '__main__':
 
     #test_trigger_stage_subprocess()
     #test_execute_stage()
-    test_check_dataset_lock()
-    test_lock_dataset()
-    test_unlock_dataset()
+    #test_check_dataset_lock()
+    #test_lock_dataset()
+    #test_unlock_dataset()
+    test_get_auto_config()

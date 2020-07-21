@@ -284,6 +284,10 @@ def run_reference_astrometry(setup, **kwargs):
 
 def get_default_config(kwargs, log):
 
+    log.info('Received kwargs:')
+    for key, value in kwargs.items():
+        log.info(key+': '+repr(value))
+        
     default_config = {'force_rotate_ref': False,
                       'dx': 0.0, 'dy': 0.0,
                       'trust_wcs': False}

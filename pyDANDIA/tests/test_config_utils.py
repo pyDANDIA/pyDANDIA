@@ -233,7 +233,17 @@ def test_load_analyse_cmd_config():
     for k in keys:
         assert type(config[k]) == type({})
 
+def test_load_auto_config():
+
+    config_file = '../../config/auto_pipeline_config.json'
+
+    config = config_utils.build_config_from_json(config_file)
+
+    for key, value in config.items():
+        print(key+': '+repr(value))
+
 if __name__ == '__main__':
 
     #test_load_event_model()
-    test_load_analyse_cmd_config()
+    #test_load_analyse_cmd_config()
+    test_load_auto_config()

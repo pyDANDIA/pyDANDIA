@@ -1,0 +1,50 @@
+{
+  "data_red_dir": {
+      "value": "/Users/rstreet1/OMEGA/test_data",
+      "comment": "Directory path for the top-level data reduction area",
+      "format": "string",
+      "unit": ""
+  },
+  "log_dir": {
+      "value": "/Users/rstreet1/OMEGA/test_data/logs",
+      "comment": "Directory path for the logging output",
+      "format": "string",
+      "unit": ""
+  },
+  "config_dir": {
+      "value": "/Users/rstreet1/OMEGA/test_data/config",
+      "comment": "Directory path for the configuration files for the pipeline",
+      "format": "string",
+      "unit": ""
+  },
+  "phot_db_dir": {
+      "value": "/Users/rstreet1/OMEGA/test_data/phot_dbs",
+      "comment": "Directory path for the directory holding the photometry databases",
+      "format": "string",
+      "unit": ""
+  },
+  "software_dir": {
+      "value": "/Users/rstreet1/software/pyDANDIA/pyDANDIA",
+      "comment": "Directory path for the pipeline software",
+      "format": "string",
+      "unit": ""
+  },
+  "group_processing_limit": {
+      "value": 5,
+      "comment": "Maximum number of data groups to process at any one time",
+      "format": "string",
+      "unit": ""
+  },
+  "catalog_xmatch": {
+      "value": "False",
+      "comment": "Switch to enable the cross-match against a catalog",
+      "format": "string",
+      "unit": ""
+  },
+  "use_gaia_phot": {
+      "value": "False",
+      "comment": "Switch to enable use of Gaia photometry for calibration",
+      "format": "string",
+      "unit": ""
+  }
+}

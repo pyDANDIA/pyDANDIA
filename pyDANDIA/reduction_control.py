@@ -234,12 +234,18 @@ def get_auto_config(setup,log):
 
     config = config_utils.build_config_from_json(config_file)
 
-    boolean_keys = ['use_gaia_phot']
+    boolean_keys = ['use_gaia_phot', 'catalog_xmatch']
     for key in boolean_keys:
         if key in config.keys():
-            config[key] = bool(config[key])
-            
-    log.info('Read in configuration for automatic reductions')
+            if 'true' in str(config[key]).lower():
+                config[key] = True
+            else:
+                config[key] = False
+
+    log.info('Read in configuration for automatic reductions:')
+
+    for key, value in config.items():
+        log.info(key+': '+repr(value))
 
     return config
 
@@ -249,6 +255,7 @@ def run_automatic_reduction(setup,red_log,params):
     red_log.info('Starting automatic reduction of '+path.basename(setup.red_dir))
 
     config = get_auto_config(setup,red_log)
+    config['primary_ref'] = params['primary_ref']
 
     locked = check_dataset_lock(setup,red_log)
 
@@ -263,7 +270,7 @@ def run_automatic_reduction(setup,red_log,params):
         else:
             status = run_new_reduction(setup, config, red_log)
 
-        unlock_dataset(setup,log)
+        unlock_dataset(setup,red_log)
 
 def run_existing_reduction(setup, config, red_log):
 
@@ -298,6 +305,10 @@ def run_new_reduction(setup, config, red_log):
     status = execute_stage(stage4.run_stage4, 'stage 4', setup, status, red_log)
 
     status = execute_stage(stage5.run_stage5, 'stage 5', setup, status, red_log)
+
+    run_stage3_db_ingest(setup,red_log,config)
+
+    status = execute_stage(stage6.run_stage6, 'stage 6', setup, status, red_log, **config)
 
     return status
 
