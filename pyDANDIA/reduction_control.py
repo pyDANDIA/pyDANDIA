@@ -289,19 +289,19 @@ def run_existing_reduction(setup, config, red_log):
 
     status = execute_stage(stage4.run_stage4, 'stage 4', setup, status, red_log)
 
-    reset_red_status_for_stage(setup.red_dir,5)
+    reset_stage_metadata.reset_red_status_for_stage(setup.red_dir,5)
     red_log.info('Reset stage 5 of existing reduction')
 
     status = execute_stage(stage5.run_stage5, 'stage 5', setup, status, red_log)
 
-    sane = check_stage3_db_ingest(setup,log)
+    sane = check_stage3_db_ingest(setup,red_log)
 
     if sane == False:
         run_stage3_db_ingest(setup,red_log,config)
 
     status = execute_stage(stage6.run_stage6, 'stage 6', setup, status, red_log, **config)
 
-    extract_target_lightcurve(setup, log)
+    extract_target_lightcurve(setup, red_log)
 
     return status
 
@@ -327,7 +327,7 @@ def run_new_reduction(setup, config, red_log):
 
     status = execute_stage(stage6.run_stage6, 'stage 6', setup, status, red_log, **config)
 
-    extract_target_lightcurve(setup, log)
+    extract_target_lightcurve(setup, red_log)
 
     return status
 

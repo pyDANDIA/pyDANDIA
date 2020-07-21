@@ -61,7 +61,7 @@ def extract_star_lightcurves_on_cone_to_list(params):
 
 
 
-def extract_star_lightcurves_on_cone(params):
+def extract_star_lightcurves_on_cone(params, log=None):
 	"""Function to extract a lightcurve from a phot_db"""
 
 	log = logs.start_stage_log( params['red_dir'], 'lightcurves' )
@@ -78,7 +78,8 @@ def extract_star_lightcurves_on_cone(params):
 	filters = phot_db.fetch_filters(conn)
 	code_id = phot_db.get_stage_software_id(conn,'stage6')
 
-	log.info('Searching for star at RA,Dec='+str(params['ra'])+', '+str(params['dec']))
+	if log != None:
+		log.info('Searching for star at RA,Dec='+str(params['ra'])+', '+str(params['dec']))
 
 	c = SkyCoord(params['ra'], params['dec'], frame='icrs', unit=(units.hourangle, units.deg))
 
@@ -89,9 +90,13 @@ def extract_star_lightcurves_on_cone(params):
 
 	results = phot_db.box_search_on_position(conn, c.ra.deg, c.dec.deg, radius, radius)
 
+	if log != None and len(results['star_id']) > 0:
+		log.info('Extracting lightcurves for the following matching objects')
+
 	for star_field_id in results['star_id']:
 
-
+		if log!=None:
+			log.info('-> Star field ID: '+str(star_field_id))
 
 		photometry_data = fetch_photometry_for_dataset(params, star_field_id, matched_stars, log)
 
@@ -107,7 +112,8 @@ def extract_star_lightcurves_on_cone(params):
 				    str(photometry_data['calibrated_mag'][i])+'  '+str(photometry_data['calibrated_mag_err'][i])+'\n')
 
 		datafile.close()
-		print('-> Output dataset '+setname)
+		if log!=None:
+			log.info('-> Output dataset '+setname)
 
 	message = 'OK'
 
@@ -228,12 +234,12 @@ def fetch_photometry_for_dataset(params, star_field_id, matched_stars, log):
                                                                                 verbose=True)
     star_dataset_id = star_dataset_ids[0]
 
-    print('Star field ID = '+str(star_field_id))
-    print('Star dataset ID = '+str(star_dataset_id))
+    log.info('Star field ID = '+str(star_field_id))
+    log.info('Star dataset ID = '+str(star_dataset_id))
 
     star_dataset_index = star_dataset_id - 1
 
-    print('Star array index: '+str(star_dataset_index))
+    log.info('Star array index: '+str(star_dataset_index))
 
     photometry_data = dataset_photometry[star_dataset_index,:,:]
 
