@@ -349,8 +349,13 @@ def extract_target_lightcurve(setup, log):
     if path.isdir(lc_dir) == False:
         mkdir(lc_dir)
 
+    ra = ref_header['CAT-RA']
+    dec = ref_header['CAT-DEC']
+    if 'N/A' in ra or 'N/A' in dec:
+        ra = ref_header['RA']
+        dec = ref_header['DEC']
     params = {'red_dir': setup.red_dir, 'db_file_path': setup.phot_db_path,
-                'ra': ref_header['CAT-RA'], 'dec': ref_header['CAT-DEC'],
+                'ra': ra, 'dec': dec,
                 'radius': (2.0 / 3600.0), 'output_dir': lc_dir }
 
     log.info('Searching phot DB '+setup.phot_db_path+' for '+ref_header['OBJECT'])
