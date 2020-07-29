@@ -33,6 +33,7 @@ from photutils import CircularAperture
 import matplotlib.pyplot as plt
 from pyDANDIA import  metadata
 from pyDANDIA import  pipeline_setup
+from pyDANDIA import image_handling
 import time
 from datetime import datetime
 import sys
@@ -84,11 +85,13 @@ def starfind(setup, path_to_image, reduction_metadata, plot_it=False,
 
     params = { 'sky': 0.0, 'sigma_y': 0.0, 'sigma_x': 0.0, 'corr_xy':0.0, 'nstars':0, 'sat_frac':0.0, 'symmetry' : 1. }
 
+    image_structure = image_handling.determine_image_struture(path_to_image, log=log)
 
     t0 = time.time()
     im = fits.open(path_to_image)
-    header = im[0].header
-    scidata = im[0].data
+
+    header = im[image_structure['sci']].header
+    scidata = im[image_structure['sci']].data
 
     # Get size of image
     ymax, xmax = scidata.shape

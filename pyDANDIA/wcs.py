@@ -139,18 +139,23 @@ def fetch_catalog_sources_for_field(setup,field,header,image_wcs,log,
         ra = image_wcs.wcs.crval[0]
         dec = image_wcs.wcs.crval[1]
 
-        if catalog_name in ['VPHAS', '2MASS']:
+        if catalog_name in ['VPHAS', '2MASS', 'Gaia-DR2']:
 
             catalog_sources = vizier_tools.search_vizier_for_sources(ra, dec,
                                                                      radius,
                                                                      catalog_name,
-                                                                     row_limit=-1)
+                                                                     row_limit=-1,
+                                                                     coords='degrees')
 
         else:
 
-            catalog_sources = vizier_tools.search_vizier_for_gaia_sources(str(ra), \
-                                                                          str(dec),
-                                                                          radius)
+            #catalog_sources = vizier_tools.search_vizier_for_gaia_sources(str(ra), \
+            #                                                              str(dec),
+            #                                                              radius,
+            #                                                              log=log)
+
+            log.info('ERROR: Attempt to query unsupported catalog '+catalog_name)
+            raise IOError('ERROR: Attempt to query unsupported catalog '+catalog_name)
 
         log.info('ViZier returned '+str(len(catalog_sources))+\
                  ' within the field of view')

@@ -43,6 +43,7 @@ from pyDANDIA import logs
 from pyDANDIA import convolution
 from pyDANDIA import psf
 from pyDANDIA import quality_control
+from pyDANDIA import image_handling
 from skimage.feature import register_translation
 
 from skimage.feature import (ORB, match_descriptors,
@@ -74,7 +75,7 @@ def polyfit2d(x, y, z, order=3,errors=None):
     m, _, _, _ = np.linalg.lstsq(G, Z)
     return m
 
-def run_stage4(setup):
+def run_stage4(setup, **kwargs):
     """Main driver function to run stage 4: image alignement.
     This stage align the images to the reference frame!
     :param object setup : an instance of the ReductionSetup class. See reduction_control.py
@@ -125,7 +126,8 @@ def run_stage4(setup):
 
         # find the reference image
         try:
-            reference_image = open_an_image(setup, reference_image_directory, reference_image_name, log, image_index=0)
+            ref_structure = image_handling.determine_image_struture(os.path.join(reference_image_directory, reference_image_name), log=log)
+            reference_image = open_an_image(setup, reference_image_directory, reference_image_name, log, image_index=ref_structure['sci'])
             logs.ifverbose(log, setup,
                            'I found the reference frame:' + reference_image_name)
         except KeyError:
@@ -141,7 +143,8 @@ def run_stage4(setup):
         images_directory = reduction_metadata.data_architecture[1]['IMAGES_PATH'].data[0]
 
         for new_image in new_images:
-            target_image = open_an_image(setup, images_directory, new_image, log, image_index=0)
+            image_structure = image_handling.determine_image_struture(os.path.join(images_directory, new_image), log=log)
+            target_image = open_an_image(setup, images_directory, new_image, log, image_index=image_structure['sci'])
 
             try:
 
@@ -158,12 +161,9 @@ def run_stage4(setup):
             except:
 
                 logs.ifverbose(log, setup,
-                               'I can not find the image translation to the reference for frame:' + new_image + '. Abort stage4!')
+                               'WARNING: I can not find the image translation to the reference for frame:' + new_image)
 
-                status = 'KO'
-                report = 'No shift  found for image:' + new_image + ' !'
-
-                return status, report
+                data.append([new_image, None, None])
 
         if ('SHIFT_X' in reduction_metadata.images_stats[1].keys()) and (
                 'SHIFT_Y' in reduction_metadata.images_stats[1].keys()):
@@ -187,8 +187,12 @@ def run_stage4(setup):
 
             for index in range(len(data)):
                 target_image = data[index][0]
-                row_index = np.where(reduction_metadata.images_stats[1]['IM_NAME'].data == target_image)[0][0]
-                sorted_data[row_index] = data[index]
+                try:
+                    row_index = np.where(reduction_metadata.images_stats[1]['IM_NAME'].data == target_image)[0][0]
+                    sorted_data[row_index] = data[index]
+                except IndexError:
+                    log.info('ERROR: Cannot find an entry for '+target_image+' in the IMAGES STATS table.  Re-run stages 0 & 1?')
+                    raise IndexError('Cannot find an entry for '+target_image+' in the IMAGES STATS table.  Re-run stages 0 & 1?')
 
             sorted_data = np.array(sorted_data)
             column_format = 'float'
@@ -393,7 +397,7 @@ def quick_pos_fit2(params, reference, data, mask, tform):
     #mse = np.sum((reference - model) ** 2) / (reference.shape[0] * model.shape[1])
    # print(mse)
     norm_cross_corr = np.corrcoef(reference[~model_mask.astype(bool)],model[~model_mask.astype(bool)])[0,1]
-    print(norm_cross_corr)
+    #print(norm_cross_corr)
     if np.isnan(norm_cross_corr):
         return np.inf
     return -norm_cross_corr
@@ -520,7 +524,7 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
                    mask_extension_in=-1):
     from skimage.feature import ORB, match_descriptors, plot_matches
     from skimage.measure import ransac
-    import sep
+    #import sep
 
     if len(new_images) > 0:
 
@@ -534,7 +538,8 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
     master_mask = 0
 
     for new_image in new_images:
-        print(new_image)
+        if log != None:
+            log.info('Calculating translation of '+new_image+' from the reference')
 
         row_index = np.where(reduction_metadata.images_stats[1]['IM_NAME'] == new_image)[0][0]
         x_shift, y_shift = -reduction_metadata.images_stats[1][row_index]['SHIFT_X'], - \
@@ -587,12 +592,14 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
                 model_robust, inliers = ransac((pts_reference2[:5000, :2]-center, pts_data[:5000, :2]-center),  tf.AffineTransform, min_samples=min(50,int(0.1*len(pts_data[:5000]))), residual_threshold=0.1,max_trials=1000)
 
 
-                print('Using Affine Transformation')
+                if log!=None:
+                    log.info('Using Affine Transformation')
 
             except:
 
                 model_final = tf.SimilarityTransform(translation=(-x_shift, -y_shift))
-                print('Using XY shifts')
+                if log!=None:
+                    log.info('Using XY shifts')
             try:
 
 
@@ -627,7 +634,9 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
 
             except:
                 shifted_mask = np.zeros(np.shape(data_image))
-                print('Similarity Transform has failed to produce parameters')
+                if log != None:
+                    log.info('Similarity Transform has failed to produce parameters')
+
             #print(iteration,len(pts_data[inliers]),corr_ini,corr)
 
             iteration += 1
@@ -659,16 +668,22 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
                    image_red_status, log=None, mask_extension_in=-1):
     from skimage.feature import ORB, match_descriptors, plot_matches
     from skimage.measure import ransac
-    import sep
+    #import sep
     list_of_stamps = reduction_metadata.stamps[1]['PIXEL_INDEX'].tolist()
 
     if len(new_images) > 0:
+        ref_image_path = os.path.join(reference_image_directory, reference_image_name)
+        ref_structure = image_handling.determine_image_struture(ref_image_path, log=None)
+        reference_image_hdu = fits.open(ref_image_path, memmap=True)
+        reference_image = np.copy(reference_image_hdu[ref_structure['sci']].data)
 
-        reference_image_hdu = fits.open(os.path.join(reference_image_directory, reference_image_name), memmap=True)
-        reference_image = np.copy(reference_image_hdu[0].data)
+        # I think mask_extension_in == BPM.
+        #mask_reference = reference_image_hdu[mask_extension_in].data.astype(bool)
+        mask_reference = reference_image_hdu[ref_structure['bpm']].data.astype(bool)
+    else:
+        log.info('No images available to resample, halting.')
 
-        mask_reference = reference_image_hdu[mask_extension_in].data.astype(bool)
-
+        raise ValueError('No images available to resample, halting.')
 
     ref_sources, ref_fwhm = extract_catalog(reduction_metadata, reference_image, ref_row_index, log)
 
@@ -683,10 +698,13 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
         x_shift, y_shift = -reduction_metadata.images_stats[1][row_index]['SHIFT_X'], - \
             reduction_metadata.images_stats[1][row_index]['SHIFT_Y']
 
-        data_image_hdu = fits.open(os.path.join(data_image_directory, new_image), memmap=True)
-        data_image = np.copy(data_image_hdu[0].data)
+        image_path = os.path.join(data_image_directory, new_image)
+        image_structure = image_handling.determine_image_struture(image_path, log=None)
 
-        mask_image = np.array(data_image_hdu[mask_extension_in].data, dtype=float)
+        data_image_hdu = fits.open(image_path, memmap=True)
+        data_image = np.copy(data_image_hdu[image_structure['sci']].data)
+
+        mask_image = np.array(data_image_hdu[image_structure['bpm']].data, dtype=float)
 
         mask_status = quality_control.verify_mask_statistics(new_image,mask_image, log)
 
@@ -873,7 +891,7 @@ def reformat_catalog2(ref_catalog, data_catalog, distance_threshold=1.5):
 
 def fit_transformation(params, ref_image, data_image):
     im = manual_transformation(params, data_image)
-    print(params)
+    #print(params)
     res = np.ravel(ref_image - im) ** 2
     # plt.imshow(ref_image-im)
     # plt.show()

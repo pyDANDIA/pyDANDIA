@@ -124,6 +124,8 @@ def update_wcs(header, new_naxis1, new_naxis2):
 
     header['RA'] = sexigesimal_coords[0]
     header['DEC'] = sexigesimal_coords[1]
+    header['CAT-RA'] = sexigesimal_coords[0]
+    header['CAT-DEC'] = sexigesimal_coords[1]
     header['CRVAL1'] = float(centre_world_coords[0,0])
     header['CRVAL2'] = float(centre_world_coords[0,1])
     header['CRPIX1'] = xcentre

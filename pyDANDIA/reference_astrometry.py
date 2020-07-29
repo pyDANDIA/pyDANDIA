@@ -18,6 +18,7 @@ from pyDANDIA import  wcs
 from pyDANDIA import  psf
 from pyDANDIA import  stage0
 from pyDANDIA import  stage3
+from pyDANDIA import  config_utils
 from pyDANDIA import  catalog_utils
 from pyDANDIA import  calc_coord_offsets
 from pyDANDIA import  shortest_string
@@ -25,13 +26,12 @@ from pyDANDIA import  calibrate_photometry
 from pyDANDIA import  vizier_tools
 from pyDANDIA import  match_utils
 from pyDANDIA import  utilities
+from pyDANDIA import  image_handling
 from skimage.transform import AffineTransform
 
 VERSION = 'pyDANDIA_reference_astrometry_v0.2'
 
-def run_reference_astrometry(setup, force_rotate_ref=False,
-                                    dx=0.0, dy=0.0,
-                                    trust_wcs=False):
+def run_reference_astrometry(setup, **kwargs):
     """Driver function to perform the object detection and astrometric analysis
     of the reference frame from a given dataset.
 
@@ -42,6 +42,11 @@ def run_reference_astrometry(setup, force_rotate_ref=False,
 
     log = logs.start_stage_log( setup.red_dir, 'reference_astrometry', version=VERSION )
 
+    kwargs = get_default_config(kwargs, log)
+    xmatch = True
+    if 'catalog_xmatch' in kwargs.keys() and kwargs['catalog_xmatch'] == False:
+        xmatch = False
+        log.info('CATALOG FULL CROSS-MATCH SWITCHED OFF')
 
     reduction_metadata = metadata.MetaData()
     reduction_metadata.load_a_layer_from_file( setup.red_dir,
@@ -66,7 +71,7 @@ def run_reference_astrometry(setup, force_rotate_ref=False,
 
     if sane:
 
-        header = fits.getheader(meta_pars['ref_image_path'])
+        header = image_handling.get_science_header(meta_pars['ref_image_path'])
 
         image_wcs = aWCS(header)
 
@@ -88,11 +93,12 @@ def run_reference_astrometry(setup, force_rotate_ref=False,
         gaia_sources = catalog_objects_in_reference_image(setup, header,
                                                           image_wcs, log,
                                                           stellar_density,
-                                                          rotate_wcs, force_rotate_ref,
+                                                          rotate_wcs,
+                                                          kwargs['force_rotate_ref'],
                                                           stellar_density_threshold)
 
         vphas_sources = phot_catalog_objects_in_reference_image(setup, header, fov,
-                                                                image_wcs, log)
+                                                                image_wcs, log, xmatch)
 
         selection_radius = 0.05 #degrees
         (bright_central_detected_stars, bright_central_gaia_stars, selection_radius) = \
@@ -110,7 +116,7 @@ def run_reference_astrometry(setup, force_rotate_ref=False,
         method = 'ransac'
         old_n_match = 0
 
-        if trust_wcs == True:
+        if kwargs['trust_wcs'] == True:
             log.info('Trusting original WCS solution, transformation will be calculated after catalog match to original pixel positions')
             transform = AffineTransform(translation=(0.0, 0.0))
 
@@ -133,9 +139,9 @@ def run_reference_astrometry(setup, force_rotate_ref=False,
                 it += 1
                 log.info('STAR MATCHING ITERATION '+str(it))
 
-                if it == 1 and (dx != 0.0 or dy != 0.0):
-                    log.info('Applying initial transformation of catalog positions, dx='+str(dx)+', dy='+str(dy)+' pixels')
-                    transform = AffineTransform(translation=(dx, dy))
+                if it == 1 and (kwargs['dx'] != 0.0 or kwargs['dy'] != 0.0):
+                    log.info('Applying initial transformation of catalog positions, dx='+str(kwargs['dx'])+', dy='+str(kwargs['dy'])+' pixels')
+                    transform = AffineTransform(translation=(kwargs['dx'], kwargs['dy']))
                     stellar_density = utilities.stellar_density(bright_central_gaia_stars,
                                                         selection_radius)
                     matched_stars = match_utils.StarMatchIndex()
@@ -201,7 +207,7 @@ def run_reference_astrometry(setup, force_rotate_ref=False,
                     bright_central_gaia_stars = update_catalog_image_coordinates(setup, image_wcs,
                                                                 bright_central_gaia_stars, log,
                                                                 'catalog_stars_bright_revised_'+str(it)+'.reg',
-                                                                stellar_density, rotate_wcs, force_rotate_ref,
+                                                                stellar_density, rotate_wcs, kwargs['force_rotate_ref'],
                                                                 stellar_density_threshold,
                                                                 transform=transform, radius=selection_radius)
 
@@ -221,11 +227,11 @@ def run_reference_astrometry(setup, force_rotate_ref=False,
                     old_n_match = matched_stars.n_match
                     log.info(' -> Iterations continue, iterate='+repr(iterate))
 
-        log.info('Proceeding to x-match of full catalogs')
+        log.info('Transforming catalogue coordinates')
 
         gaia_sources = update_catalog_image_coordinates(setup, image_wcs,
                                                         gaia_sources, log, 'catalog_stars_full_revised_'+str(it)+'.reg',
-                                                        stellar_density, rotate_wcs, force_rotate_ref,
+                                                        stellar_density, rotate_wcs, kwargs['force_rotate_ref'],
                                                         stellar_density_threshold,
                                                         transform=transform, radius=None)
 
@@ -238,15 +244,22 @@ def run_reference_astrometry(setup, force_rotate_ref=False,
                                                                 transform, coords='radec',
                                                                 verbose=True)
 
-        matched_stars_gaia = wcs.match_stars_world_coords(detected_sources,gaia_sources,log,'Gaia',
+        log.info('Proceeding to x-match of full catalogs')
+
+        if xmatch:
+            matched_stars_gaia = wcs.match_stars_world_coords(detected_sources,gaia_sources,log,'Gaia',
                                                           radius=0.5, ra_centre=image_wcs.wcs.crval[0],
                                                           dec_centre=image_wcs.wcs.crval[1],
                                                           verbose=False)
 
-        matched_stars_vphas = wcs.match_stars_world_coords(detected_sources,vphas_sources,log,'VPHAS+',
+            matched_stars_vphas = wcs.match_stars_world_coords(detected_sources,vphas_sources,log,'VPHAS+',
                                                           radius=0.5, ra_centre=image_wcs.wcs.crval[0],
                                                           dec_centre=image_wcs.wcs.crval[1],
                                                           verbose=False)
+
+        else:
+            matched_stars_gaia = matched_stars
+            matched_stars_vphas = match_utils.StarMatchIndex()
 
         ref_source_catalog = wcs.build_ref_source_catalog(detected_sources,\
                                                         gaia_sources, vphas_sources,\
@@ -269,20 +282,39 @@ def run_reference_astrometry(setup, force_rotate_ref=False,
 
     return 'OK', 'Reference astrometry complete'
 
+def get_default_config(kwargs, log):
+
+    log.info('Received kwargs:')
+    for key, value in kwargs.items():
+        log.info(key+': '+repr(value))
+        
+    default_config = {'force_rotate_ref': False,
+                      'dx': 0.0, 'dy': 0.0,
+                      'trust_wcs': False}
+
+    kwargs = config_utils.set_default_config(default_config, kwargs, log)
+
+    return kwargs
+
 def detect_objects_in_reference_image(setup, reduction_metadata, meta_pars,
                                       image_wcs, log):
 
+    ref_image_path = os.path.join(setup.red_dir,'ref',os.path.basename(meta_pars['ref_image_path']))
+
+    image_structure = image_handling.determine_image_struture(ref_image_path, log=log)
+
     scidata = stage0.open_an_image(setup, os.path.join(setup.red_dir,'ref'),
                                os.path.basename(meta_pars['ref_image_path']),
-                               log,  image_index=0)
+                               log,  image_index=image_structure['sci'])
 
-    image_bpm = stage0.open_an_image(setup, os.path.join(setup.red_dir,'ref'),
-                               os.path.basename(meta_pars['ref_image_path']),
-                               log,  image_index=2)
-    if image_bpm == None:
+    if image_structure['bpm'] != None:
         image_bpm = stage0.open_an_image(setup, os.path.join(setup.red_dir,'ref'),
-                                   os.path.basename(meta_pars['ref_image_path']),
-                                   log,  image_index=1)
+                               os.path.basename(meta_pars['ref_image_path']),
+                               log,  image_index=image_structure['bpm'])
+#    if image_bpm == None:
+#        image_bpm = stage0.open_an_image(setup, os.path.join(setup.red_dir,'ref'),
+#                                   os.path.basename(meta_pars['ref_image_path']),
+#                                   log,  image_index=1)
 
     scidata = scidata.data - meta_pars['ref_sky_bkgd']
     idx = np.where(image_bpm.data != 0)
@@ -318,7 +350,7 @@ def catalog_objects_in_reference_image(setup, header, image_wcs, log,
     field = str(header['OBJECT']).replace(' ','-')
 
     gaia_sources = wcs.fetch_catalog_sources_for_field(setup, field, header,
-                                                      image_wcs,log,'Gaia')
+                                                      image_wcs,log,'Gaia-DR2')
 
     gaia_sources = wcs.calc_image_coordinates_astropy(setup, image_wcs,
                                                       gaia_sources, log,
@@ -335,48 +367,47 @@ def catalog_objects_in_reference_image(setup, header, image_wcs, log,
 
     return gaia_sources
 
-def phot_catalog_objects_in_reference_image(setup, header, fov, image_wcs, log):
+def phot_catalog_objects_in_reference_image(setup, header, fov, image_wcs, log, xmatch):
     """Function to extract the objects from the VPHAS+ catalogue within the
     field of view of the reference image, based on the metadata information."""
 
-    ra = image_wcs.wcs.crval[0]
-    dec = image_wcs.wcs.crval[1]
-    diagonal = np.sqrt(header['NAXIS1']*header['NAXIS1'] + header['NAXIS2']*header['NAXIS2'])
-    radius = diagonal*header['PIXSCALE']/60.0/2.0 #arcminutes
+    table_data = [table.Column(name='source_id', data=np.array([])),
+                  table.Column(name='ra', data=np.array([])),
+                  table.Column(name='dec', data=np.array([])),
+                  table.Column(name='gmag', data=np.array([])),
+                  table.Column(name='gmag_error', data=np.array([])),
+                  table.Column(name='rmag', data=np.array([])),
+                  table.Column(name='rmag_error', data=np.array([])),
+                  table.Column(name='imag', data=np.array([])),
+                  table.Column(name='imag_error', data=np.array([])),
+                  table.Column(name='clean', data=np.array([])),
+                  ]
 
-    log.info('VPHAS+ catalog search parameters: ')
-    log.info('RA = '+str(ra)+', Dec = '+str(dec))
-    log.info('Radius: '+str(radius)+' arcmin')
+    if xmatch:
+        ra = image_wcs.wcs.crval[0]
+        dec = image_wcs.wcs.crval[1]
+        diagonal = np.sqrt(header['NAXIS1']*header['NAXIS1'] + header['NAXIS2']*header['NAXIS2'])
+        radius = diagonal*header['PIXSCALE']/60.0/2.0 #arcminutes
 
-    vphas_sources = vizier_tools.search_vizier_for_sources(ra, dec, radius, 'VPHAS+', coords='degrees')
+        log.info('VPHAS+ catalog search parameters: ')
+        log.info('RA = '+str(ra)+', Dec = '+str(dec))
+        log.info('Radius: '+str(radius)+' arcmin')
 
-    if len(vphas_sources)>0:
+        vphas_sources = vizier_tools.search_vizier_for_sources(ra, dec, radius, 'VPHAS+', coords='degrees',log=log)
 
-        table_data = [ table.Column(name='source_id', data=vphas_sources['sourceID'].data),
-                      table.Column(name='ra', data=vphas_sources['_RAJ2000'].data),
-                      table.Column(name='dec', data=vphas_sources['_DEJ2000'].data),
-                      table.Column(name='gmag', data=vphas_sources['gmag'].data),
-                      table.Column(name='gmag_error', data=vphas_sources['e_gmag'].data),
-                      table.Column(name='rmag', data=vphas_sources['rmag'].data),
-                      table.Column(name='rmag_error', data=vphas_sources['e_rmag'].data),
-                      table.Column(name='imag', data=vphas_sources['imag'].data),
-                      table.Column(name='imag_error', data=vphas_sources['e_imag'].data),
-                      table.Column(name='clean', data=vphas_sources['clean'].data),
-                      ]
+        if len(vphas_sources)>0:
 
-    else:
-
-        table_data = [table.Column(name='source_id', data=np.array([])),
-                      table.Column(name='ra', data=np.array([])),
-                      table.Column(name='dec', data=np.array([])),
-                      table.Column(name='gmag', data=np.array([])),
-                      table.Column(name='gmag_error', data=np.array([])),
-                      table.Column(name='rmag', data=np.array([])),
-                      table.Column(name='rmag_error', data=np.array([])),
-                      table.Column(name='imag', data=np.array([])),
-                      table.Column(name='imag_error', data=np.array([])),
-                      table.Column(name='clean', data=np.array([])),
-                      ]
+            table_data = [ table.Column(name='source_id', data=vphas_sources['sourceID'].data),
+                          table.Column(name='ra', data=vphas_sources['_RAJ2000'].data),
+                          table.Column(name='dec', data=vphas_sources['_DEJ2000'].data),
+                          table.Column(name='gmag', data=vphas_sources['gmag'].data),
+                          table.Column(name='gmag_error', data=vphas_sources['e_gmag'].data),
+                          table.Column(name='rmag', data=vphas_sources['rmag'].data),
+                          table.Column(name='rmag_error', data=vphas_sources['e_rmag'].data),
+                          table.Column(name='imag', data=vphas_sources['imag'].data),
+                          table.Column(name='imag_error', data=vphas_sources['e_imag'].data),
+                          table.Column(name='clean', data=vphas_sources['clean'].data),
+                          ]
 
     vphas_sources = table.Table(data=table_data)
     log.info('VPHAS+ search returned ' + str(len(vphas_sources)) + ' entries')

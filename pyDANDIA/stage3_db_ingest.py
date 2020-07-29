@@ -22,12 +22,14 @@ from pyDANDIA import  phot_db
 from pyDANDIA import  pipeline_setup
 from pyDANDIA import  time_utils
 from pyDANDIA import  match_utils
+from pyDANDIA import  config_utils
 from pyDANDIA import  calc_coord_offsets
 from pyDANDIA import  wcs
+from pyDANDIA import  image_handling
 
 VERSION = 'stage3_ingest_v1.1'
 
-def run_stage3_db_ingest(setup, primary_ref=False, add_matched_stars=False):
+def run_stage3_db_ingest(setup, **kwargs):
     """Function to commit the information on, and measurements from, the
     reference image(s) used to reduce the data for a given field.
     """
@@ -36,11 +38,14 @@ def run_stage3_db_ingest(setup, primary_ref=False, add_matched_stars=False):
 
     log = logs.start_stage_log( setup.red_dir, 'stage3_db_ingest',
                                version=VERSION )
-    if primary_ref:
+
+    kwargs = get_default_config(kwargs, log)
+
+    if kwargs['primary_ref']:
         log.info('Running in PRIMARY-REF mode.')
 
-    if not add_matched_stars:
-        archive_existing_db(setup,primary_ref,log)
+    if not kwargs['add_matched_stars']:
+        archive_existing_db(setup,kwargs['primary_ref'],log)
     else:
         log.info('Running to add the matched stars table to the metadata only')
 
@@ -65,21 +70,21 @@ def run_stage3_db_ingest(setup, primary_ref=False, add_matched_stars=False):
 
     phot_db.check_before_commit(conn, dataset_params, 'images', image_keys, 'filename')
 
-    if not add_matched_stars:
+    if not kwargs['add_matched_stars']:
         commit_stamps_to_db(conn, reduction_metadata)
 
     ref_id_list = phot_db.find_reference_image_for_dataset(conn,dataset_params)
 
-    if ref_id_list != None and len(ref_id_list) > 0 and add_matched_stars == False:
+    if ref_id_list != None and len(ref_id_list) > 0 and kwargs['add_matched_stars'] == False:
         phot_db.cascade_delete_reference_images(conn, ref_id_list, log)
 
-    if not add_matched_stars:
+    if not kwargs['add_matched_stars']:
         commit_reference_image(conn, dataset_params, log)
         commit_reference_component(conn, dataset_params, log)
 
-    if primary_ref:
+    if kwargs['primary_ref']:
 
-        if not add_matched_stars:
+        if not kwargs['add_matched_stars']:
             star_ids = commit_stars(conn, dataset_params, reduction_metadata, log)
 
             commit_photometry(conn, dataset_params, reduction_metadata, star_ids, log)
@@ -105,7 +110,7 @@ def run_stage3_db_ingest(setup, primary_ref=False, add_matched_stars=False):
                                                         primary_refimg_id,transform_sky,log,
                                                         verbose=True)
 
-        if not add_matched_stars:
+        if not kwargs['add_matched_stars']:
             commit_photometry_matching(conn, dataset_params, reduction_metadata,
                                                         matched_stars, log,
                                                         verbose=False)
@@ -127,6 +132,14 @@ def run_stage3_db_ingest(setup, primary_ref=False, add_matched_stars=False):
     logs.close_log(log)
 
     return status, report
+
+def get_default_config(kwargs, log):
+
+    default_config = {'primary_ref': False, 'add_matched_stars': False}
+
+    kwargs = config_utils.set_default_config(default_config, kwargs, log)
+
+    return kwargs
 
 def define_table_keys():
 
@@ -294,7 +307,7 @@ def harvest_stage3_parameters(setup,reduction_metadata):
 
 def harvest_image_params(reduction_metadata, image_path, ref_image_path):
 
-    image_header = fits.getheader(image_path)
+    image_header = image_handling.get_science_header(image_path)
 
     image_params = {}
 

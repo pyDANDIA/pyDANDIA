@@ -23,6 +23,7 @@ from pyDANDIA import starfind
 from pyDANDIA import psf
 from pyDANDIA import convolution
 from pyDANDIA import calibrate_photometry
+from pyDANDIA import image_handling
 from scipy.odr import *
 import scipy.optimize as so
 import scipy.ndimage as sndi
@@ -57,7 +58,8 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
 
     log.info('Starting photometry of ' + os.path.basename(image_path))
 
-    data = fits.getdata(image_path)
+    data = image_handling.get_science_image(image_path)
+
     if psf_diameter == None:
         psf_diameter = (reduction_metadata.psf_dimensions[1]['psf_radius'][0]*2.0)
 
@@ -257,7 +259,7 @@ def run_psf_photometry_naylor(setup,reduction_metadata,log,ref_star_catalog,
 
     log.info('Starting photometry of ' + os.path.basename(image_path))
 
-    data = fits.getdata(image_path)
+    data = image_handling.get_science_image(image_path)
 
     if psf_diameter == None:
         psf_diameter = (reduction_metadata.psf_dimensions[1]['psf_radius'][0]*2.0)
@@ -462,7 +464,8 @@ def quick_polyfit(params,data,weight,psf_fit):
 
 
 def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_star_catalog, sky_model,
-                                           difference_image, psf_model, kernel, kernel_error, ref_exposure_time,image_id):
+                                           difference_image, psf_model, kernel, kernel_error, ref_exposure_time,image_id,
+                                           per_star_logging=False):
     """Function to perform PSF fitting photometry on all stars for a single difference image.
 
     :param SetUp object setup: Essential reduction parameters
@@ -590,6 +593,7 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
         try:
             phot_table = aperture_photometry(difference_image-bkg.background, apertures, method='subpixel',
                          error=error)
+
         except ValueError:
             import pdb;
             pdb.set_trace()
@@ -661,7 +665,6 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
 
                 good_fit = False
 
-
             if good_fit == True:
 
                 if ref_flux >= 0.0 and error_ref_flux > 0.0:
@@ -674,7 +677,14 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
                     flux_err_tot = (error_ref_flux ** 2*ref_exposure_time + flux_err**2/phot_scale_factor**2+
                                     (flux*error_phot_scale_factor/phot_scale_factor**2)**2) ** 0.5
 
-
+                    if per_star_logging:
+                        log.info(' -> Star ' + str(j) + ' at position (' + \
+                                   str(xstar) + ', ' + str(ystar) + ') flux='+str(flux)+', flux_err='+str(flux_err)+\
+                                   ', flux_tot='+str(flux_tot)+', flux_err_tot='+str(flux_err_tot)+\
+                                   ', ref_flux='+str(ref_flux)+', ref_flux_err='+str(error_ref_flux)+\
+                                   ', phot_table entry='+str(phot_table[j][3])+'+/-'+str(phot_table[j][4])+', phot scale factor='+str(phot_scale_factor)+\
+                                   ', diff image at position='+str(difference_image[int(positions[j][1]),int(positions[j][0])])+\
+                                   ', bkgd at position='+str(bkg.background[int(positions[j][1]),int(positions[j][0])]))
 
                     if (flux_tot > 0.0) and (flux_err_tot > 0.0) and (difference_image[int(positions[j][1]),int(positions[j][0])] != 0) \
                                 and (bkg.background[int(positions[j][1]),int(positions[j][0])]!=0) and (flux!=0) and (flux_err!=0):

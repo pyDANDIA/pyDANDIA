@@ -12,6 +12,7 @@ from pyDANDIA import metadata
 from pyDANDIA import catalog_utils
 from pyDANDIA import photometry
 from pyDANDIA import vizier_tools
+from pyDANDIA import gaia_phot_transforms
 
 from astropy.coordinates import SkyCoord
 from astropy.coordinates import matching
@@ -22,7 +23,7 @@ import numpy as np
 from scipy import optimize
 import matplotlib.pyplot as plt
 
-VERSION = 'calibrate_photometry_0.3'
+VERSION = 'calibrate_photometry_0.4'
 
 def calibrate_photometry_catalog(setup, **kwargs):
     """Function to calculate the photometric transform between the instrumental
@@ -98,9 +99,9 @@ def get_args():
         if len(sys.argv) > 4:
 
             for a in sys.argv[4:]:
-                (key,value) = a.split('=')
-
-                params[key] = value
+                if a[0:1] != '-':
+                    (key,value) = a.split('=')
+                    params[key] = value
 
     else:
         params['red_dir'] = input('Please enter the path to the reduction directory: ')
@@ -117,10 +118,14 @@ def get_args():
             params[key] = float(params[key])
         else:
             params[key] = None
-            
+
     params['set_phot_calib'] = False
     params['a0'] = 0.0
     params['a1'] = 0.0
+    params['use_gaia_phot'] = False
+    for a in sys.argv:
+        if '-use-gaia-phot' in a or '-use_gaia_phot' in a:
+            params['use_gaia_phot'] = True
 
     return params
 
@@ -178,8 +183,12 @@ def extract_params_from_metadata(reduction_metadata, params, log):
     params['ra'] = reduction_metadata.headers_summary[1]['RAKEY'][iref]
     params['dec'] = reduction_metadata.headers_summary[1]['DECKEY'][iref]
     params['filter'] = reduction_metadata.headers_summary[1]['FILTKEY'][iref]
-    params['cat_mag_col'] = params['filter'].replace('p','') + 'mag'
-    params['cat_err_col'] = 'e_'+params['filter'].replace('p','') + 'mag'
+    if params['use_gaia_phot'] == True:
+        params['cat_mag_col'] = 'gaia_'+params['filter'].replace('p','')+'mag'
+        params['cat_err_col'] = 'gaia_'+params['filter'].replace('p','')+'mag_err'
+    else:
+        params['cat_mag_col'] = params['filter'].replace('p','') + 'mag'
+        params['cat_err_col'] = 'e_'+params['filter'].replace('p','') + 'mag'
 
     params['target'] = SkyCoord([params['ra']], [params['dec']],
                         unit=(u.hourangle, u.deg))
@@ -215,6 +224,47 @@ def extract_params_from_metadata(reduction_metadata, params, log):
     star_catalog['cal_ref_flux'] = np.zeros(len(reduction_metadata.star_catalog[1]['cal_ref_flux']))
     star_catalog['cal_ref_flux_err'] = np.zeros(len(reduction_metadata.star_catalog[1]['cal_ref_flux_error']))
 
+    (Gmag, Gmerr) = gaia_phot_transforms.gaia_flux_to_mag(reduction_metadata.star_catalog[1]['phot_g_mean_flux'],
+                                                          reduction_metadata.star_catalog[1]['phot_g_mean_flux_error'],
+                                                          passband="G")
+    (BPmag, BPmerr) = gaia_phot_transforms.gaia_flux_to_mag(reduction_metadata.star_catalog[1]['phot_g_mean_flux'],
+                                                        reduction_metadata.star_catalog[1]['phot_g_mean_flux_error'],
+                                                        passband="G_BP")
+    (RPmag, RPmerr) = gaia_phot_transforms.gaia_flux_to_mag(reduction_metadata.star_catalog[1]['phot_g_mean_flux'],
+                                                        reduction_metadata.star_catalog[1]['phot_g_mean_flux_error'],
+                                                        passband="G_RP")
+
+    star_catalog['gaia_source_id'] = reduction_metadata.star_catalog[1]['gaia_source_id']
+    star_catalog['gaia_Gmag'] = Gmag
+    star_catalog['gaia_Gmag_err'] = Gmerr
+    star_catalog['gaia_BPmag'] = BPmag
+    star_catalog['gaia_BPmag_err'] = BPmerr
+    star_catalog['gaia_RPmag'] = RPmag
+    star_catalog['gaia_RPmag_err'] = RPmerr
+
+    (BP_RP, BPRPerr) = gaia_phot_transforms.calc_gaia_colours(star_catalog['gaia_BPmag'],star_catalog['gaia_BPmag_err'],
+                                               star_catalog['gaia_RPmag'],star_catalog['gaia_RPmag_err'])
+    star_catalog['gaia_BP_RP'] = BP_RP
+    star_catalog['gaia_BPRP_err'] = BPRPerr
+
+    phot = gaia_phot_transforms.transform_gaia_phot_to_SDSS(star_catalog['gaia_Gmag'], star_catalog['gaia_Gmag_err'],
+                                        BP_RP, BPRPerr)
+    star_catalog['gaia_gmag'] = phot['g']
+    star_catalog['gaia_gmag_err'] = phot['g_err']
+    star_catalog['gaia_rmag'] = phot['r']
+    star_catalog['gaia_rmag_err'] = phot['r_err']
+    star_catalog['gaia_imag'] = phot['i']
+    star_catalog['gaia_imag_err'] = phot['i_err']
+
+    phot = gaia_phot_transforms.transform_gaia_phot_to_JohnsonCousins(star_catalog['gaia_Gmag'], star_catalog['gaia_Gmag_err'],
+                                        BP_RP, BPRPerr)
+    star_catalog['gaia_Vmag'] = phot['V']
+    star_catalog['gaia_Vmag_err'] = phot['V_err']
+    star_catalog['gaia_Rmag'] = phot['R']
+    star_catalog['gaia_Rmag_err'] = phot['R_err']
+    star_catalog['gaia_Imag'] = phot['I']
+    star_catalog['gaia_Imag_err'] = phot['I_err']
+
     log.info('Extracted star catalog')
 
     return reduction_metadata, params, star_catalog
@@ -241,12 +291,25 @@ def fetch_catalog_sources_within_image(params,log):
     return vphas_cat
 
 def select_calibration_stars(star_catalog,params,log):
-    """Function to identify and flag stars suitable for the photometric
+    """Function to identify and flag  stars suitable for the photometric
     calibration.  Based on code by Y. Tsapras."""
 
-    # VPHAS catalog selection limits
-    jdx = np.where(star_catalog['vphas_source_id'] != 'None')
-    log.info('VPHAS+ data available for '+str(len(jdx[0]))+' stars in total')
+    if params['use_gaia_phot'] == True:
+        cat_name = 'Gaia'
+        cat_source_id_col = 'gaia_source_id'
+        passbands = { 'G': {'mag_col': 'gaia_Gmag', 'merr_col': 'gaia_Gmag_err'},
+                     'BP': {'mag_col': 'gaia_BPmag', 'merr_col': 'gaia_BPmag_err'},
+                     'RP': {'mag_col': 'gaia_RPmag', 'merr_col': 'gaia_RPmag_err'} }
+    else:
+        cat_name = 'VPHAS+'
+        cat_source_id_col = 'vphas_source_id'
+        passbands = { 'g': {'mag_col': 'gmag', 'merr_col': 'e_gmag'},
+                      'r': {'mag_col': 'rmag', 'merr_col': 'e_rmag'},
+                      'i': {'mag_col': 'imag', 'merr_col': 'e_imag'} }
+
+    # Catalog selection limits
+    jdx = np.where(star_catalog[cat_source_id_col] != 'None')
+    log.info(cat_name+' data available for '+str(len(jdx[0]))+' stars in total')
 
     limit_mag = 22.0
     #if params['filter'] == 'gp': limit_mag = 22.0
@@ -260,12 +323,9 @@ def select_calibration_stars(star_catalog,params,log):
 
     # First selecting stars with suitable VPHAS+ catalogue information
     idx = []
-    for f in ['g','r','i']:
+    for f,col_names in passbands.items():
 
-        col = 'e_'+f+'mag'
-        cmag = f+'mag'
-
-        med = np.median(star_catalog[col][np.where(star_catalog[col]>0)])
+        med = np.median(star_catalog[col_names['merr_col']][np.where(star_catalog[col_names['merr_col']]>0)])
 
         max_err = 2.0 * med
         if np.isnan(max_err):
@@ -277,9 +337,9 @@ def select_calibration_stars(star_catalog,params,log):
         log.info('Median photometric uncertainty ('+f+'-band) of catalog stars: '+str(med))
         log.info('Excluding catalog stars ('+f+'-band) with uncertainty > '+str(max_err))
 
-        idx1 = np.where(star_catalog[col] <= max_err)
-        idx2 = np.where(star_catalog[col] > 0)
-        idx3 = np.where(star_catalog[cmag] < limit_mag)
+        idx1 = np.where(star_catalog[col_names['merr_col']] <= max_err)
+        idx2 = np.where(star_catalog[col_names['merr_col']] > 0)
+        idx3 = np.where(star_catalog[col_names['mag_col']] < limit_mag)
 
         if len(idx1[0]) == 0:
             log.info('No catalog stars with magnitude errors <='+str(max_err))
@@ -303,7 +363,7 @@ def select_calibration_stars(star_catalog,params,log):
     star_catalog['clean'][idx] = 1.0
 
     log.info('Selected '+str(len(idx))+\
-            ' stars with VPHAS+ data suitable for use in photometric calibration')
+            ' stars with '+cat_name+' data suitable for use in photometric calibration')
 
     # Now selecting stars with good quality photometry from the ROME data and
     # Gaia positional data:
@@ -399,7 +459,7 @@ def extract_matched_stars_index(star_catalog,log):
     cross-matched by position.
 
     Returns:
-        :param array match_index: [[Index in vphas, index in detected_stars]]
+        :param array match_index: [[Index in selected catalog, index in detected_stars]]
     """
 
     match_index = {}
@@ -437,17 +497,18 @@ def calc_phot_calib(params,star_catalog,match_index,log):
     fit = model_phot_transform2(params,star_catalog,
                                    match_index,fit,log)
 
-    for i in range(0,1,1):
+    if fit[0] > -9999.0:
+        for i in range(0,1,1):
 
-        fit = model_phot_transform2(params,star_catalog,
-                                   match_index,fit,log, diagnostics=True)
+            fit = model_phot_transform2(params,star_catalog,
+                                       match_index,fit,log, diagnostics=True)
 
-        log.info('Fit result ['+str(i)+']: '+repr(fit))
+            log.info('Fit result ['+str(i)+']: '+repr(fit))
 
-        match_index = exclude_outliers(star_catalog,params,
-                                        match_index,fit,log)
+            match_index = exclude_outliers(star_catalog,params,
+                                            match_index,fit,log)
 
-    log.info('Final fitted photometric calibration: '+repr(fit))
+        log.info('Final fitted photometric calibration: '+repr(fit))
 
     return fit
 
@@ -581,15 +642,46 @@ def model_phot_transform(params,star_catalog,vphas_cat,match_index,fit,
 def set_calibration_limits(params,log):
     """Function to use the parameters given or set defaults"""
 
-    defaults = {'gp': {'det_mags_max': 21.0,
-                       'det_mags_min': 15.0,
-                       'cat_merr_max': 0.03},
-                'rp': {'det_mags_max': 21.0,
-                       'det_mags_min': 15.0,
-                       'cat_merr_max': 0.03},
-                'ip': {'det_mags_max': 21.0,
-                       'det_mags_min': 15.0,
-                       'cat_merr_max': 0.03}}
+    if params['use_gaia_phot']:
+        defaults = {'gp': {'det_mags_max': 21.0,
+                           'det_mags_min': 15.0,
+                           'cat_merr_max': 0.2},
+                    'rp': {'det_mags_max': 21.0,
+                           'det_mags_min': 15.0,
+                           'cat_merr_max': 0.07},
+                    'ip': {'det_mags_max': 21.0,
+                           'det_mags_min': 15.0,
+                           'cat_merr_max': 0.11},
+                    'V': {'det_mags_max': 21.0,
+                           'det_mags_min': 15.0,
+                           'cat_merr_max': 0.2},
+                    'R': {'det_mags_max': 21.0,
+                           'det_mags_min': 15.0,
+                           'cat_merr_max': 0.07},
+                    'I': {'det_mags_max': 21.0,
+                           'det_mags_min': 15.0,
+                           'cat_merr_max': 0.11},
+                           }
+    else:
+        defaults = {'gp': {'det_mags_max': 21.0,
+                           'det_mags_min': 15.0,
+                           'cat_merr_max': 0.03},
+                    'rp': {'det_mags_max': 21.0,
+                           'det_mags_min': 15.0,
+                           'cat_merr_max': 0.03},
+                    'ip': {'det_mags_max': 21.0,
+                           'det_mags_min': 15.0,
+                           'cat_merr_max': 0.03},
+                    'V': {'det_mags_max': 21.0,
+                           'det_mags_min': 15.0,
+                           'cat_merr_max': 0.2},
+                    'R': {'det_mags_max': 21.0,
+                           'det_mags_min': 15.0,
+                           'cat_merr_max': 0.07},
+                    'I': {'det_mags_max': 21.0,
+                           'det_mags_min': 15.0,
+                           'cat_merr_max': 0.11},
+                    }
 
     def_params = defaults[params['filter']]
 
@@ -623,104 +715,115 @@ def model_phot_transform2(params,star_catalog,match_index,fit,
     cmag = params['cat_mag_col']
     cerr = params['cat_err_col']
 
-    cat_mags = star_catalog[cmag][match_index[:,1]]
-    cat_merrs = star_catalog[cerr][match_index[:,1]]
-    det_mags = star_catalog['mag'][match_index[:,0]]
-    det_mag_errs = star_catalog['mag_err'][match_index[:,0]]
+    if cmag not in star_catalog.colnames or cerr not in star_catalog.colnames:
+        log.info('WARNING: No catalog photometry available to automatically calibrate instrumental data in '+params['filter'])
 
-    config = set_calibration_limits(params,log)
+        return [-9999.9999, -9999.9999]
 
-    k = np.where(cat_merrs <= config['cat_merr_max'])[0]
-    cat_mags = cat_mags[k]
-    cat_merrs = cat_merrs[k]
-    det_mags = det_mags[k]
-    det_mag_errs = det_mag_errs[k]
+    else:
+        log.info('Using catalog photometry columns: '+cmag+', '+cerr)
 
-    xibin = 0.5
-    xbin1 = config['det_mags_max']
-    xbin2 = xbin1 - xibin
+        cat_mags = star_catalog[cmag][match_index[:,1]]
+        cat_merrs = star_catalog[cerr][match_index[:,1]]
+        det_mags = star_catalog['mag'][match_index[:,0]]
+        det_mag_errs = star_catalog['mag_err'][match_index[:,0]]
 
-    binned_data = []
-    peak_bin = []
-    xbins = []
-    ybins = []
+        config = set_calibration_limits(params,log)
 
-    (hist_data,xedges,yedges) = np.histogram2d(det_mags,cat_mags,bins=24)
-    hist_data.T
+        k = np.where(cat_merrs <= config['cat_merr_max'])[0]
+        cat_mags = cat_mags[k]
+        cat_merrs = cat_merrs[k]
+        det_mags = det_mags[k]
+        det_mag_errs = det_mag_errs[k]
 
-    idx = np.where(hist_data < (hist_data.max()*0.05))
-    hist_data[idx] = 0
+        xibin = 0.5
+        xbin1 = config['det_mags_max']
+        xbin2 = xbin1 - xibin
 
-    idx = np.where(hist_data > (hist_data.max()*0.05))
-    xcenters = (xedges[:-1] + xedges[1:]) / 2
-    ycenters = (yedges[:-1] + yedges[1:]) / 2
+        binned_data = []
+        peak_bin = []
+        xbins = []
+        ybins = []
 
-    k1 = np.where(xcenters[idx[0]] < config['det_mags_max'])[0]
-    k2 = np.where(xcenters[idx[0]] >= config['det_mags_min'])[0]
-    k = list(set(k1).intersection(set(k2)))
+        (hist_data,xedges,yedges) = np.histogram2d(det_mags,cat_mags,bins=24)
+        hist_data.T
 
-    xbins = xcenters[idx[0][k]]
-    ybins = []
-    for x in idx[0][k]:
+        idx = np.where(hist_data < (hist_data.max()*0.05))
+        hist_data[idx] = 0
 
-        k = np.where(hist_data[x,:] == (hist_data[x,:].max()))
-        ybins.append(ycenters[k][0])
+        idx = np.where(hist_data > (hist_data.max()*0.05))
+        xcenters = (xedges[:-1] + xedges[1:]) / 2
+        ycenters = (yedges[:-1] + yedges[1:]) / 2
 
-    if len(xbins) <= 1 or len(ybins) <= 1:
-        raise ValueError('Insufficient datapoints selected by calibration magnitude limits')
-        exit()
+        k1 = np.where(xcenters[idx[0]] < config['det_mags_max'])[0]
+        k2 = np.where(xcenters[idx[0]] >= config['det_mags_min'])[0]
+        k = list(set(k1).intersection(set(k2)))
 
-    fit = calc_transform(fit, xbins, ybins)
+        xbins = xcenters[idx[0][k]]
+        ybins = []
+        for x in idx[0][k]:
 
-    if diagnostics:
+            k = np.where(hist_data[x,:] == (hist_data[x,:].max()))
+            ybins.append(ycenters[k][0])
 
-        f = open(os.path.join(params['red_dir'],'binned_phot.dat'),'w')
-        for i in range(0,len(xbins),1):
-            f.write(str(xbins[i])+' '+str(ybins[i])+'\n')
-        f.close()
+        if len(xbins) <= 1 or len(ybins) <= 1:
+            log.info('Insufficient datapoints selected by calibration magnitude limits')
 
-        plot_file = os.path.join(params['red_dir'],
-                    'phot_model_transform_'+params['filter']+'.png')
-        if os.path.isfile(plot_file):
-            os.remove(plot_file)
+            return [-9999.9999, -9999.9999]
 
-        fig = plt.figure(3)
+        fit = calc_transform(fit, xbins, ybins)
 
-        plt_errs = False
-        if plt_errs:
-            plt.errorbar(star_catalog['mag'][match_index[:,0]],
-                     star_catalog[cmag][match_index[:,1]],
-                     xerr=star_catalog['mag_err'][match_index[:,0]],
-                     yerr=star_catalog[cerr][match_index[:,1]],
-                     color='m', fmt='none')
-        else:
-            plt.plot(star_catalog['mag'][match_index[:,0]],
-                     star_catalog[cmag][match_index[:,1]],'m.', markersize=1)
+        if diagnostics:
 
-        plt.plot(xbins,ybins,'g+',markersize=4)
+            f = open(os.path.join(params['red_dir'],'binned_phot.dat'),'w')
+            for i in range(0,len(xbins),1):
+                f.write(str(xbins[i])+' '+str(ybins[i])+'\n')
+            f.close()
 
-        xplot = np.linspace(xbins.min(),xbins.max(),50)
-        yplot = phot_func(fit,xplot)
+            plot_file = os.path.join(params['red_dir'],
+                        'phot_model_transform_'+params['filter']+'.png')
+            if os.path.isfile(plot_file):
+                os.remove(plot_file)
 
-        plt.plot(xplot, yplot,'k-')
+            fig = plt.figure(3)
 
-        plt.xlabel('Instrumental magnitude')
+            plt_errs = False
+            if plt_errs:
+                plt.errorbar(star_catalog['mag'][match_index[:,0]],
+                         star_catalog[cmag][match_index[:,1]],
+                         xerr=star_catalog['mag_err'][match_index[:,0]],
+                         yerr=star_catalog[cerr][match_index[:,1]],
+                         color='m', fmt='none')
+            else:
+                plt.plot(star_catalog['mag'][match_index[:,0]],
+                         star_catalog[cmag][match_index[:,1]],'m.', markersize=1)
 
-        plt.ylabel('VPHAS+ catalog magnitude')
+            plt.plot(xbins,ybins,'g+',markersize=4)
 
-        [xmin,xmax,ymin,ymax] = plt.axis()
+            xplot = np.linspace(xbins.min(),xbins.max(),50)
+            yplot = phot_func(fit,xplot)
 
-        plt.axis([xmax,xmin,ymax,ymin])
+            plt.plot(xplot, yplot,'k-')
 
-        plt.grid()
+            plt.xlabel('Instrumental magnitude')
 
-        plt.savefig(plot_file)
+            cat_name = 'VPHAS+'
+            if params['use_gaia_phot']: cat_name = 'Gaia'
+            plt.ylabel(cat_name+' catalog magnitude')
 
-        plt.close(3)
+            [xmin,xmax,ymin,ymax] = plt.axis()
 
-    log.info('Fitted parameters: '+repr(fit))
+            plt.axis([xmax,xmin,ymax,ymin])
 
-    return fit
+            plt.grid()
+
+            plt.savefig(plot_file)
+
+            plt.close(3)
+
+        log.info('Fitted parameters: '+repr(fit))
+
+        return fit
 
 def phot_weighted_mean(data,sigma):
     """Function to calculate the mean of a set of magnitude measurements,
@@ -789,22 +892,26 @@ def apply_phot_calib(star_catalog,fit_params,log):
 
     mags = star_catalog['mag']
 
-    cal_mags = phot_func(fit_params,mags)
+    if fit_params[0] > -9999.0 and fit_params[1] > -9999.0:
+        cal_mags = phot_func(fit_params,mags)
 
-    idx = np.where(star_catalog['mag'] < 7.0)
-    cal_mags[idx] = 0.0
+        idx = np.where(star_catalog['mag'] < 7.0)
+        cal_mags[idx] = 0.0
 
-    star_catalog['cal_ref_mag'] = cal_mags
-    star_catalog['cal_ref_mag_err'] = star_catalog['mag_err']
+        star_catalog['cal_ref_mag'] = cal_mags
+        star_catalog['cal_ref_mag_err'] = star_catalog['mag_err']
 
-    (cal_flux, cal_flux_error) = photometry.convert_mag_to_flux(star_catalog['cal_ref_mag'],
-                                                                star_catalog['cal_ref_mag_err'])
+        (cal_flux, cal_flux_error) = photometry.convert_mag_to_flux(star_catalog['cal_ref_mag'],
+                                                                    star_catalog['cal_ref_mag_err'])
 
-    star_catalog['cal_ref_flux'] = cal_flux
-    star_catalog['cal_ref_flux_err'] = cal_flux_error
+        star_catalog['cal_ref_flux'] = cal_flux
+        star_catalog['cal_ref_flux_err'] = cal_flux_error
 
-    log.info('Calculated calibrated reference magnitudes for all detected stars')
+        log.info('Calculated calibrated reference magnitudes for all detected stars')
 
+    else:
+        log.info('Photometric transformation invalid, no calibrated magnitudes produced')
+        
     return star_catalog
 
 def output_to_metadata(setup, params, phot_fit, star_catalog, reduction_metadata, log):
