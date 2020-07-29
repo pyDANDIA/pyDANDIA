@@ -130,7 +130,7 @@ def run_pipeline():
 
     config = get_config()
 
-    XXX Check for process lockfile
+    #XXX Check for process lockfile
 
     log = logs.start_pipeline_log(config['log_dir'], 'automatic_pipeline')
 
