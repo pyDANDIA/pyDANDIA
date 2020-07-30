@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
 """
-Created on Tue May 15 16:46:57 2018
-
 @author: rstreet
 """
 from os import getcwd, path, remove

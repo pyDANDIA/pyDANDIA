@@ -54,7 +54,7 @@ def extract_star_lightcurves_on_cone_to_list(params):
 
 		lcs.append(np.c_[photometry_data['hjd'],photometry_data['calibrated_mag'],photometry_data['calibrated_mag_err']])
 
-
+	logs.close_log(log)
 
 	return lcs
 
@@ -116,7 +116,7 @@ def extract_star_lightcurves_on_cone(params, log=None):
 			log.info('-> Output dataset '+setname)
 
 	message = 'OK'
-
+	logs.close_log(log)
 
 	return message
 
