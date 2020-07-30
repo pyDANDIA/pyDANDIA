@@ -46,5 +46,11 @@
       "comment": "Switch to enable use of Gaia photometry for calibration",
       "format": "string",
       "unit": ""
+  },
+  "reduce_datasets": {
+      "value": "@dataset_list.dat",
+      "comment": "List of datasets to be reduced.  Can be ALL or @filename to indicate a file listing dataset names",
+      "format": "string",
+      "unit": ""
   }
 }

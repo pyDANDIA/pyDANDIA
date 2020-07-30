@@ -94,63 +94,45 @@ class DataGroup:
 
         return selection
 
-    def reduce_datasets(self,config,log):
+def reduce_datasets(config,datasets,log):
 
-        if self.ok_to_process:
-            log.info('Starting to reduce '+str(len(self.dir_list))+' datasets for  '+self.target)
+    log.info('Starting reduction subprocesses')
 
-            # Necessary because this is used as a flag to determine whether or
-            # not to build the phot DB later.
-            if self.phot_db_path == None:
-                phot_db_path = get_phot_db_path(config,self.target)
-            else:
-                phot_db_path = self.phot_db_path
+    pid_list = []
 
-            for dir in self.dir_list:
+    for dir in datasets:
 
-                if dir == self.primary_ref_dir:
-                    data_status = 'primary-ref'
-                else:
-                    data_status = 'non-ref'
+        data_status = 'primary-ref'
+        phot_db_path = path.join(dir, path.basename(dir)+'_phot.db')
 
-                pid = trigger_parallel_auto_reduction(config,dir,phot_db_path,
-                                                        data_status)
+        pid = trigger_parallel_auto_reduction(config,dir,phot_db_path,
+                                                data_status)
 
-                self.pid_list.append(pid)
+        pid_list.append(pid)
 
-                log.info(' -> Dataset '+path.basename(dir)+\
-                        ' reduction PID '+str(pid))
+        log.info(' -> Dataset '+path.basename(dir)+\
+                ' reduction PID '+str(pid))
 
-            return self.pid_list
+        if len(pid_list) >= config['group_processing_limit']:
+            log.info('WARNING: Reached maximum number of parallel reduction processes')
+            break
 
-            else:
-                return []
+    return pid_list
 
 def run_pipeline():
 
     config = get_config()
 
-    #XXX Check for process lockfile
-
     log = logs.start_pipeline_log(config['log_dir'], 'automatic_pipeline')
 
-    instruments = list_supported_instruments(config,log)
+    # Identify datasets to be reduced
+    datasets = parse_configured_datasets(config,log)
+    datasets = sanity_check_data_before_reduction(datasets,log)
 
-    data_groups = identify_dataset_groups(config, instruments, log)
+    # Start reductions:
+    pid_list = reduce_datasets(config, datasets, log)
 
-    instruments = list_supported_instruments(config,log)
-
-    data_groups = identify_primary_reference_datasets(config,data_groups,log)
-
-    all_processes = []
-    for target, dg in data_groups.items():
-        n_datasets = len(dg.dir_list)
-        if len(all_processes)+n_datasets <= config['group_processing_limit']:
-            pids = dg.reduce_datasets(config, log)
-            all_process += pids
-
-    exit_codes = [p.wait() for p in all_processes]
-
+    #exit_codes = [p.wait() for p in all_processes]
 
     logs.close_log(log)
 
@@ -243,9 +225,6 @@ def identify_dataset_groups(config, instruments, log):
 
     return data_groups
 
-def get_phot_db_path(config,target):
-    return path.join(config['phot_db_dir'],target+'_phot.db')
-
 def identify_primary_reference_datasets(config,data_groups,log):
 
     for target in data_groups.keys():
@@ -274,7 +253,85 @@ def identify_primary_reference_datasets(config,data_groups,log):
 
     return data_groups
 
-def run_reductions(config, data_groups, log):
+def parse_configured_datasets(config,log):
+    """Function to identify the datasets to be reduced based on the configuration"""
+
+    datasets = []
+
+    if '@' in config['reduce_datasets']:
+        dataset_list = config['reduce_datasets'].replace('@','')
+
+        if path.isfile(dataset_list):
+
+            entries = open(dataset_list,'r').readlines()
+            for dataset_name in entries:
+                if len(dataset_name.replace('\n','')) > 0:
+                    datasets.append( path.join(config['data_red_dir'], dataset_name.replace('\n','')) )
+
+            log.info('Read '+str(len(datasets))+' datasets to be reduced from '+dataset_list+':')
+            [log.info(path.basename(x)) for x in datasets]
+
+        else:
+            message = 'ERROR: Cannot find configured list of datasets to be reduced, '+dataset_list
+            log.info(message)
+            raise IOError(message)
+
+    elif str(config['reduce_datasets']).upper() == 'ALL':
+
+        entries = glob.glob(path.join(config['data_red_dir'],'*'))
+
+        for dataset_path in entries:
+            if path.isdir(dataset_path) and path.isdir(path.join(dataset_path,'data')):
+                datasets.append( dataset_path )
+
+        log.info('Found '+str(len(datasets))+' datasets to be reduced in '+config['data_red_dir']+':')
+        [log.info(path.basename(x)) for x in datasets]
+
+    return datasets
+
+def sanity_check_data_before_reduction(datasets,log):
+    """This function reviews the lock status of each dataset and performs basic sanity checks,
+    such as whether the data directory exists, before adding a dataset to the list to
+    be reduced."""
+
+    sane_datasets = []
+
+    log.info('Pre-reduction checks of datasets to be reduced:')
+
+    for dir in datasets:
+        log.info('Checking '+dir+':')
+        dir_status = check_dataset_dir_structure(dir, log)
+        lock_status = check_dataset_dir_unlocked(dir,log)
+
+        if dir_status and lock_status:
+            sane_datasets.append( dir )
+            log.info(' -> Accepted for reduction')
+
+    return sane_datasets
+
+def check_dataset_dir_structure(dataset_path, log):
+
+    if path.isdir(dataset_path) and path.isdir(path.join(dataset_path,'data')):
+        log.info(' -> Directory structure looks OK')
+        return True
+    else:
+        log.info(' -> ERROR: Wrong directory structure for pyDANDIA')
+        return False
+
+def check_dataset_dir_unlocked(dataset_path,log):
+    """Function to check for a lockfile in a given dataset before starting
+    a reduction.  Returns True if unlocked."""
+
+    lockfile = path.join(dataset_path,'dataset.lock')
+
+    if path.isfile(lockfile) == True:
+        log.info(' -> '+path.basename(dataset_path)+' is locked')
+        status = False
+    else:
+        log.info(' -> '+path.basename(dataset_path)+' is not locked')
+        status = True
+
+    return status
 
 def trigger_parallel_auto_reduction(config,dataset_dir,phot_db_path,data_status):
     """Function to spawn a child process to run the reduction of a
