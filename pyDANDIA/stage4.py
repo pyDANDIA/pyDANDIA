@@ -10,7 +10,6 @@
 ######################################################################
 import matplotlib
 
-matplotlib.use('tkagg')
 import numpy as np
 import os
 from astropy.io import fits
