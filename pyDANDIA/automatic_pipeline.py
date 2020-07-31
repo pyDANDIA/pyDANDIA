@@ -343,7 +343,7 @@ def trigger_parallel_auto_reduction(config,dataset_dir,phot_db_path,data_status)
     """
 
     command = path.join(config['software_dir'],'reduction_control.py')
-    args = ['python', command, dataset_dir, phot_db_path, 'auto', data_status]
+    args = [config['python_exec_path'], command, dataset_dir, phot_db_path, 'auto', data_status]
 
     p = subprocess.Popen(args, stdout=subprocess.PIPE)
 

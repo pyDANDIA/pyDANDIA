@@ -29,6 +29,12 @@
       "format": "string",
       "unit": ""
   },
+  "python_exec_path": {
+      "value": "/Users/rstreet1/software/pydandia_venv/bin/python",
+      "comment": "Full directory path for the python executable to call",
+      "format": "string",
+      "unit": ""
+  },
   "group_processing_limit": {
       "value": 5,
       "comment": "Maximum number of data groups to process at any one time",
