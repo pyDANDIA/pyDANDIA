@@ -381,7 +381,7 @@ def read_process_list(config,log):
 
         for line in entries:
             (name, pid) = line.replace('\n','').split()
-            pids[name] = pid
+            pids[name] = int(pid)
 
     return pids
 
