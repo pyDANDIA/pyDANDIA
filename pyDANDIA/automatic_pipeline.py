@@ -97,24 +97,30 @@ class DataGroup:
 
 def reduce_datasets(config,datasets,running_processes,log):
 
-    log.info('Starting reduction subprocesses')
+    if len(running_processes) < config['group_processing_limit']:
+        log.info('Starting reduction subprocesses')
 
-    for dir in datasets:
+        for dir in datasets:
 
-        data_status = 'primary-ref'
-        phot_db_path = path.join(dir, path.basename(dir)+'_phot.db')
+            data_status = 'primary-ref'
+            phot_db_path = path.join(dir, path.basename(dir)+'_phot.db')
 
-        pid = trigger_parallel_auto_reduction(config,dir,phot_db_path,
-                                                data_status)
+            pid = trigger_parallel_auto_reduction(config,dir,phot_db_path,
+                                                    data_status)
 
-        running_processes[path.basename(dir)] = pid
+            running_processes[path.basename(dir)] = pid
 
-        log.info(' -> Dataset '+path.basename(dir)+\
-                ' reduction PID '+str(pid))
+            log.info(' -> Dataset '+path.basename(dir)+\
+                    ' reduction PID '+str(pid))
 
-        if len(running_processes) >= config['group_processing_limit']:
-            log.info('WARNING: Reached maximum number of parallel reduction processes')
-            break
+            if len(running_processes) >= config['group_processing_limit']:
+                log.info('WARNING: Reached maximum number of parallel reduction processes ('+\
+                            str(config['group_processing_limit'])+')')
+                break
+
+    else:
+        log.info('Already at maximum configured number of parallel reduction processes ('+\
+                    str(config['group_processing_limit'])+').  No more will be started until those finish')
 
     return running_processes
 
