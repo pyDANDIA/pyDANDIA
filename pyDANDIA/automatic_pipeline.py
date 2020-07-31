@@ -7,6 +7,7 @@ import copy
 from pyDANDIA import pipeline_setup
 import glob
 import subprocess
+import psutil
 from pyDANDIA import pipeline_setup
 from pyDANDIA import config_utils
 from pyDANDIA import logs
@@ -94,11 +95,9 @@ class DataGroup:
 
         return selection
 
-def reduce_datasets(config,datasets,log):
+def reduce_datasets(config,datasets,running_processes,log):
 
     log.info('Starting reduction subprocesses')
-
-    pid_list = []
 
     for dir in datasets:
 
@@ -108,16 +107,16 @@ def reduce_datasets(config,datasets,log):
         pid = trigger_parallel_auto_reduction(config,dir,phot_db_path,
                                                 data_status)
 
-        pid_list.append(pid)
+        running_processes[path.basename(dir)] = pid
 
         log.info(' -> Dataset '+path.basename(dir)+\
                 ' reduction PID '+str(pid))
 
-        if len(pid_list) >= config['group_processing_limit']:
+        if len(running_processes) >= config['group_processing_limit']:
             log.info('WARNING: Reached maximum number of parallel reduction processes')
             break
 
-    return pid_list
+    return running_processes
 
 def run_pipeline():
 
@@ -125,14 +124,18 @@ def run_pipeline():
 
     log = logs.start_pipeline_log(config['log_dir'], 'automatic_pipeline')
 
+    running_processes = read_process_list(config,log)
+
     # Identify datasets to be reduced
     datasets = parse_configured_datasets(config,log)
     datasets = sanity_check_data_before_reduction(datasets,log)
 
     # Start reductions:
-    pid_list = reduce_datasets(config, datasets, log)
+    running_processes = reduce_datasets(config, datasets, running_processes, log)
 
     #exit_codes = [p.wait() for p in all_processes]
+
+    output_process_list(running_processes, config, log)
 
     logs.close_log(log)
 
@@ -348,6 +351,51 @@ def trigger_parallel_auto_reduction(config,dataset_dir,phot_db_path,data_status)
     p = subprocess.Popen(args, stdout=subprocess.PIPE)
 
     return p.pid
+
+def get_process_log(config):
+    return path.join(config['log_dir'],'reduction_processes.log')
+
+def output_process_list(pids, config, log):
+    """Function to output a list of running reduction processes"""
+
+    process_list = get_process_log(config)
+
+    f = open(process_list,'w')
+    for name, pid in pids.items():
+        f.write(name+' '+str(pid)+'\n')
+    f.close()
+
+    log.info('Updated process log')
+
+def read_process_list(config,log):
+    """Function to read log of running reduction processes"""
+
+    process_list = get_process_log(config)
+
+    pids = {}
+
+    if path.isfile(process_list):
+        entries = open(process_list, 'r').readlines()
+
+        for line in entries:
+            (name, pid) = line.replace('\n','').split()
+            pids[name] = pid
+
+    return pids
+
+def check_process_status(pids,log):
+    """Function to verify whether a dictionary of processes are currently running"""
+
+    log.info('Checking for existing reduction processes:')
+
+    running_reductions = {}
+
+    for name, pid in pids.items():
+        if psutil.pid_exists(pid):
+            running_reductions[name] = pid
+            log.info(' -> Found reduction for '+name+' with PID='+str(pid))
+
+    return running_reductions
 
 if __name__ == '__main__':
     run_pipeline()

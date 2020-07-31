@@ -6,6 +6,7 @@ from os import getcwd, path, remove
 from pyDANDIA import automatic_pipeline
 from pyDANDIA import logs
 from pyDANDIA import config_utils
+import psutil
 
 cwd = getcwd()
 TEST_DATA = path.join(cwd,'data')
@@ -96,5 +97,21 @@ def test_sanity_check_data_before_reduction():
     sane_datasets = automatic_pipeline.sanity_check_data_before_reduction(datasets,log)
 
     assert datasets == sane_datasets
+
+    logs.close_log(log)
+
+def test_check_process_status():
+
+    log = logs.start_stage_log( cwd, 'test_auto' )
+
+    pid_list = psutil.pids()
+    pids = {}
+    for p in pid_list[0:10]:
+        pids[str(p)] = p
+
+    running_processes = automatic_pipeline.check_process_status(pids,log)
+
+    assert type(running_processes) == type({})
+    assert len(running_processes) == len(pids)
 
     logs.close_log(log)
