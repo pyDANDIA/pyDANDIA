@@ -126,6 +126,8 @@ def run_pipeline():
 
     running_processes = read_process_list(config,log)
 
+    running_processes = check_process_status(running_processes,log)
+
     # Identify datasets to be reduced
     datasets = parse_configured_datasets(config,log)
     datasets = sanity_check_data_before_reduction(datasets,log)
