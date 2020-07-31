@@ -32,7 +32,8 @@ from pyDANDIA import logs
 from pyDANDIA import psf
 from pyDANDIA import stage4
 from pyDANDIA import image_handling
-
+import matplotlib as mpl
+mpl.use('Agg')
 import matplotlib.pyplot as plt
 
 

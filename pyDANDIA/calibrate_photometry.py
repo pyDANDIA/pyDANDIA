@@ -21,6 +21,8 @@ from astropy.table import Table
 
 import numpy as np
 from scipy import optimize
+import matplotlib as mpl
+mpl.use('Agg')
 import matplotlib.pyplot as plt
 
 VERSION = 'calibrate_photometry_0.4'
@@ -911,7 +913,7 @@ def apply_phot_calib(star_catalog,fit_params,log):
 
     else:
         log.info('Photometric transformation invalid, no calibrated magnitudes produced')
-        
+
     return star_catalog
 
 def output_to_metadata(setup, params, phot_fit, star_catalog, reduction_metadata, log):

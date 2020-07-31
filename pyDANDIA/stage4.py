@@ -36,6 +36,8 @@ import scipy.ndimage as sn
 from skimage.measure import ransac
 import skimage.feature as sf
 from photutils import centroid_com
+import matplotlib as mpl
+mpl.use('Agg')
 import matplotlib.pyplot as plt
 
 from pyDANDIA import metadata

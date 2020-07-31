@@ -12,6 +12,8 @@ import glob
 import copy
 from pyDANDIA import logs
 from pyDANDIA import pixelmasks
+import matplotlib as mpl
+mpl.use('Agg')
 import matplotlib.pyplot as plt
 
 class BadPixelMask:
@@ -208,7 +210,7 @@ class BadPixelMask:
         niter = reduction_metadata.reduction_parameters[1]['BPM_BLOOM_ITER'][0]
         xm = reduction_metadata.reduction_parameters[1]['GROWSATX'][0]
         ym = reduction_metadata.reduction_parameters[1]['GROWSATY'][0]
-        
+
         self.bloom_mask = sn.morphology.binary_dilation(self.saturated_pixels, iterations=niter,
                                                         structure = sn.generate_binary_structure(xm, ym) ).astype(int)
 

@@ -12,6 +12,8 @@ import abc
 import collections
 import numpy as np
 from scipy import optimize, integrate
+import matplotlib as mpl
+mpl.use('Agg')
 import matplotlib.pyplot as plt
 from astropy import visualization
 from mpl_toolkits.mplot3d import Axes3D

@@ -17,6 +17,8 @@ from photutils import Background2D, MedianBackground
 
 from pyDANDIA import logs
 from pyDANDIA import metadata
+import matplotlib as mpl
+mpl.use('Agg')
 import matplotlib.pyplot as plt
 from astropy.io import fits
 from pyDANDIA import starfind

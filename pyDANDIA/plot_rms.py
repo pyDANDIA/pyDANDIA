@@ -10,6 +10,8 @@ from pyDANDIA import hd5_utils
 from pyDANDIA import logs
 from pyDANDIA import metadata
 from pyDANDIA import pipeline_setup
+import matplotlib as mpl
+mpl.use('Agg')
 import matplotlib.pyplot as plt
 
 def calc_rms():
@@ -26,7 +28,7 @@ def calc_rms():
 
     phot_statistics = calc_mean_rms_mag(photometry_data,log)
     print(phot_statistics)
-    
+
     plot_rms(phot_statistics, params, log)
 
     logs.close_log(log)

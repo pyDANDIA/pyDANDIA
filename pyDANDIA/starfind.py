@@ -30,6 +30,8 @@ from astropy import units as u
 from astropy import table
 from photutils import background, detection, DAOStarFinder
 from photutils import CircularAperture
+import matplotlib as mpl
+mpl.use('Agg')
 import matplotlib.pyplot as plt
 from pyDANDIA import  metadata
 from pyDANDIA import  pipeline_setup

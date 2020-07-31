@@ -11,6 +11,8 @@ from os import getcwd, path, remove, environ
 import numpy as np
 from astropy.coordinates import SkyCoord
 from astropy import units, table
+import matplotlib as mpl
+mpl.use('Agg')
 import matplotlib.pyplot as plt
 from pyDANDIA import  phot_db
 from pyDANDIA import  hd5_utils
