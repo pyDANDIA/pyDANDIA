@@ -731,9 +731,15 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
                         list_align_x.append(positions[j][0])
                         list_align_y.append(positions[j][1])
 
+                        if per_star_logging:
+                            log.info(' --> Photometry OK')
+
                     else:
                         good_fit = False
 
+                        if per_star_logging:
+                            log.info(' --> Photometry failed quality control')
+                            
                 else:
                     #logs.ifverbose(log, setup, ' -> Star ' + str(j) +
                     #           ' No photometry possible due to poor reference frame measurement')
