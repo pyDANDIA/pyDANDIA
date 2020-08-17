@@ -835,7 +835,9 @@ class MetaData:
         if log != None:
             log.info('Total of ' + str(len(new_images)) + ' images need reduction')
 
-
+        if len(new_images) == 0:
+            log.info('WARNING: No valid images found to be needing reduction')
+            
         return new_images
 
     def fetch_image_status(self,stage_number):
