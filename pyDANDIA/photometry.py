@@ -592,6 +592,8 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
         error = calc_total_error(difference_image, bkg.background_rms, gain)
         error = (error**2+ron**2/gain**2)**0.5
 
+        import pdb ; pdb.set_trace()
+        
         try:
             phot_table = aperture_photometry(difference_image-bkg.background, apertures, method='subpixel',
                          error=error)
@@ -739,7 +741,7 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
 
                         if per_star_logging:
                             log.info(' --> Photometry failed quality control')
-                            
+
                 else:
                     #logs.ifverbose(log, setup, ' -> Star ' + str(j) +
                     #           ' No photometry possible due to poor reference frame measurement')
