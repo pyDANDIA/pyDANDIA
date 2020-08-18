@@ -681,8 +681,7 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
         row_index = np.where(reduction_metadata.images_stats[1]['IM_NAME'] == new_image)[0][0]
         fwhm_val = reduction_metadata.images_stats[1][row_index]['FWHM'] * grow_kernel
         ref_fwhm_x, ref_fwhm_y, ref_sigma_x, ref_sigma_y = ref_stats
-
-
+       
         umatrix_index = int(np.digitize(fwhm_val, np.array(kernel_size_array)))
         umatrix_index = min(umatrix_index, len(kernel_size_array) - 1)
        # umatrix_index = -1
