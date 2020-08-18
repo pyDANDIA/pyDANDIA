@@ -9,6 +9,8 @@ from os import path
 from sys import exit
 import numpy as np
 from pyDANDIA import  logs
+import matplotlib as mpl
+mpl.use('Agg')
 import matplotlib.pyplot as plt
 
 def psf_star_selection(setup,reduction_metadata,log,ref_star_catalog,

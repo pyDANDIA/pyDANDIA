@@ -14,6 +14,8 @@ from astropy.table import Table
 import astropy.units as u
 from astropy import constants
 from astropy.time import Time
+import matplotlib as mpl
+mpl.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy import optimize

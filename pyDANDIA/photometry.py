@@ -17,6 +17,8 @@ from photutils import Background2D, MedianBackground
 
 from pyDANDIA import logs
 from pyDANDIA import metadata
+import matplotlib as mpl
+mpl.use('Agg')
 import matplotlib.pyplot as plt
 from astropy.io import fits
 from pyDANDIA import starfind
@@ -595,6 +597,8 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
         error = calc_total_error(difference_image, bkg.background_rms, gain)
         error = (error**2+ron**2/gain**2)**0.5
 
+        #import pdb ; pdb.set_trace()
+
         try:
             phot_table = aperture_photometry(difference_image-bkg.background, apertures, method='subpixel',
                          error=error)
@@ -734,8 +738,14 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
                         list_align_x.append(positions[j][0])
                         list_align_y.append(positions[j][1])
 
+                        if per_star_logging:
+                            log.info(' --> Photometry OK')
+
                     else:
                         good_fit = False
+
+                        if per_star_logging:
+                            log.info(' --> Photometry failed quality control')
 
                 else:
                     #logs.ifverbose(log, setup, ' -> Star ' + str(j) +

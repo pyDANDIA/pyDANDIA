@@ -11,6 +11,8 @@ from os import getcwd, path, remove, environ
 import numpy as np
 from astropy.coordinates import SkyCoord
 from astropy import units, table
+import matplotlib as mpl
+mpl.use('Agg')
 import matplotlib.pyplot as plt
 from pyDANDIA import  phot_db
 from pyDANDIA import  hd5_utils
@@ -54,7 +56,7 @@ def extract_star_lightcurves_on_cone_to_list(params):
 
 		lcs.append(np.c_[photometry_data['hjd'],photometry_data['calibrated_mag'],photometry_data['calibrated_mag_err']])
 
-
+	logs.close_log(log)
 
 	return lcs
 
@@ -116,7 +118,7 @@ def extract_star_lightcurves_on_cone(params, log=None):
 			log.info('-> Output dataset '+setname)
 
 	message = 'OK'
-
+	logs.close_log(log)
 
 	return message
 

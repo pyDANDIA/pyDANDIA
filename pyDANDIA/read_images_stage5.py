@@ -13,6 +13,8 @@ from astropy.stats import SigmaClip
 from photutils import Background2D, MedianBackground
 from skimage.transform import resize
 from ccdproc import cosmicray_lacosmic
+import matplotlib as mpl
+mpl.use('Agg')
 import matplotlib.pyplot as plt
 from pyDANDIA import psf
 from pyDANDIA import image_handling

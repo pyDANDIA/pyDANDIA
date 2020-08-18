@@ -12,6 +12,8 @@ import numpy as np
 from astropy import table
 from astropy.coordinates import SkyCoord
 from astropy import units as u
+import matplotlib as mpl
+mpl.use('Agg')
 import matplotlib.pyplot as plt
 from pyDANDIA import  photometry_classes
 from pyDANDIA import  phot_db

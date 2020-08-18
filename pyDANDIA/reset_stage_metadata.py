@@ -32,5 +32,5 @@ if __name__ == '__main__':
         stage_number = sys.argv[2]
 
     stage_number = int(stage_number)
-    
+
     reset_red_status_for_stage(red_dir,stage_number)

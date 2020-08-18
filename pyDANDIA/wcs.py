@@ -20,8 +20,9 @@ from pyDANDIA import  catalog_utils
 from pyDANDIA import  shortest_string
 from pyDANDIA import  calc_coord_offsets
 import numpy as np
+import matplotlib as mpl
+mpl.use('Agg')
 import matplotlib.pyplot as plt
-import matplotlib
 from scipy import optimize
 
 
@@ -1204,7 +1205,7 @@ def diagnostic_plots(output_dir,hdu,image_wcs,detected_sources,
 def plot_overlaid_sources(output_dir,detected_sources_world,gaia_sources_world,
                           interactive=False):
 
-    matplotlib.use('TkAgg')
+    #matplotlib.use('TkAgg')
 
     fig = plt.figure(1,(20,10))
 

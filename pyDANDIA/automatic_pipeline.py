@@ -7,6 +7,7 @@ import copy
 from pyDANDIA import pipeline_setup
 import glob
 import subprocess
+import psutil
 from pyDANDIA import pipeline_setup
 from pyDANDIA import config_utils
 from pyDANDIA import logs
@@ -94,63 +95,56 @@ class DataGroup:
 
         return selection
 
-    def reduce_datasets(self,config,log):
+def reduce_datasets(config,datasets,running_processes,log):
 
-        if self.ok_to_process:
-            log.info('Starting to reduce '+str(len(self.dir_list))+' datasets for  '+self.target)
+    if len(running_processes) < config['group_processing_limit']:
+        log.info('Starting reduction subprocesses')
 
-            # Necessary because this is used as a flag to determine whether or
-            # not to build the phot DB later.
-            if self.phot_db_path == None:
-                phot_db_path = get_phot_db_path(config,self.target)
-            else:
-                phot_db_path = self.phot_db_path
+        for dir in datasets:
 
-            for dir in self.dir_list:
+            data_status = 'primary-ref'
+            phot_db_path = path.join(dir, path.basename(dir)+'_phot.db')
 
-                if dir == self.primary_ref_dir:
-                    data_status = 'primary-ref'
-                else:
-                    data_status = 'non-ref'
+            pid = trigger_parallel_auto_reduction(config,dir,phot_db_path,
+                                                    data_status)
 
-                pid = trigger_parallel_auto_reduction(config,dir,phot_db_path,
-                                                        data_status)
+            running_processes[path.basename(dir)] = pid
 
-                self.pid_list.append(pid)
+            log.info(' -> Dataset '+path.basename(dir)+\
+                    ' reduction PID '+str(pid))
 
-                log.info(' -> Dataset '+path.basename(dir)+\
-                        ' reduction PID '+str(pid))
+            if len(running_processes) >= config['group_processing_limit']:
+                log.info('WARNING: Reached maximum number of parallel reduction processes ('+\
+                            str(config['group_processing_limit'])+')')
+                break
 
-            return self.pid_list
+    else:
+        log.info('Already at maximum configured number of parallel reduction processes ('+\
+                    str(config['group_processing_limit'])+').  No more will be started until those finish')
 
-        else:
-                return []
+
+    return running_processes
+
 
 def run_pipeline():
 
-    config = get_config()
-
-    ##XXX Check for process lockfile
 
     log = logs.start_pipeline_log(config['log_dir'], 'automatic_pipeline')
 
-    instruments = list_supported_instruments(config,log)
+    running_processes = read_process_list(config,log)
 
-    data_groups = identify_dataset_groups(config, instruments, log)
+    running_processes = check_process_status(running_processes,log)
 
-    instruments = list_supported_instruments(config,log)
+    # Identify datasets to be reduced
+    datasets = parse_configured_datasets(config,log)
+    datasets = sanity_check_data_before_reduction(datasets,log)
 
-    data_groups = identify_primary_reference_datasets(config,data_groups,log)
+    # Start reductions:
+    running_processes = reduce_datasets(config, datasets, running_processes, log)
 
-    all_processes = []
-    for target, dg in data_groups.items():
-        n_datasets = len(dg.dir_list)
-        if len(all_processes)+n_datasets <= config['group_processing_limit']:
-            pids = dg.reduce_datasets(config, log)
-            all_process += pids
+    #exit_codes = [p.wait() for p in all_processes]
 
-    exit_codes = [p.wait() for p in all_processes]
-
+    output_process_list(running_processes, config, log)
 
     logs.close_log(log)
 
@@ -243,9 +237,6 @@ def identify_dataset_groups(config, instruments, log):
 
     return data_groups
 
-def get_phot_db_path(config,target):
-    return path.join(config['phot_db_dir'],target+'_phot.db')
-
 def identify_primary_reference_datasets(config,data_groups,log):
 
     for target in data_groups.keys():
@@ -274,7 +265,85 @@ def identify_primary_reference_datasets(config,data_groups,log):
 
     return data_groups
 
-def run_reductions(config, data_groups, log):
+def parse_configured_datasets(config,log):
+    """Function to identify the datasets to be reduced based on the configuration"""
+
+    datasets = []
+
+    if '@' in config['reduce_datasets']:
+        dataset_list = config['reduce_datasets'].replace('@','')
+
+        if path.isfile(dataset_list):
+
+            entries = open(dataset_list,'r').readlines()
+            for dataset_name in entries:
+                if len(dataset_name.replace('\n','')) > 0:
+                    datasets.append( path.join(config['data_red_dir'], dataset_name.replace('\n','')) )
+
+            log.info('Read '+str(len(datasets))+' datasets to be reduced from '+dataset_list+':')
+            [log.info(path.basename(x)) for x in datasets]
+
+        else:
+            message = 'ERROR: Cannot find configured list of datasets to be reduced, '+dataset_list
+            log.info(message)
+            raise IOError(message)
+
+    elif str(config['reduce_datasets']).upper() == 'ALL':
+
+        entries = glob.glob(path.join(config['data_red_dir'],'*'))
+
+        for dataset_path in entries:
+            if path.isdir(dataset_path) and path.isdir(path.join(dataset_path,'data')):
+                datasets.append( dataset_path )
+
+        log.info('Found '+str(len(datasets))+' datasets to be reduced in '+config['data_red_dir']+':')
+        [log.info(path.basename(x)) for x in datasets]
+
+    return datasets
+
+def sanity_check_data_before_reduction(datasets,log):
+    """This function reviews the lock status of each dataset and performs basic sanity checks,
+    such as whether the data directory exists, before adding a dataset to the list to
+    be reduced."""
+
+    sane_datasets = []
+
+    log.info('Pre-reduction checks of datasets to be reduced:')
+
+    for dir in datasets:
+        log.info('Checking '+dir+':')
+        dir_status = check_dataset_dir_structure(dir, log)
+        lock_status = check_dataset_dir_unlocked(dir,log)
+
+        if dir_status and lock_status:
+            sane_datasets.append( dir )
+            log.info(' -> Accepted for reduction')
+
+    return sane_datasets
+
+def check_dataset_dir_structure(dataset_path, log):
+
+    if path.isdir(dataset_path) and path.isdir(path.join(dataset_path,'data')):
+        log.info(' -> Directory structure looks OK')
+        return True
+    else:
+        log.info(' -> ERROR: Wrong directory structure for pyDANDIA')
+        return False
+
+def check_dataset_dir_unlocked(dataset_path,log):
+    """Function to check for a lockfile in a given dataset before starting
+    a reduction.  Returns True if unlocked."""
+
+    lockfile = path.join(dataset_path,'dataset.lock')
+
+    if path.isfile(lockfile) == True:
+        log.info(' -> '+path.basename(dataset_path)+' is locked')
+        status = False
+    else:
+        log.info(' -> '+path.basename(dataset_path)+' is not locked')
+        status = True
+
+    return status
 
 def trigger_parallel_auto_reduction(config,dataset_dir,phot_db_path,data_status):
     """Function to spawn a child process to run the reduction of a
@@ -286,11 +355,56 @@ def trigger_parallel_auto_reduction(config,dataset_dir,phot_db_path,data_status)
     """
 
     command = path.join(config['software_dir'],'reduction_control.py')
-    args = ['python', command, dataset_dir, phot_db_path, 'auto', data_status]
+    args = [config['python_exec_path'], command, dataset_dir, phot_db_path, 'auto', data_status]
 
     p = subprocess.Popen(args, stdout=subprocess.PIPE)
 
     return p.pid
+
+def get_process_log(config):
+    return path.join(config['log_dir'],'reduction_processes.log')
+
+def output_process_list(pids, config, log):
+    """Function to output a list of running reduction processes"""
+
+    process_list = get_process_log(config)
+
+    f = open(process_list,'w')
+    for name, pid in pids.items():
+        f.write(name+' '+str(pid)+'\n')
+    f.close()
+
+    log.info('Updated process log')
+
+def read_process_list(config,log):
+    """Function to read log of running reduction processes"""
+
+    process_list = get_process_log(config)
+
+    pids = {}
+
+    if path.isfile(process_list):
+        entries = open(process_list, 'r').readlines()
+
+        for line in entries:
+            (name, pid) = line.replace('\n','').split()
+            pids[name] = int(pid)
+
+    return pids
+
+def check_process_status(pids,log):
+    """Function to verify whether a dictionary of processes are currently running"""
+
+    log.info('Checking for existing reduction processes:')
+
+    running_reductions = {}
+
+    for name, pid in pids.items():
+        if psutil.pid_exists(pid):
+            running_reductions[name] = pid
+            log.info(' -> Found reduction for '+name+' with PID='+str(pid))
+
+    return running_reductions
 
 if __name__ == '__main__':
     run_pipeline()

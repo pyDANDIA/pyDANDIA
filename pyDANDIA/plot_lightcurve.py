@@ -1,5 +1,7 @@
 from os import path
 from sys import argv
+import matplotlib as mpl
+mpl.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 from astropy import table

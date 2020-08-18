@@ -32,7 +32,8 @@ from pyDANDIA import logs
 from pyDANDIA import psf
 from pyDANDIA import stage4
 from pyDANDIA import image_handling
-
+import matplotlib as mpl
+mpl.use('Agg')
 import matplotlib.pyplot as plt
 
 
@@ -66,6 +67,8 @@ def run_stage5(setup, **kwargs):
     reduction_metadata = metadata.MetaData()
     reduction_metadata.load_all_metadata(setup.red_dir, 'pyDANDIA_metadata.fits')
 
+    image_red_status = reduction_metadata.fetch_image_status(5)
+
     log.info('Determining the kernel size for all images based on their FWHM')
     fwhm_max = 0.
     shift_max = 0
@@ -75,29 +78,32 @@ def run_stage5(setup, **kwargs):
 
     for stats_entry in reduction_metadata.images_stats[1]:
 
-        if np.isfinite(float(stats_entry['SHIFT_X'])):
-            shifts.append(float(stats_entry['SHIFT_X']))
+        image_flag = image_red_status[stats_entry['IM_NAME']]
 
-        if np.isfinite(float(stats_entry['SHIFT_Y'])):
-            shifts.append(float(stats_entry['SHIFT_Y']))
+        if image_flag in ['0', '1']:
+            if np.isfinite(float(stats_entry['SHIFT_X'])):
+                shifts.append(float(stats_entry['SHIFT_X']))
 
-        # Note this is using the sigma of a bi-variate normal distribution, NOT
-        # the true FWHM:
-        # if float(stats_entry['FWHM'])> fwhm_max:
-        #    fwhm_max = stats_entry['FWHM']
-        if float(stats_entry['SIGMA_X']) > fwhm_max:
-            fwhm_max = stats_entry['SIGMA_X']
-        if float(stats_entry['SIGMA_Y']) > fwhm_max:
-            fwhm_max = stats_entry['SIGMA_Y']
+            if np.isfinite(float(stats_entry['SHIFT_Y'])):
+                shifts.append(float(stats_entry['SHIFT_Y']))
 
-        if abs(float(stats_entry['SHIFT_X'])) > shift_max:
-            shift_max = abs(float(stats_entry['SHIFT_X']))
+            # Note this is using the sigma of a bi-variate normal distribution, NOT
+            # the true FWHM:
+            # if float(stats_entry['FWHM'])> fwhm_max:
+            #    fwhm_max = stats_entry['FWHM']
+            if float(stats_entry['SIGMA_X']) > fwhm_max:
+                fwhm_max = stats_entry['SIGMA_X']
+            if float(stats_entry['SIGMA_Y']) > fwhm_max:
+                fwhm_max = stats_entry['SIGMA_Y']
 
-        if abs(float(stats_entry['SHIFT_Y'])) > shift_max:
-            shift_max = abs(float(stats_entry['SHIFT_Y']))
+            if abs(float(stats_entry['SHIFT_X'])) > shift_max:
+                shift_max = abs(float(stats_entry['SHIFT_X']))
 
-       # fwhms.append(((float(stats_entry['SIGMA_Y'])) ** 2 + (float(stats_entry['SIGMA_Y'])) ** 2) ** 0.5)  # arcsec
-        fwhms.append(float(stats_entry['FWHM']))  # arcsec
+            if abs(float(stats_entry['SHIFT_Y'])) > shift_max:
+                shift_max = abs(float(stats_entry['SHIFT_Y']))
+
+           # fwhms.append(((float(stats_entry['SIGMA_Y'])) ** 2 + (float(stats_entry['SIGMA_Y'])) ** 2) ** 0.5)  # arcsec
+            fwhms.append(float(stats_entry['FWHM']))  # arcsec
     fwhms = np.array(fwhms)
     mask = np.isnan(fwhms)
     fwhms[mask] = 99
