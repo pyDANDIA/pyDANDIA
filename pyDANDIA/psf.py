@@ -1229,7 +1229,7 @@ def fit_star_existing_model(setup, data, x_cen, y_cen, psf_radius,
         full_output=1)
 
     fitted_model = get_psf_object(psf_model.psf_type())
-
+   
     psf_params = psf_model.get_parameters()
     psf_params[0] = fit[0][0]
 
@@ -1239,7 +1239,7 @@ def fit_star_existing_model(setup, data, x_cen, y_cen, psf_radius,
         
 
     fitted_model.update_psf_parameters(psf_params)
-
+    fitted_cov = fit[1]
     if diagnostics:
         Y_data, X_data = np.indices(data.shape)
 
@@ -1263,7 +1263,7 @@ def fit_star_existing_model(setup, data, x_cen, y_cen, psf_radius,
 
     good_fit = check_fit_quality(setup, data, psf_sky_bkgd, fitted_model)
 
-    return fitted_model, good_fit
+    return fitted_model, fitted_cov, good_fit
 
 def extract_image_section(data,x_cen,y_cen,corners):
     """Function to extract an image section and return the section array
@@ -1354,6 +1354,7 @@ def fit_star_existing_model_with_kernel(setup, data, x_cen, y_cen, psf_radius,
                            full_output=1)
 
     fitted_model = get_psf_object(psf_model.psf_type())
+
 
     psf_params = psf_model.get_parameters()
     psf_params[0] = fit[0][0]
@@ -2038,7 +2039,7 @@ def subtract_companions_from_psf_stamps(setup, reduction_metadata, log,
                         pdb.set_trace()
                    
                     s.data[corners[2]:corners[3],corners[0]:corners[1]] = sky_model_bkgd[corners[2]:corners[3],corners[0]:corners[1]]
-                    (comp_psf,good_fit) = fit_star_existing_model(setup, s.data,
+                    (comp_psf,comp_cov,good_fit) = fit_star_existing_model(setup, s.data,
                                                         pars[2], pars[1],
                                                         psf_diameter,
                                                         sub_psf_model,

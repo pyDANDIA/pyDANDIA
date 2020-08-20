@@ -135,8 +135,9 @@ def calc_offset_pixels(setup, detected_stars, catalog_stars,log,
 
     best_offset = [[0,0],[0,0]]
 
+
     while len(best_offset[0]) != 1:
-        nbins = nxbins*resolution_factor
+        nbins = int(nxbins*resolution_factor)
 
         (H,xedges,yedges) = np.histogram2d(deltaX, deltaY, nbins)
         best_offset = np.where(H == np.max(H))

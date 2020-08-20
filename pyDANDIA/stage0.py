@@ -119,14 +119,14 @@ def run_stage0(setup):
         logs.ifverbose(log, setup, 'Updating metadata with info on new images...')
 
         for new_image in new_images:
-            image_structure = image_handling.determine_image_struture(os.path.join(setup.red_dir, 'data',new_images[0]), log)
+            image_structure = image_handling.determine_image_struture(os.path.join(setup.red_dir, 'data',new_image), log)
 
             open_image = open_an_image(setup, reduction_metadata.data_architecture[1]['IMAGES_PATH'][0],
                                        new_image, log, image_index=image_structure['sci'])
 
             image_bpm = open_an_image(setup, reduction_metadata.data_architecture[1]['BPM_PATH'][0],
                                            new_image, log, image_index=image_structure['bpm'])
-
+            
             bpm = bad_pixel_mask.construct_the_pixel_mask(setup, reduction_metadata,
                                                   open_image, image_bpm, [1,3], log,
                                                   low_level=0,
