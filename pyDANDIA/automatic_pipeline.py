@@ -122,11 +122,12 @@ def reduce_datasets(config,datasets,running_processes,log):
         log.info('Already at maximum configured number of parallel reduction processes ('+\
                     str(config['group_processing_limit'])+').  No more will be started until those finish')
 
+
     return running_processes
+
 
 def run_pipeline():
 
-    config = get_config()
 
     log = logs.start_pipeline_log(config['log_dir'], 'automatic_pipeline')
 

@@ -110,7 +110,8 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
 
         (sky_section, sky_x, sky_y) = psf.extract_image_section(sky_bkgd,
                                                             xstar,ystar,corners)
-        (fitted_model,good_fit) = psf.fit_star_existing_model(setup, data_section,
+        
+        (fitted_model,fitted_cov,good_fit) = psf.fit_star_existing_model(setup, data_section,
                                                sec_xstar, sec_ystar,
                                                psf_diameter, psf_model,
                                                sky_section,
@@ -133,13 +134,16 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
                             repr(fitted_model.get_parameters())+
                             ' good fit? '+repr(good_fit))
 
+
         if good_fit == True:
 
             sub_psf_model = psf.get_psf_object('Moffat2D')
 
             pars = fitted_model.get_parameters()
-            pars[1] = (psf_diameter/2.0) + (sec_ystar-int(sec_ystar))
-            pars[2] = (psf_diameter/2.0) + (sec_xstar-int(sec_xstar))
+            #pars[1] = (psf_diameter/2.0) + (sec_ystar-np.round(sec_ystar))
+            #pars[2] = (psf_diameter/2.0) + (sec_xstar-np.round(sec_xstar))
+            
+                
 
             pars[1] = sec_ystar
             pars[2] = sec_xstar
@@ -155,22 +159,35 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
             psf_image = psf.model_psf_in_image(data_section,sub_psf_model,
                                                     [sec_ystar,sec_xstar],
                                                     sub_corners)
-
-
+         
             residuals[corners[2]:corners[3],corners[0]:corners[1]] -= psf_image
 
+           
             if diagnostics:
                 logs.ifverbose(log, setup,' -> Star '+str(j)+
                                 ' subtracted PSF from the residuals')
 
             (flux, sigma_star) = fitted_model.calc_flux(Y_grid, X_grid, gain)
-
+            
+            
+            error_psf_model = psf.get_psf_object('Moffat2D')
+            ppp = np.copy(pars)
+            ppp[0] = fitted_cov[0][0]
+            error_psf_model.update_psf_parameters(ppp)
+            error_image = psf.model_psf_in_image(data_section,error_psf_model, [sec_ystar,sec_xstar],   sub_corners)
+            sigma_star2 = error_image.sum()**0.5
+            
             sigma_ron = np.sqrt(ron*ron * psf_npixels)
             median_sky = np.median(sky_section)
             sigma_sky = np.sqrt(median_sky * gain * psf_npixels)
 
             total_flux = (sigma_star*sigma_star) + (sigma_ron*sigma_ron) + (sigma_sky*sigma_sky)
             flux_err = np.sqrt(total_flux)
+
+            total_flux = (sigma_star2*sigma_star2) + (sigma_ron*sigma_ron) + (sigma_sky*sigma_sky)
+            flux_err = np.sqrt(total_flux)
+
+
 
             if diagnostics:
                 logs.ifverbose(log, setup, ' -> Star '+str(j)+' raw flux='+str(flux)+'e- '+
@@ -183,7 +200,8 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
                                 'pix, N pixels PSF='+str(psf_npixels)+'pix, gain='+str(gain)+' e-/ADU')
 
             (mag, mag_err, flux_scaled, flux_err_scaled) = convert_flux_to_mag(flux, flux_err, exp_time=exp_time)
-
+            
+            
             ref_star_catalog[j,5] = flux_scaled
             ref_star_catalog[j,6] = flux_err_scaled
             ref_star_catalog[j,7] = mag
@@ -571,13 +589,14 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
     positions = np.array(ref_star_catalog[:, [1, 2]]).astype(np.float)
     pixscale = reduction_metadata.reduction_parameters[1]['PIX_SCALE'].data[0]
     use_image = check_fwhm(reduction_metadata, image_id, log)
+   
 
     if use_image:
 
         mask = difference_image == 0
         radius = psf_diameter/2.0
         apertures = CircularAperture(positions, r=radius)
-
+        
 
         sigma_clip = SigmaClip(sigma=3.)
         bkg_estimator = MedianBackground()

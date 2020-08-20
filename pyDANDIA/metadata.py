@@ -19,7 +19,7 @@ from pyDANDIA import  logs
 from pyDANDIA import match_utils
 
 import os
-
+import pathlib
 
 def update_a_dictionary(dictionary, new_key, new_value):
     '''
@@ -755,7 +755,7 @@ class MetaData:
 
         try:
 
-            list_of_images = [i for i in os.listdir(path) if ('.fits' in i) and ('.gz' not in i) and ('.bz2' not in i)]
+            list_of_images = [i.name for i in pathlib.Path(path).iterdir() if ('.fits' in i.name) and ('.gz' not in i.name) and ('.bz2' not in i.name)]
 
             if list_of_images == []:
 

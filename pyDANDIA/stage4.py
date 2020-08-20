@@ -150,8 +150,8 @@ def run_stage4(setup, **kwargs):
             try:
 
                 x_new_center, y_new_center, x_shift, y_shift = find_x_y_shifts_from_the_reference_image(setup,
-                                                                                                        reference_image,
-                                                                                                        target_image,
+                                                                                                        reference_image.astype(float),
+                                                                                                        target_image.astype(float),
                                                                                                         edgefraction=0.5,
                                                                                                         log=None)
 

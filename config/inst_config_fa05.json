@@ -1,7 +1,7 @@
 {
     "instrid": {
         "comment": "instrid - STRING  - The instrument name.",
-        "value": "fl05",
+        "value": "fa05",
 	"format":"S200",
 	"unit":""
     },
@@ -127,7 +127,7 @@
     },
     "maxval": {
         "comment": "maxval - DOUBLE - Maximum useful pixel value in a raw image (ADU).",
-        "value": 96790.75,
+        "value": 128400.0,
 	"format":"float",
 	"unit":"adu"
     },
