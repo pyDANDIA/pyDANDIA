@@ -312,7 +312,7 @@ def run_new_reduction(setup, config, red_log):
 
     status = execute_stage(stage1.run_stage1, 'stage 1', setup, status, red_log, **config)
 
-    if not check_for_assigned_ref_image(setup, log):
+    if not check_for_assigned_ref_image(setup, red_log):
         status = execute_stage(stage2.run_stage2, 'stage 2', setup, status, red_log, **config)
 
     status = execute_stage(reference_astrometry.run_reference_astrometry,
