@@ -128,6 +128,7 @@ def reduce_datasets(config,datasets,running_processes,log):
 
 def run_pipeline():
 
+    config = get_config()
 
     log = logs.start_pipeline_log(config['log_dir'], 'automatic_pipeline')
 
