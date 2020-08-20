@@ -16,6 +16,7 @@ import metadata
 import reduction_control
 import stage0
 import glob
+from astropy.table import Column
 
 TEST_DATA = os.path.join(cwd,'data')
 
@@ -196,6 +197,39 @@ def test_extract_target_lightcurve():
 
     assert len(lc_files) > 0
 
+def test_check_for_assigned_ref_image():
+
+    setup = pipeline_setup.pipeline_setup(params)
+
+    log = logs.start_pipeline_log(setup.log_dir, 'test_reduction_control',
+                                   version=VERSION)
+
+    metadata_path = os.path.join(setup.red_dir, 'pyDANDIA_metadata.fits')
+    if os.path.isfile(metadata_path):
+        os.remove(metadata_path)
+
+    reduction_metadata = metadata.MetaData()
+    reduction_metadata.create_metadata_file(setup.red_dir, 'pyDANDIA_metadata.fits')
+    reduction_metadata.save_updated_metadata(setup.red_dir,'pyDANDIA_metadata.fits',log=log)
+
+    status = reduction_control.check_for_assigned_ref_image(setup, log)
+
+    assert status==False
+
+    ref_path = os.path.join(setup.red_dir, 'ref')
+    col1 = Column([str(ref_path)], name='REF_PATH')
+    reduction_metadata.data_architecture[1].add_column(col1)
+
+    col2 = Column(['test_ref_image.fits'], name='REF_IMAGE')
+    reduction_metadata.data_architecture[1].add_column(col2)
+    reduction_metadata.save_updated_metadata(setup.red_dir,'pyDANDIA_metadata.fits',log=log)
+
+    status = reduction_control.check_for_assigned_ref_image(setup, log)
+
+    assert status==True
+
+    logs.close_log(log)
+
 if __name__ == '__main__':
 
     #test_trigger_stage_subprocess()
@@ -204,4 +238,5 @@ if __name__ == '__main__':
     #test_lock_dataset()
     #test_unlock_dataset()
     #test_get_auto_config()
-    test_extract_target_lightcurve()
+    #test_extract_target_lightcurve()
+    test_check_for_assigned_ref_image()

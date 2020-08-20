@@ -312,7 +312,8 @@ def run_new_reduction(setup, config, red_log):
 
     status = execute_stage(stage1.run_stage1, 'stage 1', setup, status, red_log, **config)
 
-    status = execute_stage(stage2.run_stage2, 'stage 2', setup, status, red_log, **config)
+    if not check_for_assigned_ref_image(setup, log):
+        status = execute_stage(stage2.run_stage2, 'stage 2', setup, status, red_log, **config)
 
     status = execute_stage(reference_astrometry.run_reference_astrometry,
                            'reference astrometry', setup, status, red_log, **config)
@@ -330,6 +331,27 @@ def run_new_reduction(setup, config, red_log):
     extract_target_lightcurve(setup, red_log)
 
     return status
+
+def check_for_assigned_ref_image(setup, log):
+    """Function to check whether a reduction has been assigned a reference
+    image, or needs stage 2 to be run."""
+
+    log.info('Testing whether a reference image has been assigned for this reduction')
+
+    reduction_metadata = metadata.MetaData()
+    if path.join(setup.red_dir,'pyDANDIA_metadata.fits') == False:
+        return False
+
+    reduction_metadata.load_a_layer_from_file( setup.red_dir,
+                                                  'pyDANDIA_metadata.fits',
+                                                  'data_architecture' )
+
+    if 'REF_IMAGE' in reduction_metadata.data_architecture[1].keys():
+        log.info('Reference image assigned: '+reduction_metadata.data_architecture[1]['REF_IMAGE'][0])
+        return True
+    else:
+        log.info('No reference image assigned to this reduction')
+        return False
 
 def extract_target_lightcurve(setup, log):
     """Function to extract the lightcurve of the target indicated in the
