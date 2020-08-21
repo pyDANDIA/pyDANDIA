@@ -247,7 +247,7 @@ def verify_mask_statistics(image_name, mask_data, log=None):
     to verify that they are within tolerances.
     Note: built-in threshold should only be applied to the fullframe image"""
 
-    threshold = 1.5 # % of pixels in the full frame
+    threshold = 2.0 # % of pixels in the full frame
 
     idx = np.where(mask_data != 0)
     npix = mask_data.shape[0]*mask_data.shape[1]
