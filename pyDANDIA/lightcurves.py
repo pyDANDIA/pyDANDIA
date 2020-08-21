@@ -151,7 +151,7 @@ def extract_star_lightcurve_isolated_reduction(params, log=None):
 	for star_dataset_id in results['star_id']:
 
 		if log!=None:
-			log.info('-> Star dataset ID: '+str(star_dataset_id))
+			log.info('-> Star dataset ID: '+str(star_dataset_id)+' separation: '+str(results['separation'])+' deg')
 
 		photometry_data = fetch_photometry_for_isolated_dataset(params, star_dataset_id, log)
 
