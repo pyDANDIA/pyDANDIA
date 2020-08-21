@@ -12,6 +12,8 @@ systempath.append(path.join(cwd, '../'))
 import metadata
 from pyDANDIA import match_utils
 from skimage.transform import AffineTransform
+from astropy.table import Table
+from astropy.table import Column
 
 def test_create_metadata_file():
     metad = metadata.MetaData()
@@ -303,9 +305,40 @@ def test_create_psf_dimensions_layer():
 if os.path.isfile('./dummy_metadata.fits'):
     os.remove('./dummy_metadata.fits')
 
+
+def test_cone_search_on_position():
+
+    metad = metadata.MetaData()
+    metad.create_metadata_file('.', 'dummy_metadata.fits')
+
+    target = [ 269.0, -18.0 ]
+
+    index = []
+    ra = []
+    dec = []
+    for star in range(1,11,1):
+        index.append(star)
+        ra.append(target[0] + float(star-1)*0.05)
+        dec.append(target[1] + float(star-1)*0.05)
+
+    ref_catalog = Table( [Column(name='index', data=index),
+                          Column(name='ra', data=ra),
+                          Column(name='dec', data=dec)] )
+
+    metad.create_a_new_layer_from_table('star_catalog',ref_catalog)
+
+    search_params = {'ra_centre': target[0], 'dec_centre': target[1],
+                     'radius': 0.05}
+
+    results = metad.cone_search_on_position(search_params)
+
+    assert len(results) == 1
+    assert results['star_id'][0] == 1
+
 if __name__ == '__main__':
     #test_create_matched_stars_layer()
     #test_load_matched_stars()
     #test_create_transform_layer()
     #test_load_field_dataset_transform()
-    test_create_psf_dimensions_layer()
+    #test_create_psf_dimensions_layer()
+    test_cone_search_on_position()

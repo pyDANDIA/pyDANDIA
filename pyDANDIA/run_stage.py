@@ -206,6 +206,11 @@ def get_args():
     else:
         params['catalog_xmatch'] = True
 
+    if '-no-phot-db' in argv:
+        params['build_phot_db'] = False
+    else:
+        params['build_phot_db'] = True
+
     params['dx'] = 0.0
     params['dy'] = 0.0
     params['n_sky_bins'] = -1

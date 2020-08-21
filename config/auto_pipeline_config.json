@@ -58,5 +58,11 @@
       "comment": "List of datasets to be reduced.  Can be ALL or @filename to indicate a file listing dataset names",
       "format": "string",
       "unit": ""
+  },
+  "build_phot_db": {
+      "value": "False",
+      "comment": "Switch to construct a photometric database for the reduction",
+      "format": "string",
+      "unit": ""
   }
 }

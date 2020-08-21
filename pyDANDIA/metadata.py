@@ -8,6 +8,7 @@ from os import path
 from astropy.io import fits
 from astropy.table import Table
 from astropy.table import Column
+from astropy.coordinates import SkyCoord
 from astropy.utils.exceptions import AstropyWarning
 from astropy import units as u
 from skimage.transform import AffineTransform
@@ -837,7 +838,7 @@ class MetaData:
 
         if len(new_images) == 0:
             log.info('WARNING: No valid images found to be needing reduction')
-            
+
         return new_images
 
     def fetch_image_status(self,stage_number):
@@ -1041,6 +1042,30 @@ class MetaData:
         psf_radii = psf_factors * fwhm_ref
         self.psf_dimensions[1]['psf_radius'] = psf_radii
 
+    def cone_search_on_position(self,params):
+        """Function to search the star_catalog for stars within (radius) of the
+        (ra_centre, dec_centre) given.
+
+        :param float ra_centre: Box central RA in decimal degrees
+        :param float dec_centre: Box central Dec in decimal degrees
+        :param float radius:     Search radius in decimal degrees
+        """
+
+        starlist = SkyCoord(self.star_catalog[1]['ra'], self.star_catalog[1]['dec'],
+                            frame='icrs', unit=(u.deg,u.deg))
+
+        target = SkyCoord(params['ra_centre'], params['dec_centre'], frame='icrs', unit=(u.deg,u.deg))
+
+        separations = target.separation(starlist)
+
+        idx = np.where(separations.value <= params['radius'])
+
+        results = Table( [Column(name='star_id', data=self.star_catalog[1]['index'][idx]),
+                          Column(name='ra', data=self.star_catalog[1]['ra'][idx]),
+                          Column(name='dec', data=self.star_catalog[1]['dec'][idx]),
+                          Column(name='separation', data=separations[idx]) ])
+
+        return results
 
 ###
 def set_pars(self, par_dict):

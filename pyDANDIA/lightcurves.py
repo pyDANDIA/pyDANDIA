@@ -122,6 +122,59 @@ def extract_star_lightcurves_on_cone(params, log=None):
 
 	return message
 
+def extract_star_lightcurve_isolated_reduction(params, log=None):
+	"""Function to extract a lightcurve for a single star based on its RA, Dec
+	using the star_catolog in the metadata for a single reduction."""
+
+	log = logs.start_stage_log( params['red_dir'], 'lightcurves' )
+
+	reduction_metadata = metadata.MetaData()
+	reduction_metadata.load_all_metadata(params['red_dir'], 'pyDANDIA_metadata.fits')
+
+	if log != None:
+		log.info('Searching for star at RA,Dec='+str(params['ra'])+', '+str(params['dec']))
+
+	c = SkyCoord(params['ra'], params['dec'], frame='icrs', unit=(units.hourangle, units.deg))
+
+	if 'radius' in params.keys():
+		radius = float(params['radius'])
+	else:
+		radius = 2.0 / 3600.0
+
+	results = reduction_metadata.cone_search_on_position({'ra_centre': c.ra.deg,
+														 'dec_centre': c.dec.deg,
+														 'radius': radius})
+
+	if log != None and len(results['star_id']) > 0:
+		log.info('Extracting lightcurves for the following matching objects')
+
+	for star_dataset_id in results['star_id']:
+
+		if log!=None:
+			log.info('-> Star dataset ID: '+str(star_dataset_id))
+
+		photometry_data = fetch_photometry_for_isolated_dataset(params, star_dataset_id, log)
+
+		#setname = path.basename(params['red_dir']).split('_')[1]
+		setname = path.basename("_".join((params['red_dir']).split('_')[1:]))
+
+		datafile = open(path.join(params['output_dir'],'star_'+str(star_dataset_id)+'_'+setname+'.dat'),'w')
+
+		for i in range(0,len(photometry_data),1):
+
+		    datafile.write(str(photometry_data['hjd'][i])+'  '+\
+				    str(photometry_data['instrumental_mag'][i])+'  '+str(photometry_data['instrumental_mag_err'][i])+'  '+\
+				    str(photometry_data['calibrated_mag'][i])+'  '+str(photometry_data['calibrated_mag_err'][i])+'\n')
+
+		datafile.close()
+		if log!=None:
+			log.info('-> Output dataset '+setname)
+
+	message = 'OK'
+	logs.close_log(log)
+
+	return message
+
 
 
 
@@ -254,6 +307,28 @@ def fetch_photometry_for_dataset(params, star_field_id, matched_stars, log):
 
     return photometry_data
 
+def fetch_photometry_for_isolated_dataset(params, star_dataset_id, log):
+
+	setup = pipeline_setup.pipeline_setup({'red_dir': params['red_dir']})
+
+	dataset_photometry = hd5_utils.read_phot_hd5(setup)
+
+	log.info('Star dataset ID = '+str(star_dataset_id))
+
+	star_dataset_index = star_dataset_id - 1
+
+	log.info('Star array index: '+str(star_dataset_index))
+	photometry_data = dataset_photometry[star_dataset_index,:,:]
+
+	photometry_data = table.Table( [ table.Column(name='hjd', data=dataset_photometry[star_dataset_index,:,9]),
+									 table.Column(name='instrumental_mag', data=dataset_photometry[star_dataset_index,:,11]),
+									 table.Column(name='instrumental_mag_err', data=dataset_photometry[star_dataset_index,:,12]),
+									  table.Column(name='calibrated_mag', data=dataset_photometry[star_dataset_index,:,13]),
+									  table.Column(name='calibrated_mag_err', data=dataset_photometry[star_dataset_index,:,14]),
+									  ] )
+
+	return photometry_data
+
 def read_pydandia_lightcurve(file_path, skip_zero_entries=True):
 	"""Function to read the pyDANDIA lightcurve file format to an astropy Table"""
 
@@ -276,24 +351,23 @@ def read_pydandia_lightcurve(file_path, skip_zero_entries=True):
 	return lc
 
 if __name__ == '__main__':
+	params = {}
 
-    params = {}
+	if len(argv) == 1:
+		params['db_file_path'] = input('Please enter the path to the field photometric DB: ')
+		params['red_dir'] = input('Please enter the path to a dataset reduction directory: ')
+		params['ra'] = input('Please enter the RA [sexigesimal]: ')
+		params['dec'] = input('Please enter the Dec [sexigesimal]: ')
+		params['output_dir'] = input('Please enter the path to the output directory: ')
 
-    if len(argv) == 1:
+	else:
+		params['db_file_path'] = argv[1]
+		params['red_dir'] = argv[2]
+		params['ra'] = argv[3]
+		params['dec'] = argv[4]
+		params['output_dir'] = argv[5]
 
-        params['db_file_path'] = input('Please enter the path to the field photometric DB: ')
-        params['red_dir'] = input('Please enter the path to a dataset reduction directory: ')
-        params['ra'] = input('Please enter the RA [sexigesimal]: ')
-        params['dec'] = input('Please enter the Dec [sexigesimal]: ')
-        params['output_dir'] = input('Please enter the path to the output directory: ')
+	#message = extract_star_lightcurves_on_position(params)
+    #print(message)
 
-    else:
-
-        params['db_file_path'] = argv[1]
-        params['red_dir'] = argv[2]
-        params['ra'] = argv[3]
-        params['dec'] = argv[4]
-        params['output_dir'] = argv[5]
-
-    message = extract_star_lightcurves_on_position(params)
-    print(message)
+	extract_star_lightcurve_isolated_reduction(params, log=None)

@@ -238,7 +238,7 @@ def get_auto_config(setup,log):
 
     config = config_utils.build_config_from_json(config_file)
 
-    boolean_keys = ['use_gaia_phot', 'catalog_xmatch']
+    boolean_keys = ['use_gaia_phot', 'catalog_xmatch', 'build_phot_db']
     for key in boolean_keys:
         if key in config.keys():
             if 'true' in str(config[key]).lower():
@@ -296,7 +296,7 @@ def run_existing_reduction(setup, config, red_log):
 
     sane = check_stage3_db_ingest(setup,red_log)
 
-    if sane == False:
+    if sane == False and config['build_phot_db']:
         run_stage3_db_ingest(setup,red_log,config)
 
     status = execute_stage(stage6.run_stage6, 'stage 6', setup, status, red_log, **config)
@@ -324,7 +324,8 @@ def run_new_reduction(setup, config, red_log):
 
     status = execute_stage(stage5.run_stage5, 'stage 5', setup, status, red_log)
 
-    run_stage3_db_ingest(setup,red_log,config)
+    if config['build_phot_db']:
+        run_stage3_db_ingest(setup,red_log,config)
 
     status = execute_stage(stage6.run_stage6, 'stage 6', setup, status, red_log, **config)
 
@@ -382,7 +383,7 @@ def extract_target_lightcurve(setup, log):
 
     log.info('Searching phot DB '+setup.phot_db_path+' for '+ref_header['OBJECT'])
 
-    lightcurves.extract_star_lightcurves_on_cone(params)
+    lightcurves.extract_star_lightcurve_isolated_reduction(params, log=log)
 
     log.info('Extracted lightcurve for '+ref_header['OBJECT']+' at RA,Dec='+\
             repr(ref_header['CAT-RA'])+', '+repr(ref_header['CAT-DEC'])+\

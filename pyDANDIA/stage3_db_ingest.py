@@ -285,7 +285,7 @@ def archive_existing_db(setup,primary_ref,log):
 
             log.info('-> Archived old PHOT_DB to '+dest)
 
-def harvest_stage3_parameters(setup,reduction_metadata):
+def harvest_stage3_parameters(setup,reduction_metadata,**kwargs):
     """Function to harvest the parameters required for ingest of a single
     dataset into the photometric database."""
 
@@ -294,7 +294,7 @@ def harvest_stage3_parameters(setup,reduction_metadata):
 
     ref_image_path = path.join(ref_path, ref_filename)
 
-    dataset_params = harvest_image_params(reduction_metadata, ref_image_path, ref_image_path)
+    dataset_params = harvest_image_params(reduction_metadata, ref_image_path, ref_image_path, **kwargs)
 
     dataset_params['psf_radius'] = reduction_metadata.psf_dimensions[1]['psf_radius'][0]
 
@@ -305,7 +305,7 @@ def harvest_stage3_parameters(setup,reduction_metadata):
 
     return dataset_params
 
-def harvest_image_params(reduction_metadata, image_path, ref_image_path):
+def harvest_image_params(reduction_metadata, image_path, ref_image_path, **kwargs):
 
     image_header = image_handling.get_science_header(image_path)
 
@@ -318,18 +318,20 @@ def harvest_image_params(reduction_metadata, image_path, ref_image_path):
     image_params['instrument'] = image_header['INSTRUME']
     if 'fl' in image_params['instrument']:
         image_params['instrument'] = image_params['instrument'].replace('fl','fa')
-    image_params['facility_code'] = phot_db.get_facility_code(image_params)
+    if kwargs['build_phot_db']:
+        image_params['facility_code'] = phot_db.get_facility_code(image_params)
+    else:
+        image_params['facility_code'] = 0
 
     # Image parameters for single-frame reference image
     # NOTE: Stacked reference images not yet supported
     image_params['filename'] = path.basename(image_path)
     image_params['ref_filename'] = path.basename(ref_image_path)
-
     idx = np.where(reduction_metadata.headers_summary[1]['IMAGES'] == image_params['filename'])
     hdr_meta = reduction_metadata.headers_summary[1][idx]
     idx = np.where(reduction_metadata.images_stats[1]['IM_NAME'] == image_params['filename'])
     image_stats = reduction_metadata.images_stats[1][idx]
-
+    
     image_params['diameter_m'] = float(image_header['TELID'].replace('a','').replace('m','.'))
     image_params['altitude_m'] = image_header['HEIGHT']
     image_params['gain_eadu'] = image_header['GAIN']
