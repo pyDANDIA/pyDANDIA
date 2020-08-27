@@ -335,10 +335,23 @@ def test_cone_search_on_position():
     assert len(results) == 1
     assert results['star_id'][0] == 1
 
+def test_fetch_reduction_filter():
+
+    cwd = getcwd()
+    red_dir = path.join(cwd, 'data/proc/ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip')
+    metad = metadata.MetaData()
+    metad.load_all_metadata(red_dir, 'pyDANDIA_metadata.fits')
+
+    filter_name = metad.fetch_reduction_filter()
+
+    assert filter_name == 'ip'
+
 if __name__ == '__main__':
     #test_create_matched_stars_layer()
     #test_load_matched_stars()
     #test_create_transform_layer()
     #test_load_field_dataset_transform()
     #test_create_psf_dimensions_layer()
-    test_cone_search_on_position()
+    #test_cone_search_on_position()
+    test_fetch_reduction_filter()
+    

@@ -19,7 +19,7 @@ from pyDANDIA import  hd5_utils
 from pyDANDIA import  pipeline_setup
 from pyDANDIA import  metadata
 from pyDANDIA import  logs
-
+import csv
 
 
 def extract_star_lightcurves_on_cone_to_list(params):
@@ -122,7 +122,7 @@ def extract_star_lightcurves_on_cone(params, log=None):
 
 	return message
 
-def extract_star_lightcurve_isolated_reduction(params, log=None):
+def extract_star_lightcurve_isolated_reduction(params, log=None, format='dat'):
 	"""Function to extract a lightcurve for a single star based on its RA, Dec
 	using the star_catolog in the metadata for a single reduction."""
 
@@ -130,6 +130,8 @@ def extract_star_lightcurve_isolated_reduction(params, log=None):
 
 	reduction_metadata = metadata.MetaData()
 	reduction_metadata.load_all_metadata(params['red_dir'], 'pyDANDIA_metadata.fits')
+
+	filter_name = reduction_metadata.fetch_reduction_filter()
 
 	if log != None:
 		log.info('Searching for star at RA,Dec='+str(params['ra'])+', '+str(params['dec']))
@@ -158,15 +160,32 @@ def extract_star_lightcurve_isolated_reduction(params, log=None):
 		#setname = path.basename(params['red_dir']).split('_')[1]
 		setname = path.basename("_".join((params['red_dir']).split('_')[1:]))
 
-		datafile = open(path.join(params['output_dir'],'star_'+str(star_dataset_id)+'_'+setname+'.dat'),'w')
+		lc_file = path.join(params['output_dir'],'star_'+str(star_dataset_id)+'_'+setname+'.'+str(format))
 
-		for i in range(0,len(photometry_data),1):
+		if format == 'dat':
+			datafile = open(lc_file,'w')
+			datafile.write('# HJD    Instrumental mag, mag_error   Calibrated mag, mag_error\n')
 
-		    datafile.write(str(photometry_data['hjd'][i])+'  '+\
-				    str(photometry_data['instrumental_mag'][i])+'  '+str(photometry_data['instrumental_mag_err'][i])+'  '+\
-				    str(photometry_data['calibrated_mag'][i])+'  '+str(photometry_data['calibrated_mag_err'][i])+'\n')
+			for i in range(0,len(photometry_data),1):
+				datafile.write(str(photometry_data['hjd'][i])+'  '+\
+						str(photometry_data['instrumental_mag'][i])+'  '+str(photometry_data['instrumental_mag_err'][i])+'  '+\
+						str(photometry_data['calibrated_mag'][i])+'  '+str(photometry_data['calibrated_mag_err'][i])+'\n')
 
-		datafile.close()
+			datafile.close()
+
+		elif format == 'csv':
+			with open(lc_file, 'w', newline='') as csvfile:
+				datafile = csv.writer(csvfile, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
+				datafile.writerow(['time', 'filter', 'magnitude', 'error'])
+				for i in range(0,len(photometry_data),1):
+					if photometry_data['instrumental_mag'][i] > 0.0:
+						datafile.writerow([str(photometry_data['hjd'][i]), filter_name,
+											str(photometry_data['instrumental_mag'][i]),
+											str(photometry_data['instrumental_mag_err'][i])])
+
+		else:
+			log.info('Unrecognized lightcurve format requested ('+str(format)+') no output possible')
+
 		if log!=None:
 			log.info('-> Output dataset '+setname)
 
@@ -370,4 +389,4 @@ if __name__ == '__main__':
 	#message = extract_star_lightcurves_on_position(params)
     #print(message)
 
-	extract_star_lightcurve_isolated_reduction(params, log=None)
+	extract_star_lightcurve_isolated_reduction(params, log=None, format='csv')

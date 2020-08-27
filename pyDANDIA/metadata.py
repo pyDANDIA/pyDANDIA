@@ -18,6 +18,7 @@ import collections
 import warnings
 from pyDANDIA import  logs
 from pyDANDIA import match_utils
+from pyDANDIA import image_handling
 
 import os
 import pathlib
@@ -1067,6 +1068,18 @@ class MetaData:
 
         return results
 
+    def fetch_reduction_filter(self):
+        """Function to identify the filter used for the reduction"""
+
+        ref_path = self.data_architecture[1]['REF_PATH'][0]
+        ref_filename = self.data_architecture[1]['REF_IMAGE'][0]
+
+        ref_image_path = path.join(ref_path, ref_filename)
+
+        image_header = image_handling.get_science_header(ref_image_path)
+
+        return image_header['FILTER']
+        
 ###
 def set_pars(self, par_dict):
     for key, value in par_dict.items():

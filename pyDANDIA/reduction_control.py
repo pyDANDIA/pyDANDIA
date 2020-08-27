@@ -383,7 +383,7 @@ def extract_target_lightcurve(setup, log):
 
     log.info('Searching phot DB '+setup.phot_db_path+' for '+ref_header['OBJECT'])
 
-    lightcurves.extract_star_lightcurve_isolated_reduction(params, log=log)
+    lightcurves.extract_star_lightcurve_isolated_reduction(params, log=log, format='csv')
 
     log.info('Extracted lightcurve for '+ref_header['OBJECT']+' at RA,Dec='+\
             repr(ref_header['CAT-RA'])+', '+repr(ref_header['CAT-DEC'])+\
