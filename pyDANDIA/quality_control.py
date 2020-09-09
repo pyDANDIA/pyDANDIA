@@ -242,12 +242,15 @@ def verify_image_shifts(new_images, shift_data, image_red_status):
 
     return new_images, image_red_status
 
-def verify_mask_statistics(image_name, mask_data, log=None):
+def verify_mask_statistics(reduction_metadata,image_name, mask_data, log=None):
     """Function to calculate basic statistical properties of a mask image
     to verify that they are within tolerances.
     Note: built-in threshold should only be applied to the fullframe image"""
 
-    threshold = 2.0 # % of pixels in the full frame
+    if 'QC_MAX_BAD_PIXEL' in reduction_metadata.reduction_parameters[1].keys():
+        threshold = reduction_metadata.reduction_parameters[1]['QC_MAX_BAD_PIXEL']
+    else:
+        threshold = 2.0 # % of pixels in the full frame
 
     idx = np.where(mask_data != 0)
     npix = mask_data.shape[0]*mask_data.shape[1]

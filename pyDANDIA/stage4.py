@@ -707,7 +707,7 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
 
         mask_image = np.array(data_image_hdu[image_structure['bpm']].data, dtype=float)
 
-        mask_status = quality_control.verify_mask_statistics(new_image,mask_image, log)
+        mask_status = quality_control.verify_mask_statistics(reduction_metadata,new_image,mask_image, log)
 
         if not mask_status:
             log.info('WARNING: Mask statistics indicate a problem with this image, skipping')
