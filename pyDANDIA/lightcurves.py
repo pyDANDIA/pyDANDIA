@@ -146,6 +146,8 @@ def extract_star_lightcurve_isolated_reduction(params, log=None, format='dat'):
 	results = reduction_metadata.cone_search_on_position({'ra_centre': c.ra.deg,
 														 'dec_centre': c.dec.deg,
 														 'radius': radius})
+	if log != None and len(results['star_id']) == 0:
+		log.info('No matching objects found')
 
 	if log != None and len(results['star_id']) > 0:
 		log.info('Extracting lightcurves for the following matching objects')
@@ -373,17 +375,19 @@ if __name__ == '__main__':
 	params = {}
 
 	if len(argv) == 1:
-		params['db_file_path'] = input('Please enter the path to the field photometric DB: ')
+		#params['db_file_path'] = input('Please enter the path to the field photometric DB: ')
 		params['red_dir'] = input('Please enter the path to a dataset reduction directory: ')
 		params['ra'] = input('Please enter the RA [sexigesimal]: ')
 		params['dec'] = input('Please enter the Dec [sexigesimal]: ')
+		params['radius'] = input('Please enter the search radius in arcsec: ')
 		params['output_dir'] = input('Please enter the path to the output directory: ')
 
 	else:
-		params['db_file_path'] = argv[1]
-		params['red_dir'] = argv[2]
-		params['ra'] = argv[3]
-		params['dec'] = argv[4]
+		#params['db_file_path'] = argv[1]
+		params['red_dir'] = argv[1]
+		params['ra'] = argv[2]
+		params['dec'] = argv[3]
+		params['radius'] = argv[4]
 		params['output_dir'] = argv[5]
 
 	#message = extract_star_lightcurves_on_position(params)
