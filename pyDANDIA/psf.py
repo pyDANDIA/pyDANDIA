@@ -986,12 +986,11 @@ def fit_the_stamps(stamps,psf_model='Moffat2D', background_model='Constant'):
     guess_psf = [1]*len(datasets)+[y[int(len(y[:, 0]) / 2), 0],
                  x[0, int(len(x[0, :]) / 2)]] + psf_model.psf_guess()
 
-    guess_back = back_model.background_guess()
+    guess_back = back_model.background_guess(np.median(data))
 
     guess = guess_psf + guess_back
 
-    import pdb;
-    pdb.set_trace()
+    
     fit = optimize.minimize(error_stamp_function, guess, args=(
         datasets, psf_model, back_model,y,x),jac = Jacobi_stamp)
 
@@ -1060,7 +1059,7 @@ def fit_star(data, Y_data, X_data, psf_model='Moffat2D',
     guess_psf = [data.max(), Y_data[int(len(Y_data[:, 0]) / 2), 0],
                  X_data[0, int(len(Y_data[0, :]) / 2)]] + psf_model.psf_guess()
 
-    guess_back = back_model.background_guess()
+    guess_back = back_model.background_guess(np.median(data))
 
     guess = guess_psf + guess_back
 
@@ -1236,6 +1235,7 @@ def fit_star_existing_model(setup, data, x_cen, y_cen, psf_radius,
         psf_params[2] = fit[0][2]
 
     fitted_model.update_psf_parameters(psf_params)
+    fitted_cov = fit[1]
 
     if diagnostics:
         Y_data, X_data = np.indices(data.shape)
@@ -1253,16 +1253,12 @@ def fit_star_existing_model(setup, data, x_cen, y_cen, psf_radius,
 
         hdulist.writeto(file_path,overwrite=True)
 
-    psf_params = fitted_model.get_parameters()
-    psf_params[0] = fit[0][0]
-    psf_params[1] = psf_params[1]
-    psf_params[2] = psf_params[2]
+   
 
-    fitted_model.update_psf_parameters(psf_params)
 
     good_fit = check_fit_quality(setup, data, psf_sky_bkgd, fitted_model)
 
-    return fitted_model, good_fit
+    return fitted_model, fitted_cov, good_fit
 
 def extract_image_section(data,x_cen,y_cen,corners):
     """Function to extract an image section and return the section array
@@ -1412,7 +1408,7 @@ def check_fit_quality(setup, psf_stamp_data, sky_model, fitted_model):
 
     max_peak_flux = psf_stamp_data.max() + 0.1 * psf_stamp_data.max()
 
-    if model_pars[0] > max_peak_flux or model_pars[0] <= 0.0:
+    if model_pars[0] <= 0.0:
 
         good_fit = False
 
@@ -1468,7 +1464,7 @@ def build_psf(setup, reduction_metadata, log, image, ref_star_catalog,
 
     log.info('Cutting stamps for '+str(len(psf_star_centres))+' PSF stars')
 
-    stamp_dims = (int(psf_diameter)*4, int(psf_diameter)*4)
+    stamp_dims = (int(psf_diameter)*1, int(psf_diameter)*1)
 
     logs.ifverbose(log, setup, ' -> Stamp dimensions=' + repr(stamp_dims))
 
@@ -1536,9 +1532,10 @@ def build_psf(setup, reduction_metadata, log, image, ref_star_catalog,
                                     master_stamp, stamp_varience=master_stamp_var,
                                     diagnostics=False)
 
-    psf_image = generate_psf_image(psf_model.psf_type(),
-                                   psf_model.get_parameters(),
-                                    stamp_dims, psf_diameter)
+    master_psf = get_psf_object(psf_model.psf_type())
+    master_psf.update_psf_parameters(psf_model.get_parameters())
+    Y_data,X_data = np.indices(master_stamp.data.shape)
+    psf_image = master_psf.psf_model(Y_data,X_data,master_psf.get_parameters())
 
     header = fits.Header()
     psf_params = psf_model.get_parameters()
@@ -1688,8 +1685,8 @@ def calc_stamp_corners(xcen, ycen, dx, dy, maxx, maxy, over_edge=False,
                         returned if a box intersects any edge of the frame.
     """
 
-    x = int(xcen)
-    y = int(ycen)
+    x = int(np.round(xcen))
+    y = int(np.round(ycen))
 
     if np.mod(dx,2) > 0:
         dx = int(dx) + 1
@@ -1772,23 +1769,20 @@ def coadd_stamps(setup, stamps, log, diagnostics=True):
     for s in stamps:
         if s != None:
             i += 1
-            weights[:,:,i] =  1/np.abs(s.data) ** 0.5
+            weights[:,:,i] =  1/np.abs(s.data) 
             data[:,:,i] = s.data * weights[:,:,i]
 
     coadd = data.sum(axis=2) / weights.sum(axis=2)
 
-    diff = np.zeros(outline.shape)
-    dweights = np.zeros(outline.shape)
+    diff = 0
+    dweights = 0
     for i in range(0,nstamps,1):
         diff += ( (data[:,:,i] - coadd) * weights[:,:,i] )**2
         dweights += 1.0 / weights[:,:,i]**2
 
     coadd_var = diff / dweights
 
-    #weight =  1/np.abs(s.data) ** 0.5
-    #weight[np.isnan(weight)] = 0
-    #coadd2 += s.data*weight
-    #coadd3 += weight
+  
 
     master_stamp = Cutout2D(coadd, (xc, yc), coadd.shape, copy=True)
     master_stamp_var = Cutout2D(coadd_var, (xc, yc), coadd_var.shape, copy=True)
@@ -1824,10 +1818,10 @@ def fit_psf_model(setup,log,psf_model_type,psf_diameter,sky_model_type,stamp_ima
     ymin = int(half_stamp - half_psf)
     ymax = int(half_stamp + half_psf)
 
-    #Y_data, X_data = np.indices(stamp_image.shape)
-
-    #Y_data, X_data = np.indices([int(round(psf_diameter,0)),int(round(psf_diameter,0))])
-    Y_data, X_data = np.indices([2*half_psf,2*half_psf])
+    substamp = stamp_image.data
+    substamp_var = stamp_varience.data
+    
+    Y_data, X_data = np.indices(substamp.shape)
 
     if diagnostics:
         hdu = fits.PrimaryHDU(stamp_image.data[ymin:ymax, xmin:xmax])
@@ -1838,12 +1832,11 @@ def fit_psf_model(setup,log,psf_model_type,psf_diameter,sky_model_type,stamp_ima
 
     substamp = stamp_image.data[ymin:ymax, xmin:xmax]
 
-    if stamp_varience is not None:
-        substamp_var = stamp_varience.data[ymin:ymax, xmin:xmax]
+    
 
     psf_fit = fit_star(substamp, Y_data, X_data,
                        psf_model_type, sky_model_type,
-                       varience=substamp_var)
+                       varience=1/substamp_var**0.5)
 
     log.info('Fitted PSF model parameters using a ' + psf_model_type + \
              ' PSF and ' + sky_model_type.lower() + ' sky background model')
@@ -2031,7 +2024,7 @@ def subtract_companions_from_psf_stamps(setup, reduction_metadata, log,
                         pdb.set_trace()
 
                     s.data[corners[2]:corners[3],corners[0]:corners[1]] = sky_model_bkgd[corners[2]:corners[3],corners[0]:corners[1]]
-                    (comp_psf,good_fit) = fit_star_existing_model(setup, s.data,
+                    (comp_psf,comp_cov, good_fit) = fit_star_existing_model(setup, s.data,
                                                         pars[2], pars[1],
                                                         psf_diameter,
                                                         sub_psf_model,

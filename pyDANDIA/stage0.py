@@ -114,11 +114,12 @@ def run_stage0(setup):
         logs.ifverbose(log, setup, 'Updating metadata with info on new images...')
 
         for new_image in new_images:
+            image_structure = image_handling.determine_image_struture(os.path.join(setup.red_dir, 'data',new_image), log)
             open_image = open_an_image(setup, reduction_metadata.data_architecture[1]['IMAGES_PATH'][0],
-                                       new_image, log, image_index=0)
+                                       new_image, log, image_index=image_structure['sci'])
 
             image_bpm = open_an_image(setup, reduction_metadata.data_architecture[1]['BPM_PATH'][0],
-                                           new_image, log, image_index=2)
+                                           new_image, log, image_index=image_structure['bpm'])
 
             # Occasionally, the LCO BANZAI pipeline fails to produce an image
             # catalogue for an image.  If this happens, there will only be 2

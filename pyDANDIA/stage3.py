@@ -24,7 +24,7 @@ from pyDANDIA import  catalog_utils
 from pyDANDIA import  calibrate_photometry
 
 
-VERSION = 'pyDANDIA_stage3_v0.5.1'
+VERSION = 'pyDANDIA_stage3_v0.6.0'
 
 def run_stage3(setup,
     cl_params={'n_sky_bins': None, 'sky_value': None,

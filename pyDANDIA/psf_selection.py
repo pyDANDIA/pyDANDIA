@@ -31,14 +31,19 @@ def psf_star_selection(setup,reduction_metadata,log,ref_star_catalog,
     psf_stars_idx = np.ones(len(ref_star_catalog))
 
     # Exclude brightest and faintest 10% of star list
-    psf_stars_idx = id_mid_range_stars(setup,reduction_metadata,log,
-                                       ref_star_catalog,psf_stars_idx)
+    #psf_stars_idx = id_mid_range_stars(setup,reduction_metadata,log,
+    #                                   ref_star_catalog,psf_stars_idx)
 
     # Exclude stars with neighbours within proPrestonManorximity threshold that
     # also exceed the flux ratio threshold:
     psf_stars_idx = id_crowded_stars(setup,reduction_metadata,log,
                                       ref_star_catalog,psf_stars_idx)
 
+    # Center of the frame
+    mask = (ref_star_catalog[:,1]>np.percentile(ref_star_catalog[:,1],10)) & (ref_star_catalog[:,1]<np.percentile(ref_star_catalog[:,1],90)) & (ref_star_catalog[:,2]>np.percentile(ref_star_catalog[:,2],10)) & (ref_star_catalog[:,2]<np.percentile(ref_star_catalog[:,2],90))
+    
+    psf_stars_idx[~mask] = 0
+    
     # Ensure the pipeline configuration's limit on the maximum number of
     # PSF stars is respected:
     psf_stars_idx = apply_psf_star_limit(reduction_metadata,ref_star_catalog,
@@ -227,21 +232,22 @@ def apply_psf_star_limit(reduction_metadata,ref_star_catalog,psf_stars_idx,log,
     max_psf_stars = reduction_metadata.reduction_parameters[1]['MAX_PSF_STARS'][0]
 
     psf_idx = np.where(psf_stars_idx == 1)[0]
+    order = ref_star_catalog[psf_idx,5].argsort()[::-1][max_psf_stars:]
+    psf_stars_idx[psf_idx[order]] = 0
+    #if len(psf_idx) > max_psf_stars:
+    #    mask = []
+    #    while len(mask) < max_psf_stars:
+    #        i = np.random.randint(0,len(psf_idx))
+    #        if i not in mask:
+    #            mask.append(i)#
 
-    if len(psf_idx) > max_psf_stars:
-        mask = []
-        while len(mask) < max_psf_stars:
-            i = np.random.randint(0,len(psf_idx))
-            if i not in mask:
-                mask.append(i)
+    #    psf_idx = psf_idx[mask]#
 
-        psf_idx = psf_idx[mask]
+    #    psf_stars_idx = np.zeros(len(ref_star_catalog))
+    #    psf_stars_idx[psf_idx] = 1
 
-        psf_stars_idx = np.zeros(len(ref_star_catalog))
-        psf_stars_idx[psf_idx] = 1
-
-        log.info('Limited the number of PSF stars via random selection to configured maximum of '+\
-                    str(max_psf_stars)+', length psf star index '+str(len(psf_stars_idx)))
+    #    log.info('Limited the number of PSF stars via random selection to configured maximum of '+\
+    #                str(max_psf_stars)+', length psf star index '+str(len(psf_stars_idx)))
 
 
     if diagnostics:

@@ -7,6 +7,8 @@ import copy
 from pyDANDIA import pipeline_setup
 import glob
 import subprocess
+import psutil
+
 from pyDANDIA import pipeline_setup
 from pyDANDIA import config_utils
 from pyDANDIA import logs
@@ -123,14 +125,14 @@ class DataGroup:
 
             return self.pid_list
 
-            else:
+        else:
                 return []
 
 def run_pipeline():
 
     config = get_config()
 
-    XXX Check for process lockfile
+    ###XXXCheck for process lockfile
 
     log = logs.start_pipeline_log(config['log_dir'], 'automatic_pipeline')
 
