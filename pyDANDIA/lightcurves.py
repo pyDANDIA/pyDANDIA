@@ -159,6 +159,7 @@ def extract_star_lightcurve_isolated_reduction(params, log=None, format='dat'):
 
 		photometry_data = fetch_photometry_for_isolated_dataset(params, star_dataset_id, log)
 
+		time_order = np.argsort(photometry_data['hjd'])
 		#setname = path.basename(params['red_dir']).split('_')[1]
 		setname = path.basename("_".join((params['red_dir']).split('_')[1:]))
 
@@ -168,7 +169,7 @@ def extract_star_lightcurve_isolated_reduction(params, log=None, format='dat'):
 			datafile = open(lc_file,'w')
 			datafile.write('# HJD    Instrumental mag, mag_error   Calibrated mag, mag_error\n')
 
-			for i in range(0,len(photometry_data),1):
+			for i in time_order:
 				datafile.write(str(photometry_data['hjd'][i])+'  '+\
 						str(photometry_data['instrumental_mag'][i])+'  '+str(photometry_data['instrumental_mag_err'][i])+'  '+\
 						str(photometry_data['calibrated_mag'][i])+'  '+str(photometry_data['calibrated_mag_err'][i])+'\n')
@@ -179,7 +180,7 @@ def extract_star_lightcurve_isolated_reduction(params, log=None, format='dat'):
 			with open(lc_file, 'w', newline='') as csvfile:
 				datafile = csv.writer(csvfile, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
 				datafile.writerow(['time', 'filter', 'magnitude', 'error'])
-				for i in range(0,len(photometry_data),1):
+				for i in time_order:
 					if photometry_data['instrumental_mag'][i] > 0.0:
 						datafile.writerow([str(photometry_data['hjd'][i]), filter_name,
 											str(photometry_data['instrumental_mag'][i]),
