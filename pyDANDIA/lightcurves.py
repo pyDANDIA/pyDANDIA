@@ -139,7 +139,7 @@ def extract_star_lightcurve_isolated_reduction(params, log=None, format='dat'):
 	c = SkyCoord(params['ra'], params['dec'], frame='icrs', unit=(units.hourangle, units.deg))
 
 	if 'radius' in params.keys():
-		radius = float(params['radius'])
+		radius = float(params['radius']) / 3600.0
 	else:
 		radius = 2.0 / 3600.0
 
