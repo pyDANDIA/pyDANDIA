@@ -394,4 +394,4 @@ if __name__ == '__main__':
 	#message = extract_star_lightcurves_on_position(params)
     #print(message)
 
-	extract_star_lightcurve_isolated_reduction(params, log=None, format='csv')
+	extract_star_lightcurve_isolated_reduction(params, log=None, format='dat')
