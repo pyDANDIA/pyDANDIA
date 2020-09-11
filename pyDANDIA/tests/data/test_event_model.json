@@ -1,0 +1,142 @@
+{
+      "t0": {
+            "value": 2458551.30979,
+            "comment": "Time of event peak",
+            "format": "float",
+            "unit": "days [HJD]"
+        },
+        "sig_t0": {
+            "value": 0.28307,
+            "comment": "Uncertainty on time of event peak",
+            "format": "float",
+            "unit": "days [HJD]"
+        },
+        "tE": {
+            "value": 2458551.30979,
+            "comment": "Time of event peak",
+            "format": "float",
+            "unit": "days [HJD]"
+        },
+        "sig_tE": {
+            "value": 0.28307,
+            "comment": "Uncertainty on time of event peak",
+            "format": "float",
+            "unit": "days [HJD]"
+        },
+        "u0": {
+            "value": -0.28594,
+            "comment": "Impact parameter",
+            "format": "float",
+            "unit": ""
+        },
+        "sig_u0": {
+            "value": 0.00402,
+            "comment": "Uncertainty on impact parameter",
+            "format": "float",
+            "unit": ""
+        },
+        "rho": {
+            "value": 0.00342,
+            "comment": "Source angular size parameter",
+            "format": "float",
+            "unit": ""
+        },
+        "sig_rho": {
+            "value": 0.0023,
+            "comment": "Uncertainty on source angular size parameter",
+            "format": "float",
+            "unit": ""
+        },
+        "pi_E": {
+            "value": 0.29290,
+            "comment": "Parallax",
+            "format": "float",
+            "unit": ""
+        },
+        "sig_pi_E": {
+            "value": 0.0181,
+            "comment": "Uncertainty on parallax",
+            "format": "float",
+            "unit": ""
+        },
+        "logq": {
+            "value": -1.37703,
+            "comment": "Lens mass ratio, log10",
+            "format": "float",
+            "unit": ""
+        },
+        "sig_logq": {
+            "value": 0.01129,
+            "comment": "Uncertainty on lens mass ratio, log10",
+            "format": "float",
+            "unit": ""
+        },
+        "logs": {
+            "value": 0.22445,
+            "comment": "Lens masses separation, log10",
+            "format": "float",
+            "unit": ""
+        },
+        "sig_logs": {
+            "value": 0.00153,
+            "comment": "Uncertainty on lens mass separation, log10",
+            "format": "float",
+            "unit": ""
+        },
+        "dsdt": {
+            "value": "None",
+            "comment": "Rate of change in lens masses separation",
+            "format": "float",
+            "unit": ""
+        },
+        "sig_dsdt": {
+            "value": "None",
+            "comment": "Uncertainty on rate of change of lens mass separation",
+            "format": "float",
+            "unit": ""
+        },
+        "dalphadt": {
+            "value": "None",
+            "comment": "Rate of change in alpha",
+            "format": "float",
+            "unit": "radians/s"
+        },
+        "sig_dalphadt": {
+            "value": "None",
+            "comment": "Uncertainty on rate of change of alpha",
+            "format": "float",
+            "unit": "radians/s"
+        },
+        "source_fluxes": {
+            "value": {"lsc-doma-fa15_gp": 28.72093,
+                      "lsc-doma-fa15_rp": 1251.48254,
+                      "lsc-doma-fa15_ip": 7784.05576},
+            "comment": "Measured source flux values in SDSS g, r, and i bands, in order or list with None entries",
+            "format": "float",
+            "unit": "e-/s"
+        },
+        "source_flux_errors": {
+            "value": {"lsc-doma-fa15_gp": 13.53316,
+                      "lsc-doma-fa15_rp": 41.82985,
+                      "lsc-doma-fa15_ip": 149.234},
+            "comment": "Uncertainties on measured source flux values in SDSS g, r, and i bands, in order or list with None entries",
+            "format": "float",
+            "unit": "e-/s"
+        },
+        "blend_fluxes": {
+            "value": {"lsc-doma-fa15_gp": 1723.43824,
+                      "lsc-doma-fa15_rp": 8078.1425,
+                      "lsc-doma-fa15_ip": 21112.69562},
+            "comment": "Measured blend flux values in SDSS g, r, and i bands, in order or list with None entries",
+            "format": "float",
+            "unit": "e-/s"
+        },
+        "blend_flux_errors": {
+            "value": {"lsc-doma-fa15_gp": 16.85739,
+                      "lsc-doma-fa15_rp": 49.10606,
+                      "lsc-doma-fa15_ip": 155.75005},
+            "comment": "Uncertainties on measured blend flux values in SDSS g, r, and i bands, in order or list with None entries",
+            "format": "float",
+            "unit": "e-/s"
+        }
+    }
