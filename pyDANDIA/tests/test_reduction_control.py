@@ -15,6 +15,8 @@ import pipeline_setup
 import metadata
 import reduction_control
 import stage0
+import glob
+from astropy.table import Column
 
 TEST_DATA = os.path.join(cwd,'data')
 
@@ -150,11 +152,91 @@ def test_unlock_dataset():
 
     logs.close_log(log)
 
+def test_get_auto_config():
+
+    setup = pipeline_setup.pipeline_setup(params)
+
+    log = logs.start_pipeline_log(setup.log_dir, 'test_reduction_control',
+                               version=VERSION)
+
+    config = reduction_control.get_auto_config(setup,log)
+
+    for key, value in config.items():
+        print(key+': '+repr(value))
+
+    logs.close_log(log)
+
+def test_extract_target_lightcurve():
+
+    if len(sys.argv) > 1:
+        red_dir = sys.argv[1]
+        phot_db_path = sys.argv[2]
+    else:
+        red_dir = input('Please give the path to a reduced data directory: ')
+        phot_db_path = input('Please give the path to the photometry DB: ')
+
+    test_params = {'red_dir': red_dir,
+              'log_dir': os.path.join(cwd, 'data', 'proc','logs'),
+              'db_file_path': phot_db_path,
+              'pipeline_config_dir': os.path.join(cwd, 'data', 'proc', 'config'),
+              'software_dir': os.path.join(cwd, '..'),
+              'verbosity': 2}
+
+    lc_dir = os.path.join(red_dir, 'lc')
+
+    test_setup = pipeline_setup.pipeline_setup(test_params)
+
+    log = logs.start_pipeline_log(test_setup.log_dir, 'test_reduction_control',
+                               version=VERSION)
+
+    reduction_control.extract_target_lightcurve(test_setup, log)
+
+    logs.close_log(log)
+
+    lc_files = glob.glob(os.path.join(lc_dir, '*'))
+
+    assert len(lc_files) > 0
+
+def test_check_for_assigned_ref_image():
+
+    setup = pipeline_setup.pipeline_setup(params)
+
+    log = logs.start_pipeline_log(setup.log_dir, 'test_reduction_control',
+                                   version=VERSION)
+
+    metadata_path = os.path.join(setup.red_dir, 'pyDANDIA_metadata.fits')
+    if os.path.isfile(metadata_path):
+        os.remove(metadata_path)
+
+    reduction_metadata = metadata.MetaData()
+    reduction_metadata.create_metadata_file(setup.red_dir, 'pyDANDIA_metadata.fits')
+    reduction_metadata.save_updated_metadata(setup.red_dir,'pyDANDIA_metadata.fits',log=log)
+
+    status = reduction_control.check_for_assigned_ref_image(setup, log)
+
+    assert status==False
+
+    ref_path = os.path.join(setup.red_dir, 'ref')
+    col1 = Column([str(ref_path)], name='REF_PATH')
+    reduction_metadata.data_architecture[1].add_column(col1)
+
+    col2 = Column(['test_ref_image.fits'], name='REF_IMAGE')
+    reduction_metadata.data_architecture[1].add_column(col2)
+    reduction_metadata.save_updated_metadata(setup.red_dir,'pyDANDIA_metadata.fits',log=log)
+
+    status = reduction_control.check_for_assigned_ref_image(setup, log)
+
+    assert status==True
+
+    logs.close_log(log)
 
 if __name__ == '__main__':
 
     #test_trigger_stage_subprocess()
     #test_execute_stage()
-    test_check_dataset_lock()
-    test_lock_dataset()
-    test_unlock_dataset()
+    #test_check_dataset_lock()
+    #test_lock_dataset()
+    #test_unlock_dataset()
+    #test_get_auto_config()
+    #test_extract_target_lightcurve()
+    test_check_for_assigned_ref_image()

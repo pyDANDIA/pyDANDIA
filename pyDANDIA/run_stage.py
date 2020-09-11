@@ -59,19 +59,16 @@ def run_stage_stand_alone():
 
     elif params['stage'] == 'stage2':
 
-        (status, report) = stage2.run_stage2(setup, empirical_ranking=params['empirical_ref'], n_stack = int(params['stack_ref']))
+        (status, report) = stage2.run_stage2(setup, **params)
 
     elif params['stage'] == 'reference_astrometry':
 
         (status, report) = reference_astrometry.run_reference_astrometry(setup,
-                                                    force_rotate_ref=params['rotate_ref'],
-                                                    dx=params['dx'],
-                                                    dy=params['dy'],
-                                                    trust_wcs=params['trust_wcs'])
+                                                                        **params)
 
     elif params['stage'] == 'stage3':
 
-        (status, report) = stage3.run_stage3(setup, cl_params=params)
+        (status, report) = stage3.run_stage3(setup, **params)
 
     elif params['stage'] == 'calibrate_photometry':
 
@@ -79,9 +76,7 @@ def run_stage_stand_alone():
 
     elif params['stage'] == 'stage3_db_ingest':
 
-        (status, report) = stage3_db_ingest.run_stage3_db_ingest(setup,
-                                            primary_ref=params['primary_ref'],
-                                            add_matched_stars=params['add_matched_stars'])
+        (status, report) = stage3_db_ingest.run_stage3_db_ingest(setup, **params)
 
     elif params['stage'] == 'stage4':
 
@@ -94,7 +89,7 @@ def run_stage_stand_alone():
 
     elif params['stage'] == 'stage6':
 
-        (status, report) = stage6.run_stage6(setup)
+        (status, report) = stage6.run_stage6(setup, **params)
 
     elif params['stage'] == 'image_coadd':
 
@@ -191,10 +186,30 @@ def get_args():
     else:
         params['trust_wcs'] = False
 
+    if '-use-gaia-phot' in argv or '-use_gaia_phot' in argv:
+        params['use_gaia_phot'] = True
+    else:
+        params['use_gaia_phot'] = False
+
+    if '-per-star-logging' in argv or '-per_star_logging' in argv:
+        params['per_star_logging'] = True
+    else:
+        params['per_star_logging'] = False
+
     if '-set-phot-calib' in argv:
         params['set_phot_calib'] = True
     else:
         params['set_phot_calib'] = False
+
+    if '-no-xmatch' in argv:
+        params['catalog_xmatch'] = False
+    else:
+        params['catalog_xmatch'] = True
+
+    if '-no-phot-db' in argv:
+        params['build_phot_db'] = False
+    else:
+        params['build_phot_db'] = True
 
     params['dx'] = 0.0
     params['dy'] = 0.0
@@ -221,7 +236,7 @@ def get_args():
 
     if params['set_phot_calib'] and (params['a0'] == None or params['a1'] == None):
         raise ValueError('Set photometric calibration flag set to True but no coefficients provided')
-        
+
     return params
 
 

@@ -13,6 +13,9 @@ from pyDANDIA import  logs
 from pyDANDIA import  metadata
 from pyDANDIA import  psf
 from pyDANDIA import  stage0
+from pyDANDIA import image_handling
+import matplotlib as mpl
+mpl.use('Agg')
 import matplotlib.pyplot as plt
 from astropy.io import fits
 from astropy import visualization
@@ -80,7 +83,7 @@ def model_sky_background(setup,reduction_metadata,log,ref_star_catalog,
     elif sky_value !=None:
         bkgd_value = sky_value
         log.info('Using user-provided estimate of the sky background = '+str(bkgd_value))
-        
+
     if diagnostics:
         fig = plt.figure(1)
         plt.hist(star_masked_image.flatten(),1000,range=(0.0, 5000.0), log=True)
@@ -156,13 +159,16 @@ def load_masked_image(setup, reduction_metadata, log, image_path=None):
 
     if image_path == None:
         image_path = str(reduction_metadata.data_architecture[1]['REF_PATH'][0]) +'/'+ str(reduction_metadata.data_architecture[1]['REF_IMAGE'][0])
-    scidata = fits.getdata(image_path)
+
+    image_structure = image_handling.determine_image_struture(image_path,log=log)
+
+    scidata = image_handling.get_science_image(image_path, image_structure=image_structure)
 
     image_bpm = stage0.open_an_image(setup, path.dirname(image_path),
-                               path.basename(image_path), log,  image_index=2)
-    if image_bpm == None:
-        image_bpm = stage0.open_an_image(setup, path.dirname(image_path),
-                                path.basename(image_path),log,  image_index=1)
+                               path.basename(image_path), log,  image_index=image_structure['bpm'])
+    #if image_bpm == None:
+    #    image_bpm = stage0.open_an_image(setup, path.dirname(image_path),
+    #                            path.basename(image_path),log,  image_index=1)
 
     scidata = scidata.data
     idx = np.where(image_bpm.data != 0)

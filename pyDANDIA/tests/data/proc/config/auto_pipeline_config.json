@@ -29,12 +29,6 @@
       "format": "string",
       "unit": ""
   },
-  "python_exec_path": {
-      "value": "/Users/rstreet1/software/pydandia_venv/bin/python",
-      "comment": "Full directory path for the python executable to call",
-      "format": "string",
-      "unit": ""
-  },
   "group_processing_limit": {
       "value": 5,
       "comment": "Maximum number of data groups to process at any one time",
@@ -50,18 +44,6 @@
   "use_gaia_phot": {
       "value": "False",
       "comment": "Switch to enable use of Gaia photometry for calibration",
-      "format": "string",
-      "unit": ""
-  },
-  "reduce_datasets": {
-      "value": "@dataset_list.dat",
-      "comment": "List of datasets to be reduced.  Can be ALL or @filename to indicate a file listing dataset names",
-      "format": "string",
-      "unit": ""
-  },
-  "build_phot_db": {
-      "value": "False",
-      "comment": "Switch to construct a photometric database for the reduction",
       "format": "string",
       "unit": ""
   }

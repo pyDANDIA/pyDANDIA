@@ -1,0 +1,32 @@
+{
+  "tom_url": {
+    "value": "http://127.0.0.1:8000",
+    "comment": "Base URL to the TOM system",
+    "format": "string",
+    "unit": ""
+  },
+  "dataproducts_endpoint": {
+    "value": "api/dataproducts/",
+    "comment": "URL extention directing to the API endpoint for data products",
+    "format": "string",
+    "unit": ""
+  },
+  "targets_endpoint": {
+    "value": "api/targets",
+    "comment": "URL extention directing to the API endpoint for targets",
+    "format": "string",
+    "unit": ""
+  },
+  "user_id": {
+    "value": "my_user_name",
+    "comment": "User ID of TOM user account",
+    "format": "string",
+    "unit": ""
+  },
+  "password": {
+    "value": "my_password",
+    "comment": "Password of TOM user account",
+    "format": "string",
+    "unit": ""
+  }
+}

@@ -12,6 +12,8 @@ import glob
 import copy
 from pyDANDIA import logs
 from pyDANDIA import pixelmasks
+import matplotlib as mpl
+mpl.use('Agg')
 import matplotlib.pyplot as plt
 
 class BadPixelMask:
@@ -211,7 +213,7 @@ class BadPixelMask:
         
         self.bloom_mask = sn.morphology.binary_dilation(self.saturated_pixels, iterations=niter,
                                                         structure = sn.generate_binary_structure(xm, ym) ).astype(int)
-
+        
     def mask_ccd_blooming(self,setup,reduction_metadata,image,log=None,
                           diagnostic_plots=False):
         """Method to identify and mask regions of an image where bright stars

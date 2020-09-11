@@ -12,6 +12,8 @@ import abc
 import collections
 import numpy as np
 from scipy import optimize, integrate
+import matplotlib as mpl
+mpl.use('Agg')
 import matplotlib.pyplot as plt
 from astropy import visualization
 from mpl_toolkits.mplot3d import Axes3D
@@ -960,10 +962,11 @@ def error_background_fit_function(params, data, background, Y_data, X_data, mask
     back_params = params
 
     back_model = background.background_model(Y_data, X_data, back_params)
+
+    weight = np.zeros(data.shape)
     if not np.all(data==0.0):
-        weight = 1/np.abs(data)**0.5
-    else:
-        weight = np.zeros(data.shape)
+        idx = np.where(data != 0.0)
+        weight[idx] = 1/np.abs(data[idx])**0.5
     weight[np.isnan(weight)] = 0
     residuals = ((data - back_model)*weight)[mask]
 
@@ -990,7 +993,7 @@ def fit_the_stamps(stamps,psf_model='Moffat2D', background_model='Constant'):
 
     guess = guess_psf + guess_back
 
-    
+
     fit = optimize.minimize(error_stamp_function, guess, args=(
         datasets, psf_model, back_model,y,x),jac = Jacobi_stamp)
 
@@ -1234,9 +1237,9 @@ def fit_star_existing_model(setup, data, x_cen, y_cen, psf_radius,
         psf_params[1] = fit[0][1]
         psf_params[2] = fit[0][2]
 
+
     fitted_model.update_psf_parameters(psf_params)
     fitted_cov = fit[1]
-
     if diagnostics:
         Y_data, X_data = np.indices(data.shape)
 
@@ -1253,8 +1256,10 @@ def fit_star_existing_model(setup, data, x_cen, y_cen, psf_radius,
 
         hdulist.writeto(file_path,overwrite=True)
 
-   
 
+
+
+   # fitted_model.update_psf_parameters(psf_params)
 
     good_fit = check_fit_quality(setup, data, psf_sky_bkgd, fitted_model)
 
@@ -1350,6 +1355,7 @@ def fit_star_existing_model_with_kernel(setup, data, x_cen, y_cen, psf_radius,
 
     fitted_model = get_psf_object(psf_model.psf_type())
 
+
     psf_params = psf_model.get_parameters()
     psf_params[0] = fit[0][0]
 
@@ -1408,8 +1414,8 @@ def check_fit_quality(setup, psf_stamp_data, sky_model, fitted_model):
 
     max_peak_flux = psf_stamp_data.max() + 0.1 * psf_stamp_data.max()
 
+    #if model_pars[0] > max_peak_flux or model_pars[0] <= 0.0:
     if model_pars[0] <= 0.0:
-
         good_fit = False
 
     return good_fit
@@ -1464,6 +1470,8 @@ def build_psf(setup, reduction_metadata, log, image, ref_star_catalog,
 
     log.info('Cutting stamps for '+str(len(psf_star_centres))+' PSF stars')
 
+    #stamp_dims = (int(psf_diameter)*4, int(psf_diameter)*4)
+
     stamp_dims = (int(psf_diameter)*1, int(psf_diameter)*1)
 
     logs.ifverbose(log, setup, ' -> Stamp dimensions=' + repr(stamp_dims))
@@ -1515,7 +1523,7 @@ def build_psf(setup, reduction_metadata, log, image, ref_star_catalog,
     # high S/N stamp
     (master_stamp, master_stamp_var) = coadd_stamps(setup, clean_stamps, log,
                                                 diagnostics=False)
-    #fit_the_stamps(clean_stamps)
+
 
 
     if diagnostics:
@@ -1527,10 +1535,12 @@ def build_psf(setup, reduction_metadata, log, image, ref_star_catalog,
 
     # Re-build the final PSF by fitting a PSF model to the updated high
     # S/N stamp
+
     psf_model = fit_psf_model(setup,log,psf_model_type,psf_diameter,
                                    sky_model.background_type(),
                                     master_stamp, stamp_varience=master_stamp_var,
                                     diagnostics=False)
+
 
     master_psf = get_psf_object(psf_model.psf_type())
     master_psf.update_psf_parameters(psf_model.get_parameters())
@@ -1562,6 +1572,8 @@ def build_psf(setup, reduction_metadata, log, image, ref_star_catalog,
     log.info('Completed build of PSF model with status '+status)
 
     return psf_model, status
+
+
 
 def output_fits_model(image_data,header, file_path):
     """Function to output a FITS image of the given data"""
@@ -1766,11 +1778,13 @@ def coadd_stamps(setup, stamps, log, diagnostics=True):
     weights = np.zeros((outline.shape[0],outline.shape[1],nstamps))
 
     i = -1
+
     for s in stamps:
         if s != None:
             i += 1
-            weights[:,:,i] =  1/np.abs(s.data) 
+            weights[:,:,i] =  1/np.abs(s.data)
             data[:,:,i] = s.data * weights[:,:,i]
+
 
     coadd = data.sum(axis=2) / weights.sum(axis=2)
 
@@ -1782,7 +1796,6 @@ def coadd_stamps(setup, stamps, log, diagnostics=True):
 
     coadd_var = diff / dweights
 
-  
 
     master_stamp = Cutout2D(coadd, (xc, yc), coadd.shape, copy=True)
     master_stamp_var = Cutout2D(coadd_var, (xc, yc), coadd_var.shape, copy=True)
@@ -1818,9 +1831,10 @@ def fit_psf_model(setup,log,psf_model_type,psf_diameter,sky_model_type,stamp_ima
     ymin = int(half_stamp - half_psf)
     ymax = int(half_stamp + half_psf)
 
+
     substamp = stamp_image.data
     substamp_var = stamp_varience.data
-    
+
     Y_data, X_data = np.indices(substamp.shape)
 
     if diagnostics:
@@ -1830,9 +1844,9 @@ def fit_psf_model(setup,log,psf_model_type,psf_diameter,sky_model_type,stamp_ima
                                      'ref', 'stamp_image_fitting.fits'),
                         overwrite=True)
 
-    substamp = stamp_image.data[ymin:ymax, xmin:xmax]
 
-    
+
+
 
     psf_fit = fit_star(substamp, Y_data, X_data,
                        psf_model_type, sky_model_type,
@@ -2002,6 +2016,7 @@ def subtract_companions_from_psf_stamps(setup, reduction_metadata, log,
                 if substamp != None:
 
                     sub_psf_model = get_psf_object('Moffat2D')
+
                     pars = psf_model.get_parameters()
                     pars[1] = star_data[2]  # Y
                     pars[2] = star_data[1]  # X
@@ -2024,7 +2039,7 @@ def subtract_companions_from_psf_stamps(setup, reduction_metadata, log,
                         pdb.set_trace()
 
                     s.data[corners[2]:corners[3],corners[0]:corners[1]] = sky_model_bkgd[corners[2]:corners[3],corners[0]:corners[1]]
-                    (comp_psf,comp_cov, good_fit) = fit_star_existing_model(setup, s.data,
+                    (comp_psf,comp_cov,good_fit) = fit_star_existing_model(setup, s.data,
                                                         pars[2], pars[1],
                                                         psf_diameter,
                                                         sub_psf_model,

@@ -12,6 +12,8 @@ systempath.append(path.join(cwd, '../'))
 import metadata
 from pyDANDIA import match_utils
 from skimage.transform import AffineTransform
+from astropy.table import Table
+from astropy.table import Column
 
 def test_create_metadata_file():
     metad = metadata.MetaData()
@@ -282,11 +284,74 @@ def test_load_field_dataset_transform():
     assert type(transform) == type(test_transform)
     assert (transform.params == test_transform.params).all()
 
-os.remove('./dummy_metadata.fits')
+def test_create_psf_dimensions_layer():
 
+    metad = metadata.MetaData()
+
+    data = []
+    for i in range(0,3,1):
+        data.append([str(i+1),i,0.0])
+
+    metad.create_psf_dimensions_layer(np.array(data))
+
+    assert 'psf_dimensions' in dir(metad)
+
+    metad.create_psf_dimensions_layer(np.array(data))
+
+    existing_layers = dir(metad)
+
+    assert existing_layers.count('psf_dimensions') == 1
+
+if os.path.isfile('./dummy_metadata.fits'):
+    os.remove('./dummy_metadata.fits')
+
+
+def test_cone_search_on_position():
+
+    metad = metadata.MetaData()
+    metad.create_metadata_file('.', 'dummy_metadata.fits')
+
+    target = [ 269.0, -18.0 ]
+
+    index = []
+    ra = []
+    dec = []
+    for star in range(1,11,1):
+        index.append(star)
+        ra.append(target[0] + float(star-1)*0.05)
+        dec.append(target[1] + float(star-1)*0.05)
+
+    ref_catalog = Table( [Column(name='index', data=index),
+                          Column(name='ra', data=ra),
+                          Column(name='dec', data=dec)] )
+
+    metad.create_a_new_layer_from_table('star_catalog',ref_catalog)
+
+    search_params = {'ra_centre': target[0], 'dec_centre': target[1],
+                     'radius': 0.05}
+
+    results = metad.cone_search_on_position(search_params)
+
+    assert len(results) == 1
+    assert results['star_id'][0] == 1
+
+def test_fetch_reduction_filter():
+
+    cwd = getcwd()
+    red_dir = path.join(cwd, 'data/proc/ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip')
+    metad = metadata.MetaData()
+    metad.load_all_metadata(red_dir, 'pyDANDIA_metadata.fits')
+
+    filter_name = metad.fetch_reduction_filter()
+
+    assert filter_name == 'ip'
 
 if __name__ == '__main__':
     #test_create_matched_stars_layer()
     #test_load_matched_stars()
     #test_create_transform_layer()
-    test_load_field_dataset_transform()
+    #test_load_field_dataset_transform()
+    #test_create_psf_dimensions_layer()
+    #test_cone_search_on_position()
+    test_fetch_reduction_filter()
+    

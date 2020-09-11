@@ -64,6 +64,18 @@ def build_config_from_json(config_file):
 
     return config
 
+def set_default_config(defaults, kwargs, log):
+
+    for key, value in defaults.items():
+        if key not in kwargs.keys():
+            kwargs[key] = value
+
+    log.info('Using default configuration: ')
+    for key, value in kwargs.items():
+        log.info(key+': '+str(value))
+
+    return kwargs
+
 def load_event_model(file_path, log):
 
     if file_path.lower() != 'none':

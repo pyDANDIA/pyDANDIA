@@ -8,6 +8,7 @@ from os import path
 from astropy.io import fits
 from astropy.table import Table
 from astropy.table import Column
+from astropy.coordinates import SkyCoord
 from astropy.utils.exceptions import AstropyWarning
 from astropy import units as u
 from skimage.transform import AffineTransform
@@ -17,10 +18,10 @@ import collections
 import warnings
 from pyDANDIA import  logs
 from pyDANDIA import match_utils
+from pyDANDIA import image_handling
 
 import os
 import pathlib
-
 
 def update_a_dictionary(dictionary, new_key, new_value):
     '''
@@ -143,6 +144,24 @@ class MetaData:
 
         setattr(self, layer_name, layer)
 
+    def remove_metadata_layer(self, layer_name, red_dir, metadata_file):
+        """Function to remove a layer from an existing metadata file"""
+
+        if layer_name in dir(self):
+
+            confirm = input('Please confirm that you wish to remove the '+layer_name+\
+                            ' table from the metadata.  Y or N: ')
+            if 'Y' in str(confirm).upper():
+                delattr(self, layer_name)
+                self.save_updated_metadata(red_dir,metadata_file)
+                print(layer_name+' table removed from '+os.path.join(red_dir, metadata_file))
+
+            else:
+                print(layer_name+' NOT removed from metadata')
+
+        else:
+            print('No '+layer_name+' table found in metadata object')
+
     def create_a_new_layer_from_table(self, layer_name, table_data):
         """
         Add a new layer to the metadata object from an astropy Table
@@ -201,18 +220,21 @@ class MetaData:
                             astropy.units of 'pixels'
         """
 
-        layer_header = fits.Header()
-        layer_header.update({'NAME': 'psf_dimensions'})
+        existing_layers = dir(self)
 
-        table_data = [ Column(name='index', data=data[:,0], unit=None, dtype='int'),
-                       Column(name='psf_factor', data=data[:,1], unit=u.pix, dtype='float'),
-                       Column(name='psf_radius', data=data[:,2], unit=u.pix, dtype='float') ]
+        if 'psf_dimensions' not in existing_layers:
+            layer_header = fits.Header()
+            layer_header.update({'NAME': 'psf_dimensions'})
 
-        layer_table = Table(table_data)
+            table_data = [ Column(name='index', data=data[:,0], unit=None, dtype='int'),
+                           Column(name='psf_factor', data=data[:,1], unit=u.pix, dtype='float'),
+                           Column(name='psf_radius', data=data[:,2], unit=u.pix, dtype='float') ]
 
-        layer = [layer_header, layer_table]
+            layer_table = Table(table_data)
 
-        setattr(self, 'psf_dimensions', layer)
+            layer = [layer_header, layer_table]
+
+            setattr(self, 'psf_dimensions', layer)
 
     def create_headers_summary_layer(self, names, formats, units=None, data=None):
         '''
@@ -815,6 +837,8 @@ class MetaData:
         if log != None:
             log.info('Total of ' + str(len(new_images)) + ' images need reduction')
 
+        if len(new_images) == 0:
+            log.info('WARNING: No valid images found to be needing reduction')
 
         return new_images
 
@@ -1019,6 +1043,42 @@ class MetaData:
         psf_radii = psf_factors * fwhm_ref
         self.psf_dimensions[1]['psf_radius'] = psf_radii
 
+    def cone_search_on_position(self,params):
+        """Function to search the star_catalog for stars within (radius) of the
+        (ra_centre, dec_centre) given.
+
+        :param float ra_centre: Box central RA in decimal degrees
+        :param float dec_centre: Box central Dec in decimal degrees
+        :param float radius:     Search radius in decimal degrees
+        """
+
+        starlist = SkyCoord(self.star_catalog[1]['ra'], self.star_catalog[1]['dec'],
+                            frame='icrs', unit=(u.deg,u.deg))
+
+        target = SkyCoord(params['ra_centre'], params['dec_centre'], frame='icrs', unit=(u.deg,u.deg))
+
+        separations = target.separation(starlist)
+
+        idx = np.where(separations.value <= params['radius'])
+
+        results = Table( [Column(name='star_id', data=self.star_catalog[1]['index'][idx]),
+                          Column(name='ra', data=self.star_catalog[1]['ra'][idx]),
+                          Column(name='dec', data=self.star_catalog[1]['dec'][idx]),
+                          Column(name='separation', data=separations[idx]) ])
+
+        return results
+
+    def fetch_reduction_filter(self):
+        """Function to identify the filter used for the reduction"""
+
+        ref_path = self.data_architecture[1]['REF_PATH'][0]
+        ref_filename = self.data_architecture[1]['REF_IMAGE'][0]
+
+        ref_image_path = path.join(ref_path, ref_filename)
+
+        image_header = image_handling.get_science_header(ref_image_path)
+
+        return image_header['FILTER']
 
 ###
 def set_pars(self, par_dict):

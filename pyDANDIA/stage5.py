@@ -31,11 +31,13 @@ from pyDANDIA import metadata
 from pyDANDIA import logs
 from pyDANDIA import psf
 from pyDANDIA import stage4
-
+from pyDANDIA import image_handling
+import matplotlib as mpl
+mpl.use('Agg')
 import matplotlib.pyplot as plt
 
 
-def run_stage5(setup):
+def run_stage5(setup, **kwargs):
     """Main driver function to run stage 5: kernel_solution
     This stage finds the kernel solution and (optionally) subtracts the model
     image
@@ -65,6 +67,8 @@ def run_stage5(setup):
     reduction_metadata = metadata.MetaData()
     reduction_metadata.load_all_metadata(setup.red_dir, 'pyDANDIA_metadata.fits')
 
+    image_red_status = reduction_metadata.fetch_image_status(5)
+
     log.info('Determining the kernel size for all images based on their FWHM')
     fwhm_max = 0.
     shift_max = 0
@@ -74,29 +78,32 @@ def run_stage5(setup):
 
     for stats_entry in reduction_metadata.images_stats[1]:
 
-        if np.isfinite(float(stats_entry['SHIFT_X'])):
-            shifts.append(float(stats_entry['SHIFT_X']))
+        image_flag = image_red_status[stats_entry['IM_NAME']]
 
-        if np.isfinite(float(stats_entry['SHIFT_Y'])):
-            shifts.append(float(stats_entry['SHIFT_Y']))
+        if image_flag in ['0', '1']:
+            if np.isfinite(float(stats_entry['SHIFT_X'])):
+                shifts.append(float(stats_entry['SHIFT_X']))
 
-        # Note this is using the sigma of a bi-variate normal distribution, NOT
-        # the true FWHM:
-        # if float(stats_entry['FWHM'])> fwhm_max:
-        #    fwhm_max = stats_entry['FWHM']
-        if float(stats_entry['SIGMA_X']) > fwhm_max:
-            fwhm_max = stats_entry['SIGMA_X']
-        if float(stats_entry['SIGMA_Y']) > fwhm_max:
-            fwhm_max = stats_entry['SIGMA_Y']
+            if np.isfinite(float(stats_entry['SHIFT_Y'])):
+                shifts.append(float(stats_entry['SHIFT_Y']))
 
-        if abs(float(stats_entry['SHIFT_X'])) > shift_max:
-            shift_max = abs(float(stats_entry['SHIFT_X']))
+            # Note this is using the sigma of a bi-variate normal distribution, NOT
+            # the true FWHM:
+            # if float(stats_entry['FWHM'])> fwhm_max:
+            #    fwhm_max = stats_entry['FWHM']
+            if float(stats_entry['SIGMA_X']) > fwhm_max:
+                fwhm_max = stats_entry['SIGMA_X']
+            if float(stats_entry['SIGMA_Y']) > fwhm_max:
+                fwhm_max = stats_entry['SIGMA_Y']
 
-        if abs(float(stats_entry['SHIFT_Y'])) > shift_max:
-            shift_max = abs(float(stats_entry['SHIFT_Y']))
+            if abs(float(stats_entry['SHIFT_X'])) > shift_max:
+                shift_max = abs(float(stats_entry['SHIFT_X']))
 
-       # fwhms.append(((float(stats_entry['SIGMA_Y'])) ** 2 + (float(stats_entry['SIGMA_Y'])) ** 2) ** 0.5)  # arcsec
-        fwhms.append(float(stats_entry['FWHM']))  # arcsec
+            if abs(float(stats_entry['SHIFT_Y'])) > shift_max:
+                shift_max = abs(float(stats_entry['SHIFT_Y']))
+
+           # fwhms.append(((float(stats_entry['SIGMA_Y'])) ** 2 + (float(stats_entry['SIGMA_Y'])) ** 2) ** 0.5)  # arcsec
+            fwhms.append(float(stats_entry['FWHM']))  # arcsec
     fwhms = np.array(fwhms)
     mask = np.isnan(fwhms)
     fwhms[mask] = 99
@@ -281,7 +288,7 @@ def fit_kernel(params, data_image, ref_image, mask):
     weights[mask] = 0
 
     chi = np.sum(res ** 2 * weights ** 2)
-    print(chi)
+    #print(chi)
     return chi
 
 
@@ -300,7 +307,7 @@ def round_unc(val, err):
         try:
             digs = abs(int(np.log10(err / abs(val))))
         except ValueError:
-            print('ERROR in round_unc, inputs: ',err, val)
+            #print('ERROR in round_unc, inputs: ',err, val)
             exit()
         val_round = round(val, digs)
         unc_round = round(err, digs)
@@ -487,11 +494,11 @@ def subtract_with_constant_kernel(new_images, reference_image_name, reference_im
                                             row_index)
 
         try:
-
+            image_structure = image_handling.determine_image_struture(os.path.join(data_image_directory, new_image),log=log)
             data_image, data_image_unmasked = open_data_image(setup, data_image_directory, new_image,
                                                               bright_reference_mask, kernel_size, max_adu,
                                                               xshift=x_shift, yshift=y_shift, sigma_smooth=smoothing,
-                                                              central_crop=maxshift)
+                                                              central_crop=maxshift, data_extension=image_structure['sci'])
 
             missing_data_mask = (data_image == 0.)
             b_vector = bvector_constant(reference_image, data_image, kernel_size, noise_image)
@@ -604,9 +611,10 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
 
         for idx in range(len(kernel_size_array)):
             log.info(' -> Starting image ' + str(idx) + ', kernel size ' + str(kernel_size_array[idx]))
+            ref_structure = image_handling.determine_image_struture(os.path.join(reference_image_directory, reference_image_name),log=log)
             reference_images.append(
                 open_reference(setup, reference_image_directory, reference_image_name, kernel_size_array[idx], max_adu,
-                               ref_extension=0, log=log, central_crop=maxshift, master_mask=master_mask,
+                               ref_extension=ref_structure['sci'], log=log, central_crop=maxshift, master_mask=master_mask,
                                external_weight=None))
             log.info(' -> Completed image masking')
 
@@ -679,8 +687,7 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
         row_index = np.where(reduction_metadata.images_stats[1]['IM_NAME'] == new_image)[0][0]
         fwhm_val = reduction_metadata.images_stats[1][row_index]['FWHM'] * grow_kernel
         ref_fwhm_x, ref_fwhm_y, ref_sigma_x, ref_sigma_y = ref_stats
-
-
+       
         umatrix_index = int(np.digitize(fwhm_val, np.array(kernel_size_array)))
         umatrix_index = min(umatrix_index, len(kernel_size_array) - 1)
        # umatrix_index = -1
@@ -697,7 +704,9 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
 
 
         image_directory = reduction_metadata.data_architecture[1]['IMAGES_PATH'][0]
-        data_image = fits.open(os.path.join(image_directory, new_image))[0].data
+        image_file_path = os.path.join(image_directory, new_image)
+        image_structure = image_handling.determine_image_struture(image_file_path, log=log)
+        data_image = fits.open(image_file_path)[image_structure['sci']].data
 
         stamps_directory = os.path.join(data_image_directory, new_image)
 
@@ -840,8 +849,8 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
             if log is not None:
                 logs.ifverbose(log, setup,
                                'kernel matrix computation or shift failed:' + new_image + '. skipping! ' + str(e))
-            else:
-                print(str(e))
+            #else:
+                #print(str(e))
 
         log.info(' -> ' + repr(quality_metrics[-1]))
 
@@ -851,10 +860,11 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
 def open_reference_stamps(setup, reduction_metadata, reference_image_directory, reference_image_name, kernel_size,
                           max_adu, log, maxshift, min_adu=None):
     reference_pool_stamps = []
+    ref_structure = image_handling.determine_image_struture(os.path.join(reference_image_directory, reference_image_name))
     ref_image1 = fits.open(os.path.join(reference_image_directory, reference_image_name), mmap=True)
     # load all reference subimages
     for substamp_idx in range(len(reduction_metadata.stamps[1])):
-        print(substamp_idx, 'of', len(reduction_metadata.stamps[1]))
+        log.info(substamp_idx, 'of', len(reduction_metadata.stamps[1]))
         # prepare subset slice based on metadata
 
         subset_slice = [int(reduction_metadata.stamps[1][substamp_idx]['Y_MIN']),
@@ -865,7 +875,7 @@ def open_reference_stamps(setup, reduction_metadata, reference_image_directory, 
                                                                                           reference_image_directory,
                                                                                           reference_image_name,
                                                                                           kernel_size, max_adu,
-                                                                                          ref_extension=0, log=log,
+                                                                                          ref_extension=ref_structure['sci'], log=log,
                                                                                           central_crop=maxshift,
                                                                                           subset=subset_slice,
                                                                                           ref_image1=ref_image1,
@@ -895,6 +905,7 @@ def subtract_large_format_image(new_images, reference_image_name, reference_imag
 
     # iterate over all images and subimages
     for new_image in new_images:
+        image_structure = image_handling.determine_image_struture(os.path.join(data_image_directory, new_image),log=log)
         kernel_stamps = []
         pool_stamps = []
         data_image1 = fits.open(os.path.join(data_image_directory, new_image), mmap=True)
@@ -910,7 +921,8 @@ def subtract_large_format_image(new_images, reference_image_name, reference_imag
                                                               reference_pool_stamps[substamp_idx][2], kernel_size,
                                                               max_adu, xshift=x_shift, yshift=y_shift, sigma_smooth=0,
                                                               central_crop=maxshift, subset=subset_slice,
-                                                              data_image1=data_image1, min_adu=200.)
+                                                              data_image1=data_image1, min_adu=200.,
+                                                              data_extension=image_structure['sci'])
             missing_data_mask = (data_image == 0.)
             pool_stamps.append(
                 [umatrix_stamps[substamp_idx], reference_pool_stamps[substamp_idx][0], data_image, kernel_size])
@@ -928,8 +940,8 @@ def subtract_large_format_image(new_images, reference_image_name, reference_imag
             if log is not None:
                 logs.ifverbose(log, setup,
                                'kernel matrix computation or shift failed:' + new_image + '. skipping!' + str(e))
-            else:
-                print(str(e))
+            #else:
+            #    print(str(e))
         subtract_subimage(setup, kernel_directory_path, new_image, reduction_metadata)
 
 
@@ -1002,7 +1014,7 @@ def umatrix_constant(reference_image, ker_size, noise_image, model_image=None, s
         from umatrix_routine import umatrix_construction_nobkg, bvector_construction_nobkg
 
     except ImportError:
-        print('cannot import cython module umatrix_routine')
+        raise ImportError('cannot import cython module umatrix_routine')
         return []
 
     if ker_size:
@@ -1048,7 +1060,7 @@ def umatrix_constant_clean(reference_image, ker_size, first_umatrix, outliers, m
         from umatrix_routine import umatrix_construction_nobkg, bvector_construction_nobkg
         from umatrix_routine import umatrix_construction_clean, bvector_construction_clean
     except ImportError:
-        print('cannot import cython module umatrix_routine')
+        raise ImportError('cannot import cython module umatrix_routine')
         return []
 
     if ker_size:
@@ -1095,7 +1107,7 @@ def umatrix_constant_threading(reference_image, ker_size, model_image=None, sigm
         from umatrix_routine import umatrix_construction_nobkg, bvector_construction_nobkg
 
     except ImportError:
-        print('cannot import cython module umatrix_routine')
+        raise ImportError('cannot import cython module umatrix_routine')
         return []
 
     if ker_size:
@@ -1139,7 +1151,7 @@ def umatrix_single_pool(input_arg):
     reference_image = input_arg[0]
     ker_size = input_arg[1]
     pq_subset = input_arg[2]
-    print("umatrix threaded single start")
+    #print("umatrix threaded single start")
     return umatrix_constant(reference_image, ker_size, model_image=None, sigma_max=None, bright_mask=None)
 
 
@@ -1151,7 +1163,7 @@ def umatrix_pool(input_arg):
     '''
     reference_image = input_arg[0]
     ker_size = input_arg[1]
-    print("umatrix start")
+    #print("umatrix start")
     return umatrix_constant(reference_image, ker_size, model_image=None, sigma_max=None, bright_mask=None)
 
 
@@ -1175,7 +1187,7 @@ def bvector_constant(reference_image, data_image, ker_size, noise_image, model_i
         from umatrix_routine import umatrix_construction_nobkg, bvector_construction_nobkg
 
     except ImportError:
-        print('cannot import cython module umatrix_routine')
+        raise ImportError('cannot import cython module umatrix_routine')
         return []
 
     if ker_size:
@@ -1223,7 +1235,7 @@ def bvector_constant_clean(reference_image, data_image, ker_size, first_b_vector
         from umatrix_routine import umatrix_construction_nobkg, bvector_construction_nobkg
         from umatrix_routine import umatrix_construction_clean, bvector_construction_clean
     except ImportError:
-        print('cannot import cython module umatrix_routine')
+        raise ImportError('cannot import cython module umatrix_routine')
         return []
 
     if ker_size:
@@ -1430,7 +1442,7 @@ def difference_image_subimages(ref_imagename, data_imagename,
     subimages_args = []
     for idx in range(subimage_shape[0]):
         for jdx in range(subimage_shape[1]):
-            print('Solving for subimage ', [idx + 1, jdx + 1], ' of ', subimage_shape)
+            #print('Solving for subimage ', [idx + 1, jdx + 1], ' of ', subimage_shape)
             x_shape, y_shape = np.shape(ref_image)
             x_subsize, y_subsize = x_shape / subimage_shape[0], y_shape / subimage_shape[1]
             subimage_element = subimage_shape + [idx, jdx]

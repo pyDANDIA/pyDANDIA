@@ -310,5 +310,11 @@
     "value": 1,
   "format":"int",
   "unit":""
+  },
+  "qc_max_bad_pixel": {
+    "comment": "qc_max_bad_pixel - FLOAT - Maximum percentage of bad pixels in a single frame",
+    "value": 1.5,
+    "format": "float",
+    "unit": ""
   }
 }

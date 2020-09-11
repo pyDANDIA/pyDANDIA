@@ -135,6 +135,7 @@ def calc_offset_pixels(setup, detected_stars, catalog_stars,log,
 
     best_offset = [[0,0],[0,0]]
 
+
     while len(best_offset[0]) != 1:
         nbins = int(nxbins*resolution_factor)
 

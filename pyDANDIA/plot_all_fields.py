@@ -47,7 +47,7 @@ def plot_all_fields(data_dir):
     ax.set_autoscaley_on(False)
     ax.set_autoscalex_on(False)
     ax.axis('equal')
-    ax.set_xlim([plot_ranges[0], plot_ranges[1]])
+    ax.set_xlim([plot_ranges[1], plot_ranges[0]])
     ax.set_ylim([plot_ranges[2], plot_ranges[3]])
 
     for field_id,field_data in ROME_FIELDS.items():
@@ -86,7 +86,7 @@ def plot_all_fields(data_dir):
         fontsize=100, c='gray',
         transform = ax.transAxes)
 
-    plt.text(0.5, -0.16, '1 million stars  $\\bullet$  3 filters  $\\bullet$  3 years',
+    plt.text(0.5, -0.16, '4.65 million stars  $\\bullet$  3 filters  $\\bullet$  3 years',
         horizontalalignment='center',
         fontsize=80, c='gray',
         transform = ax.transAxes)

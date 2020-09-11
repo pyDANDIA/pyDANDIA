@@ -17,12 +17,15 @@ from photutils import Background2D, MedianBackground
 
 from pyDANDIA import logs
 from pyDANDIA import metadata
+import matplotlib as mpl
+mpl.use('Agg')
 import matplotlib.pyplot as plt
 from astropy.io import fits
 from pyDANDIA import starfind
 from pyDANDIA import psf
 from pyDANDIA import convolution
 from pyDANDIA import calibrate_photometry
+from pyDANDIA import image_handling
 from scipy.odr import *
 import scipy.optimize as so
 import scipy.ndimage as sndi
@@ -57,7 +60,8 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
 
     log.info('Starting photometry of ' + os.path.basename(image_path))
 
-    data = fits.getdata(image_path)
+    data = image_handling.get_science_image(image_path)
+
     if psf_diameter == None:
         psf_diameter = (reduction_metadata.psf_dimensions[1]['psf_radius'][0]*2.0)
 
@@ -106,6 +110,7 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
 
         (sky_section, sky_x, sky_y) = psf.extract_image_section(sky_bkgd,
                                                             xstar,ystar,corners)
+
         (fitted_model,fitted_cov,good_fit) = psf.fit_star_existing_model(setup, data_section,
                                                sec_xstar, sec_ystar,
                                                psf_diameter, psf_model,
@@ -129,13 +134,16 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
                             repr(fitted_model.get_parameters())+
                             ' good fit? '+repr(good_fit))
 
+
         if good_fit == True:
 
             sub_psf_model = psf.get_psf_object('Moffat2D')
 
             pars = fitted_model.get_parameters()
-            #pars[1] = (psf_diameter/2.0) + (sec_ystar-int(sec_ystar))
-            #pars[2] = (psf_diameter/2.0) + (sec_xstar-int(sec_xstar))
+            #pars[1] = (psf_diameter/2.0) + (sec_ystar-np.round(sec_ystar))
+            #pars[2] = (psf_diameter/2.0) + (sec_xstar-np.round(sec_xstar))
+
+
 
             pars[1] = sec_ystar
             pars[2] = sec_xstar
@@ -152,29 +160,36 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
                                                     [sec_ystar,sec_xstar],
                                                     sub_corners)
 
-
             residuals[corners[2]:corners[3],corners[0]:corners[1]] -= psf_image
+
 
             if diagnostics:
                 logs.ifverbose(log, setup,' -> Star '+str(j)+
                                 ' subtracted PSF from the residuals')
 
             (flux, sigma_star) = fitted_model.calc_flux(Y_grid, X_grid, gain)
+
+
             error_psf_model = psf.get_psf_object('Moffat2D')
             ppp = np.copy(pars)
             ppp[0] = fitted_cov[0][0]
             error_psf_model.update_psf_parameters(ppp)
             error_image = psf.model_psf_in_image(data_section,error_psf_model, [sec_ystar,sec_xstar],   sub_corners)
             sigma_star2 = error_image.sum()**0.5
-            
+
             sigma_ron = np.sqrt(ron*ron * psf_npixels)
             median_sky = np.median(sky_section)
             sigma_sky = np.sqrt(median_sky * gain * psf_npixels)
 
-            
-            
+
+
             total_flux = (sigma_star2*sigma_star2) + (sigma_ron*sigma_ron) + (sigma_sky*sigma_sky)
             flux_err = np.sqrt(total_flux)
+
+            total_flux = (sigma_star2*sigma_star2) + (sigma_ron*sigma_ron) + (sigma_sky*sigma_sky)
+            flux_err = np.sqrt(total_flux)
+
+
 
             if diagnostics:
                 logs.ifverbose(log, setup, ' -> Star '+str(j)+' raw flux='+str(flux)+'e- '+
@@ -187,6 +202,7 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
                                 'pix, N pixels PSF='+str(psf_npixels)+'pix, gain='+str(gain)+' e-/ADU')
 
             (mag, mag_err, flux_scaled, flux_err_scaled) = convert_flux_to_mag(flux, flux_err, exp_time=exp_time)
+
 
             ref_star_catalog[j,5] = flux_scaled
             ref_star_catalog[j,6] = flux_err_scaled
@@ -265,7 +281,7 @@ def run_psf_photometry_naylor(setup,reduction_metadata,log,ref_star_catalog,
 
     log.info('Starting photometry of ' + os.path.basename(image_path))
 
-    data = fits.getdata(image_path)
+    data = image_handling.get_science_image(image_path)
 
     if psf_diameter == None:
         psf_diameter = (reduction_metadata.psf_dimensions[1]['psf_radius'][0]*2.0)
@@ -470,7 +486,8 @@ def quick_polyfit(params,data,weight,psf_fit):
 
 
 def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_star_catalog, sky_model,
-                                           difference_image, psf_model, kernel, kernel_error, ref_exposure_time,image_id):
+                                           difference_image, psf_model, kernel, kernel_error, ref_exposure_time,image_id,
+                                           per_star_logging=False):
     """Function to perform PSF fitting photometry on all stars for a single difference image.
 
     :param SetUp object setup: Essential reduction parameters
@@ -575,6 +592,7 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
     pixscale = reduction_metadata.reduction_parameters[1]['PIX_SCALE'].data[0]
     use_image = check_fwhm(reduction_metadata, image_id, log)
 
+
     if use_image:
 
         mask = difference_image == 0
@@ -595,9 +613,12 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
         error = calc_total_error(difference_image, bkg.background_rms, gain)
         error = (error**2+ron**2/gain**2)**0.5
 
+        #import pdb ; pdb.set_trace()
+
         try:
             phot_table = aperture_photometry(difference_image-bkg.background, apertures, method='subpixel',
                          error=error)
+
         except ValueError:
             import pdb;
             pdb.set_trace()
@@ -669,7 +690,6 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
 
                 good_fit = False
 
-
             if good_fit == True:
 
                 if ref_flux >= 0.0 and error_ref_flux > 0.0:
@@ -682,7 +702,14 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
                     flux_err_tot = (error_ref_flux ** 2*ref_exposure_time + flux_err**2/phot_scale_factor**2+
                                     (flux*error_phot_scale_factor/phot_scale_factor**2)**2) ** 0.5
 
-
+                    if per_star_logging:
+                        log.info(' -> Star ' + str(j) + ' at position (' + \
+                                   str(xstar) + ', ' + str(ystar) + ') flux='+str(flux)+', flux_err='+str(flux_err)+\
+                                   ', flux_tot='+str(flux_tot)+', flux_err_tot='+str(flux_err_tot)+\
+                                   ', ref_flux='+str(ref_flux)+', ref_flux_err='+str(error_ref_flux)+\
+                                   ', phot_table entry='+str(phot_table[j][3])+'+/-'+str(phot_table[j][4])+', phot scale factor='+str(phot_scale_factor)+\
+                                   ', diff image at position='+str(difference_image[int(positions[j][1]),int(positions[j][0])])+\
+                                   ', bkgd at position='+str(bkg.background[int(positions[j][1]),int(positions[j][0])]))
 
                     if (flux_tot > 0.0) and (flux_err_tot > 0.0) and (difference_image[int(positions[j][1]),int(positions[j][0])] != 0) \
                                 and (bkg.background[int(positions[j][1]),int(positions[j][0])]!=0) and (flux!=0) and (flux_err!=0):
@@ -727,8 +754,14 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
                         list_align_x.append(positions[j][0])
                         list_align_y.append(positions[j][1])
 
+                        if per_star_logging:
+                            log.info(' --> Photometry OK')
+
                     else:
                         good_fit = False
+
+                        if per_star_logging:
+                            log.info(' --> Photometry failed quality control')
 
                 else:
                     #logs.ifverbose(log, setup, ' -> Star ' + str(j) +
