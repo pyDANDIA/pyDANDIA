@@ -64,7 +64,7 @@ def reduction_control():
 
     elif setup.red_mode == 'image_analysis':
 
-        run_image_analysis(setup,red_log)
+        run_image_analysis(setup,red_log,params)
 
     elif setup.red_mode == 'stage3_db_ingest':
 
@@ -112,7 +112,7 @@ def run_reference_image_analysis(setup,red_log):
 
     status = execute_stage(stage3.run_stage3, 'stage 3', setup, status, red_log)
 
-def run_image_analysis(setup,red_log):
+def run_image_analysis(setup,red_log,params):
     """Function to run the sequence of stages which perform the image
     subtraction and photometry for a dataset"""
 
@@ -123,6 +123,8 @@ def run_image_analysis(setup,red_log):
     status = execute_stage(stage4.run_stage4, 'stage 4', setup, status, red_log)
 
     status = execute_stage(stage5.run_stage5, 'stage 5', setup, status, red_log)
+
+    status = execute_stage(stage6.run_stage6, 'stage 6', setup, status, red_log, **params)
 
 def run_stage3_db_ingest_bulk(setup,red_log,params):
     """Function to run stage3_db_ingest for a set of datasets read from a file
@@ -658,6 +660,11 @@ def get_args():
         if len(argv) >= idx + 1:
 
             params['verbosity'] = int(argv[idx+1])
+
+    if '-no-phot-db' in argv:
+        params['build_phot_db'] = False
+    else:
+        params['build_phot_db'] = True
 
     params['log_dir'] = path.join(params['red_dir'],'..','logs')
     proc_log_dir = path.join(params['red_dir'],'logs')

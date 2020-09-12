@@ -22,7 +22,7 @@ def pipeline_control():
 
     pipeline_version = 'pipeline_control v0.2'
 
-    setup = get_args()
+    (setup,kwargs) = get_args()
 
     log = logs.start_pipeline_log(setup.log_dir, 'pipeline_control',
                                version=pipeline_version)
@@ -30,7 +30,7 @@ def pipeline_control():
 
     datasets = get_datasets_for_reduction(setup,log)
 
-    run_reductions(setup,log,datasets)
+    run_reductions(setup,log,datasets,kwargs)
 
     logs.close_log(log)
 
@@ -40,10 +40,11 @@ def get_args():
     pyDANDIA in pipeline mode."""
 
     params = {}
+    kwargs = {}
 
     if len(argv) != 4:
         params['base_dir'] = input('Please enter the path to the base directory: ')
-        params['phot_db_path'] = input('Please enter the path to the database file: ')
+        params['phot_db_path'] = input('Please enter the path to the database file [or None to switch off DB]: ')
         print('''Please enter the required reduction mode out of:
         {data_preparation, added_data_preparation, reference_analysis, image_analysis, stage3_db_ingest, stage6, stage3}''')
         params['red_mode'] = input('Reduction mode: ')
@@ -60,7 +61,10 @@ def get_args():
     setup = pipeline_setup.pipeline_setup(params)
     setup.phot_db_path = params['phot_db_path']
 
-    return setup
+    if 'None' in params['phot_db_path']:
+        kwargs['build_phot_db'] = False
+
+    return setup, kwargs
 
 
 def get_datasets_for_reduction(setup,log):
@@ -102,7 +106,7 @@ def get_datasets_for_reduction(setup,log):
     return datasets
 
 
-def run_reductions(setup,log,datasets):
+def run_reductions(setup,log,datasets,kwargs):
     """Function to trigger the reduction of one or more datasets.
 
     Inputs:
@@ -154,12 +158,12 @@ def run_reductions(setup,log,datasets):
 
             dataset_dir = path.join(setup.base_dir,data_dir)
 
-            pid = trigger_parallel_reduction(setup,dataset_dir,data_status,debug=False)
+            pid = trigger_parallel_reduction(setup,dataset_dir,data_status,kwargs,debug=False)
 
             log.info(' -> Dataset '+path.basename(dataset_dir)+\
                     ' reduction PID '+str(pid))
 
-def trigger_parallel_reduction(setup,dataset_dir,data_status,debug=False):
+def trigger_parallel_reduction(setup,dataset_dir,data_status,kwargs,debug=False):
     """Function to spawn a child process to run the reduction of a
     single dataset.
 
@@ -178,6 +182,9 @@ def trigger_parallel_reduction(setup,dataset_dir,data_status,debug=False):
 
         command = path.join(setup.software_dir,'reduction_control.py')
         args = ['python', command, dataset_dir, setup.phot_db_path, setup.red_mode, data_status]
+
+        if 'build_phot_db' in kwargs.keys() and kwargs['build_phot_db']==False:
+            args += ['-no-phot-db']
 
     elif setup.red_mode in ['stage3']:
 
