@@ -1,4 +1,6 @@
-from astropy.io import AffineTransform
+from astropy.io import fits
+from astropy.table import Table
+from astropy.table import Column
 from pyDANDIA import match_utils
 
 class CrossMatchTable():
@@ -9,18 +11,25 @@ class CrossMatchTable():
         self.header = None
         self.matched_stars = []
 
-    def create_header(self, params):
+    def create(self, params):
         xmatch = fits.HDUList()
 
         header = fits.Header()
         header.update({'PRIMARY': params['primary_ref_dir']})
-        header.update({'PRIMARY': params['primary_ref_filter']})
+        header.update({'PRIMFILT': params['primary_ref_filter']})
         for i,red_dir in enumerate(params['red_dir_list']):
-            header.update({'DATASET_'+str(i): red_dir})
-            header.update({'FILTER_'+str(i): params['red_dataset_filters'][i]})
+            header.update({'DATASET'+str(i): red_dir})
+            header.update({'FILTER'+str(i): params['red_dataset_filters'][i]})
             self.init_matched_stars_table()
 
         self.header = header
+
+    def add_dataset(self, red_dir, filter_name):
+        idx = len(self.matched_stars)
+        self.header.update({'DATASET'+str(idx): red_dir})
+        self.header.update({'FILTER'+str(idx): filter_name})
+        self.init_matched_stars_table()
+        return idx
 
     def init_matched_stars_table(self):
         headers = ['dataset_star_id', 'dataset_ra', 'dataset_dec', 'dataset_x', 'dataset_y',
@@ -35,6 +44,17 @@ class CrossMatchTable():
                 columns.append( Column(name=key, data=[], dtype='float') )
 
         self.matched_stars.append(Table(columns))
+
+    def dataset_index(self, red_dir):
+        """Method to search the header index of matched data directories and
+        return it's index in the matched_stars table list, or -1 if not present"""
+
+        idx = -1
+        for key, value in self.header:
+            if 'DATASET' in key and value == red_dir:
+                idx = int(key.replace('DATASET',''))
+
+        return idx
 
     def update_matched_stars_table(self, dataset_idx, matched_stars):
         self.matched_stars[dataset_idx] = Table( [ Column(name='dataset_star_id', data = np.array(matched_stars.cat2_index), dtype='int'),
