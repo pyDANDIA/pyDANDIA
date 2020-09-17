@@ -1,10 +1,18 @@
 from os import path
 from sys import argv
 from pyDANDIA import crossmatch
-from pyDANDIA import log
+from pyDANDIA import logs
+from pyDANDIA import metadata
+from pyDANDIA import match_utils
+from pyDANDIA import calc_coord_offsets
+from pyDANDIA import pipeline_setup
+import numpy as np
+from astropy.coordinates import SkyCoord
+from astropy import units
+from astropy.table import Table
+from astropy.table import Column
 
 def build_crossmatch_table(params):
-    print(params)
     log = logs.start_stage_log( params['log_dir'], 'crossmatch' )
 
     xmatch = crossmatch.CrossMatchTable()
@@ -21,11 +29,14 @@ def build_crossmatch_table(params):
 
     # Load the star catalog from the primary dataset's metadata:
     primary_metadata = metadata.MetaData()
-    primary_metadata.load_all_metadata(xmatch.header['PRIMARY'], 'pyDANDIA_metadata.fits')
-    log.info('Loaded primary reference metadata from '+xmatch.header['PRIMARY'])
+    primary_metadata.load_all_metadata(xmatch.datasets['primary_ref_dir'][0], 'pyDANDIA_metadata.fits')
+    log.info('Loaded primary reference metadata from '+xmatch.datasets['primary_ref_dir'][0])
 
     for i, red_dir in enumerate(params['red_dir_list']):
         log.info('Performing cross-match with primary reference for dataset '+red_dir)
+
+        setup = pipeline_setup.PipelineSetup()
+        setup.red_dir = red_dir
 
         # Fetch the index of the current dataset in the table, or create an
         # empty table for a new dataset being added to an existing table
@@ -40,7 +51,7 @@ def build_crossmatch_table(params):
         log.info('Loaded dataset metadata')
 
         matched_stars = match_dataset_with_primary_reference(primary_metadata, dataset_metadata,
-                                                log,verbose=False)
+                                                log,verbose=True)
 
         (transform_xy,transform_sky) = calc_transform_to_primary_ref(setup,matched_stars,log)
 
@@ -55,7 +66,7 @@ def build_crossmatch_table(params):
                                             'transformation', log)
 
         # Update the appropriate matched_stars table in the crossmatch table:
-        xmatch.update_matched_stars_table(dataset_idx, matched_stars)
+        xmatch.matched_stars[dataset_idx] = matched_stars
 
         log.info('Finished crossmatch for '+path.basename(red_dir))
 
@@ -74,7 +85,7 @@ def match_dataset_with_primary_reference(primary_metadata, dataset_metadata,
     matched_stars = match_utils.StarMatchIndex()
 
     idx = np.where(primary_metadata.star_catalog[1]['gaia_source_id'] != 'None')[0]
-    jdx = np.where(reduction_metadata.star_catalog[1]['gaia_source_id'] != 'None')[0]
+    jdx = np.where(dataset_metadata.star_catalog[1]['gaia_source_id'] != 'None')[0]
 
     log.info(str(len(idx))+' stars with Gaia identifications selected from the primary reference starlist')
     log.info(str(len(jdx))+' stars with Gaia identifications selected from dataset catalog')
@@ -96,17 +107,17 @@ def match_dataset_with_primary_reference(primary_metadata, dataset_metadata,
 
             jj = jdx[kdx[0]][0]
 
-            p = {'cat1_index': star['star_id'],
+            p = {'cat1_index': star['index'],
                  'cat1_ra': star['ra'],
                  'cat1_dec': star['dec'],
-                 'cat1_x': star['x'][0],
-                 'cat1_y': star['y'][0],
-                 'cat2_index': jj+1,
+                 'cat1_x': star['x'],
+                 'cat1_y': star['y'],
+                 'cat2_index': dataset_metadata.star_catalog[1]['index'][jj],
                  'cat2_ra': dataset_metadata.star_catalog[1]['ra'][jj],
                  'cat2_dec': dataset_metadata.star_catalog[1]['dec'][jj],
                  'cat2_x': dataset_metadata.star_catalog[1]['x'][jj],
                  'cat2_y': dataset_metadata.star_catalog[1]['y'][jj],
-                 'separation': separation[0]}
+                 'separation': separation[0].value}
 
             matched_stars.add_match(p)
 
@@ -115,9 +126,34 @@ def match_dataset_with_primary_reference(primary_metadata, dataset_metadata,
 
     return matched_stars
 
+def calc_transform_to_primary_ref(setup,matched_stars,log):
+
+    primary_cat_cartesian = Table( [ Column(name='x', data=matched_stars.cat1_x),
+                                 Column(name='y', data=matched_stars.cat1_y) ] )
+
+    refframe_cat_cartesian = Table( [ Column(name='x', data=matched_stars.cat2_x),
+                                  Column(name='y', data=matched_stars.cat2_y) ] )
+
+    primary_cat_sky = Table( [ Column(name='ra', data=matched_stars.cat1_ra),
+                                 Column(name='dec', data=matched_stars.cat1_dec) ] )
+
+    refframe_cat_sky = Table( [ Column(name='ra', data=matched_stars.cat2_ra),
+                                  Column(name='dec', data=matched_stars.cat2_dec) ] )
+
+    transform_cartesian = calc_coord_offsets.calc_pixel_transform(setup,
+                                        refframe_cat_cartesian, primary_cat_cartesian,
+                                        log, coordinates='pixel', diagnostics=True)
+
+    transform_sky = calc_coord_offsets.calc_pixel_transform(setup,
+                                        refframe_cat_sky, primary_cat_sky,
+                                        log, coordinates='sky', diagnostics=True,
+                                        plot_path=path.join(setup.red_dir, 'dataset_field_sky_offsets.png'))
+
+    return transform_cartesian, transform_sky
+
 def get_args():
     params = {}
-    print('FOO')
+
     if len(argv) < 5:
         params['primary_ref_dir'] = input('Please enter the path to the primary reference dataset: ')
         params['primary_ref_filter'] = input('Please enter the filter name used for the primary reference dataset: ')
@@ -127,17 +163,15 @@ def get_args():
     else:
         params['primary_ref_dir'] = argv[1]
         params['primary_ref_filter'] = argv[2]
-        params['red_dir_list'] = [argv[2]]
+        params['red_dir_list'] = [argv[3]]
         params['red_dataset_filters'] = [argv[4]]
         params['file_path'] = argv[5]
 
     params['log_dir'] = path.dirname(params['file_path'])
-    print(params)
+
     return params
 
 
 if __name__ == '__main__':
-    print('GOO')
     params = get_args()
-    print('Got here')
     build_crossmatch_table(params)

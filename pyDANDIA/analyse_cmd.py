@@ -23,6 +23,7 @@ from pyDANDIA import  spectral_type_data
 from pyDANDIA import  red_clump_utilities
 from pyDANDIA import  config_utils
 from pyDANDIA import  lightcurves
+from pyDANDIA import  metadata
 
 def run_field_colour_analysis():
     """Function to analyse the colour information for a given field pointing"""
@@ -31,13 +32,11 @@ def run_field_colour_analysis():
 
     log = logs.start_stage_log( config['output_dir'], 'analyse_cmd' )
 
-    conn = phot_db.get_connection(dsn=config['db_file_path'])
-
     event_model = config_utils.load_event_model(config['event_model_parameters_file'], log)
 
     (source, blend) = calc_source_blend_params(config,event_model,log)
 
-    (photometry, stars) = extract_reference_instrument_calibrated_photometry(conn,log)
+    (photometry, stars) = extract_reference_instrument_calibrated_photometry(config,log)
 
     target = load_target_timeseries_photometry(config,photometry,log)
 
@@ -68,8 +67,6 @@ def run_field_colour_analysis():
     blend.output_json(path.join(config['output_dir'],'blend_parameters.json'))
     RC.output_json(path.join(config['output_dir'],'red_clump_parameters.json'))
 
-    conn.close()
-
     logs.close_log(log)
 
 def get_args():
@@ -94,13 +91,13 @@ def get_args():
             config[key] = False
 
     # Handle those keywords which may have None values:
-    none_allowed_keys = ['target_field_id']
+    none_allowed_keys = ['target_field_id','db_file_path','xmatch_file_path']
     for key in none_allowed_keys:
         if 'none' in str(config[key]).lower():
             config[key] = None
 
     # Handle dictionary keywords which may have None entries
-    none_allowed_keys = ['target_lightcurve_files']
+    none_allowed_keys = ['target_lightcurve_files', 'red_dirs']
     for key in none_allowed_keys:
         orig_dict = config[key]
         new_dict = {}
@@ -110,6 +107,20 @@ def get_args():
             else:
                 new_dict[key] = value
         config[key] = new_dict
+
+    # Sanity check configuration:
+    if not config['db_file_path'] and not config['xmatch_file_path']:
+        raise IOError('Error in configuration: need to specify either a photometry database or a cross-match table')
+    if config['db_file_path'] and config['xmatch_file_path']:
+        raise IOError('Error in configuration: need to specify either a photometry database OR a cross-match table, not both')
+
+    if config['xmatch_file_path']:
+        n = 0
+        for key in ['g', 'r', 'i']:
+            if config['red_dirs'][key] == None:
+                n+=1
+        if n > 1:
+            raise IOError('Insufficient reduction directories specified for colour analysis')
 
     return config
 
@@ -173,11 +184,27 @@ def fetch_star_phot(star_id,phot_table):
         else:
             return phot_table['calibrated_mag'][jdx],phot_table['calibrated_mag_err'][jdx]
 
-def extract_reference_instrument_calibrated_photometry(conn,log):
-    """Function to extract from the phot_db the calibrated photometry for stars
+def extract_reference_instrument_calibrated_photometry(config,log):
+    """Function to extract from the calibrated photometry for stars
     in the field from the data from the photometric reference instrument.
-    By default this is defined to be lsc.doma.1m0a.fa15.
     """
+
+    if config['db_file_path']:
+        (photometry, stars) = get_reference_photometry_from_db(config, log)
+    else:
+        (photometry, stars) = get_reference_photometry_from_metadata(config, log)
+
+    return photometry, stars
+
+def get_reference_photometry_from_db(config, log):
+    """Function to extract the calibrated photometry from the
+    photometric database for the primary reference instrument, which is
+    defined to be lsc.doma.1m0a.fa15 by default.
+    """
+
+    log.info('Extracting the calibrated reference instrument photometry from the photometric database')
+
+    conn = phot_db.get_connection(dsn=config['db_file_path'])
 
     facility_code = phot_db.get_facility_code({'site': 'lsc',
                                                'enclosure': 'doma',
@@ -214,7 +241,6 @@ def extract_reference_instrument_calibrated_photometry(conn,log):
 
     log.info('-> Extracting photometry for stars')
 
-
     for j,star in enumerate(stars):
         for f,fid in filters.items():
             query = 'SELECT star_id, calibrated_mag, calibrated_mag_err FROM phot WHERE star_id="'+str(star['star_id'])+\
@@ -234,6 +260,13 @@ def extract_reference_instrument_calibrated_photometry(conn,log):
         if j%1000.0 == 0.0:
             print('--> Completed '+str(j)+' stars out of '+str(len(stars)))
 
+    conn.close()
+
+    (photometry, stars) = repack_photometry(photometry, stars, log)
+
+    return photometry, stars
+
+def repack_photometry(photometry, stars, log):
     for f,fid in filters.items():
         table_data = np.array(photometry['phot_table_'+f])
 
@@ -263,6 +296,90 @@ def extract_reference_instrument_calibrated_photometry(conn,log):
         (photometry['i'][s],photometry['ierr'][s]) = fetch_star_phot(sid,photometry['phot_table_i'])
 
     return photometry, stars
+
+def get_reference_photometry_from_metadata(config, log):
+    """Function to extract the calibrated photometry from the crossmatch table
+    and HDF photometry files.
+    """
+
+    log.info('Extracting the calibrated reference instrument photometry from the cross-match table and HDF5 photometry files')
+
+    xmatch = crossmatch.CrossMatchTable()
+    xmatch.load(config['xmatch_file_path'])
+
+    photometry = {'phot_table_g': [], 'phot_table_r': [], 'phot_table_i': []}
+
+    log.info('-> Extracting photometry for primary reference i-band dataset')
+    primary_metadata = metadata.MetaData()
+    primary_metadata.load_all_metadata(config['red_dirs']['i'], 'pyDANDIA_metadata.fits')
+
+    stars = convert_star_catalog_to_stars_table(primary_metadata)
+
+    for j in range(0,len(stars),1):
+        data = primary_metadata.star_catalog[1][j]
+        photometry['phot_table_i'].append([data['index'][0], data['cal_ref_mag'][0], data['cal_ref_mag_error'][0]])
+
+    for f in ['g', 'r']:
+        if config['red_dirs'][f]:
+            log.info('-> Extracting photometry for '+f+'-band data')
+
+            dataset_metadata = metadata.MetaData()
+            dataset_metadata.load_all_metadata(config['red_dirs'][f], 'pyDANDIA_metadata.fits')
+
+            matched_stars = xmatch.fetch_match_table_for_reduction(config['red_dirs'][f])
+
+            if matched_stars.nmatch > 0:
+                log.info('--> Extracting data for '+str(matched_stars.nmatch)+' matched stars')
+
+                for star in stars:
+                    if star['index'] in matched_stars['cat1_index']:
+                        j = matched_stars['cat1_index'].index(star['index'])
+                        dataset_j = matched_stars['cat2_index'][j] - 1
+
+                        data = dataset_metadata.star_catalog[1][dataset_j]
+                        photometry['phot_table_'+f].append([data['index'][0], data['cal_ref_mag'][0], data['cal_ref_mag_error'][0]])
+                    else:
+                        photometry['phot_table_'+f].append([star['star_id'],0.0,0.0])
+
+            else:
+                log.info('No stars matched for dataset '+config['red_dirs'][f])
+
+    (photometry, stars) = repack_photometry(photometry, stars, log)
+
+    return photometry, stars
+
+def convert_star_catalog_to_stars_table(reduction_metadata):
+
+    star_catalog = primary_metadata.star_catalog[1]
+
+    table_data = [Column(name='star_id', data=star_catalog['index']),
+                  Column(name='star_index', data=star_catalog['index']),
+                  Column(name='ra', data=star_catalog['ra']),
+                  Column(name='dec', data=star_catalog['dec']),
+                  Column(name='reference_image', data=[-1]]),
+                  Column(name='gaia_source_id', data=star_catalog['gaia_source_id']),
+                  Column(name='gaia_ra', data=star_catalog['gaia_ra']),
+                  Column(name='gaia_ra_error', data=star_catalog['gaia_ra_error']),
+                  Column(name='gaia_dec', data=star_catalog['gaia_dec']),
+                  Column(name='gaia_dec_error', data=star_catalog['gaia_dec_error']),
+                  Column(name='phot_g_mean_flux', data=star_catalog['phot_g_mean_flux']),
+                  Column(name='phot_g_mean_flux_error', data=star_catalog['phot_g_mean_flux_error']),
+                  Column(name='phot_bp_mean_flux', data=star_catalog['phot_bp_mean_flux']),
+                  Column(name='phot_bp_mean_flux_error', data=star_catalog['phot_bp_mean_flux_error']),
+                  Column(name='phot_rp_mean_flux', data=star_catalog['phot_rp_mean_flux']),
+                  Column(name='phot_rp_mean_flux_error', data=star_catalog['phot_rp_mean_flux_error']),
+                  Column(name='vphas_source_id', data=star_catalog['vphas_source_id']),
+                  Column(name='vphas_ra', data=star_catalog['vphas_ra']),
+                  Column(name='vphas_dec', data=star_catalog['vphas_dec']),
+                  Column(name='vphas_gmag', data=star_catalog['gmag']),
+                  Column(name='vphas_gmag_error', data=star_catalog['gmag_error']),
+                  Column(name='vphas_rmag', data=star_catalog['rmag']),
+                  Column(name='vphas_rmag_error', data=star_catalog['rmag_error']),
+                  Column(name='vphas_imag', data=star_catalog['imag']),
+                  Column(name='vphas_imag_error', data=star_catalog['imag_error']),
+                  Column(name='vphas_clean', data=star_catalog['clean'])]
+
+    return Table(data=table_data)
 
 def find_stars_close_to_target(config,stars,target,log):
     """Function to identify those stars which are within the search radius of

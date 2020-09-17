@@ -63,19 +63,6 @@ class CrossMatchTable():
 
         return idx
 
-    def update_matched_stars_table(self, dataset_idx, matched_stars):
-        self.matched_stars[dataset_idx] = Table( [ Column(name='dataset_star_id', data = np.array(matched_stars.cat2_index), dtype='int'),
-                              Column(name='dataset_ra', data = np.array(matched_stars.cat2_ra), dtype='float'),
-                              Column(name='dataset_dec', data = np.array(matched_stars.cat2_dec), dtype='float'),
-                              Column(name='dataset_x', data = np.array(matched_stars.cat2_x), dtype='float'),
-                              Column(name='dataset_y', data = np.array(matched_stars.cat2_y), dtype='float'),
-                              Column(name='field_star_id', data = np.array(matched_stars.cat1_index), dtype='int'),
-                              Column(name='field_ra', data = np.array(matched_stars.cat1_ra), dtype='float'),
-                              Column(name='field_dec', data = np.array(matched_stars.cat1_dec), dtype='float'),
-                              Column(name='field_x', data = np.array(matched_stars.cat1_x), dtype='float'),
-                              Column(name='field_y', data = np.array(matched_stars.cat1_y), dtype='float'),
-                              Column(name='separation', data = np.array(matched_stars.separation), dtype='float') ] )
-
     def save(self, file_path):
         """Output crossmatch table to file"""
         hdr = fits.Header()
@@ -83,7 +70,10 @@ class CrossMatchTable():
 
         hdu_list = [fits.PrimaryHDU(header=hdr), fits.BinTableHDU(self.datasets, name='DATASETS')]
         for i,x in enumerate(self.matched_stars):
-            hdu_list.append( fits.BinTableHDU(x, name='match_table_'+str(i)) )
+            try:
+                hdu_list.append( fits.BinTableHDU(x.output_as_table(), name='match_table_'+str(i)) )
+            except:
+                import pdb; pdb.set_trace()
 
         hdu_list = fits.HDUList(hdu_list)
         hdu_list.writeto(file_path, overwrite=True)
@@ -116,7 +106,23 @@ class CrossMatchTable():
             raise IOError('Cannot find cross-match table at '+file_path)
 
         hdu_list = fits.open(file_path, mmap=True)
-        self.datasets = hdu_list[1]
-        
+        table_data = []
+        for col in hdu_list[1].columns.names:
+            table_data.append( Column(hdu_list[1].data[col], name=col) )
+        self.datasets = Table( table_data )
+
         for table_extn in hdu_list[2:]:
             self.matched_stars.append(self.load_matched_stars(table_extn))
+
+    def fetch_match_table_for_reduction(red_dir):
+        """Method to return the matched_stars object corresponding to the
+        reduction given"""
+
+        idx = self.dataset_index(red_dir)
+
+        if idx > 0:
+            matched_stars = self.matched_stars[idx]
+        else:
+            matched_stars = match_utils.StarMatchIndex()
+
+        return matched_stars
