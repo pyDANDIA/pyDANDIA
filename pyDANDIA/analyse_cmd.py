@@ -24,6 +24,7 @@ from pyDANDIA import  red_clump_utilities
 from pyDANDIA import  config_utils
 from pyDANDIA import  lightcurves
 from pyDANDIA import  metadata
+from pyDANDIA import  crossmatch
 
 def run_field_colour_analysis():
     """Function to analyse the colour information for a given field pointing"""
@@ -179,6 +180,7 @@ def calc_source_blend_params(config,event_model,log):
 
 def fetch_star_phot(star_id,phot_table):
         jdx = np.where(phot_table['star_id'] == star_id)[0]
+
         if len(jdx) == 0:
             return 0.0,0.0
         else:
@@ -267,15 +269,22 @@ def get_reference_photometry_from_db(config, log):
     return photometry, stars
 
 def repack_photometry(photometry, stars, log):
-    for f,fid in filters.items():
+    for f in ['g', 'r', 'i']:
         table_data = np.array(photometry['phot_table_'+f])
-
-        data = [table.Column(name='star_id',
-                        data=table_data[:,0]),
-                table.Column(name='calibrated_mag',
-                        data=table_data[:,1]),
-                table.Column(name='calibrated_mag_err',
-                        data=table_data[:,2])]
+        if len(table_data) > 0:
+            data = [table.Column(name='star_id',
+                            data=table_data[:,0]),
+                    table.Column(name='calibrated_mag',
+                            data=table_data[:,1]),
+                    table.Column(name='calibrated_mag_err',
+                            data=table_data[:,2])]
+        else:
+            data = [table.Column(name='star_id',
+                            data=[]),
+                    table.Column(name='calibrated_mag',
+                            data=[]),
+                    table.Column(name='calibrated_mag_err',
+                            data=[])]
         photometry['phot_table_'+f] = table.Table(data=data)
 
     log.info('Extracted photometry for '+str(len(stars))+' stars')
@@ -317,7 +326,7 @@ def get_reference_photometry_from_metadata(config, log):
 
     for j in range(0,len(stars),1):
         data = primary_metadata.star_catalog[1][j]
-        photometry['phot_table_i'].append([data['index'][0], data['cal_ref_mag'][0], data['cal_ref_mag_error'][0]])
+        photometry['phot_table_i'].append([data['index'], data['cal_ref_mag'], data['cal_ref_mag_error']])
 
     for f in ['g', 'r']:
         if config['red_dirs'][f]:
@@ -328,16 +337,16 @@ def get_reference_photometry_from_metadata(config, log):
 
             matched_stars = xmatch.fetch_match_table_for_reduction(config['red_dirs'][f])
 
-            if matched_stars.nmatch > 0:
-                log.info('--> Extracting data for '+str(matched_stars.nmatch)+' matched stars')
+            if matched_stars.n_match > 0:
+                log.info('--> Extracting data for '+str(matched_stars.n_match)+' matched stars')
 
                 for star in stars:
-                    if star['index'] in matched_stars['cat1_index']:
-                        j = matched_stars['cat1_index'].index(star['index'])
-                        dataset_j = matched_stars['cat2_index'][j] - 1
+                    if star['star_id'] in matched_stars.cat1_index:
+                        j = matched_stars.cat1_index.index(star['star_id'])
+                        dataset_j = matched_stars.cat2_index[j] - 1
 
                         data = dataset_metadata.star_catalog[1][dataset_j]
-                        photometry['phot_table_'+f].append([data['index'][0], data['cal_ref_mag'][0], data['cal_ref_mag_error'][0]])
+                        photometry['phot_table_'+f].append([star['star_id'], data['cal_ref_mag'], data['cal_ref_mag_error']])
                     else:
                         photometry['phot_table_'+f].append([star['star_id'],0.0,0.0])
 
@@ -350,36 +359,36 @@ def get_reference_photometry_from_metadata(config, log):
 
 def convert_star_catalog_to_stars_table(reduction_metadata):
 
-    star_catalog = primary_metadata.star_catalog[1]
+    star_catalog = reduction_metadata.star_catalog[1]
 
-    table_data = [Column(name='star_id', data=star_catalog['index']),
-                  Column(name='star_index', data=star_catalog['index']),
-                  Column(name='ra', data=star_catalog['ra']),
-                  Column(name='dec', data=star_catalog['dec']),
-                  Column(name='reference_image', data=[-1]]),
-                  Column(name='gaia_source_id', data=star_catalog['gaia_source_id']),
-                  Column(name='gaia_ra', data=star_catalog['gaia_ra']),
-                  Column(name='gaia_ra_error', data=star_catalog['gaia_ra_error']),
-                  Column(name='gaia_dec', data=star_catalog['gaia_dec']),
-                  Column(name='gaia_dec_error', data=star_catalog['gaia_dec_error']),
-                  Column(name='phot_g_mean_flux', data=star_catalog['phot_g_mean_flux']),
-                  Column(name='phot_g_mean_flux_error', data=star_catalog['phot_g_mean_flux_error']),
-                  Column(name='phot_bp_mean_flux', data=star_catalog['phot_bp_mean_flux']),
-                  Column(name='phot_bp_mean_flux_error', data=star_catalog['phot_bp_mean_flux_error']),
-                  Column(name='phot_rp_mean_flux', data=star_catalog['phot_rp_mean_flux']),
-                  Column(name='phot_rp_mean_flux_error', data=star_catalog['phot_rp_mean_flux_error']),
-                  Column(name='vphas_source_id', data=star_catalog['vphas_source_id']),
-                  Column(name='vphas_ra', data=star_catalog['vphas_ra']),
-                  Column(name='vphas_dec', data=star_catalog['vphas_dec']),
-                  Column(name='vphas_gmag', data=star_catalog['gmag']),
-                  Column(name='vphas_gmag_error', data=star_catalog['gmag_error']),
-                  Column(name='vphas_rmag', data=star_catalog['rmag']),
-                  Column(name='vphas_rmag_error', data=star_catalog['rmag_error']),
-                  Column(name='vphas_imag', data=star_catalog['imag']),
-                  Column(name='vphas_imag_error', data=star_catalog['imag_error']),
-                  Column(name='vphas_clean', data=star_catalog['clean'])]
+    table_data = [table.Column(name='star_id', data=star_catalog['index']),
+                  table.Column(name='star_index', data=star_catalog['index']),
+                  table.Column(name='ra', data=star_catalog['ra']),
+                  table.Column(name='dec', data=star_catalog['dec']),
+                  table.Column(name='reference_image', data=[-1]*len(star_catalog)),
+                  table.Column(name='gaia_source_id', data=star_catalog['gaia_source_id']),
+                  table.Column(name='gaia_ra', data=star_catalog['gaia_ra']),
+                  table.Column(name='gaia_ra_error', data=star_catalog['gaia_ra_error']),
+                  table.Column(name='gaia_dec', data=star_catalog['gaia_dec']),
+                  table.Column(name='gaia_dec_error', data=star_catalog['gaia_dec_error']),
+                  table.Column(name='phot_g_mean_flux', data=star_catalog['phot_g_mean_flux']),
+                  table.Column(name='phot_g_mean_flux_error', data=star_catalog['phot_g_mean_flux_error']),
+                  table.Column(name='phot_bp_mean_flux', data=star_catalog['phot_bp_mean_flux']),
+                  table.Column(name='phot_bp_mean_flux_error', data=star_catalog['phot_bp_mean_flux_error']),
+                  table.Column(name='phot_rp_mean_flux', data=star_catalog['phot_rp_mean_flux']),
+                  table.Column(name='phot_rp_mean_flux_error', data=star_catalog['phot_rp_mean_flux_error']),
+                  table.Column(name='vphas_source_id', data=star_catalog['vphas_source_id']),
+                  table.Column(name='vphas_ra', data=star_catalog['vphas_ra']),
+                  table.Column(name='vphas_dec', data=star_catalog['vphas_dec']),
+                  table.Column(name='vphas_gmag', data=star_catalog['gmag']),
+                  table.Column(name='vphas_gmag_error', data=star_catalog['gmag_error']),
+                  table.Column(name='vphas_rmag', data=star_catalog['rmag']),
+                  table.Column(name='vphas_rmag_error', data=star_catalog['rmag_error']),
+                  table.Column(name='vphas_imag', data=star_catalog['imag']),
+                  table.Column(name='vphas_imag_error', data=star_catalog['imag_error']),
+                  table.Column(name='vphas_clean', data=star_catalog['clean'])]
 
-    return Table(data=table_data)
+    return table.Table(data=table_data)
 
 def find_stars_close_to_target(config,stars,target,log):
     """Function to identify those stars which are within the search radius of
@@ -819,13 +828,13 @@ def plot_crosshairs(fig,xvalue,yvalue,linecolour):
 
     ([xmin,xmax,ymin,ymax]) = plt.axis()
 
-    xdata = np.linspace(xmin,xmax,10.0)
+    xdata = np.linspace(int(xmin),int(xmax),10.0)
     ydata = np.zeros(len(xdata))
     ydata.fill(yvalue)
 
     plt.plot(xdata, ydata, linecolour+'-', alpha=0.5)
 
-    ydata = np.linspace(ymin,ymax,10.0)
+    ydata = np.linspace(int(ymin),int(ymax),10.0)
     xdata = np.zeros(len(ydata))
     xdata.fill(xvalue)
 

@@ -21,19 +21,20 @@ class CrossMatchTable():
                      Column(name='primary_ref_filter', data=[params['primary_ref_filter']], dtype='str')]
 
         for i,red_dir in enumerate(params['red_dir_list']):
-            col_list.append( Column(name='dataset'+str(i), data=[red_dir], dtype='str') )
-            col_list.append( Column(name='filter'+str(i), data=[params['red_dataset_filters'][i]], dtype='str') )
-
+            self.add_dataset_header(i, red_dir, params['red_dataset_filters'][i])
             self.init_matched_stars_table()
 
         self.datasets = Table(col_list)
 
+    def add_dataset_header(self, dataset_idx, red_dir, filter_name):
+
+        if '/' in red_dir[-1:]:
+            red_dir = red_dir[0:-1]
+        self.datasets.add_column(Column(name='dataset'+str(dataset_idx), data=[red_dir], dtype='str'))
+        self.datasets.add_column(Column(name='filter'+str(dataset_idx), data=[filter_name], dtype='str'))
+
     def add_dataset(self, red_dir, filter_name):
-        idx = len(self.matched_stars)
-
-        self.datasets.add_column(Column(name='dataset'+str(idx), data=[red_dir], dtype='str'))
-        self.datasets.add_column(Column(name='filter'+str(idx), data=[filter_name], dtype='str'))
-
+        self.add_dataset_header(idx, red_dir, filter_name)
         self.init_matched_stars_table()
 
         return idx
@@ -56,8 +57,12 @@ class CrossMatchTable():
         """Method to search the header index of matched data directories and
         return it's index in the matched_stars table list, or -1 if not present"""
 
+        if '/' in red_dir[-1:]:
+            red_dir = red_dir[0:-1]
+
         idx = -1
         for col in self.datasets.colnames:
+            #import pdb; pdb.set_trace()
             if 'dataset' in col and self.datasets[col][0] == red_dir:
                 idx = int(col.replace('dataset',''))
 
@@ -114,13 +119,13 @@ class CrossMatchTable():
         for table_extn in hdu_list[2:]:
             self.matched_stars.append(self.load_matched_stars(table_extn))
 
-    def fetch_match_table_for_reduction(red_dir):
+    def fetch_match_table_for_reduction(self,red_dir):
         """Method to return the matched_stars object corresponding to the
         reduction given"""
 
         idx = self.dataset_index(red_dir)
 
-        if idx > 0:
+        if idx >= 0:
             matched_stars = self.matched_stars[idx]
         else:
             matched_stars = match_utils.StarMatchIndex()

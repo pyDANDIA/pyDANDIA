@@ -37,16 +37,16 @@ def test_add_dataset():
 
 def test_dataset_index():
 
-    params = {'primary_ref_dir': '/Users/rstreet1/OMEGA/test_data/primary_ref_dataset/',
+    params = {'primary_ref_dir': '/Users/rstreet1/OMEGA/test_data/primary_ref_dataset',
               'primary_ref_filter': 'ip',
-              'red_dir_list': [ '/Users/rstreet1/OMEGA/test_data/non_ref_dataset/' ],
+              'red_dir_list': [ '/Users/rstreet1/OMEGA/test_data/non_ref_dataset' ],
               'red_dataset_filters': [ 'rp' ],
               'file_path': 'crossmatch_table.fits'}
 
     xmatch = crossmatch.CrossMatchTable()
     xmatch.create(params)
 
-    dataset_idx = xmatch.dataset_index(params['red_dir_list'][0])
+    dataset_idx = xmatch.dataset_index(params['red_dir_list'][0]+'/')
     assert(dataset_idx == 0)
 
 def test_save():
