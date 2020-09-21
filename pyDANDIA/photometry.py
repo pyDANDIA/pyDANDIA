@@ -540,10 +540,11 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
     def null_background(x,axis=None):
         return 0
 
-    psf_diameter = reduction_metadata.psf_dimensions[1]['psf_radius'][0]*2.0
+    psf_diameter = reduction_metadata.psf_dimensions[1]['psf_radius'][-1]*2.0
     half_psf = int(psf_diameter/2)
     gain = reduction_metadata.get_gain()
     ron = reduction_metadata.reduction_parameters[1]['RON']
+    log.info('Performing PSF photometry on difference stamp with PSF diameter = '+str(psf_diameter))
 
     size_stamp = int(2 * half_psf) + 1
     if size_stamp % 2 == 0:
