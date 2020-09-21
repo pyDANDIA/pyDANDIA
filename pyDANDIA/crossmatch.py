@@ -11,7 +11,7 @@ class CrossMatchTable():
     datasets"""
 
     def __init__(self):
-        self.datasets = None
+        self.datasets = Table([])
         self.matched_stars = []
 
     def create(self, params):
@@ -34,24 +34,22 @@ class CrossMatchTable():
         self.datasets.add_column(Column(name='filter'+str(dataset_idx), data=[filter_name], dtype='str'))
 
     def add_dataset(self, red_dir, filter_name):
+        idx = self.count_datasets()
         self.add_dataset_header(idx, red_dir, filter_name)
         self.init_matched_stars_table()
 
         return idx
 
+    def count_datasets(self):
+        n_datasets = 0
+        for col in self.datasets.colnames:
+            if 'dataset' in col:
+                n_datasets += 1
+        return n_datasets
+
     def init_matched_stars_table(self):
-        headers = ['dataset_star_id', 'dataset_ra', 'dataset_dec', 'dataset_x', 'dataset_y',
-                    'field_star_id', 'field_ra', 'field_dec', 'field_x', 'field_y',
-                    'separation']
-
-        columns = []
-        for key in headers:
-            if 'id' in key:
-                columns.append( Column(name=key, data=[], dtype='int') )
-            else:
-                columns.append( Column(name=key, data=[], dtype='float') )
-
-        self.matched_stars.append(Table(columns))
+        matched_stars = match_utils.StarMatchIndex()
+        self.matched_stars.append(matched_stars)
 
     def dataset_index(self, red_dir):
         """Method to search the header index of matched data directories and
