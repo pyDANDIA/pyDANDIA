@@ -296,7 +296,8 @@ def harvest_stage3_parameters(setup,reduction_metadata,**kwargs):
 
     dataset_params = harvest_image_params(reduction_metadata, ref_image_path, ref_image_path, **kwargs)
 
-    dataset_params['psf_radius'] = reduction_metadata.psf_dimensions[1]['psf_radius'][0]
+    #dataset_params['psf_radius'] = reduction_metadata.psf_dimensions[1]['psf_radius'][0]
+    dataset_params['psf_radius'] = reduction_metadata.get_psf_radius()[0]
 
     # Software
     dataset_params['version'] = reduction_metadata.software[1]['stage3_version'][0]
@@ -331,7 +332,7 @@ def harvest_image_params(reduction_metadata, image_path, ref_image_path, **kwarg
     hdr_meta = reduction_metadata.headers_summary[1][idx]
     idx = np.where(reduction_metadata.images_stats[1]['IM_NAME'] == image_params['filename'])
     image_stats = reduction_metadata.images_stats[1][idx]
-    
+
     image_params['diameter_m'] = float(image_header['TELID'].replace('a','').replace('m','.'))
     image_params['altitude_m'] = image_header['HEIGHT']
     image_params['gain_eadu'] = image_header['GAIN']
@@ -845,7 +846,8 @@ def calc_transform_to_primary_ref(setup,matched_stars,log):
 def match_all_entries_with_starlist(setup,conn,params,starlist,reduction_metadata,
                                     refimg_id,transform_sky,log, verbose=False):
 
-    psf_radius = reduction_metadata.psf_dimensions[1]['psf_radius'][0]
+    #psf_radius = reduction_metadata.psf_dimensions[1]['psf_radius'][0]
+    psf_radius = reduction_metadata.get_psf_radius()
     tol = psf_radius * params['secpix1']    # arcsec
     dra = 2.0*tol                           # arcsec
     ddec = 2.0*tol                          # arcsec

@@ -63,7 +63,8 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
     data = image_handling.get_science_image(image_path)
 
     if psf_diameter == None:
-        psf_diameter = (reduction_metadata.psf_dimensions[1]['psf_radius'][0]*2.0)
+        #psf_diameter = (reduction_metadata.psf_dimensions[1]['psf_radius'][0]*2.0)
+        psf_diameter = (reduction_metadata.get_psf_radius()*2.0)
 
     half_psf = int(float(psf_diameter)/2.0)
     psf_npixels = np.pi * (half_psf**2)
@@ -284,7 +285,8 @@ def run_psf_photometry_naylor(setup,reduction_metadata,log,ref_star_catalog,
     data = image_handling.get_science_image(image_path)
 
     if psf_diameter == None:
-        psf_diameter = (reduction_metadata.psf_dimensions[1]['psf_radius'][0]*2.0)
+        #psf_diameter = (reduction_metadata.psf_dimensions[1]['psf_radius'][0]*2.0)
+        psf_diameter = (reduction_metadata.get_psf_radius()*2.0)
 
     half_psf = int(float(psf_diameter)/2.0)
 
@@ -540,7 +542,8 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
     def null_background(x,axis=None):
         return 0
 
-    psf_diameter = reduction_metadata.psf_dimensions[1]['psf_radius'][-1]*2.0
+    #psf_diameter = reduction_metadata.psf_dimensions[1]['psf_radius'][0]*2.0
+    psf_diameter = reduction_metadata.get_psf_radius()*2.0
     half_psf = int(psf_diameter/2)
     gain = reduction_metadata.get_gain()
     ron = reduction_metadata.reduction_parameters[1]['RON']

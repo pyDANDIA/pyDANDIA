@@ -1451,7 +1451,8 @@ def build_psf(setup, reduction_metadata, log, image, ref_star_catalog,
     log.info('Building a PSF model based on the reference image')
 
     # Cut large stamps around selected PSF stars
-    psf_diameter = reduction_metadata.psf_dimensions[1]['psf_radius'][0]*2.0
+    #psf_diameter = reduction_metadata.psf_dimensions[1]['psf_radius'][0]*2.0
+    psf_diameter = reduction_metadata.get_psf_radius*2.0
 
     psf_model_type = 'Moffat2D'
 

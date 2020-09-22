@@ -79,7 +79,8 @@ def run_stage3(setup, **kwargs):
                                         log,ref_star_catalog,
                                         diagnostics=True)
 
-        psf_diameter = reduction_metadata.psf_dimensions[1]['psf_radius'][0]*2.0
+        #psf_diameter = reduction_metadata.psf_dimensions[1]['psf_radius'][0]*2.0
+        psf_diameter = reduction_metadata.get_psf_radius()*2.0
         log.info('Calculated diameter of PSF = '+str(psf_diameter)+'pix')
 
         (psf_model,psf_status) = psf.build_psf(setup, reduction_metadata,
