@@ -240,7 +240,7 @@ class MetaData:
         """Fetches the value of the PSF radius, which defaults to the largest
         on the list"""
 
-        return reduction_metadata.psf_dimensions[1]['psf_radius'][-1]
+        return self.psf_dimensions[1]['psf_radius'][-1]
 
     def create_headers_summary_layer(self, names, formats, units=None, data=None):
         '''
