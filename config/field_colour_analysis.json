@@ -1,7 +1,21 @@
 {
     "db_file_path": {
         "value": "/Users/rstreet1/ROMEREA/ROME-FIELD-01/ROME-FIELD-01_phot.db",
-        "comment": "Path to the multi-filter photometry database for this field",
+        "comment": "Path to the multi-filter photometry database for this field or None",
+        "format": "string",
+        "unit": ""
+    },
+    "xmatch_file_path": {
+        "value": "/Users/rstreet1/ROMEREA/test_data/ROME-FIELD-01_lsc_xmatch.fits",
+        "comment": "Path to the multi-filter cross-match table for this field of None",
+        "format": "string",
+        "unit": ""
+    },
+    "red_dirs": {
+        "value": {"g": "/Users/rstreet1/ROMEREA/test_data/ROME-FIELD-01_lsc-domb-1m0-09-fa15_gp/",
+                  "r": "/Users/rstreet1/ROMEREA/test_data/ROME-FIELD-01_lsc-domb-1m0-09-fa15_rp/",
+                  "i": "/Users/rstreet1/ROMEREA/test_data/ROME-FIELD-01_lsc-domb-1m0-09-fa15_ip/"},
+        "comment": "Paths to the reduction directories for g, r, i photometry data for the primary reference, or None",
         "format": "string",
         "unit": ""
     },
@@ -9,7 +23,7 @@
         "value": {"g": "/Users/rstreet1/ROMEREA/ROME-FIELD-01/star_78284_ROME-FIELD-01_lsc-doma-1m0-05-fa15_gp.dat",
                   "r": "/Users/rstreet1/ROMEREA/ROME-FIELD-01/star_78284_ROME-FIELD-01_lsc-doma-1m0-05-fa15_rp.dat",
                   "i": "/Users/rstreet1/ROMEREA/ROME-FIELD-01/star_78284_ROME-FIELD-01_lsc-doma-1m0-05-fa15_ip.dat"},
-        "comment": "Paths to photometry HDF5 files for g, r, i photometry data for the primary reference, or None",
+        "comment": "Paths to target lightcurves files for g, r, i for the primary reference, or None",
         "format": "string",
         "unit": ""
     },

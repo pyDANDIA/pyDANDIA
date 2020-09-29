@@ -5,6 +5,7 @@ Created on Thu Mar 21 13:49:31 2019
 @author: rstreet
 """
 import numpy as np
+from astropy.table import Table, Column
 
 class StarMatchIndex:
 
@@ -134,7 +135,7 @@ class StarMatchIndex:
                         str(self.cat2_ra[j])+', '+str(self.cat2_dec[j])+'), x,y=('+\
                         str(self.cat2_x[j])+', '+str(self.cat2_y[j])+\
                         '), separation '+str(self.separation[j])+' '+units+'\n'
-                        
+
         return output
 
     def find_star_match_index(self, catalog_index, cat2_star_id):
@@ -173,6 +174,20 @@ class StarMatchIndex:
                     str(self.cat2_x[j])+', '+str(self.cat2_y[j])+\
                     '  '+str(self.separation[j])+'\n')
         f.close()
+
+    def output_as_table(self):
+        table = Table( [ Column(name='dataset_star_id', data = np.array(self.cat2_index), dtype='int'),
+                              Column(name='dataset_ra', data = np.array(self.cat2_ra), dtype='float'),
+                              Column(name='dataset_dec', data = np.array(self.cat2_dec), dtype='float'),
+                              Column(name='dataset_x', data = np.array(self.cat2_x), dtype='float'),
+                              Column(name='dataset_y', data = np.array(self.cat2_y), dtype='float'),
+                              Column(name='field_star_id', data = np.array(self.cat1_index), dtype='int'),
+                              Column(name='field_ra', data = np.array(self.cat1_ra), dtype='float'),
+                              Column(name='field_dec', data = np.array(self.cat1_dec), dtype='float'),
+                              Column(name='field_x', data = np.array(self.cat1_x), dtype='float'),
+                              Column(name='field_y', data = np.array(self.cat1_y), dtype='float'),
+                              Column(name='separation', data = np.array(self.separation), dtype='float') ] )
+        return table
 
     def find_starlist_match_ids(self, catalog_index, star_ids, log,
                                 verbose=False, expand_star_ids = False):
