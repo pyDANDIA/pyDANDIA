@@ -19,6 +19,8 @@ def determine_image_struture(file_path, log=None):
             image_structure['sci'] = i
         elif hdu[i].name == 'BPM':
             image_structure['bpm'] = i
+        elif hdu[i].name == 'PYDANDIA_PIXEL_MASK':
+            image_structure['pyDANDIA_pixel_mask'] = i
 
     if image_structure['sci'] == None:
         raise IOError('Cannot find any science data in image '+file_path)

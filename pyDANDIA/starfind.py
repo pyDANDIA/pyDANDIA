@@ -171,6 +171,7 @@ def starfind(setup, path_to_image, reduction_metadata, plot_it=False,
 
     # Identify stars
     daofind = DAOStarFinder(fwhm=3.0, threshold=5.*std)
+    #import pdb; pdb.set_trace()
 
     sources = daofind(scidata[besty1:besty2,bestx1:bestx2] - median)
     

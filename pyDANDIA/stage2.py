@@ -123,7 +123,7 @@ def run_stage2(setup, **kwargs):
     if empirical_psf_flag == True:
 
         for stats_entry in reduction_metadata.images_stats[1]:
-            if stats_entry[9] == 1:
+            if stats_entry[10] == 1:
                 image_filename = stats_entry[0]
                 row_idx = np.where(reduction_metadata.images_stats[1]['IM_NAME'] == image_filename)[0][0]
                 moon_status = 'dark'
@@ -147,7 +147,7 @@ def run_stage2(setup, **kwargs):
 
     else:
         for stats_entry in reduction_metadata.images_stats[1]:
-            if stats_entry[9] == 1 and kwargs['empirical_ranking'] == False:
+            if stats_entry[10] == 1 and kwargs['empirical_ranking'] == False:
                 image_filename = stats_entry[0]
                 row_idx = np.where(reduction_metadata.images_stats[1]['IM_NAME'] == image_filename)[0][0]
                 moon_status = 'dark'
@@ -166,11 +166,12 @@ def run_stage2(setup, **kwargs):
                     reduction_metadata.add_row_to_layer(key_layer='reference_inventory',
                                                         new_row=entry)
 
+
     #relax criteria...
     if reference_ranking == [] or kwargs['empirical_ranking']:
         log.info('No meaningful automatic selection can be made. Assigning empirical reference.')
         for stats_entry in reduction_metadata.images_stats[1]:
-            if stats_entry[9] == 1:
+            if (stats_entry[10] == 1):
                 image_filename = stats_entry[0]
                 row_idx = np.where(reduction_metadata.images_stats[1]['IM_NAME'] == image_filename)[0][0]
                 moon_status = 'dark'
@@ -189,6 +190,33 @@ def run_stage2(setup, **kwargs):
                 entry = [image_filename, moon_status, ranking_key]
                 reduction_metadata.add_row_to_layer(key_layer='reference_inventory',
                                                     new_row=entry)
+
+    #import pdb; pdb.set_trace()
+    #Etienne empirical ranking....
+    if reference_ranking == [] or kwargs['empirical_ranking']:
+        log.info('Etienne empirical ranking....')
+                
+        best_image = (reduction_metadata.images_stats[1]['NSTARS']/reduction_metadata.images_stats[1]['SKY']).argmax()
+        stats_entry =  reduction_metadata.images_stats[1][best_image]
+
+        image_filename = stats_entry[0]
+        row_idx = np.where(reduction_metadata.images_stats[1]['IM_NAME'] == image_filename)[0][0]
+        moon_status = 'dark'
+
+        # extract data inventory row for image and calculate sorting key
+        fwhm_value = float(stats_entry['FWHM'])
+        data_directory_path = os.path.join(setup.red_dir, 'data')
+        image_structure = image_handling.determine_image_struture(os.path.join(data_directory_path,image_filename), log=log)
+        hl_data = fits.open(os.path.join(data_directory_path,image_filename))
+        data = hl_data[image_structure['sci']].data
+        mean, median, std = sigma_clipped_stats(data, sigma=3.0)
+        fraction_3sig = float(len(np.where(data>3.*std+median)[1]))/data.size
+        hl_data.close()
+        ranking_key = 1/(1/(fraction_3sig**2) +fwhm_value**2 )
+        reference_ranking.append([image_filename, ranking_key])
+        entry = [image_filename, moon_status, ranking_key]
+        reduction_metadata.add_row_to_layer(key_layer='reference_inventory',
+                                            new_row=entry)
 
     # Save the updated layer to the metadata file
     reduction_metadata.save_a_layer_to_file(metadata_directory=setup.red_dir,
@@ -243,6 +271,7 @@ def run_stage2(setup, **kwargs):
         logs.close_log(log)
 
         return status, report
+
 
     if reference_ranking != [] and kwargs['n_stack'] > 1 :
         best_image = sorted(reference_ranking, key=itemgetter(1))[-1]
