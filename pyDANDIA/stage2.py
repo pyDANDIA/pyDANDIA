@@ -195,7 +195,7 @@ def run_stage2(setup, **kwargs):
     #Etienne empirical ranking....
     if reference_ranking == [] or kwargs['empirical_ranking']:
         log.info('Etienne empirical ranking....')
-                
+
         best_image = (reduction_metadata.images_stats[1]['NSTARS']/reduction_metadata.images_stats[1]['SKY']).argmax()
         stats_entry =  reduction_metadata.images_stats[1][best_image]
 
@@ -301,8 +301,11 @@ def run_stage2(setup, **kwargs):
         ref_hdu[ref_structure['sci']].data = coadd/float(accepted)
         if ref_structure['bpm'] != None:
             ref_hdu[ref_structure['bpm']].data[shift_mask==0] = 1
-        else:
+        if ref_structure['pyDANDIA_pixel_mask'] != None:
+            ref_hdu[ref_structure['pyDANDIA_pixel_mask']].data[shift_mask==0] = 1
+        if ref_structure['bpm'] == None and ref_structure['pyDANDIA_pixel_mask'] == None:
             log.info('no mask in extension 1')
+
 # DEPRECIATED?
 #        try:
 #            ref_hdu[1].data[shift_mask==0] = 1

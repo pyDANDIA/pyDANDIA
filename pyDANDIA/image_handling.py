@@ -10,7 +10,7 @@ def determine_image_struture(file_path, log=None):
     if path.isfile(file_path) == False:
         raise IOError('Cannot find file '+file_path)
 
-    image_structure = {'sci': None, 'bpm': None}
+    image_structure = {'sci': None, 'bpm': None, 'pyDANDIA_pixel_mask': None}
 
     hdu = fits.open(file_path)
 
