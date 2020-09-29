@@ -139,9 +139,9 @@ def extract_star_lightcurve_isolated_reduction(params, log=None, format='dat'):
 	c = SkyCoord(params['ra'], params['dec'], frame='icrs', unit=(units.hourangle, units.deg))
 
 	if 'radius' in params.keys():
-		radius = float(params['radius']) / 3600.0
+		radius = float(params['radius'])
 	else:
-		radius = 2.0 / 3600.0
+		radius = 2.0
 
 	results = reduction_metadata.cone_search_on_position({'ra_centre': c.ra.deg,
 														 'dec_centre': c.dec.deg,
@@ -390,6 +390,9 @@ if __name__ == '__main__':
 		params['dec'] = argv[3]
 		params['radius'] = argv[4]
 		params['output_dir'] = argv[5]
+
+	# Ensure units are decimal degrees
+	params['radius'] = float(params['radius'])/3600.0
 
 	#message = extract_star_lightcurves_on_position(params)
     #print(message)

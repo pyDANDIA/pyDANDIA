@@ -680,7 +680,7 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
 
         # I think mask_extension_in == BPM.
         #mask_reference = reference_image_hdu[mask_extension_in].data.astype(bool)
-        mask_reference = reference_image_hdu[ref_structure['bpm']].data.astype(bool)
+        mask_reference = reference_image_hdu[ref_structure['pyDANDIA_pixel_mask']].data.astype(bool)
     else:
         log.info('No images available to resample, halting.')
 
@@ -705,7 +705,7 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
         data_image_hdu = fits.open(image_path, memmap=True)
         data_image = np.copy(data_image_hdu[image_structure['sci']].data)
 
-        mask_image = np.array(data_image_hdu[image_structure['bpm']].data, dtype=float)
+        mask_image = np.array(data_image_hdu[image_structure['pyDANDIA_pixel_mask']].data, dtype=float)
 
         mask_status = quality_control.verify_mask_statistics(reduction_metadata,new_image,mask_image, log)
 
