@@ -104,11 +104,11 @@ def run_stage1(setup, **kwargs):
     image_red_status = []
 
     for im in full_path_to_images:
-        
+
         image_header = image_handling.get_science_header(im)
 
         (status, report, params) = starfind.starfind(setup, im, reduction_metadata,
-                                                     plot_it=False, log=log,thumbsize = 500)
+                                                     plot_it=False, log=log)
 
         params['fwhm'] = psf.calc_fwhm_from_psf_sigma(params['sigma_x'],
                                                       params['sigma_y'])
