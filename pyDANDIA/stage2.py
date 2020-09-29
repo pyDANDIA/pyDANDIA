@@ -301,11 +301,11 @@ def run_stage2(setup, **kwargs):
         ref_hdu[ref_structure['sci']].data = coadd/float(accepted)
         if ref_structure['bpm'] != None:
             ref_hdu[ref_structure['bpm']].data[shift_mask==0] = 1
-        if ref_structure['pyDANDIA_pixel_mask'] != None:
-            ref_hdu[ref_structure['pyDANDIA_pixel_mask']].data[shift_mask==0] = 1
-        if ref_structure['bpm'] == None and ref_structure['pyDANDIA_pixel_mask'] == None:
+        if ref_structure['pyDANDIA_PIXEL_MASK'] != None:
+            ref_hdu[ref_structure['pyDANDIA_PIXEL_MASK']].data[shift_mask==0] = 1
+        if ref_structure['bpm'] == None and ref_structure['pyDANDIA_PIXEL_MASK'] == None:
             log.info('no mask in extension 1')
-
+            
 # DEPRECIATED?
 #        try:
 #            ref_hdu[1].data[shift_mask==0] = 1
