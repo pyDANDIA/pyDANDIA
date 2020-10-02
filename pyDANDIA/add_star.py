@@ -12,7 +12,7 @@ def add_star_to_star_catalog(params):
 
     star_catalog = reduction_metadata.star_catalog[1]
 
-    row_data = [ len(star_catalog), params['x'], params['y'],
+    row_data = [ len(star_catalog)+1, params['x'], params['y'],
                                     params['ra'], params['dec'],
                                     params['ref_flux'], params['ref_flux_error'],
                                     0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
