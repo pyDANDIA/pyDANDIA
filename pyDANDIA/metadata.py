@@ -1065,12 +1065,12 @@ class MetaData:
                           Column(name='ra', data=self.star_catalog[1]['ra'][idx]),
                           Column(name='dec', data=self.star_catalog[1]['dec'][idx]),
                           Column(name='separation', data=separations[idx]) ])
-        print(idx)
-        if len(idx) == 0:
+        
+        if len(idx[0]) == 0:
             print('Nearest closest star: ')
             idx = np.where(separations.value <= separations.value.min())
             print(self.star_catalog[1]['index'][idx], self.star_catalog[1]['ra'][idx], self.star_catalog[1]['dec'][idx], separations[idx])
-            
+
         return results
 
     def fetch_reduction_filter(self):
