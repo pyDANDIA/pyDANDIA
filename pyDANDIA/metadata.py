@@ -1056,7 +1056,8 @@ class MetaData:
                             frame='icrs', unit=(u.deg,u.deg))
 
         target = SkyCoord(params['ra_centre'], params['dec_centre'], frame='icrs', unit=(u.deg,u.deg))
-
+        print(target)
+        
         separations = target.separation(starlist)
 
         idx = np.where(separations.value <= params['radius'])
@@ -1065,7 +1066,7 @@ class MetaData:
                           Column(name='ra', data=self.star_catalog[1]['ra'][idx]),
                           Column(name='dec', data=self.star_catalog[1]['dec'][idx]),
                           Column(name='separation', data=separations[idx]) ])
-        
+
         if len(idx[0]) == 0:
             print('Nearest closest star: ')
             idx = np.where(separations.value <= separations.value.min())
