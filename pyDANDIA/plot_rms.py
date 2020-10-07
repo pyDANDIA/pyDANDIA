@@ -90,6 +90,9 @@ def plot_rms(phot_statistics, params, log):
     plt.grid()
     plt.tight_layout()
 
+    [xmin,xmax,ymin,ymax] = plt.axis()
+    plt.axis([xmin,xmax,1e-3,5.0])
+
     plot_file = path.join(params['red_dir'],'rms.png')
     plt.savefig(plot_file)
 
