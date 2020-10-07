@@ -20,14 +20,9 @@ def calc_rms():
 
     log = logs.start_stage_log( params['red_dir'], 'rms' )
 
-    reduction_metadata = metadata.MetaData()
-    reduction_metadata.load_a_layer_from_file(params['red_dir'], 'pyDANDIA_metadata.fits', 'matched_stars')
-    matched_stars = reduction_metadata.load_matched_stars()
-
     photometry_data = fetch_dataset_photometry(params,log)
 
     phot_statistics = calc_mean_rms_mag(photometry_data,log)
-    print(phot_statistics)
 
     plot_rms(phot_statistics, params, log)
 
@@ -47,53 +42,53 @@ def calc_mean_rms_mag(photometry_data,log):
 
     phot_statistics = np.zeros( (len(photometry_data),2) )
 
-    (phot_statistics[:,0], _) = calc_weighted_mean_2D(photometry_data, 1, 2)
+    (phot_statistics[:,0], _) = calc_weighted_mean_2D(photometry_data, 11, 12)
     log.info('Calculated stellar mean magnitudes weighted by the photometric uncertainties')
 
-    phot_statistics[:,1] = calc_weighted_rms(photometry_data, phot_statistics[:,0], 1, 2)
+    phot_statistics[:,1] = calc_weighted_rms(photometry_data, phot_statistics[:,0], 11, 12)
     log.info('Calculated RMS per star weighted by the photometric uncertainties')
 
     return phot_statistics
 
 def calc_weighted_mean_2D(data, col, errcol):
 
-    wmean = np.zeros(len(data))
-    werror = np.zeros(len(data))
+    mask = np.invert(np.logical_and(data[:,:,col] > 0.0, data[:,:,errcol] > 0.0))
+    mags = np.ma.array(data[:,:,col], mask=mask)
+    errs = np.ma.array(data[:,:,errcol], mask=mask)
 
-    for j in range(0,len(data),1):
-        mask = np.logical_and(data[j,:,col] > 0.0, data[j,:,errcol] > 0.0)
-
-        err_squared_inv = 1.0 / (data[j,mask,errcol]*data[j,mask,errcol])
-
-        wmean[j] =  (data[j,mask,col] * err_squared_inv).sum() / (err_squared_inv.sum())
-
-        werror[j] = 1.0 / (err_squared_inv.sum())
+    err_squared_inv = 1.0 / (errs*errs)
+    wmean =  (mags * err_squared_inv).sum(axis=1) / (err_squared_inv.sum(axis=1))
+    werror = 1.0 / (err_squared_inv.sum(axis=1))
 
     return wmean, werror
 
 def calc_weighted_rms(data, mean_mag, magcol, errcol):
 
-    rms = np.zeros(len(data))
+    mask = np.invert(np.logical_and(data[:,:,magcol] > 0.0, data[:,:,errcol] > 0.0))
+    mags = np.ma.array(data[:,:,magcol], mask=mask)
+    errs = np.ma.array(data[:,:,errcol], mask=mask)
 
-    for j in range(0,len(data),1):
-        mask = np.logical_and(data[j,:,magcol] > 0.0, data[j,:,errcol] > 0.0)
-
-        err_squared_inv = 1.0 / (data[j,mask,errcol]*data[j,mask,errcol])
-
-        rms[j] =  np.sqrt( ((data[j,mask,magcol]-mean_mag[j])**2 * err_squared_inv).sum() / (err_squared_inv.sum()) )
+    err_squared_inv = 1.0 / (errs*errs)
+    dmags = (mags.transpose() - mean_mag).transpose()
+    rms =  np.sqrt( (dmags**2 * err_squared_inv).sum(axis=1) / (err_squared_inv.sum(axis=1)) )
 
     return rms
 
 def plot_rms(phot_statistics, params, log):
 
     fig = plt.figure(1,(10,10))
+    plt.rcParams.update({'font.size': 18})
 
-    plt.plot(phot_statistics[:,0], phot_statistics[:,1], 'k.')
+    mask = np.logical_and(phot_statistics[:,0] > 0.0, phot_statistics[:,1] > 0.0)
+    plt.plot(phot_statistics[mask,0], phot_statistics[mask,1], 'k.',
+            marker=".", markersize=0.5, alpha=0.5)
 
+    plt.yscale('log')
     plt.xlabel('Weighted mean mag')
     plt.ylabel('RMS [mag]')
 
     plt.grid()
+    plt.tight_layout()
 
     plot_file = path.join(params['red_dir'],'rms.png')
     plt.savefig(plot_file)
@@ -106,13 +101,11 @@ def get_args():
 
     if len(argv) == 1:
 
-        params['db_file_path'] = input('Please enter the path to the field photometric DB: ')
         params['red_dir'] = input('Please enter the path to a dataset reduction directory: ')
 
     else:
 
-        params['db_file_path'] = argv[1]
-        params['red_dir'] = argv[2]
+        params['red_dir'] = argv[1]
 
     return params
 
