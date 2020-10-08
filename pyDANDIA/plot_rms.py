@@ -40,13 +40,16 @@ def fetch_dataset_photometry(params,log):
 
 def calc_mean_rms_mag(photometry_data,log):
 
-    phot_statistics = np.zeros( (len(photometry_data),2) )
+    phot_statistics = np.zeros( (len(photometry_data),3) )
 
     (phot_statistics[:,0], _) = calc_weighted_mean_2D(photometry_data, 11, 12)
     log.info('Calculated stellar mean magnitudes weighted by the photometric uncertainties')
 
     phot_statistics[:,1] = calc_weighted_rms(photometry_data, phot_statistics[:,0], 11, 12)
     log.info('Calculated RMS per star weighted by the photometric uncertainties')
+
+    phot_statistics[:,2] = calc_percentile_rms(photometry_data, phot_statistics[:,0], 11, 12)
+    log.info('Calculated RMS per star using percentile method')
 
     return phot_statistics
 
@@ -74,6 +77,17 @@ def calc_weighted_rms(data, mean_mag, magcol, errcol):
 
     return rms
 
+def calc_percentile_rms(data, mean_mag, magcol, errcol):
+
+    mask = np.invert(np.logical_and(data[:,:,magcol] > 0.0, data[:,:,errcol] > 0.0))
+    mags = np.ma.array(data[:,:,magcol], mask=mask)
+
+    print(np.percentile(mags,84))
+    rms_per = (np.percentile(mags,84)-np.percentile(mags,16))/2
+    print(rms_per)
+
+    return rms_per
+
 def plot_rms(phot_statistics, params, log):
 
     fig = plt.figure(1,(10,10))
@@ -81,13 +95,18 @@ def plot_rms(phot_statistics, params, log):
 
     mask = np.logical_and(phot_statistics[:,0] > 0.0, phot_statistics[:,1] > 0.0)
     plt.plot(phot_statistics[mask,0], phot_statistics[mask,1], 'k.',
-            marker=".", markersize=0.5, alpha=0.5)
+            marker=".", markersize=0.5, alpha=0.5, label='Weighted RMS')
+
+    mask = np.logical_and(phot_statistics[:,0] > 0.0, phot_statistics[:,2] > 0.0)
+    plt.plot(phot_statistics[mask,0], phot_statistics[mask,2], 'g.',
+                    marker="+", markersize=0.5, alpha=0.5, label='Percentile RMS')
 
     plt.yscale('log')
     plt.xlabel('Weighted mean mag')
     plt.ylabel('RMS [mag]')
 
     plt.grid()
+    plt.legend()
     plt.tight_layout()
 
     [xmin,xmax,ymin,ymax] = plt.axis()

@@ -231,7 +231,9 @@ def get_args():
         if '-a1' in a:
             params['a1'] = float(str(a).split('=')[-1])
 
-    if str(params['db_file_path']).split('.')[-1] != 'db':
+    if 'None' in str(params['db_file_path']):
+        params['build_phot_db'] = False
+    elif str(params['db_file_path']).split('.')[-1] != 'db':
         raise ValueError(params['db_file_path']+' does not end in .db.  Is this a database file path?')
 
     if params['set_phot_calib'] and (params['a0'] == None or params['a1'] == None):
