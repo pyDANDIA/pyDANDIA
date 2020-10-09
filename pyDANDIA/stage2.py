@@ -193,7 +193,7 @@ def run_stage2(setup, **kwargs):
 
     #import pdb; pdb.set_trace()
     #Etienne empirical ranking....
-    if reference_ranking == [] or kwargs['empirical_ranking']:
+    if reference_ranking == []:
         log.info('Etienne empirical ranking....')
 
         best_image = (reduction_metadata.images_stats[1]['NSTARS']/reduction_metadata.images_stats[1]['SKY']).argmax()

@@ -689,8 +689,12 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
     ref_sources, ref_fwhm = extract_catalog(reduction_metadata, reference_image, ref_row_index, log)
 
     log.info('Starting image resampling')
+    # Is there a mask already?
+    try:
+        master_mask = fits.open(os.path.join(reference_image_directory, 'master_mask.fits'))[0].data
+    except:
+        master_mask = 0
 
-    master_mask = 0
 
     for new_image in new_images:
         log.info('Resampling image '+new_image)
