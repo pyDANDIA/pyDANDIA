@@ -94,7 +94,7 @@ def run_reference_astrometry(setup, **kwargs):
                                                           image_wcs, log,
                                                           stellar_density,
                                                           rotate_wcs,
-                                                          kwargs['force_rotate_ref'],
+                                                          kwargs,
                                                           stellar_density_threshold)
 
         vphas_sources = phot_catalog_objects_in_reference_image(setup, header, fov,
@@ -207,7 +207,7 @@ def run_reference_astrometry(setup, **kwargs):
                     bright_central_gaia_stars = update_catalog_image_coordinates(setup, image_wcs,
                                                                 bright_central_gaia_stars, log,
                                                                 'catalog_stars_bright_revised_'+str(it)+'.reg',
-                                                                stellar_density, rotate_wcs, kwargs['force_rotate_ref'],
+                                                                stellar_density, rotate_wcs, kwargs,
                                                                 stellar_density_threshold,
                                                                 transform=transform, radius=selection_radius)
 
@@ -231,7 +231,7 @@ def run_reference_astrometry(setup, **kwargs):
 
         gaia_sources = update_catalog_image_coordinates(setup, image_wcs,
                                                         gaia_sources, log, 'catalog_stars_full_revised_'+str(it)+'.reg',
-                                                        stellar_density, rotate_wcs, kwargs['force_rotate_ref'],
+                                                        stellar_density, rotate_wcs, kwargs,
                                                         stellar_density_threshold,
                                                         transform=transform, radius=None)
 
@@ -287,7 +287,7 @@ def get_default_config(kwargs, log):
     log.info('Received kwargs:')
     for key, value in kwargs.items():
         log.info(key+': '+repr(value))
-        
+
     default_config = {'force_rotate_ref': False,
                       'dx': 0.0, 'dy': 0.0,
                       'trust_wcs': False}
@@ -343,7 +343,7 @@ def detect_objects_in_reference_image(setup, reduction_metadata, meta_pars,
     return detected_sources
 
 def catalog_objects_in_reference_image(setup, header, image_wcs, log,
-                                        stellar_density, rotate_wcs,
+                                        stellar_density, rotate_wcs, kwargs,
                                         force_rotate_ref,
                                         stellar_density_threshold):
 
@@ -355,7 +355,7 @@ def catalog_objects_in_reference_image(setup, header, image_wcs, log,
     gaia_sources = wcs.calc_image_coordinates_astropy(setup, image_wcs,
                                                       gaia_sources, log,
                                                       stellar_density,
-                                                      rotate_wcs, force_rotate_ref,
+                                                      rotate_wcs, kwargs,
                                                       stellar_density_threshold)
 
     gaia_sources.add_column( table.Column(name='x1', data=np.copy(gaia_sources['x'])) )
@@ -419,14 +419,14 @@ def phot_catalog_objects_in_reference_image(setup, header, fov, image_wcs, log, 
 
 def update_catalog_image_coordinates(setup, image_wcs, gaia_sources,
                                      log, filename,
-                                     stellar_density, rotate_wcs, force_rotate_ref,
+                                     stellar_density, rotate_wcs, kwargs,
                                      stellar_density_threshold,
                                      transform=None, radius=None):
 
     gaia_sources = wcs.calc_image_coordinates_astropy(setup, image_wcs,
                                                       gaia_sources,log,
                                                       stellar_density,
-                                                      rotate_wcs, force_rotate_ref,
+                                                      rotate_wcs, kwargs,
                                                       stellar_density_threshold,
                                                       radius=radius)
 

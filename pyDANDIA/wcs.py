@@ -426,7 +426,7 @@ def calc_image_coordinates(setup, image_path, catalog_sources,log):
 
 def calc_image_coordinates_astropy(setup, image_wcs, catalog_sources,log,
                                     stellar_density,
-                                    rotate_wcs, force_rotate_ref,
+                                    rotate_wcs, kwargs,
                                     stellar_density_threshold,
                                     radius=None):
 
@@ -466,7 +466,7 @@ def calc_image_coordinates_astropy(setup, image_wcs, catalog_sources,log,
     positions = np.array(positions)
     dpositions =  image_wcs.wcs_world2pix(np.array(positions),1)
 
-    if force_rotate_ref:
+    if kwargs['force_rotate_ref']:
         log.info('Rotation of the reference image WCS FORCED')
         positions = transform_positions(dpositions, image_wcs, log)
 
@@ -476,6 +476,10 @@ def calc_image_coordinates_astropy(setup, image_wcs, catalog_sources,log,
             log.info('Since stellar density is low (< '+\
                 str(utilities.stellar_density_threshold())+\
                 '), assuming WCS in correct orientation')
+            positions = dpositions
+
+        elif kwargs['trust_wcs']:
+            log.info('Trust WCS flag set, assuming WCS in correct orientation')
             positions = dpositions
 
         else:
