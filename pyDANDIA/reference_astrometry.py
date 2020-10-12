@@ -344,7 +344,6 @@ def detect_objects_in_reference_image(setup, reduction_metadata, meta_pars,
 
 def catalog_objects_in_reference_image(setup, header, image_wcs, log,
                                         stellar_density, rotate_wcs, kwargs,
-                                        force_rotate_ref,
                                         stellar_density_threshold):
 
     field = str(header['OBJECT']).replace(' ','-')
