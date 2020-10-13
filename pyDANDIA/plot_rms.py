@@ -82,9 +82,7 @@ def calc_percentile_rms(data, mean_mag, magcol, errcol):
     mask = np.invert(np.logical_and(data[:,:,magcol] > 0.0, data[:,:,errcol] > 0.0))
     mags = np.ma.array(data[:,:,magcol], mask=mask)
 
-    print(np.percentile(mags,84, axis=1))
-    rms_per = (np.percentile(mags,84)-np.percentile(mags,16))/2
-    print(rms_per)
+    rms_per = (np.percentile(mags,84, axis=1)-np.percentile(mags,16, axis=1))/2
 
     return rms_per
 
@@ -106,7 +104,7 @@ def plot_rms(phot_statistics, params, log):
     plt.ylabel('RMS [mag]')
 
     plt.grid()
-    plt.legend()
+    l = plt.legend()
     plt.tight_layout()
 
     [xmin,xmax,ymin,ymax] = plt.axis()
