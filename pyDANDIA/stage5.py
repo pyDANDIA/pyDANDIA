@@ -126,8 +126,8 @@ def run_stage5(setup, **kwargs):
 
             # fwhms.append(((float(stats_entry['SIGMA_Y'])) ** 2 + (float(stats_entry['SIGMA_Y'])) ** 2) ** 0.5)  # arcsec
             fwhms.append(float(stats_entry['FWHM']))  # arcsec
-        
-        fwhms = np.array(fwhms)
+
+    fwhms = np.array(fwhms)
     mask = np.isnan(fwhms)
     fwhms[mask] = 99
 
