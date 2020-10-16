@@ -81,8 +81,8 @@ def run_stage5(setup, **kwargs):
         image_flag = image_red_status[stats_entry['IM_NAME']]
 
         # "current" version of this code
-        use_current = False
-        if use_current:
+        down_select = False
+        if down_select:
             if image_flag in ['0', '1']:
                 if np.isfinite(float(stats_entry['SHIFT_X'])):
                     shifts.append(float(stats_entry['SHIFT_X']))
