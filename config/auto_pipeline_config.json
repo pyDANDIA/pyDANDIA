@@ -64,5 +64,11 @@
       "comment": "Switch to construct a photometric database for the reduction",
       "format": "string",
       "unit": ""
+  },
+  "trust_wcs": {
+      "value": "True",
+      "comment": "Switch to rely on the WCS in the image header",
+      "format": "string",
+      "unit": ""
   }
 }
