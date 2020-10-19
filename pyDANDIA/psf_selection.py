@@ -133,7 +133,8 @@ def id_crowded_stars(setup,reduction_metadata,log,
 
     psf_comp_dist = reduction_metadata.reduction_parameters[1]['PSF_COMP_DIST'][0]
     psf_comp_flux = reduction_metadata.reduction_parameters[1]['PSF_COMP_FLUX'][0]
-    psf_diameter = reduction_metadata.psf_dimensions[1]['psf_radius'][0]*2.0
+    #psf_diameter = reduction_metadata.psf_dimensions[1]['psf_radius'][0]*2.0
+    psf_diameter = reduction_metadata.get_psf_radius()*2.0
 
     sep_thresh = 0.5 * psf_comp_dist * psf_diameter
 

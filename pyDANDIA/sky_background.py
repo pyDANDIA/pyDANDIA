@@ -33,7 +33,8 @@ def model_sky_background(setup,reduction_metadata,log,ref_star_catalog,
 
     star_masked_image = load_masked_image(setup, reduction_metadata, log, image_path=image_path)
 
-    psf_diameter = reduction_metadata.psf_dimensions[1]['psf_radius'][0]*2.0
+    #psf_diameter = reduction_metadata.psf_dimensions[1]['psf_radius'][0]*2.0
+    psf_diameter = reduction_metadata.get_psf_radius()*2.0
     sat_value = reduction_metadata.reduction_parameters[1]['MAXVAL'][0]
     sat_value = 120000.0
 

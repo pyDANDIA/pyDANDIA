@@ -80,17 +80,40 @@ def run_stage5(setup, **kwargs):
 
         image_flag = image_red_status[stats_entry['IM_NAME']]
 
-        if image_flag in ['0', '1']:
+        # "current" version of this code
+        down_select = False
+        if down_select:
+            if image_flag in ['0', '1']:
+                if np.isfinite(float(stats_entry['SHIFT_X'])):
+                    shifts.append(float(stats_entry['SHIFT_X']))
+
+                if np.isfinite(float(stats_entry['SHIFT_Y'])):
+                    shifts.append(float(stats_entry['SHIFT_Y']))
+
+                # Note this is using the sigma of a bi-variate normal distribution, NOT
+                # the true FWHM:
+                # if float(stats_entry['FWHM'])> fwhm_max:
+                #    fwhm_max = stats_entry['FWHM']
+                if float(stats_entry['SIGMA_X']) > fwhm_max:
+                    fwhm_max = stats_entry['SIGMA_X']
+                if float(stats_entry['SIGMA_Y']) > fwhm_max:
+                    fwhm_max = stats_entry['SIGMA_Y']
+
+                if abs(float(stats_entry['SHIFT_X'])) > shift_max:
+                    shift_max = abs(float(stats_entry['SHIFT_X']))
+
+                if abs(float(stats_entry['SHIFT_Y'])) > shift_max:
+                    shift_max = abs(float(stats_entry['SHIFT_Y']))
+
+               # fwhms.append(((float(stats_entry['SIGMA_Y'])) ** 2 + (float(stats_entry['SIGMA_Y'])) ** 2) ** 0.5)  # arcsec
+                fwhms.append(float(stats_entry['FWHM']))  # arcsec
+
+        else:
             if np.isfinite(float(stats_entry['SHIFT_X'])):
                 shifts.append(float(stats_entry['SHIFT_X']))
-
             if np.isfinite(float(stats_entry['SHIFT_Y'])):
                 shifts.append(float(stats_entry['SHIFT_Y']))
 
-            # Note this is using the sigma of a bi-variate normal distribution, NOT
-            # the true FWHM:
-            # if float(stats_entry['FWHM'])> fwhm_max:
-            #    fwhm_max = stats_entry['FWHM']
             if float(stats_entry['SIGMA_X']) > fwhm_max:
                 fwhm_max = stats_entry['SIGMA_X']
             if float(stats_entry['SIGMA_Y']) > fwhm_max:
@@ -98,12 +121,12 @@ def run_stage5(setup, **kwargs):
 
             if abs(float(stats_entry['SHIFT_X'])) > shift_max:
                 shift_max = abs(float(stats_entry['SHIFT_X']))
-
             if abs(float(stats_entry['SHIFT_Y'])) > shift_max:
                 shift_max = abs(float(stats_entry['SHIFT_Y']))
 
-           # fwhms.append(((float(stats_entry['SIGMA_Y'])) ** 2 + (float(stats_entry['SIGMA_Y'])) ** 2) ** 0.5)  # arcsec
+            # fwhms.append(((float(stats_entry['SIGMA_Y'])) ** 2 + (float(stats_entry['SIGMA_Y'])) ** 2) ** 0.5)  # arcsec
             fwhms.append(float(stats_entry['FWHM']))  # arcsec
+
     fwhms = np.array(fwhms)
     mask = np.isnan(fwhms)
     fwhms[mask] = 99
@@ -687,7 +710,7 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
         row_index = np.where(reduction_metadata.images_stats[1]['IM_NAME'] == new_image)[0][0]
         fwhm_val = reduction_metadata.images_stats[1][row_index]['FWHM'] * grow_kernel
         ref_fwhm_x, ref_fwhm_y, ref_sigma_x, ref_sigma_y = ref_stats
-       
+
         umatrix_index = int(np.digitize(fwhm_val, np.array(kernel_size_array)))
         umatrix_index = min(umatrix_index, len(kernel_size_array) - 1)
        # umatrix_index = -1
