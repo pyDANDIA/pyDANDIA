@@ -84,6 +84,16 @@ def edit_image_reduction_status(red_dir):
 
     reduction_metadata.save_updated_metadata(red_dir,'pyDANDIA_metadata.fits')
 
+def update_software_table(red_dir):
+
+    reduction_metadata = metadata.MetaData()
+    reduction_metadata.load_all_metadata(red_dir, 'pyDANDIA_metadata.fits')
+
+    reduction_metadata.update_a_cell_to_layer('software', 0, 'stage3_version', 'pyDANDIA_stage3_v1.0.0')
+    reduction_metadata.update_a_cell_to_layer('software', 0, 'stage6_version', 'pyDANDIA_stage6_v1.0.0')
+
+    reduction_metadata.save_updated_metadata(red_dir,'pyDANDIA_metadata.fits')
+
 if __name__ == '__main__':
     if len(sys.argv) == 1:
         red_dir = input('Please enter the path to the reduction directory: ')
@@ -94,4 +104,5 @@ if __name__ == '__main__':
     #modify_reduction_parameters(red_dir)
     #modify_headers_summary(red_dir)
     #restore_psf_dimensions_table(red_dir)
-    edit_image_reduction_status(red_dir)
+    #edit_image_reduction_status(red_dir)
+    update_software_table(red_dir)
