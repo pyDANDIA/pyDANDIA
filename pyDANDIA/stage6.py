@@ -39,6 +39,7 @@ from pyDANDIA import stage3_db_ingest
 from pyDANDIA import hd5_utils
 from pyDANDIA import image_handling
 from pyDANDIA import match_utils
+from pyDANDIA import plot_rms
 
 def run_stage6(setup, **kwargs):
     """Main driver function to run stage 6: image substraction and photometry.
@@ -311,6 +312,9 @@ def run_stage6(setup, **kwargs):
             log=log)
 
     hd5_utils.write_phot_hd5(setup,photometry_data,log=log)
+
+    phot_statistics = plot_rms.calc_mean_rms_mag(photometry_data,log)
+    plot_rms.plot_rms(phot_statistics, {'red_dir': setup.red_dir}, log)
 
     if conn != None:
         conn.close()
@@ -1222,5 +1226,5 @@ def generate_matched_stars(reduction_metadata,log):
     transform = AffineTransform(matrix=matrix)
 
     log.info('Generated single-dataset null matched_stars and transform')
-    
+
     return transform, matched_stars
