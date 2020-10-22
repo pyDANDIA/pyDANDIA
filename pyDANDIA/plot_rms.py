@@ -38,17 +38,23 @@ def fetch_dataset_photometry(params,log):
 
     return photometry_data
 
-def calc_mean_rms_mag(photometry_data,log):
+def calc_mean_rms_mag(photometry_data,log,use_calib_mag=True):
+
+    mag_col = 13
+    merr_col = 14
+    if not use_calib_mag:
+        mag_col = 11
+        merr_col = 12
 
     phot_statistics = np.zeros( (len(photometry_data),3) )
 
-    (phot_statistics[:,0], _) = calc_weighted_mean_2D(photometry_data, 11, 12)
+    (phot_statistics[:,0], _) = calc_weighted_mean_2D(photometry_data, mag_col, merr_col)
     log.info('Calculated stellar mean magnitudes weighted by the photometric uncertainties')
 
-    phot_statistics[:,1] = calc_weighted_rms(photometry_data, phot_statistics[:,0], 11, 12)
+    phot_statistics[:,1] = calc_weighted_rms(photometry_data, phot_statistics[:,0], mag_col, merr_col)
     log.info('Calculated RMS per star weighted by the photometric uncertainties')
 
-    phot_statistics[:,2] = calc_percentile_rms(photometry_data, phot_statistics[:,0], 11, 12)
+    phot_statistics[:,2] = calc_percentile_rms(photometry_data, phot_statistics[:,0], mag_col, merr_col)
     log.info('Calculated RMS per star using percentile method')
 
     return phot_statistics
