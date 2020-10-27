@@ -369,6 +369,7 @@ def extract_target_lightcurve(setup, log):
                 str(reduction_metadata.data_architecture[1]['REF_IMAGE'][0])
 
     ref_header = image_handling.get_science_header(ref_path)
+    filter_name = reduction_metadata.fetch_reduction_filter()
 
     lc_dir = path.join(setup.red_dir, 'lc')
     if path.isdir(lc_dir) == False:
@@ -383,7 +384,8 @@ def extract_target_lightcurve(setup, log):
     # All coordinates and radius must be in decimal degrees
     params = {'red_dir': setup.red_dir, 'db_file_path': setup.phot_db_path,
                 'ra': ra, 'dec': dec,
-                'radius': (2.0 / 3600.0), 'output_dir': lc_dir }
+                'radius': (2.0 / 3600.0), 'output_dir': lc_dir,
+                'filter_name': filter_name }
 
     log.info('Searching phot DB '+setup.phot_db_path+' for '+ref_header['OBJECT'])
 
