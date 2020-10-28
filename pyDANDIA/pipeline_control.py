@@ -114,7 +114,7 @@ def run_reductions(setup,log,datasets,kwargs):
         datasets    list                    Dataset red_dir names
     """
 
-    if setup.red_mode in ['stage3_db_ingest', 'stage6']:
+    if kwargs['build_phot_db'] and setup.red_mode in ['stage3_db_ingest', 'stage6']:
 
         log.info('Starting sequential reductions')
 
