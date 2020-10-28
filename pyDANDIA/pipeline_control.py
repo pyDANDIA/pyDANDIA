@@ -191,6 +191,11 @@ def trigger_parallel_reduction(setup,dataset_dir,data_status,kwargs,debug=False)
         command = path.join(setup.software_dir,'run_stage.py')
         args = ['python', command, setup.red_mode, dataset_dir, setup.phot_db_path]
 
+    elif setup.red_mode in ['stage6'] and kwargs['build_phot_db'] == False:
+
+        command = path.join(setup.software_dir,'run_stage.py')
+        args = ['python', command, setup.red_mode, dataset_dir, setup.phot_db_path]
+        
     else:
         raise ValueError('Reduction mode '+str(setup.red_mode)+' not yet supported in parallel mode')
 
