@@ -691,9 +691,17 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
     log.info('Starting image resampling')
     # Is there a mask already?
     try:
-        master_mask = fits.open(os.path.join(reference_image_directory, 'master_mask.fits'))[0].data
+        try:
+            master_mask = fits.open(os.path.join(reference_image_directory, 'master_mask_updated.fits'))[0].data
+        except:
+            master_mask = fits.open(os.path.join(reference_image_directory, 'master_mask.fits'))[0].data
+            
+        master_mask_is_there = True
+    
     except:
+    
         master_mask = 0
+        master_mask_is_there = False
 
 
     for new_image in new_images:
@@ -834,7 +842,12 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
     mask = np.abs(master_mask) < 1.0
     master_mask[mask] = 0
     master_mask_hdu = fits.PrimaryHDU(master_mask)
-    master_mask_hdu.writeto(os.path.join(reference_image_directory, 'master_mask.fits'), overwrite=True)
+    
+    if master_mask_is_there :
+    
+        master_mask_hdu.writeto(os.path.join(reference_image_directory, 'master_mask_updated.fits'), overwrite=True)
+    else:
+        master_mask_hdu.writeto(os.path.join(reference_image_directory, 'master_mask.fits'), overwrite=True)
 
     return image_red_status
 
