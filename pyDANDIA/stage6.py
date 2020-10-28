@@ -226,7 +226,7 @@ def run_stage6(setup, **kwargs):
                 db_phot.check_before_commit(conn, image_params, 'images', image_keys, 'filename')
                 log.info('Recorded image '+str(new_image)+' in DB')
 
-            image_id = idx
+            image_id = index_image
             exposures_id.append(image_id)
 
             log.info('Starting difference photometry of ' + new_image)
@@ -272,7 +272,7 @@ def run_stage6(setup, **kwargs):
                         diff_table, control_zone, phot_table = photometry_on_the_difference_image_stamp(setup, reduction_metadata, log,
                                                                                   stamp_star_catalog, difference_image, psf_model,
                                                                                   sky_model, kernel_image, kernel_error,
-                                                                                  ref_exposure_time,idx,
+                                                                                  ref_exposure_time,index_image,
                                                                                   per_star_logging=kwargs['per_star_logging'])
                         psf_model.update_psf_parameters(psf_parameters)
 
