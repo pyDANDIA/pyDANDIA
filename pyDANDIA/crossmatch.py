@@ -11,7 +11,7 @@ class CrossMatchTable():
     datasets"""
 
     def __init__(self):
-        self.datasets = Table([])
+        self.datasets = Table()
         self.matched_stars = []
 
     def create(self, params):
