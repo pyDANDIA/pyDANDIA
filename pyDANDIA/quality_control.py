@@ -10,6 +10,9 @@ from astropy import units as u
 from astropy.coordinates import SkyCoord
 import numpy as np
 from pyDANDIA import metadata
+from astropy.stats import mad_std,sigma_clipped_stats
+from astropy.table import Table
+from astropy.table import Column
 
 def verify_stage0_output(setup,log):
     """Function to verify that stage 0 has produced the expected output.
@@ -271,3 +274,43 @@ def verify_mask_statistics(reduction_metadata,image_name, mask_data, log=None):
         if log!=None:
             log.info('--> WARNING: Mask statistics indicate a problem')
         return False
+
+def calc_phot_qc_metrics(photometry,site,n_selection=5000):
+    """Function to calculate the timeseries photometric quality metrics.
+    Based on code by Markus Hundertmark"""
+
+    # For speed, a random selection of stars is chosen:
+    n_stars = photometry.shape[0]
+    random_index_array = (np.random.random(n_selection)*n_stars).astype(np.int)
+    random_index_array.sort()
+
+    metrics = []
+
+    for index in random_index_array:
+        mask = (phot[index,:,13] > 0) & (np.isfinite(phot[index,:,13]))
+        (mean, medi, std) = sigma_clipped_stats(phot[index,:,13][mask])
+        if np.isfinite(medi):
+            entry = [mean,medi,std,\
+                    np.median(phot[index,:,14][mask]),
+                    len(phot[index,:,14][mask]),
+                    np.median(phot[index,:,19][mask]),
+                    np.median(phot[index,:,20][mask]),
+                    np.median(phot[index,:,21][mask]),
+                    np.median(phot[index,:,22][mask]),
+                    site]
+            metrics.append(entry)
+    metrics = np.array(metrics)
+
+    table_data = [  Column(name='mean_cal_mag', data=metrics[:,0]),
+                    Column(name='median_cal_mag', data=metrics[:,1]),
+                    Column(name='std_dev_cal_mag', data=metrics[:,2]),
+                    Column(name='median_cal_mag_error', data=metrics[:,3]),
+                    Column(name='n_valid_points', data=metrics[:,4]),
+                    Column(name='median_ps_factor', data=metrics[:,5]),
+                    Column(name='median_ps_error', data=metrics[:,6]),
+                    Column(name='median_sky_background', data=metrics[:,7]),
+                    Column(name='median_sky_background_error', data=metrics[:,8]),
+                    Column(name='site', data=metrics[:,9]) ]
+    metrics = Table(data=table_data)
+
+    return metrics

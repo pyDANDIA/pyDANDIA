@@ -16,3 +16,4 @@ uncertainties
 pystackreg
 astroalign
 psutil
+seaborn
