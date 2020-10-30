@@ -287,16 +287,16 @@ def calc_phot_qc_metrics(photometry,site,n_selection=5000):
     metrics = []
 
     for index in random_index_array:
-        mask = (phot[index,:,13] > 0) & (np.isfinite(phot[index,:,13]))
-        (mean, medi, std) = sigma_clipped_stats(phot[index,:,13][mask])
+        mask = (photometry[index,:,13] > 0) & (np.isfinite(photometry[index,:,13]))
+        (mean, medi, std) = sigma_clipped_stats(photometry[index,:,13][mask])
         if np.isfinite(medi):
             entry = [mean,medi,std,\
-                    np.median(phot[index,:,14][mask]),
-                    len(phot[index,:,14][mask]),
-                    np.median(phot[index,:,19][mask]),
-                    np.median(phot[index,:,20][mask]),
-                    np.median(phot[index,:,21][mask]),
-                    np.median(phot[index,:,22][mask]),
+                    np.median(photometry[index,:,14][mask]),
+                    len(photometry[index,:,14][mask]),
+                    np.median(photometry[index,:,19][mask]),
+                    np.median(photometry[index,:,20][mask]),
+                    np.median(photometry[index,:,21][mask]),
+                    np.median(photometry[index,:,22][mask]),
                     site]
             metrics.append(entry)
     metrics = np.array(metrics)

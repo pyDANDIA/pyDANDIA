@@ -30,7 +30,7 @@ def analyse_datasets(setup):
         dataset_metrics = quality_control.calc_phot_qc_metrics(photometry,site,n_selection=5000)
         metrics = append_metric_data(metrics, dataset_metrics)
 
-    plot_field_qc_metrics(params, metrics,log)
+    plot_field_qc_metrics(setup, metrics,log)
 
     logs.close_log(log)
 
@@ -76,7 +76,7 @@ def append_metric_data(master_table, dataset_table):
     new_table = Table(data=table_data)
     return new_table
 
-def plot_field_qc_metrics(params, metrics,log):
+def plot_field_qc_metrics(setup, metrics,log):
 
     dataset = pd.DataFrame({'SITE':metrics['site'].data.astype(np.str),
                             'MEDIAN_LC_MAG':metrics['median_cal_mag'].data.astype(np.float),
@@ -91,8 +91,12 @@ def plot_field_qc_metrics(params, metrics,log):
     sns.set(font_scale=3)
     sns.set(style="ticks")
     sns.pairplot(dataset, hue="SITE")
+    #g = sns.PairGrid(dataset, diag_sharey=False, hue = "SITE")
+    #g.map_upper(sns.scatterplot)
+    #g.map_lower(sns.kdeplot, colors="C0")
+    #g.map_diag(sns.kdeplot, lw=2)
 
-    file_path = path.join(params['log_dir'],'field_qc_metrics.png')
+    file_path = path.join(setup.log_dir,'field_qc_metrics.png')
     plt.savefig(file_path)
 
     log.info('Plotted quality metrics for the field to '+file_path)
