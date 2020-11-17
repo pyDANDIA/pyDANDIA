@@ -109,7 +109,7 @@ def get_args():
                 new_dict[key] = None
             else:
                 new_dict[key] = value
-            print(key, value, new_dict[key], type(new_dict[key]))
+            print(main_key, key, value, new_dict[key], type(new_dict[key]))
         config[main_key] = new_dict
 
     # Sanity check configuration:
