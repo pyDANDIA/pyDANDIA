@@ -30,7 +30,8 @@ def run_field_colour_analysis():
     """Function to analyse the colour information for a given field pointing"""
 
     config = get_args()
-
+    print(config)
+    
     log = logs.start_stage_log( config['output_dir'], 'analyse_cmd' )
 
     event_model = config_utils.load_event_model(config['event_model_parameters_file'], log)
@@ -535,7 +536,7 @@ def load_target_timeseries_photometry(config,photometry,log):
         log.info(target.summary(show_mags=False,johnsons=True))
 
     for f in ['i', 'r', 'g']:
-
+        print(config['target_lightcurve_files'])
         file_path = config['target_lightcurve_files'][f]
         print('lc path: ',file_path, type(file_path))
         if file_path != None:
