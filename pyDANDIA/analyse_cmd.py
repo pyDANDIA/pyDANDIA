@@ -507,13 +507,16 @@ def load_target_timeseries_photometry(config,photometry,log):
 
     target = photometry_classes.Star()
 
-    if config['target_field_id'] != None:
-
-        target.star_index = config['target_field_id']
+    if 'None' not in config['target_ra'] and 'None' not in config['target_dec']:
         t = SkyCoord(config['target_ra']+' '+config['target_dec'],
                         unit=(u.hourangle,u.degree), frame='icrs')
         target.ra = t.ra.value
         target.dec = t.dec.value
+
+    if config['target_field_id'] != None:
+
+        target.star_index = config['target_field_id']
+
         (target.g,target.sig_g) = fetch_star_phot(target.star_index,photometry['phot_table_g'])
         (target.r,target.sig_r) = fetch_star_phot(target.star_index,photometry['phot_table_r'])
         (target.i,target.sig_i) = fetch_star_phot(target.star_index,photometry['phot_table_i'])
@@ -536,9 +539,8 @@ def load_target_timeseries_photometry(config,photometry,log):
         log.info(target.summary(show_mags=False,johnsons=True))
 
     for f in ['i', 'r', 'g']:
-        print(config['target_lightcurve_files'])
         file_path = config['target_lightcurve_files'][f]
-        print('lc path: ',file_path, type(file_path))
+
         if file_path != None:
 
             data = lightcurves.read_pydandia_lightcurve(file_path, skip_zero_entries=True)
