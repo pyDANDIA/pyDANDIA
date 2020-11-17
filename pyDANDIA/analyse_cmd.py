@@ -31,7 +31,7 @@ def run_field_colour_analysis():
 
     config = get_args()
     print(config)
-    
+
     log = logs.start_stage_log( config['output_dir'], 'analyse_cmd' )
 
     event_model = config_utils.load_event_model(config['event_model_parameters_file'], log)
@@ -101,8 +101,8 @@ def get_args():
 
     # Handle dictionary keywords which may have None entries
     none_allowed_keys = ['target_lightcurve_files', 'red_dirs']
-    for key in none_allowed_keys:
-        orig_dict = config[key]
+    for main_key in none_allowed_keys:
+        orig_dict = config[main_key]
         new_dict = {}
         for key, value in orig_dict.items():
             if 'none' == str(value).lower():
@@ -110,7 +110,7 @@ def get_args():
             else:
                 new_dict[key] = value
             print(key, value, new_dict[key], type(new_dict[key]))
-        config[key] = new_dict
+        config[main_key] = new_dict
 
     # Sanity check configuration:
     if not config['db_file_path'] and not config['xmatch_file_path']:
