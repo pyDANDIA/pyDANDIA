@@ -536,7 +536,7 @@ def load_target_timeseries_photometry(config,photometry,log):
     for f in ['i', 'r', 'g']:
 
         file_path = config['target_lightcurve_files'][f]
-        print('lc path: ',file_path)
+        print('lc path: ',file_path, type(file_path))
         if file_path != None:
 
             data = lightcurves.read_pydandia_lightcurve(file_path, skip_zero_entries=True)
