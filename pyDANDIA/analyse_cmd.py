@@ -30,7 +30,6 @@ def run_field_colour_analysis():
     """Function to analyse the colour information for a given field pointing"""
 
     config = get_args()
-    print(config)
 
     log = logs.start_stage_log( config['output_dir'], 'analyse_cmd' )
 
@@ -109,7 +108,6 @@ def get_args():
                 new_dict[key] = None
             else:
                 new_dict[key] = value
-            print(main_key, key, value, new_dict[key], type(new_dict[key]))
         config[main_key] = new_dict
 
     # Sanity check configuration:
