@@ -571,34 +571,34 @@ def calc_source_lightcurve(source, target, log):
     log.info('\n')
 
     for f in ['i', 'r', 'g']:
+        if target.lightcurves[f] != None:
+            idx = np.where(target.lightcurves[f]['mag_err'] > 0)[0]
 
-        idx = np.where(target.lightcurves[f]['mag_err'] > 0)[0]
+            dmag = np.zeros(len(target.lightcurves[f]['mag']))
+            dmag.fill(99.99999)
+            dmerr = np.zeros(len(target.lightcurves[f]['mag']))
+            dmerr.fill(-9.9999)
 
-        dmag = np.zeros(len(target.lightcurves[f]['mag']))
-        dmag.fill(99.99999)
-        dmerr = np.zeros(len(target.lightcurves[f]['mag']))
-        dmerr.fill(-9.9999)
+            dmag[idx] = target.lightcurves[f]['mag'][idx] - getattr(target,f)
+            dmerr[idx] = np.sqrt( (target.lightcurves[f]['mag_err'][idx])**2 + getattr(target,'sig_'+f)**2 )
 
-        dmag[idx] = target.lightcurves[f]['mag'][idx] - getattr(target,f)
-        dmerr[idx] = np.sqrt( (target.lightcurves[f]['mag_err'][idx])**2 + getattr(target,'sig_'+f)**2 )
+            lc = table.Table()
+            lc['hjd'] = target.lightcurves[f]['hjd']
+            if getattr(source,f) != None:
+                lc['mag'] = getattr(source,f) + dmag
+            else:
+                lc['mag'] = dmag
+            lc['mag_err'] = np.zeros(len(lc['mag']))
+            lc['mag_err'] = dmerr
 
-        lc = table.Table()
-        lc['hjd'] = target.lightcurves[f]['hjd']
-        if getattr(source,f) != None:
-            lc['mag'] = getattr(source,f) + dmag
-        else:
-            lc['mag'] = dmag
-        lc['mag_err'] = np.zeros(len(lc['mag']))
-        lc['mag_err'] = dmerr
+            if getattr(source,'sig_'+f) != None:
+                lc['mag_err'][idx] = np.sqrt( dmerr[idx]*dmerr[idx] + (getattr(source,'sig_'+f))**2 )
+            else:
+                lc['mag_err'][idx] = dmerr[idx]
 
-        if getattr(source,'sig_'+f) != None:
-            lc['mag_err'][idx] = np.sqrt( dmerr[idx]*dmerr[idx] + (getattr(source,'sig_'+f))**2 )
-        else:
-            lc['mag_err'][idx] = dmerr[idx]
+            log.info('Calculated the source flux lightcurve in '+f)
 
-        log.info('Calculated the source flux lightcurve in '+f)
-
-        source.lightcurves[f] = lc
+            source.lightcurves[f] = lc
 
     return source
 
