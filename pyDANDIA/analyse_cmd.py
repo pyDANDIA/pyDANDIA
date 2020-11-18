@@ -85,7 +85,8 @@ def get_args():
 
     # Handle those keywords which may have Boolean entries
     boolean_keys = ['interactive', 'add_rc_centroid', 'add_blend',
-                    'add_source', 'add_source_trail', 'add_crosshairs']
+                    'add_source', 'add_source_trail', 'add_crosshairs',
+                    'plot_selected_radius_only']
     for key in boolean_keys:
         if 'true' in str(config[key]).lower():
             config[key] = True
@@ -641,13 +642,18 @@ def plot_colour_mag_diagram(params, photometry, stars, selected_stars, selected_
     if len(selected_stars) < len(photometry['i']):
         marker_colour = field_marker_colour
 
-    plt.scatter(photometry[col_key][jdx],photometry[yaxis_filter][jdx],
+    if not params['plot_selected_radius_only']:
+        plt.scatter(photometry[col_key][jdx],photometry[yaxis_filter][jdx],
                  c=marker_colour, marker='.', s=1,
                  label='Stars within field of view')
 
-    plt.scatter(selected_phot[col_key],selected_phot[yaxis_filter],
+    if params['selection_radius'] > 0.0:
+        plt.scatter(selected_phot[col_key],selected_phot[yaxis_filter],
                   c=default_marker_colour, marker='*', s=4,
                   label='Stars < '+str(round(params['selection_radius'],1))+'arcmin of target')
+
+    if params['plot_selected_radius_only'] and params['selection_radius'] <= 0.0:
+        raise IOError('Configuration indicates only stars within a selected radius should be plotted but selection radius <= 0.0arcmin')
 
     if params['add_rc_centroid']:
         plt.errorbar(getattr(RC,col_key), getattr(RC,yaxis_filter),

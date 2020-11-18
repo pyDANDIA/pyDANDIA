@@ -73,9 +73,15 @@
     },
     "selection_radius": {
         "value": 2.0,
-        "comment": "Maximum radius used to select stars close to the target location",
+        "comment": "Maximum radius used to select stars close to the target location. Set to zero for no selection.",
         "format": "float",
         "unit": "arcmin"
+    },
+    "plot_selected_radius_only": {
+        "value": "False",
+        "comment": "If true, plot only stars within the selection radius, otherwise any selected stars will be over-plotted.",
+        "format": "Boolean",
+        "unit": ""
     },
     "RC_ri_range": {
         "value": [1.25,1.50],
