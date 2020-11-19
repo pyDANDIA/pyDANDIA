@@ -650,7 +650,7 @@ def plot_colour_mag_diagram(params, photometry, stars, selected_stars, selected_
 
     # Selection for sub-region only
     if params['selection_radius'] > 0.0:
-        print(selected_phot)
+        print(selected_phot, selected_phot.colnames)
         jdx_region = select_valid_data(selected_phot, params, col_key, col_err_key, yaxis_filter, y_err_key)
 
     default_marker_colour = '#8c6931'
