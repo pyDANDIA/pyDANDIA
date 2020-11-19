@@ -626,7 +626,7 @@ def plot_colour_mag_diagram(params, photometry, stars, selected_stars, selected_
 
     col_key = blue_filter+red_filter
     col_err_key = blue_filter+red_filter+'_err'
-    y_err_key = yaxis_filter+'_err'
+    y_err_key = yaxis_filter+'err'
 
     fig = plt.figure(1,(10,10))
 
