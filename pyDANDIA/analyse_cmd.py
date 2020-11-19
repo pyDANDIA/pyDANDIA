@@ -624,6 +624,17 @@ def plot_colour_mag_diagram(params, photometry, stars, selected_stars, selected_
 
         return mags, magerr, cols, colerr
 
+    def select_valid_data(phot_array, params, col_key, col_err_key, yaxis_filter, y_err_key):
+        cdx = np.where(phot_array[col_key] != -99.999)[0]
+        cdx2 = np.where(phot_array[col_err_key] <= params[col_key+'_sigma_max'])[0]
+        mdx = np.where(phot_array[yaxis_filter] != 0.0)[0]
+        mdx2 = np.where(phot_array[y_err_key] <= params[yaxis_filter+'_sigma_max'])[0]
+        jdx = list(set(cdx).intersection(set(cdx2)))
+        jdx = list(set(jdx).intersection(set(mdx)))
+        jdx = list(set(jdx).intersection(set(mdx2)))
+
+        return jdx
+
     col_key = blue_filter+red_filter
     col_err_key = blue_filter+red_filter+'_err'
     y_err_key = yaxis_filter+'err'
@@ -634,13 +645,12 @@ def plot_colour_mag_diagram(params, photometry, stars, selected_stars, selected_
 
     plt.rcParams.update({'font.size': 18})
 
-    cdx = np.where(photometry[col_key] != -99.999)[0]
-    cdx2 = np.where(photometry[col_err_key] <= params[col_key+'_sigma_max'])[0]
-    mdx = np.where(photometry[yaxis_filter] != 0.0)[0]
-    mdx2 = np.where(photometry[y_err_key] <= params[yaxis_filter+'_sigma_max'])[0]
-    jdx = list(set(cdx).intersection(set(cdx2)))
-    jdx = list(set(jdx).intersection(set(mdx)))
-    jdx = list(set(jdx).intersection(set(mdx2)))
+    # Selection for full starlist
+    jdx = select_valid_data(photometry, params, col_key, col_err_key, yaxis_filter, y_err_key)
+
+    # Selection for sub-region only
+    if params['selection_radius'] > 0.0:
+        jdx_region = select_valid_data(selected_phot, params, col_key, col_err_key, yaxis_filter, y_err_key)
 
     default_marker_colour = '#8c6931'
     field_marker_colour = '#E1AE13'
@@ -654,7 +664,7 @@ def plot_colour_mag_diagram(params, photometry, stars, selected_stars, selected_
                  label='Stars within field of view')
 
     if params['selection_radius'] > 0.0:
-        plt.scatter(selected_phot[col_key],selected_phot[yaxis_filter],
+        plt.scatter(selected_phot[col_key][jdx_region],selected_phot[yaxis_filter][jdx_region],
                   c=default_marker_colour, marker='*', s=4,
                   label='Stars < '+str(round(params['selection_radius'],1))+'arcmin of target')
 
