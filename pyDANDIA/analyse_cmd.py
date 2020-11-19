@@ -419,7 +419,7 @@ def find_stars_close_to_target(config,stars,target,log):
 
     return jdx
 
-def extract_local_star_photometry(photometry,selected_stars,log,extract_errors=False):
+def extract_local_star_photometry(photometry,selected_stars,log,extract_errors=True):
     """Function to extract the photometry for stars local to the given
     target coordinates"""
 
