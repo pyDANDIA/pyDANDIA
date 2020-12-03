@@ -34,6 +34,7 @@ from pyDANDIA import  match_utils
 from pyDANDIA import  utilities
 from pyDANDIA import  image_handling
 from skimage.transform import AffineTransform
+from skimage.measure import ransac
 
 from skimage.transform import rotate
 from skimage.registration import phase_cross_correlation
@@ -89,6 +90,8 @@ def run_reference_astrometry(setup, **kwargs):
         stellar_density_threshold = reduction_metadata.reduction_parameters[1]['STAR_DENSITY_THRESH'][0]
         rotate_wcs = reduction_metadata.reduction_parameters[1]['ROTATE_WCS'][0]
 
+        rotate_wcs = 0 # no assumption on the WCS
+
         # Calculates initial RA,Dec from image WCS
         detected_sources = detect_objects_in_reference_image(setup,
                                                              reduction_metadata,
@@ -111,14 +114,20 @@ def run_reference_astrometry(setup, **kwargs):
 
         selection_radius = 0.05 #degrees
         (bright_central_detected_stars, bright_central_gaia_stars, selection_radius) = \
-            wcs.extract_bright_central_stars(setup,detected_sources, gaia_sources,
-                                             image_wcs, log, radius=selection_radius)
+             wcs.extract_bright_central_stars(setup,detected_sources, gaia_sources,
+                                            image_wcs, log, radius=selection_radius)
 
         wcs.plot_overlaid_sources(os.path.join(setup.red_dir,'ref'),
                       bright_central_detected_stars, bright_central_gaia_stars, interactive=False)
 
         
+        
+
         ### NEW IMPLEMENTATION ###
+        
+       
+        
+        
         reference_image_name = reduction_metadata.data_architecture[1]['REF_IMAGE'].data[0]
         reference_image_directory = reduction_metadata.data_architecture[1]['REF_PATH'].data[0]
         ref_structure = image_handling.determine_image_struture(os.path.join(reference_image_directory, reference_image_name), log=log)
@@ -136,6 +145,7 @@ def run_reference_astrometry(setup, **kwargs):
         radius = diagonal*ref_header['PIXSCALE']/60.0/2.0/2 # ~ 5 arcminutes
 
 
+
         model,X,Y = generate_gaia_image_model(ra,dec,radius,wcs_ref,reference_image.shape)
 
         translation_rotation = find_initial_image_rotation_translation(model,reference_image)
@@ -151,55 +161,89 @@ def run_reference_astrometry(setup, **kwargs):
         tot_transform[0][2] += int(reference_image.shape[1]/2)
         tot_transform[1][2] += int(reference_image.shape[0]/2)
 
-        transform = tf.SimilarityTransform(tot_transform)
-        import pdb; pdb.set_trace()     
+        transform = tf.SimilarityTransform(np.linalg.pinv(tot_transform))
+        #transform = tf.SimilarityTransform(tot_transform)
+        matched_stars = match_utils.StarMatchIndex()
+
+
+        #gaia_sources = update_catalog_image_coordinates(setup, image_wcs,
+        #                                                detected_sources, log,
+        #                                                'catalog_stars_bright_revised_'+str(0)+'.reg',
+        #                                                stellar_density, rotate_wcs, kwargs,
+        #                                                stellar_density_threshold,
+        #                                                transform=transform, radius=selection_radius)
+
+        x = bright_central_gaia_stars['x']
+        y = bright_central_gaia_stars['y']
+           
+        new_coords = transform(np.c_[x,y])
+        bright_central_gaia_stars['x1'] = new_coords[:,0]
+        bright_central_gaia_stars['y1'] = new_coords[:,1]
+
+        matched_stars = wcs.match_stars_pixel_coords(bright_central_detected_stars,
+                                                     bright_central_gaia_stars,log,
+                                                     tol=2.0,verbose=False)
+ 
+       
+        aa = bright_central_detected_stars[matched_stars.cat1_index]['x']
+        bb = bright_central_detected_stars[matched_stars.cat1_index]['y']
+        cc = bright_central_gaia_stars[matched_stars.cat2_index]['x']
+        dd = bright_central_gaia_stars[matched_stars.cat2_index]['y']
+        #import pdb; pdb.set_trace()                                                            
+        transform_robust, inliers = ransac((np.c_[cc,dd],np.c_[aa,bb]),tf.AffineTransform,residual_threshold = 0.5,min_samples=20)
+
+                                                                
+        #gaia_sources = update_catalog_image_coordinates(setup, image_wcs, gaia_sources, log, 'catalog_stars_bright_revised_'+str(0)+'.reg',
+        #                                            stellar_density, rotate_wcs, kwargs,
+        #                                            stellar_density_threshold,
+        #                                            transform=transform_robust, radius=selection_radius)                                                                
+        x = bright_central_gaia_stars['x'] 
+        y = bright_central_gaia_stars['y'] 
+        
+        new_coords = transform_robust(np.c_[x,y])
+        
+        
+        bright_central_gaia_stars['x1'] = new_coords[:,0] 
+        bright_central_gaia_stars['y1'] = new_coords[:,1] 
+                                                            
+        matched_stars = wcs.match_stars_pixel_coords(bright_central_detected_stars,
+                                                     bright_central_gaia_stars,log,
+                                                     tol=2.0,verbose=False)
+                                                              
+
         ### NEW IMPLEMENTATION ###
         
         
         # Apply initial transform, if any
-        transform = AffineTransform()
+        #transform = AffineTransform()
         it = 0
         max_it = 5
         iterate = True
         method = 'ransac'
         old_n_match = 0
-
-        if kwargs['trust_wcs'] == True:
-            log.info('Trusting original WCS solution, transformation will be calculated after catalog match to original pixel positions')
-            transform = AffineTransform(translation=(0.0, 0.0))
-
-            #stellar_density = utilities.stellar_density(bright_central_gaia_stars,
-            #                                    selection_radius)
-
-            matched_stars = match_utils.StarMatchIndex()
-            matched_stars = wcs.match_stars_pixel_coords(bright_central_detected_stars,
-                                                     bright_central_gaia_stars,log,
-                                                     tol=2.0,verbose=False)
-
-            if len(matched_stars.cat1_index) > 3:
-                transform = calc_coord_offsets.calc_pixel_transform(setup,
-                                            bright_central_gaia_stars[matched_stars.cat2_index],
-                                            bright_central_detected_stars[matched_stars.cat1_index],
-                                            log, coordinates='pixel')
-
+      
 
         log.info('Transforming catalogue coordinates')
 
-        gaia_sources = update_catalog_image_coordinates(setup, image_wcs,
-                                                        gaia_sources, log, 'catalog_stars_full_revised_'+str(it)+'.reg',
-                                                        stellar_density, rotate_wcs, kwargs,
-                                                        stellar_density_threshold,
-                                                        transform=transform, radius=None)
+     
+        center_ra = bright_central_gaia_stars['ra'].mean()
+        center_dec = bright_central_gaia_stars['dec'].mean()
+        
+        x = bright_central_gaia_stars['ra'] - center_ra
+        y = bright_central_gaia_stars['dec'] - center_dec
 
-        transform = calc_coord_offsets.calc_world_transform(setup,
-                                                bright_central_detected_stars[matched_stars.cat1_index],
-                                                bright_central_gaia_stars[matched_stars.cat2_index],
-                                                log)
+        xx = bright_central_detected_stars['ra'] - center_ra
+        yy = bright_central_detected_stars['dec'] - center_dec
 
-        detected_sources = calc_coord_offsets.transform_coordinates(setup, detected_sources,
-                                                                transform, coords='radec',
-                                                                verbose=True)
+        transform_robust, inliers = ransac((np.c_[xx,yy][matched_stars.cat1_index],np.c_[x,y][matched_stars.cat2_index]),tf.AffineTransform,residual_threshold = 0.0003,min_samples=np.min([len(aa),20]))
+    
+        x = detected_sources['ra'] - center_ra
+        y = detected_sources['dec'] - center_dec
+        new_coords = transform_robust(np.c_[x,y])
 
+        
+        detected_sources['ra'] = new_coords[:,0]+center_ra
+        detected_sources['dec'] = new_coords[:,1]+center_dec
         log.info('Proceeding to x-match of full catalogs')
 
         if xmatch:
@@ -405,13 +449,14 @@ def update_catalog_image_coordinates(setup, image_wcs, gaia_sources,
     
 ### New WCS method
     
-def find_initial_image_rotation_translation(model_img,img):
+def find_initial_image_rotation_translation(model_img,img,delta = 500):
     #import pdb; pdb.set_trace()
     solutions = []
     for i in range(4):
     
-        sol = phase_cross_correlation(model_img,rotate(img.astype(float),90*i),upsample_factor=10)
-        
+        sol = phase_cross_correlation(model_img[int(model_img.shape[0]/2-delta):int(model_img.shape[0]/2+delta),int(model_img.shape[1]/2-delta):int(model_img.shape[1]/2+delta)],          rotate(img.astype(float),90*i)[int(img.shape[0]/2-delta):int(img.shape[0]/2+delta),int(model_img.shape[1]/2-delta):int(model_img.shape[1]/2+delta)],
+                                      upsample_factor=10)
+        #import pdb; pdb.set_trace()     
         solutions.append([sol[0][1],sol[0][0],i*np.pi/2])
         
     solutions = np.array(solutions)
@@ -423,12 +468,7 @@ def find_initial_image_rotation_translation(model_img,img):
     
 def generate_gaia_image_model(ra,dec,radius,wcs,img_shape):
 
-
-    coord = SkyCoord(ra=ra, dec=dec, unit=(u.degree, u.degree), frame='icrs')
-
-    catalog = Gaia.cone_search_async(coord, radius*u.arcmin)
-
-    catalog = catalog.get_results()
+    catalog = vizier_tools.search_vizier_for_sources(str(ra),str(dec),radius,'Gaia-DR2',coords='degrees')
 
     X,Y = wcs.wcs_world2pix(catalog['ra'],catalog['dec'],0)
 
@@ -464,6 +504,7 @@ def generate_gaia_image_model(ra,dec,radius,wcs,img_shape):
     
     #only return bright ones
     mask = sources['flux']>10000
+    
     return model,X[mask],Y[mask]
     
     
