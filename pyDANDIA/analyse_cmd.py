@@ -627,10 +627,10 @@ def plot_colour_mag_diagram(params, photometry, stars, selected_stars, selected_
     def select_valid_data(phot_array, params, col_key, col_err_key, yaxis_filter, y_err_key):
         cdx = np.where(phot_array[col_key] != -99.999)[0]
         #cdx2 = np.where(phot_array[col_err_key] <= params[col_key+'_sigma_max'])[0]
-        cdx2 = np.where(phot_array[col_err_key] >= phot_array[col_key])[0]
+        cdx2 = np.where(phot_array[col_err_key] < phot_array[col_key])[0]
         mdx = np.where(phot_array[yaxis_filter] != 0.0)[0]
         #mdx2 = np.where(phot_array[y_err_key] <= params[yaxis_filter+'_sigma_max'])[0]
-        mdx2 = np.where(phot_array[y_err_key] >= phot_array[yaxis_filter])[0]
+        mdx2 = np.where(phot_array[y_err_key] < phot_array[yaxis_filter])[0]
         jdx = list(set(cdx).intersection(set(cdx2)))
         jdx = list(set(jdx).intersection(set(mdx)))
         jdx = list(set(jdx).intersection(set(mdx2)))
