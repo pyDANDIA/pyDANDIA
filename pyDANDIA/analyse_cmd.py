@@ -601,6 +601,12 @@ def calc_source_lightcurve(source, target, log):
 
     return source
 
+def plot_data_colours():
+    default_marker_colour = '#8c6931'
+    field_marker_colour = '#E1AE13'
+    marker_colour = default_marker_colour
+    return default_marker_colour, field_marker_colour, marker_colour
+
 def plot_colour_mag_diagram(params, photometry, stars, selected_stars, selected_phot,
                             RC, source, blend, blue_filter, red_filter,
                             yaxis_filter, log):
@@ -654,9 +660,7 @@ def plot_colour_mag_diagram(params, photometry, stars, selected_stars, selected_
     if params['selection_radius'] > 0.0:
         jdx_region = select_valid_data(selected_phot, params, col_key, col_err_key, yaxis_filter, y_err_key)
 
-    default_marker_colour = '#8c6931'
-    field_marker_colour = '#E1AE13'
-    marker_colour = default_marker_colour
+    (default_marker_colour, field_marker_colour, marker_colour) = plot_data_colours()
     if len(selected_stars) < len(photometry['i']):
         marker_colour = field_marker_colour
 
@@ -754,30 +758,51 @@ def plot_colour_mag_diagram(params, photometry, stars, selected_stars, selected_
 
     log.info('Colour-magnitude diagram output to '+plot_file)
 
-def plot_colour_colour_diagram(params,photometry,RC,log):
+def plot_colour_colour_diagram(params,photometry,selected_phot,RC,source,blend,log):
     """Function to plot a colour-colour diagram, if sufficient data are
     available within the given star catalog"""
 
     filters = { 'i': 'SDSS-i', 'r': 'SDSS-r', 'g': 'SDSS-g' }
 
+    (default_marker_colour, field_marker_colour, marker_colour) = plot_data_colours()
+    if len(selected_phot) < len(photometry['i']):
+        marker_colour = field_marker_colour
+
     fig = plt.figure(1,(10,10))
 
     ax = plt.axes()
 
-    grx = np.where(photometry['gr'] != -99.999)[0]
-    grx2 = np.where(photometry['gr_err'] <= params['gr_sigma_max'])[0]
-    rix = np.where(photometry['ri'] != -99.999)[0]
-    rix2 = np.where(photometry['ri_err'] <= params['ri_sigma_max'])[0]
-    jdx = list(set(grx).intersection(set(grx2)))
-    jdx = list(set(jdx).intersection(set(rix)))
-    jdx = list(set(jdx).intersection(set(rix2)))
+    def select_plot_data(params,photometry):
+        grx = np.where(photometry['gr'] != -99.999)[0]
+        grx2 = np.where(photometry['gr_err'] <= params['gr_sigma_max'])[0]
+        rix = np.where(photometry['ri'] != -99.999)[0]
+        rix2 = np.where(photometry['ri_err'] <= params['ri_sigma_max'])[0]
+        jdx = list(set(grx).intersection(set(grx2)))
+        jdx = list(set(jdx).intersection(set(rix)))
+        jdx = list(set(jdx).intersection(set(rix2)))
+        return jdx
 
+    jdx = select_plot_data(params,photometry)
     inst_gr = photometry['gr'][jdx] - RC.Egr
     inst_ri = photometry['ri'][jdx] - RC.Eri
 
-    ax.scatter(inst_gr, inst_ri,
-               c='#8c6931', marker='.', s=1,
-             label='Stars within ROME field')
+    if params['selection_radius'] > 0.0:
+        jdx_region = select_plot_data(params, selected_phot)
+        region_inst_gr = selected_phot['gr'][jdx_region] - RC.Egr
+        region_inst_ri = selected_phot['ri'][jdx_region] - RC.Eri
+
+    if not params['plot_selected_radius_only']:
+        ax.scatter(inst_gr, inst_ri,
+                   c=marker_colour, marker='.', s=1,
+                 label='Stars within field of view')
+
+    if params['selection_radius'] > 0.0:
+        plt.scatter(region_inst_gr,region_inst_ri,
+                  c=default_marker_colour, marker='*', s=4,
+                  label='Stars < '+str(round(params['selection_radius'],1))+'arcmin of target')
+
+    if params['plot_selected_radius_only'] and params['selection_radius'] <= 0.0:
+        raise IOError('Configuration indicates only stars within a selected radius should be plotted but selection radius <= 0.0arcmin')
 
     (spectral_type, luminosity_class, gr_colour, ri_colour) = spectral_type_data.get_spectral_class_data()
 
@@ -809,6 +834,18 @@ def plot_colour_colour_diagram(params,photometry,RC,log):
                            ri_colour[i]+0.1),
                              color='k', size=10,
                              rotation=-30.0, alpha=1.0)
+
+    if params['add_source']:
+        plt.errorbar(source.gr, source.ri,
+             yerr = source.sig_ri,
+             xerr = source.sig_gr, color='m',
+             marker='d',markersize=10, label='Source')
+
+    if params['add_blend']:
+        plt.errorbar(blend.gr, blend.ri,
+             yerr = blend.sig_ri,
+             xerr = blend.sig_gr, color='b',
+             marker='v',markersize=10, label='Blend')
 
     plt.xlabel('SDSS (g-r) [mag]')
 
