@@ -742,7 +742,8 @@ def plot_colour_mag_diagram(params, photometry, stars, selected_stars, selected_
     l = ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.2), ncol=2)
 
     l.legendHandles[0]._sizes = [50]
-    l.legendHandles[1]._sizes = [50]
+    if len(l.legendHandles) > 1:
+        l.legendHandles[1]._sizes = [50]
 
     plt.rcParams.update({'legend.fontsize':18})
     plt.rcParams.update({'font.size':18})
