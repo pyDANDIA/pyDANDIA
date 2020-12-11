@@ -671,7 +671,7 @@ def plot_colour_mag_diagram(params, photometry, stars, selected_stars, selected_
 
     if params['selection_radius'] > 0.0:
         plt.scatter(selected_phot[col_key][jdx_region],selected_phot[yaxis_filter][jdx_region],
-                  c=default_marker_colour, marker='*', s=4,
+                  c=default_marker_colour, marker='*', s=5,
                   label='Stars < '+str(round(params['selection_radius'],1))+'arcmin of target')
 
     if params['plot_selected_radius_only'] and params['selection_radius'] <= 0.0:
@@ -799,7 +799,7 @@ def plot_colour_colour_diagram(params,photometry,selected_phot,RC,source,blend,l
 
     if params['selection_radius'] > 0.0:
         plt.scatter(region_inst_gr,region_inst_ri,
-                  c=default_marker_colour, marker='*', s=4,
+                  c=default_marker_colour, marker='*', s=5,
                   label='Stars < '+str(round(params['selection_radius'],1))+'arcmin of target')
 
     if params['plot_selected_radius_only'] and params['selection_radius'] <= 0.0:
