@@ -131,7 +131,7 @@ def extract_star_lightcurve_isolated_reduction(params, log=None, format='dat'):
 	reduction_metadata = metadata.MetaData()
 	reduction_metadata.load_all_metadata(params['red_dir'], 'pyDANDIA_metadata.fits')
 
-	filter_name = reduction_metadata.fetch_reduction_filter()
+	#filter_name = reduction_metadata.fetch_reduction_filter()
 
 	if log != None:
 		log.info('Searching for star at RA,Dec='+str(params['ra'])+', '+str(params['dec']))
@@ -182,7 +182,7 @@ def extract_star_lightcurve_isolated_reduction(params, log=None, format='dat'):
 				datafile.writerow(['time', 'filter', 'magnitude', 'error'])
 				for i in time_order:
 					if photometry_data['instrumental_mag'][i] > 0.0:
-						datafile.writerow([str(photometry_data['hjd'][i]), filter_name,
+						datafile.writerow([str(photometry_data['hjd'][i]), params['filter_name'],
 											str(photometry_data['instrumental_mag'][i]),
 											str(photometry_data['instrumental_mag_err'][i])])
 
