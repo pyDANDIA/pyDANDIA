@@ -854,17 +854,31 @@ def plot_colour_colour_diagram(params,photometry,selected_phot,RC,source,blend,l
 
     plot_file = path.join(params['output_dir'],'colour_colour_diagram.pdf')
 
-    scale_axes = True
+    scale_axes = False
     if scale_axes:
         plt.axis([-2.0,2.0,-1.0,2.0])
 
+        xticks = np.arange(-1.0,2.0,0.1)
+        yticks = np.arange(-1.0,1.0,0.1)
+
+        ax.set_xticks(xticks, minor=True)
+        ax.set_yticks(yticks, minor=True)
+
+    else:
+        [xmin,xmax,ymin,ymax] = plt.axis()
+        xmin = params['plot_gr_range'][0]
+        xmax = params['plot_gr_range'][1]
+        ymin = params['plot_ri_range'][0]
+        ymax = params['plot_ri_range'][1]
+        plt.axis([xmin,xmax,ymax,ymin])
+
+        xticks = np.arange(xmin,xmax,0.1)
+        yticks = np.arange(ymin,ymax,0.2)
+
+        ax.set_xticks(xticks,minor=True)
+        ax.set_yticks(yticks,minor=True)
+
     plt.grid()
-
-    xticks = np.arange(-1.0,2.0,0.1)
-    yticks = np.arange(-1.0,1.0,0.1)
-
-    ax.set_xticks(xticks, minor=True)
-    ax.set_yticks(yticks, minor=True)
 
     if scale_axes:
         box = ax.get_position()
