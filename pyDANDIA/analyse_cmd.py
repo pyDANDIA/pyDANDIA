@@ -739,7 +739,7 @@ def plot_colour_mag_diagram(params, photometry, stars, selected_stars, selected_
     ax.set_position([box.x0, box.y0 + box.height * -0.025,
              box.width, box.height * 0.95])
 
-    l = ax.legend(loc='upper center', bbox_to_anchor=(0.25, 1.2), ncol=2)
+    l = ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.4), ncol=2)
 
     l.legendHandles[0]._sizes = [50]
     if len(l.legendHandles) > 1:
@@ -750,6 +750,7 @@ def plot_colour_mag_diagram(params, photometry, stars, selected_stars, selected_
     plt.rc('xtick', labelsize=55)
     plt.rc('ytick', labelsize=55)
     plt.rcParams.update({'axes.titlesize': 25})
+    plt.rcParams.update({'font.size': 55})
 
     if params['interactive']:
         plt.show()
