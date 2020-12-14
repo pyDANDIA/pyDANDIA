@@ -728,6 +728,10 @@ def plot_colour_mag_diagram(params, photometry, stars, selected_stars, selected_
 
     ax.set_xticks(xticks,minor=True)
     ax.set_yticks(yticks,minor=True)
+    ax.title.set_size(35)
+    ax.xaxis.label.set_size(35)
+    ax.yaxis.label.set_size(35)
+
 
     plot_file = path.join(params['output_dir'],'colour_magnitude_diagram_'+\
                                             yaxis_filter+'_vs_'+blue_filter+red_filter\
