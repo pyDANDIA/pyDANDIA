@@ -651,7 +651,7 @@ def plot_colour_mag_diagram(params, photometry, stars, selected_stars, selected_
 
     ax = plt.subplot(111)
 
-    plt.rcParams.update({'font.size': 18})
+    plt.rcParams.update({'font.size': 25})
 
     # Selection for full starlist
     jdx = select_valid_data(photometry, params, col_key, col_err_key, yaxis_filter, y_err_key)
@@ -745,10 +745,10 @@ def plot_colour_mag_diagram(params, photometry, stars, selected_stars, selected_
     if len(l.legendHandles) > 1:
         l.legendHandles[1]._sizes = [50]
 
-    plt.rcParams.update({'legend.fontsize':18})
-    plt.rcParams.update({'font.size':18})
-    plt.rc('xtick', labelsize=18)
-    plt.rc('ytick', labelsize=18)
+    plt.rcParams.update({'legend.fontsize':25})
+    plt.rcParams.update({'font.size':25})
+    plt.rc('xtick', labelsize=25)
+    plt.rc('ytick', labelsize=25)
 
     if params['interactive']:
         plt.show()
@@ -893,10 +893,10 @@ def plot_colour_colour_diagram(params,photometry,selected_phot,RC,source,blend,l
         except IndexError:
             pass
 
-    plt.rcParams.update({'legend.fontsize':18})
-    plt.rcParams.update({'font.size':18})
-    plt.rc('xtick', labelsize=18)
-    plt.rc('ytick', labelsize=18)
+    plt.rcParams.update({'legend.fontsize':25})
+    plt.rcParams.update({'font.size':25})
+    plt.rc('xtick', labelsize=25)
+    plt.rc('ytick', labelsize=25)
 
     if params['interactive']:
         plt.show()
