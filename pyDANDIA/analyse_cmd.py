@@ -727,13 +727,14 @@ def plot_colour_mag_diagram(params, photometry, stars, selected_stars, selected_
     yticks = np.arange(ymin,ymax,0.2)
 
     #ax.set_xticks(xticks,minor=True)
-    ax.set_xticklabels(xticks,minor=True, fontdict={'fontsize': 25})
+    ax.set_xticklabels(xticks,minor=True, fontdict={'size': 25})
     #ax.set_yticks(yticks,minor=True)
-    ax.set_yticklabels(yticks,minor=True,fontdict={'fontsize': 25})
+    ax.set_yticklabels(yticks,minor=True,fontdict={'size': 25})
     ax.title.set_size(25)
     ax.xaxis.label.set_fontsize(25)
     ax.yaxis.label.set_fontsize(25)
-
+    ax.tick_params(axis="x", labelsize=25)
+    ax.tick_params(axis="y", labelsize=25)
 
     plot_file = path.join(params['output_dir'],'colour_magnitude_diagram_'+\
                                             yaxis_filter+'_vs_'+blue_filter+red_filter\
