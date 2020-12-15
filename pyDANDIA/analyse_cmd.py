@@ -844,13 +844,13 @@ def plot_colour_colour_diagram(params,photometry,selected_phot,RC,source,blend,l
                              rotation=-30.0, alpha=1.0)
 
     if params['add_source']:
-        plt.errorbar(source.gr, source.ri,
+        plt.errorbar(source.gr-RC.Egr, source.ri-RC.Eri,
              yerr = source.sig_ri,
              xerr = source.sig_gr, color='m',
              marker='d',markersize=10, label='Source')
 
     if params['add_blend']:
-        plt.errorbar(blend.gr, blend.ri,
+        plt.errorbar(blend.gr-RC.Egr, blend.ri-RC.Eri,
              yerr = blend.sig_ri,
              xerr = blend.sig_gr, color='b',
              marker='v',markersize=10, label='Blend')
@@ -873,10 +873,10 @@ def plot_colour_colour_diagram(params,photometry,selected_phot,RC,source,blend,l
 
     else:
         [xmin,xmax,ymin,ymax] = plt.axis()
-        xmin = params['plot_gr_range'][0]
-        xmax = params['plot_gr_range'][1]
-        ymin = params['plot_ri_range'][0]
-        ymax = params['plot_ri_range'][1]
+        xmin = params['plot_gr_range'][0]-RC.Egr
+        xmax = params['plot_gr_range'][1]-RC.Egr
+        ymin = params['plot_ri_range'][0]-RC.Eri
+        ymax = params['plot_ri_range'][1]-RC.Eri
         plt.axis([xmin,xmax,ymax,ymin])
 
         xticks = np.arange(xmin,xmax,0.1)
