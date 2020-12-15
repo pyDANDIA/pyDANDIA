@@ -882,8 +882,8 @@ def plot_colour_colour_diagram(params,photometry,selected_phot,RC,source,blend,l
         xticks = np.arange(xmin,xmax,0.1)
         yticks = np.arange(ymin,ymax,0.2)
 
-        ax.set_xticks(xticks,minor=True)
-        ax.set_yticks(yticks,minor=True)
+        ax.set_xticks(xticks,minor=True, fontdict={'size': 25})
+        ax.set_yticks(yticks,minor=True, fontdict={'size': 25})
 
     plt.grid()
 
@@ -904,6 +904,11 @@ def plot_colour_colour_diagram(params,photometry,selected_phot,RC,source,blend,l
     plt.rcParams.update({'font.size':25})
     plt.rc('xtick', labelsize=25)
     plt.rc('ytick', labelsize=25)
+    ax.title.set_size(25)
+    ax.xaxis.label.set_fontsize(25)
+    ax.yaxis.label.set_fontsize(25)
+    ax.tick_params(axis="x", labelsize=25)
+    ax.tick_params(axis="y", labelsize=25)
 
     if params['interactive']:
         plt.show()
