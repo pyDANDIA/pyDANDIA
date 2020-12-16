@@ -336,7 +336,7 @@ def get_reference_photometry_from_metadata(config, log):
 
     for j in range(0,len(stars),1):
         data = primary_metadata.star_catalog[1][j]
-        photometry['phot_table_i'].append([data['index'], data['cal_ref_mag'], data['cal_ref_mag_error']])
+        photometry['phot_table_i'].append([data['index'], data['x'], data['y'], data['cal_ref_mag'], data['cal_ref_mag_error']])
 
     for f in ['g', 'r']:
         if config['red_dirs'][f]:
