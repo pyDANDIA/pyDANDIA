@@ -887,7 +887,8 @@ def plot_colour_colour_diagram(params,photometry,selected_phot,RC,source,blend,l
 
     plt.grid()
 
-    if scale_axes:
+    add_legend = True
+    if add_legend:
         box = ax.get_position()
         ax.set_position([box.x0, box.y0 + box.height * -0.025,
                  box.width, box.height * 0.95])
