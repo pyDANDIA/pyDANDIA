@@ -882,8 +882,8 @@ def plot_colour_colour_diagram(params,photometry,selected_phot,RC,source,blend,l
         xticks = np.arange(xmin,xmax,0.1)
         yticks = np.arange(ymin,ymax,0.2)
 
-        ax.set_xticks(xticks,minor=True, fontdict={'size': 25})
-        ax.set_yticks(yticks,minor=True, fontdict={'size': 25})
+        ax.set_xticklabels(xticks,minor=True, fontdict={'size': 25})
+        ax.set_yticklabels(yticks,minor=True, fontdict={'size': 25})
 
     plt.grid()
 
