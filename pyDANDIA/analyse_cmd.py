@@ -831,7 +831,7 @@ def plot_colour_colour_diagram(params,photometry,selected_phot,RC,source,blend,l
                      markeredgecolor='k', alpha=0.5)
 
             plt.annotate(spt, (gr_colour[i], ri_colour[i]-0.1),
-                            color='k', size=10, rotation=-30.0, alpha=1.0)
+                            color='k', size=18, rotation=-30.0, alpha=1.0)
 
         if luminosity_class[i] == 'V' and plot_dwarfs:
 
@@ -840,7 +840,7 @@ def plot_colour_colour_diagram(params,photometry,selected_phot,RC,source,blend,l
 
             plt.annotate(spt, (gr_colour[i],
                            ri_colour[i]+0.1),
-                             color='k', size=10,
+                             color='k', size=18,
                              rotation=-30.0, alpha=1.0)
 
     if params['add_source']:
