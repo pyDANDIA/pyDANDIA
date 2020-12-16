@@ -873,11 +873,11 @@ def plot_colour_colour_diagram(params,photometry,selected_phot,RC,source,blend,l
 
     else:
         [xmin,xmax,ymin,ymax] = plt.axis()
-        xmax = params['plot_gr_range'][0]-RC.Egr
-        xmin = params['plot_gr_range'][1]-RC.Egr
-        ymax = params['plot_ri_range'][0]-RC.Eri
-        ymin = params['plot_ri_range'][1]-RC.Eri
-        plt.axis([xmin,xmax,ymax,ymin])
+        xmin = params['plot_gr_range'][0]-RC.Egr
+        xmax = params['plot_gr_range'][1]-RC.Egr
+        ymin = params['plot_ri_range'][0]-RC.Eri
+        ymax = params['plot_ri_range'][1]-RC.Eri
+        plt.axis([xmin,xmax,ymin,ymax])
 
         xticks = np.arange(xmin,xmax,0.1)
         yticks = np.arange(ymin,ymax,0.2)
