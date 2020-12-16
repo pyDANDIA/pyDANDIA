@@ -373,6 +373,8 @@ def convert_star_catalog_to_stars_table(reduction_metadata):
 
     table_data = [table.Column(name='star_id', data=star_catalog['index']),
                   table.Column(name='star_index', data=star_catalog['index']),
+                  table.Column(name='x', data=star_catalog['x']),
+                  table.Column(name='y', data=star_catalog['y']),
                   table.Column(name='ra', data=star_catalog['ra']),
                   table.Column(name='dec', data=star_catalog['dec']),
                   table.Column(name='reference_image', data=[-1]*len(star_catalog)),
