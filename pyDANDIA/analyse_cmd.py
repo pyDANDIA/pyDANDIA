@@ -305,6 +305,8 @@ def repack_photometry(photometry, stars, log):
     photometry['rerr'] = np.zeros(len(stars))
     photometry['i'] = np.zeros(len(stars))
     photometry['ierr'] = np.zeros(len(stars))
+    photometry['x'] = np.zeros(len(stars))
+    photometry['y'] = np.zeros(len(stars))
 
     for s in range(0,len(stars),1):
 
