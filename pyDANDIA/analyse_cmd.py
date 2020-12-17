@@ -387,6 +387,7 @@ def get_reference_photometry_from_metadata(config, log):
 
     (photometry, stars) = repack_photometry(photometry, stars, log)
 
+    print(photometry)
     return photometry, stars
 
 def convert_star_catalog_to_stars_table(reduction_metadata):
