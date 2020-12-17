@@ -257,9 +257,9 @@ def get_reference_photometry_from_db(config, log):
             data = phot_db.query_to_astropy_table(conn, query, args=())
 
             if len(data) > 0:
-                photometry['phot_table_'+f].append([data['star_id'][0], 0.0,0.0, data['calibrated_mag'][0], data['calibrated_mag_err'][0]])
+                photometry['phot_table_'+f].append([data['star_id'][0], 0.0,0.0, 0.0, 0.0, data['calibrated_mag'][0], data['calibrated_mag_err'][0], 'None'])
             else:
-                photometry['phot_table_'+f].append([star['star_id'],0.0,0.0,0.0,0.0])
+                photometry['phot_table_'+f].append([star['star_id'],0.0,0.0,0.0,0.0, 0.0, 0.0, 'None'])
 
         if j%1000.0 == 0.0:
             print('--> Completed '+str(j)+' stars out of '+str(len(stars)))
@@ -280,10 +280,16 @@ def repack_photometry(photometry, stars, log):
                             data=table_data[:,1]),
                     table.Column(name='y',
                             data=table_data[:,2]),
-                    table.Column(name='calibrated_mag',
+                    table.Column(name='ra',
                             data=table_data[:,3]),
+                    table.Column(name='dec',
+                            data=table_data[:,4]),
+                    table.Column(name='calibrated_mag',
+                            data=table_data[:,5]),
                     table.Column(name='calibrated_mag_err',
-                            data=table_data[:,4])]
+                            data=table_data[:,6]),
+                    table.Column(name='gaia_source_id',
+                            data=table_data[:,7])]
         else:
             data = [table.Column(name='star_id',
                             data=[]),
@@ -291,9 +297,15 @@ def repack_photometry(photometry, stars, log):
                             data=[]),
                     table.Column(name='y',
                             data=[]),
+                    table.Column(name='ra',
+                            data=[]),
+                    table.Column(name='dec',
+                            data=[]),
                     table.Column(name='calibrated_mag',
                             data=[]),
                     table.Column(name='calibrated_mag_err',
+                            data=[]),
+                    table.Column(name='gaia_source_id',
                             data=[])]
         photometry['phot_table_'+f] = table.Table(data=data)
 
@@ -307,12 +319,18 @@ def repack_photometry(photometry, stars, log):
     photometry['ierr'] = np.zeros(len(stars))
     photometry['x'] = np.zeros(len(stars))
     photometry['y'] = np.zeros(len(stars))
+    photometry['ra'] = np.zeros(len(stars))
+    photometry['dec'] = np.zeros(len(stars))
+    photometry['gaia_source_id'] = np.empty(len(stars), dtype="S20")
 
     for s in range(0,len(stars),1):
 
         sid = stars['star_id'][s]
         photometry['x'][s] = stars['x'][s]
         photometry['y'][s] = stars['y'][s]
+        photometry['ra'][s] = stars['ra'][s]
+        photometry['dec'][s] = stars['dec'][s]
+        photometry['gaia_source_id'][s] = stars['gaia_source_id'][s]
 
         (photometry['g'][s],photometry['gerr'][s]) = fetch_star_phot(sid,photometry['phot_table_g'])
         (photometry['r'][s],photometry['rerr'][s]) = fetch_star_phot(sid,photometry['phot_table_r'])
@@ -340,7 +358,7 @@ def get_reference_photometry_from_metadata(config, log):
 
     for j in range(0,len(stars),1):
         data = primary_metadata.star_catalog[1][j]
-        photometry['phot_table_i'].append([data['index'], data['x'], data['y'], data['cal_ref_mag'], data['cal_ref_mag_error']])
+        photometry['phot_table_i'].append([data['index'], data['x'], data['y'], data['ra'], data['dec'], data['cal_ref_mag'], data['cal_ref_mag_error'], data['gaia_source_id']])
 
     for f in ['g', 'r']:
         if config['red_dirs'][f]:
@@ -360,9 +378,9 @@ def get_reference_photometry_from_metadata(config, log):
                         dataset_j = matched_stars.cat2_index[j] - 1
 
                         data = dataset_metadata.star_catalog[1][dataset_j]
-                        photometry['phot_table_'+f].append([star['star_id'], star['x'], star['y'], data['cal_ref_mag'], data['cal_ref_mag_error']])
+                        photometry['phot_table_'+f].append([star['star_id'], star['x'], star['y'], star['ra'], star['dec'], data['cal_ref_mag'], data['cal_ref_mag_error'], star['gaia_source_id']])
                     else:
-                        photometry['phot_table_'+f].append([star['star_id'],0.0,0.0,0.0,0.0])
+                        photometry['phot_table_'+f].append([star['star_id'],0.0,0.0,0.0,0.0,0.0,0.0,'None'])
 
             else:
                 log.info('No stars matched for dataset '+config['red_dirs'][f])
@@ -1027,7 +1045,7 @@ def output_photometry(config, stars, photometry, selected_stars, log):
         f = open(path.join(config['output_dir'],config['photometry_data_file']), 'w')
         f.write('# All measured floating point quantities in units of magnitude\n')
         f.write('# Selected indicates whether a star lies within the selection radius of a given location, if any.  1=true, 0=false\n')
-        f.write('# Star   x_pix    y_pix   g  sigma_g    r  sigma_r    i  sigma_i   (g-i)  sigma(g-i) (g-r)  sigma(g-r)  (r-i) sigma(r-i)  Selected\n')
+        f.write('# Star   x_pix    y_pix   ra_deg   dec_deg   g  sigma_g    r  sigma_r    i  sigma_i   (g-i)  sigma(g-i) (g-r)  sigma(g-r)  (r-i) sigma(r-i)  Selected  Gaia_ID\n')
 
         for j in range(0,len(photometry['i']),1):
             sid = stars['star_id'][j]
@@ -1037,13 +1055,14 @@ def output_photometry(config, stars, photometry, selected_stars, log):
                 selected = 0
             f.write( str(sid)+' '+\
                         str(photometry['x'][j])+' '+str(photometry['y'][j])+' '+\
+                        str(photometry['ra'][j])+' '+str(photometry['dec'][j])+' '+\
                         str(photometry['g'][j])+' '+str(photometry['gerr'][j])+' '+\
                         str(photometry['r'][j])+' '+str(photometry['rerr'][j])+' '+\
                         str(photometry['i'][j])+' '+str(photometry['ierr'][j])+' '+\
                         str(photometry['gi'][j])+' '+str(photometry['gi_err'][j])+' '+\
                         str(photometry['gr'][j])+' '+str(photometry['gr_err'][j])+' '+\
                         str(photometry['ri'][j])+' '+str(photometry['ri_err'][j])+' '+\
-                        str(selected)+'\n' )
+                        str(selected)+' '+str(photometry['gaia_source_id'])+'\n' )
 
         f.close()
 
