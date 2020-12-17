@@ -309,6 +309,8 @@ def repack_photometry(photometry, stars, log):
     for s in range(0,len(stars),1):
 
         sid = stars['star_id'][s]
+        photometry['x'][s] = stars['x'][s]
+        photometry['y'][s] = stars['y'][s]
 
         (photometry['g'][s],photometry['gerr'][s]) = fetch_star_phot(sid,photometry['phot_table_g'])
         (photometry['r'][s],photometry['rerr'][s]) = fetch_star_phot(sid,photometry['phot_table_r'])
