@@ -338,7 +338,6 @@ def repack_photometry(photometry, stars, log):
         (photometry['g'][s],photometry['gerr'][s]) = fetch_star_phot(sid,photometry['phot_table_g'])
         (photometry['r'][s],photometry['rerr'][s]) = fetch_star_phot(sid,photometry['phot_table_r'])
         (photometry['i'][s],photometry['ierr'][s]) = fetch_star_phot(sid,photometry['phot_table_i'])
-        print(s,sid,photometry['i'][s], photometry['r'][s], photometry['g'][s])
 
     return photometry, stars
 
@@ -400,9 +399,6 @@ def get_reference_photometry_from_metadata(config, log):
 
     (photometry, stars) = repack_photometry(photometry, stars, log)
 
-    print(photometry)
-    print('GOT HERE')
-    exit()
     return photometry, stars
 
 def convert_star_catalog_to_stars_table(reduction_metadata):
