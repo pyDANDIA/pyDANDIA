@@ -182,6 +182,8 @@ def calc_source_blend_params(config,event_model,log):
 
 def fetch_star_phot(star_id,phot_table):
         jdx = np.where(phot_table['star_id'] == star_id)[0]
+        print(phot_table['star_id'])
+        print(star_id, jdx)
 
         if len(jdx) == 0:
             return 0.0,0.0
