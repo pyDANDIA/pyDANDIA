@@ -259,9 +259,9 @@ def get_reference_photometry_from_db(config, log):
             data = phot_db.query_to_astropy_table(conn, query, args=())
 
             if len(data) > 0:
-                photometry['phot_table_'+f].append([data['star_id'][0], 0.0,0.0, 0.0, 0.0, data['calibrated_mag'][0], data['calibrated_mag_err'][0], 'None'])
+                photometry['phot_table_'+f].append([data['star_id'][0], 0.0,0.0, 0.0, 0.0, data['calibrated_mag'][0], data['calibrated_mag_err'][0], 0.0])
             else:
-                photometry['phot_table_'+f].append([star['star_id'],0.0,0.0,0.0,0.0, 0.0, 0.0, 'None'])
+                photometry['phot_table_'+f].append([star['star_id'],0.0,0.0,0.0,0.0, 0.0, 0.0, 0.0])
 
         if j%1000.0 == 0.0:
             print('--> Completed '+str(j)+' stars out of '+str(len(stars)))
@@ -365,15 +365,11 @@ def get_reference_photometry_from_metadata(config, log):
     for j in range(0,len(stars),1):
         data = primary_metadata.star_catalog[1][j]
         if 'none' in str(data['gaia_source_id']).lower():
-            gaia_id = 0
+            gaia_id = 0.0
         else:
-            gaia_id = int(data['gaia_source_id'])
+            gaia_id = float(data['gaia_source_id'])
         photometry['phot_table_i'].append([data['index'], data['x'], data['y'], data['ra'], data['dec'], data['cal_ref_mag'], data['cal_ref_mag_error'], gaia_id])
 
-        for item in photometry['phot_table_i'][-1]:
-            print(item, type(item))
-    exit()
-    
     for f in ['g', 'r']:
         if config['red_dirs'][f]:
             log.info('-> Extracting photometry for '+f+'-band data')
@@ -392,9 +388,14 @@ def get_reference_photometry_from_metadata(config, log):
                         dataset_j = matched_stars.cat2_index[j] - 1
 
                         data = dataset_metadata.star_catalog[1][dataset_j]
-                        photometry['phot_table_'+f].append([star['star_id'], star['x'], star['y'], star['ra'], star['dec'], data['cal_ref_mag'], data['cal_ref_mag_error'], star['gaia_source_id']])
+
+                        if 'none' in str(star['gaia_source_id']).lower():
+                            gaia_id = 0.0
+                        else:
+                            gaia_id = float(star['gaia_source_id'])
+                        photometry['phot_table_'+f].append([star['star_id'], star['x'], star['y'], star['ra'], star['dec'], data['cal_ref_mag'], data['cal_ref_mag_error'], gaia_id])
                     else:
-                        photometry['phot_table_'+f].append([star['star_id'],0.0,0.0,0.0,0.0,0.0,0.0,'None'])
+                        photometry['phot_table_'+f].append([star['star_id'],0.0,0.0,0.0,0.0,0.0,0.0,0.0])
 
             else:
                 log.info('No stars matched for dataset '+config['red_dirs'][f])
