@@ -466,7 +466,8 @@ def extract_local_star_photometry(photometry,selected_stars,log,extract_errors=T
 
     for j in selected_stars:
         print('selected ',j,g[j],r[j],i[j])
-        
+    exit()
+    
     if extract_errors:
         gerr = table.Column(data=photometry['gerr'][selected_stars], name='gerr')
         rerr = table.Column(data=photometry['rerr'][selected_stars], name='rerr')
