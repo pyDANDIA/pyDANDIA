@@ -335,6 +335,7 @@ def repack_photometry(photometry, stars, log):
         (photometry['g'][s],photometry['gerr'][s]) = fetch_star_phot(sid,photometry['phot_table_g'])
         (photometry['r'][s],photometry['rerr'][s]) = fetch_star_phot(sid,photometry['phot_table_r'])
         (photometry['i'][s],photometry['ierr'][s]) = fetch_star_phot(sid,photometry['phot_table_i'])
+        print(s,photometry['i'][s], photometry['r'][s], photometry['g'][s])
 
     return photometry, stars
 
@@ -463,6 +464,9 @@ def extract_local_star_photometry(photometry,selected_stars,log,extract_errors=T
     ri = table.Column(data=photometry['ri'][selected_stars], name='ri')
     gi = table.Column(data=photometry['gi'][selected_stars], name='gi')
 
+    for j in selected_stars:
+        print('selected ',j,g[j],r[j],i[j])
+        
     if extract_errors:
         gerr = table.Column(data=photometry['gerr'][selected_stars], name='gerr')
         rerr = table.Column(data=photometry['rerr'][selected_stars], name='rerr')
