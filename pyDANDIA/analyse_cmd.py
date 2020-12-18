@@ -1003,8 +1003,10 @@ def localize_red_clump_db(config,photometry,stars,selected_phot,log):
                               config['RC_i_range'][0], config['RC_i_range'][1],
                               config['RC_ri_range'][0], config['RC_ri_range'][1])
 
-    print(selected_phot)
+    for j in range(0,len(selected_phot)):
+        print(selected_phot['i'][j],selected_phot['ri'][j])
     print(idx)
+    print(config['RC_i_range'], config['RC_ri_range'])
     (RC.ri, RC.sig_ri, RC.i, RC.sig_i) = event_colour_analysis.calc_distribution_centroid_and_spread_2d(selected_phot['ri'][idx],
                                                                                         selected_phot['i'][idx], use_iqr=True)
 
