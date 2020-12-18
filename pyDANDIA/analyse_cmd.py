@@ -364,8 +364,16 @@ def get_reference_photometry_from_metadata(config, log):
 
     for j in range(0,len(stars),1):
         data = primary_metadata.star_catalog[1][j]
-        photometry['phot_table_i'].append([data['index'], data['x'], data['y'], data['ra'], data['dec'], data['cal_ref_mag'], data['cal_ref_mag_error'], data['gaia_source_id']])
+        if 'none' in str(data['gaia_source_id']).lower():
+            gaia_id = 0
+        else:
+            gaia_id = int(data['gaia_source_id'])
+        photometry['phot_table_i'].append([data['index'], data['x'], data['y'], data['ra'], data['dec'], data['cal_ref_mag'], data['cal_ref_mag_error'], gaia_id])
 
+        for item in photometry['phot_table_i'][-1]:
+            print(item, type(item))
+    exit()
+    
     for f in ['g', 'r']:
         if config['red_dirs'][f]:
             log.info('-> Extracting photometry for '+f+'-band data')
