@@ -321,7 +321,7 @@ def repack_photometry(photometry, stars, log):
     photometry['y'] = np.zeros(len(stars))
     photometry['ra'] = np.zeros(len(stars))
     photometry['dec'] = np.zeros(len(stars))
-    photometry['gaia_source_id'] = np.empty(len(stars), dtype="S20")
+    photometry['gaia_source_id'] = np.zeros(len(stars))
 
     for s in range(0,len(stars),1):
 
@@ -330,12 +330,15 @@ def repack_photometry(photometry, stars, log):
         photometry['y'][s] = stars['y'][s]
         photometry['ra'][s] = stars['ra'][s]
         photometry['dec'][s] = stars['dec'][s]
-        photometry['gaia_source_id'][s] = stars['gaia_source_id'][s]
+        if 'none' in str(stars['gaia_source_id'][s]).lower():
+            photometry['gaia_source_id'][s] = 0
+        else:
+            photometry['gaia_source_id'][s] = int(stars['gaia_source_id'][s])
 
         (photometry['g'][s],photometry['gerr'][s]) = fetch_star_phot(sid,photometry['phot_table_g'])
         (photometry['r'][s],photometry['rerr'][s]) = fetch_star_phot(sid,photometry['phot_table_r'])
         (photometry['i'][s],photometry['ierr'][s]) = fetch_star_phot(sid,photometry['phot_table_i'])
-        print(s,photometry['i'][s], photometry['r'][s], photometry['g'][s])
+        print(s,sid,photometry['i'][s], photometry['r'][s], photometry['g'][s])
 
     return photometry, stars
 
