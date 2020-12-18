@@ -365,7 +365,6 @@ def get_reference_photometry_from_metadata(config, log):
     for j in range(0,len(stars),1):
         data = primary_metadata.star_catalog[1][j]
         photometry['phot_table_i'].append([data['index'], data['x'], data['y'], data['ra'], data['dec'], data['cal_ref_mag'], data['cal_ref_mag_error'], data['gaia_source_id']])
-        print(photometry['phot_table_i'][-1])
 
     for f in ['g', 'r']:
         if config['red_dirs'][f]:
@@ -388,7 +387,6 @@ def get_reference_photometry_from_metadata(config, log):
                         photometry['phot_table_'+f].append([star['star_id'], star['x'], star['y'], star['ra'], star['dec'], data['cal_ref_mag'], data['cal_ref_mag_error'], star['gaia_source_id']])
                     else:
                         photometry['phot_table_'+f].append([star['star_id'],0.0,0.0,0.0,0.0,0.0,0.0,'None'])
-                    print(photometry['phot_table_'+f][-1])
 
             else:
                 log.info('No stars matched for dataset '+config['red_dirs'][f])
