@@ -1014,10 +1014,6 @@ def localize_red_clump_db(config,photometry,stars,selected_phot,log):
                               config['RC_i_range'][0], config['RC_i_range'][1],
                               config['RC_ri_range'][0], config['RC_ri_range'][1])
 
-    for j in range(0,len(selected_phot)):
-        print(selected_phot['i'][j],selected_phot['ri'][j])
-    print(idx)
-    print(config['RC_i_range'], config['RC_ri_range'])
     (RC.ri, RC.sig_ri, RC.i, RC.sig_i) = event_colour_analysis.calc_distribution_centroid_and_spread_2d(selected_phot['ri'][idx],
                                                                                         selected_phot['i'][idx], use_iqr=True)
 
@@ -1078,7 +1074,7 @@ def output_photometry(config, stars, photometry, selected_stars, log):
                         str(photometry['gi'][j])+' '+str(photometry['gi_err'][j])+' '+\
                         str(photometry['gr'][j])+' '+str(photometry['gr_err'][j])+' '+\
                         str(photometry['ri'][j])+' '+str(photometry['ri_err'][j])+' '+\
-                        str(selected)+' '+str(photometry['gaia_source_id'])+'\n' )
+                        str(selected)+' '+str(int(photometry['gaia_source_id'][j]))+'\n' )
 
         f.close()
 
