@@ -182,15 +182,15 @@ def run_reference_astrometry(setup, **kwargs):
 
         matched_stars = wcs.match_stars_pixel_coords(bright_central_detected_stars,
                                                      bright_central_gaia_stars,log,
-                                                     tol=2.0,verbose=False)
+                                                     tol=10.0,verbose=False)
  
        
         aa = bright_central_detected_stars[matched_stars.cat1_index]['x']
         bb = bright_central_detected_stars[matched_stars.cat1_index]['y']
         cc = bright_central_gaia_stars[matched_stars.cat2_index]['x']
         dd = bright_central_gaia_stars[matched_stars.cat2_index]['y']
-        #import pdb; pdb.set_trace()                                                            
-        transform_robust, inliers = ransac((np.c_[cc,dd],np.c_[aa,bb]),tf.AffineTransform,residual_threshold = 0.5,min_samples=20)
+
+        transform_robust, inliers = ransac((np.c_[cc,dd],np.c_[aa,bb]),tf.AffineTransform,residual_threshold = 0.5,min_samples=np.min([len(aa),20]))
 
                                                                 
         #gaia_sources = update_catalog_image_coordinates(setup, image_wcs, gaia_sources, log, 'catalog_stars_bright_revised_'+str(0)+'.reg',
@@ -208,7 +208,7 @@ def run_reference_astrometry(setup, **kwargs):
                                                             
         matched_stars = wcs.match_stars_pixel_coords(bright_central_detected_stars,
                                                      bright_central_gaia_stars,log,
-                                                     tol=2.0,verbose=False)
+                                                     tol=10.0,verbose=False)
                                                               
 
         ### NEW IMPLEMENTATION ###
@@ -235,7 +235,7 @@ def run_reference_astrometry(setup, **kwargs):
         xx = bright_central_detected_stars['ra'] - center_ra
         yy = bright_central_detected_stars['dec'] - center_dec
 
-        transform_robust, inliers = ransac((np.c_[xx,yy][matched_stars.cat1_index],np.c_[x,y][matched_stars.cat2_index]),tf.AffineTransform,residual_threshold = 0.0003,min_samples=np.min([len(aa),20]))
+        transform_robust, inliers = ransac((np.c_[xx,yy][matched_stars.cat1_index],np.c_[x,y][matched_stars.cat2_index]),tf.AffineTransform,residual_threshold = 0.0006,min_samples=np.min([len(aa),20]))
     
         x = detected_sources['ra'] - center_ra
         y = detected_sources['dec'] - center_dec
