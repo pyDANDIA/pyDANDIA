@@ -19,7 +19,8 @@ from pyDANDIA import stage1
 from pyDANDIA import stage2
 from pyDANDIA import stage3
 from pyDANDIA import calibrate_photometry
-from pyDANDIA import reference_astrometry
+#from pyDANDIA import reference_astrometry
+from pyDANDIA import new_reference_astrometry
 from pyDANDIA import stage3_db_ingest
 from pyDANDIA import stage4
 from pyDANDIA import stage5
@@ -63,7 +64,7 @@ def run_stage_stand_alone():
 
     elif params['stage'] == 'reference_astrometry':
 
-        (status, report) = reference_astrometry.run_reference_astrometry(setup,
+        (status, report) = new_reference_astrometry.run_reference_astrometry(setup,
                                                                         **params)
 
     elif params['stage'] == 'stage3':
