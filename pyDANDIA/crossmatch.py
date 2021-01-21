@@ -11,27 +11,61 @@ class CrossMatchTable():
     datasets"""
 
     def __init__(self):
+        self.field_index = Table()
+        self.primary_ref_code = None
+        self.primary_ref_dir = None
+        self.primary_ref_filter = None
         self.datasets = Table()
-        self.matched_stars = []
+        self.matched_stars = {}
+        self.orphans = {}
 
     def create(self, params):
         xmatch = fits.HDUList()
 
-        col_list = [ Column(name='primary_ref_dir', data=[params['primary_ref_dir']], dtype='str'),
-                     Column(name='primary_ref_filter', data=[params['primary_ref_filter']], dtype='str')]
+        pref = params['primary_ref']
+        self.primary_ref_code = pref
+        self.primary_ref_dir = params['datasets'][pref][1]
+        self.primary_ref_filter = None
 
-        for i,red_dir in enumerate(params['red_dir_list']):
-            self.add_dataset_header(i, red_dir, params['red_dataset_filters'][i])
-            self.init_matched_stars_table()
+        field_index_columns = [Column(name='field_id', data=[], dtype='int'),
+                    Column(name='RA', data=[], dtype='float'),
+                    Column(name='Dec', data=[], dtype='float'),
+                    Column(name='gaia_source_id', data=[], dtype='str'),
+                    Column(name=pref+'_index', data=[], dtype='int')]
 
-        self.datasets = Table(col_list)
+        # Format: dataset_id: [reference status, red_dir path, filter]
+        codes = []
+        reddirs = []
+        filters = []
+        pref_index = []
+        for dataset_id, dataset_info in params['datasets'].items():
+            if dataset_id == pref:
+                pref_index.append(1)
+            else:
+                pref_index.append(0)
+            codes.append(dataset_id)
+            reddirs.append(dataset_info[1])
+            filters.append(dataset_info[2])
+            if dataset_id != pref:
+                field_index_columns.append(Column(name=dataset_id+'_index', data=[], dtype='int'))
 
-    def add_dataset_header(self, dataset_idx, red_dir, filter_name):
+        dataset_columns = [ Column(name='dataset_code', data=codes, dtype='str'),
+                     Column(name='dataset_red_dir', data=reddirs, dtype='str'),
+                     Column(name='dataset_filter', data=filters, dtype='str'),
+                     Column(name='primary_ref',data=pref_index, dtype='int')]
 
-        if '/' in red_dir[-1:]:
-            red_dir = red_dir[0:-1]
-        self.datasets.add_column(Column(name='dataset'+str(dataset_idx), data=[red_dir], dtype='str'))
-        self.datasets.add_column(Column(name='filter'+str(dataset_idx), data=[filter_name], dtype='str'))
+        self.datasets = Table(dataset_columns)
+        self.field_index = Table(field_index_columns)
+
+    def add_dataset_header(self, dataset_idx, dataset_code, dataset_info):
+
+        if '/' in dataset_info[0][-1:]:
+            red_dir = dataset_info[0][0:-1]
+        else:
+            red_dir = dataset_info[0]
+        self.datasets.add_column(Column(name='dataset_code'+str(dataset_idx), data=[dataset_code], dtype='str'))
+        self.datasets.add_column(Column(name='dataset_red_dir'+str(dataset_idx), data=[dataset_info[0]], dtype='str'))
+        self.datasets.add_column(Column(name='dataset_filter'+str(dataset_idx), data=[dataset_info[1]], dtype='str'))
 
     def add_dataset(self, red_dir, filter_name):
         idx = self.count_datasets()
@@ -50,6 +84,136 @@ class CrossMatchTable():
     def init_matched_stars_table(self):
         matched_stars = match_utils.StarMatchIndex()
         self.matched_stars.append(matched_stars)
+
+    def init_field_index(self, metadata):
+
+        ncol = len(self.field_index.colnames)
+
+        for star in metadata.star_catalog[1]:
+            self.field_index.add_row( [star['star_index'], star['ra'], star['dec'], star['gaia_source_id'], star['star_index']]+([0]*(ncol-5)) )
+
+    def match_dataset_with_field_index(self, dataset_metadata, params, log):
+        """Method to perform a crossmatch of the star_catalog from a single
+        dataset's reduction against the field catalog.
+        Note that the separation_threshold parameter is expected to be in
+        decimal degrees"""
+
+        log.info('Matching dataset against field index')
+
+        matched_stars = match_utils.StarMatchIndex()
+        orphans = match_utils.StarMatchIndex()
+
+        for star in dataset_metadata.star_catalog[1]:
+            dataset_star = SkyCoord( star['ra'], star['dec'],
+                      frame='icrs', unit=(units.deg, units.deg) )
+            check_against_full_index = True
+
+            # Use matching Gaia IDs to accelerate the match process, if available
+            if star['gaia_source_id'] != 'none':
+                jdx = np.where(self.field_index['gaia_source_id'] == star['gaia_source_id'])[0]
+
+                # If a match is found,
+                if len(jdx) > 0:
+                    # Check separation is below match threshold
+                    (star_matches, separation) = self.check_separation(dataset_star, field_star,
+                                                params['separation_threshold'])
+
+                    # If so, add to the match index
+                    if star_matches:
+                        matched_stars = self.add_to_match_index(field_star, star,
+                                                separation, matched_stars, log)
+                    check_against_full_index = False
+
+                else:
+                    check_against_full_index = True
+
+            # If no Gaia ID is available, or if no matching ID is found,
+            # check the star against the rest of the field index:
+            if check_against_full_index:
+                for field_star in self.field_index:
+                    field_star = SkyCoord( field_star['ra'], field_star['dec'],
+                                        frame='icrs', unit=(units.deg, units.deg) )
+
+                    (star_matches, separation) = self.check_separation(dataset_star, field_star,
+                                                params['separation_threshold'])
+
+                    if star_matches:
+                        matched_stars = self.add_to_match_index(field_star, star,
+                                                separation, matched_stars, log)
+
+            # Orphans: If we get to here and still have no matching star in
+            # the field_index, then this dataset has detected a star not found
+            # in the field's primary reference or other datasets.
+            orphans = add_to_orphans(star, orphans, log)
+
+        return matched_stars, orphans
+
+    def check_separation(dataset_star, field_star, separation_threshold):
+        separation = dataset_star.separation(field_star)
+
+        if separation <= separation_threshold:
+            return True, separation
+        else:
+            return False, separation
+
+    def add_to_match_index(field_star, star, separation, matched_stars, log):
+
+        p = {'cat1_index': field_star['field_index'],
+             'cat1_ra': field_star['ra'],
+             'cat1_dec': field_star['dec'],
+             'cat1_x': 0.0,
+             'cat1_y': 0.0,
+             'cat2_index': star['index'],
+             'cat2_ra': star['ra'],
+             'cat2_dec': star['dec'],
+             'cat2_x': 0.0,
+             'cat2_y': 0.0,
+             'separation': separation[0].value}
+
+        matched_stars.add_match(p)
+
+        if verbose:
+            log.info(matched_stars.summarize_last(units='pixels'))
+
+        return matched_stars
+
+    def add_to_orphans(star, orphans, log):
+        p = {'cat1_index': None,
+             'cat1_ra': 0.0,
+             'cat1_dec': 0.0,
+             'cat1_x': 0.0,
+             'cat1_y': 0.0,
+             'cat2_index': star['index'],
+             'cat2_ra': star['ra'],
+             'cat2_dec': star['dec'],
+             'cat2_x': 0.0,
+             'cat2_y': 0.0,
+             'separation': -1.0}
+
+        orphans.add_match(p)
+
+        if verbose:
+            log.info(orphans.summarize_last(units='deg'))
+
+        return orphans
+
+    def update_field_index(self, dataset_code, matched_stars, orphans, dataset_metadata, log):
+
+        # Update field index with matched stars
+        for j in range(0,len(matched_stars.cat1_index),1):
+            jfield = np.where(self.field_index['field_id'] == matched_stars.cat1_index[j])
+            row = self.field_index[jfield]
+            row[dataset_code+'_index'] = matched_stars.cat2_index[j]
+            self.field_index[jfield] = row
+
+        # Append orphans to the end of the field index
+        ncol = len(self.field_index.colnams)
+        for j in range(0,len(orphans),1):
+            jfield = len(self.field_index)
+            gaia_id =  dataset_metadata.star_catalog[1][orphans.cat2_index[j]]['gaia_source_id']
+            row = [jfield, orphans.cat2_ra[j], orphans.cat2_dec[j], gaia_id] + [0]*(nol-4)
+            row[dataset_code+'_index'] = orphans.cat2_index[j]
+            self.field_index[jfield] = row
 
     def dataset_index(self, red_dir):
         """Method to search the header index of matched data directories and
@@ -70,13 +234,14 @@ class CrossMatchTable():
         """Output crossmatch table to file"""
         hdr = fits.Header()
         hdr['NAME'] = 'Crossmatch table'
+        hdr['PRIREFID'] = self.primary_ref_code
 
-        hdu_list = [fits.PrimaryHDU(header=hdr), fits.BinTableHDU(self.datasets, name='DATASETS')]
-        for i,x in enumerate(self.matched_stars):
-            try:
-                hdu_list.append( fits.BinTableHDU(x.output_as_table(), name='match_table_'+str(i)) )
-            except:
-                import pdb; pdb.set_trace()
+        hdu_list = [fits.PrimaryHDU(header=hdr), fits.BinTableHDU(self.field_index, name='FIELD_INDEX'), fits.BinTableHDU(self.datasets, name='DATASETS')]
+#        for i,x in enumerate(self.matched_stars):
+#            try:
+#                hdu_list.append( fits.BinTableHDU(x.output_as_table(), name='match_table_'+str(i)) )
+#            except:
+#                import pdb; pdb.set_trace()
 
         hdu_list = fits.HDUList(hdu_list)
         hdu_list.writeto(file_path, overwrite=True)

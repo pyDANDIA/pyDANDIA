@@ -2,20 +2,28 @@ from os import path, remove
 from pyDANDIA import crossmatch
 from pyDANDIA import crossmatch_datasets
 from pyDANDIA import match_utils
+from pyDANDIA import metadata
+import numpy as np
+
+def test_params():
+    params = {'primary_ref': 'primary_ref_dataset',
+              'datasets': { 'primary_ref_dataset': ['primary_ref', '/Users/rstreet1/OMEGA/test_data/non_ref_dataset_p/', 'none'],
+                            'dataset0' : [ 'non_ref', '/Users/rstreet1/OMEGA/test_data/non_ref_dataset0/', 'none' ],
+                            'dataset1' : [ 'non_ref', '/Users/rstreet1/OMEGA/test_data/non_ref_dataset1/', 'none' ],
+                            'dataset2' : [ 'non_ref', '/Users/rstreet1/OMEGA/test_data/non_ref_dataset1/', 'none' ]},
+              'file_path': 'crossmatch_table.fits'}
+
+    return params
 
 def test_create():
-    params = {'primary_ref_dir': '/Users/rstreet1/OMEGA/test_data/primary_ref_dataset/',
-              'primary_ref_filter': 'ip',
-              'red_dir_list': [ '/Users/rstreet1/OMEGA/test_data/non_ref_dataset/' ],
-              'red_dataset_filters': [ 'rp' ],
-              'file_path': 'crossmatch_table.fits'}
+    params = test_params()
 
     xmatch = crossmatch.CrossMatchTable()
     xmatch.create(params)
 
-    test_keys = ['PRIMARY', 'PRIMFILT', 'DATASET0', 'FILTER0']
-    assert(x in xmatch.header.keys() for x in test_keys)
-    assert(len(xmatch.matched_stars) == 1)
+    for key in params['datasets'].keys():
+        assert(key+'_index' in xmatch.field_index.colnames)
+    assert(len(xmatch.datasets) == len(params['datasets']))
 
 def test_add_dataset():
 
@@ -114,9 +122,28 @@ def test_load():
 
     xmatch.save(params['file_path'])
 
+def test_init_field_index():
+    params = test_params()
+    xmatch = crossmatch.CrossMatchTable()
+    xmatch.create(params)
+
+    nstars = 10
+    m = metadata.MetaData()
+    star_catalog = np.zeros((nstars,21))
+    for j in range(1,len(star_catalog),1):
+        star_catalog[j-1,0] = j
+        star_catalog[j-1,1] = 250.0
+        star_catalog[j-1,2] = -17.5
+    m.create_star_catalog_layer(data=star_catalog)
+
+    xmatch.init_field_index(m)
+
+    assert len(xmatch.field_index) == nstars
+
 if __name__ == '__main__':
     test_create()
-    test_add_dataset()
-    test_dataset_index()
-    test_save()
-    test_load()
+#    test_add_dataset()
+#    test_dataset_index()
+#    test_save()
+#    test_load()
+    test_init_field_index()
