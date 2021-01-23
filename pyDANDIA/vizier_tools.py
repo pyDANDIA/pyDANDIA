@@ -46,13 +46,22 @@ def search_vizier_for_sources(ra, dec, radius, catalog, row_limit=-1,
                                     'FG':'phot_g_mean_flux', 'e_FG':'phot_g_mean_flux_error',
                                     'FBP':'phot_bp_mean_flux', 'e_FBP':'phot_bp_mean_flux_error',
                                     'FRP':'phot_rp_mean_flux', 'e_FRP':'phot_rp_mean_flux_error',
-                                    'PM' , 'pmRA', 'e_pmRA', 'pmDE', 'e_pmDE', 'PIx', 'e_PIx'}]
+                                    'PM':'proper_motion', 'pmRA':'pm_ra', 'e_pmRA':'pm_ra_error',
+                                    'pmDE':'pm_dec', 'e_pmDE':'pm_dec_error',
+                                    'Plx':'parallax', 'e_Plx': 'parallax_error'},
+                                    #'parallax':'parallax', 'parallax_error': 'parallax_error'},
+                                    {}]
                            }
 
     (cat_id,cat_col_dict,cat_filters) = supported_catalogs[catalog]
 
-    v = Vizier(columns=list(cat_col_dict.keys()),\
+    if catalog=='Gaia-EDR3':
+        v = Vizier(column_filters=cat_filters)
+    else:
+        v = Vizier(columns=list(cat_col_dict.keys()),\
                 column_filters=cat_filters)
+
+    v = Vizier(column_filters=cat_filters)
 
     v.ROW_LIMIT = row_limit
 
@@ -68,7 +77,6 @@ def search_vizier_for_sources(ra, dec, radius, catalog, row_limit=-1,
     (status, result) = query_vizier_servers(v, c, r, [cat_id], debug=debug)
 
     if len(result) == 1:
-
         col_list = []
         for col_id, col_name in cat_col_dict.items():
             col = table.Column(name=col_name, data=result[0][col_id].data)
@@ -191,7 +199,7 @@ if __name__ == '__main__':
         ra = input('Please enter search centroid RA in sexigesimal format: ')
         dec = input('Please enter search centroid Dec in sexigesimal format: ')
         radius = input('Please enter search radius in arcmin: ')
-        catalog = input('Please enter the ID of the catalog to search [2MASS, VPHAS+, Gaia-DR2]: ')
+        catalog = input('Please enter the ID of the catalog to search [2MASS, VPHAS+, Gaia-DR2, Gaia-EDR3]: ')
 
     else:
 
