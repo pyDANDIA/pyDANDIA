@@ -39,7 +39,14 @@ def search_vizier_for_sources(ra, dec, radius, catalog, row_limit=-1,
                                       'FG':'phot_g_mean_flux', 'e_FG':'phot_g_mean_flux_error',
                                       'FBP':'phot_bp_mean_flux', 'e_FBP':'phot_bp_mean_flux_error',
                                       'FRP':'phot_rp_mean_flux', 'e_FRP':'phot_rp_mean_flux_error' },
-                                    {}]
+                                    {}],
+                            'Gaia-EDR3': ['I/350/gaiaedr3',
+                                    {'RA_ICRS':'ra', 'DE_ICRS':'dec', 'Source':'source_id',
+                                    'e_RA_ICRS':'ra_error', 'e_DE_ICRS':'dec_error',
+                                    'FG':'phot_g_mean_flux', 'e_FG':'phot_g_mean_flux_error',
+                                    'FBP':'phot_bp_mean_flux', 'e_FBP':'phot_bp_mean_flux_error',
+                                    'FRP':'phot_rp_mean_flux', 'e_FRP':'phot_rp_mean_flux_error',
+                                    'PM' , 'pmRA', 'e_pmRA', 'pmDE', 'e_pmDE', 'PIx', 'e_PIx'}]
                            }
 
     (cat_id,cat_col_dict,cat_filters) = supported_catalogs[catalog]
