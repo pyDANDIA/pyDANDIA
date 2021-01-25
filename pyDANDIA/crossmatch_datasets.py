@@ -53,6 +53,9 @@ def build_crossmatch_table(params):
             dataset_metadata.load_all_metadata(setup.red_dir, 'pyDANDIA_metadata.fits')
             log.info('Loaded dataset metadata')
 
+            dataset_info[-1] = find_dataset_filter(dataset_metadata)
+            params[dataset_code] = dataset_info
+
             # XXXX LIMITED XXXX
             (matched_stars,orphans) = xmatch.match_dataset_with_field_index(dataset_metadata,
                                                                       params, log)
@@ -193,7 +196,7 @@ def parse_dataset_list(params,log):
                 params['datasets'][dataset_code] = [ref_status, dataset_path, None]
                 if ref_status in ['primary_ref', 'primary-ref']:
                     params['primary_ref'] = dataset_code
-            log.info(dataset_code)
+                log.info(dataset_code)
 
         if 'primary_ref' not in params.keys():
             raise IOError('No primary reference dataset identified in datasets file')
@@ -202,6 +205,10 @@ def parse_dataset_list(params,log):
         raise IOError('Cannot find input list of datasets')
 
     return params
+
+def find_dataset_filter(reduction_metadata):
+    return reduction_metadata.headers_summary[1]['FILTKEY'][0]
+
 
 if __name__ == '__main__':
     params = get_args()

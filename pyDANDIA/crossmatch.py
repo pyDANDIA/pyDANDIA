@@ -6,6 +6,7 @@ from astropy import units
 from pyDANDIA import match_utils
 import numpy as np
 from os import path
+import copy
 
 class CrossMatchTable():
     """Class describing the cross-identification of stars between multiple
@@ -31,7 +32,7 @@ class CrossMatchTable():
         field_index_columns = [Column(name='field_id', data=[], dtype='int'),
                     Column(name='ra', data=[], dtype='float'),
                     Column(name='dec', data=[], dtype='float'),
-                    Column(name='gaia_source_id', data=[], dtype='str'),
+                    Column(name='gaia_source_id', data=[], dtype='S19'),
                     Column(name=pref+'_index', data=[], dtype='int')]
 
         # Format: dataset_id: [reference status, red_dir path, filter]
@@ -52,7 +53,7 @@ class CrossMatchTable():
 
         dataset_columns = [ Column(name='dataset_code', data=codes, dtype='str'),
                      Column(name='dataset_red_dir', data=reddirs, dtype='str'),
-                     Column(name='dataset_filter', data=filters, dtype='str'),
+                     Column(name='dataset_filter', data=filters, dtype='S8'),
                      Column(name='primary_ref',data=pref_index, dtype='int')]
 
         self.datasets = Table(dataset_columns)
@@ -98,77 +99,104 @@ class CrossMatchTable():
         """Method to perform a crossmatch of the star_catalog from a single
         dataset's reduction against the field catalog.
         Note that the separation_threshold parameter is expected to be in
-        decimal degrees"""
+        decimal degrees
+
+        During the matching process, new potential matches are compared
+        against the list of existing known matches involving the same stars
+        to check for duplications and to replace existing matches if a closer
+        match is found.
+
+        This process can result in a star that was previously matched to a
+        catalogue object being removed from the matched_stars list, if a
+        closer match is found.  For this reason, the match process is repeated,
+        so that alternative matches can be sought for those stars.
+        """
 
         log.info('Matching dataset against field index')
 
         matched_stars = match_utils.StarMatchIndex()
         orphans = match_utils.StarMatchIndex()
 
-        for dataset_star_row in dataset_metadata.star_catalog[1][0:1000]:
-            dataset_star = SkyCoord( dataset_star_row['ra'], dataset_star_row['dec'],
-                      frame='icrs', unit=(units.deg, units.deg) )
-            check_against_full_index = True
-            if verbose:
-                log.info(' -> Dataset star '+str(dataset_star_row['index'])+', '+repr(dataset_star))
+        n_loops = 2
+        for loop in range(0,n_loops,1):
+            log.info('Starting match loop '+str(loop))
 
-            # Use matching Gaia IDs to accelerate the match process, if available
-            if dataset_star_row['gaia_source_id'] != 'none':
-                jdx = np.where(self.field_index['gaia_source_id'] == dataset_star_row['gaia_source_id'])[0]
+            for dataset_star_row in dataset_metadata.star_catalog[1][0:1000]:
 
-                if verbose:
-                    log.info(' --> Gaia ID: '+str(dataset_star_row['gaia_source_id']))
-                    log.info(' --> Found '+str(len(jdx))+' matching entries in field index')
+                if dataset_star_row['index'] not in matched_stars.cat2_index and \
+                        dataset_star_row['index'] not in orphans.cat2_index:
+                    star_matches = False
 
-                # If a match is found,
-                if len(jdx) > 0:
-                    field_star_row = self.field_index[jdx]
-                    field_star = SkyCoord( field_star_row['ra'], field_star_row['dec'],
-                                        frame='icrs', unit=(units.deg, units.deg) )
-
-                    # Check separation is below match threshold
-                    (star_matches, separation) = self.check_separation(dataset_star, field_star,
-                                                params['separation_threshold'])
-
-                    #print(star_matches, separation)
-
-                    # If so, add to the match index
-                    if star_matches:
-                        matched_stars = self.add_to_match_index(field_star_row, dataset_star_row,
-                                                separation, matched_stars, log,
-                                                verbose=verbose)
-                    check_against_full_index = False
-
-                else:
+                    dataset_star = SkyCoord( dataset_star_row['ra'], dataset_star_row['dec'],
+                              frame='icrs', unit=(units.deg, units.deg) )
                     check_against_full_index = True
+                    if verbose:
+                        log.info(' -> Dataset star '+str(dataset_star_row['index'])+', '+repr(dataset_star))
 
-            if verbose:
-                log.info(' --> Check against full field index? '+str(check_against_full_index))
-
-            # If no Gaia ID is available, or if no matching ID is found,
-            # check the star against the rest of the field index:
-            if check_against_full_index:
-                for field_star_row in self.field_index:
-                    #print(field_star_row)
-                    field_star = SkyCoord( field_star_row['ra'], field_star_row['dec'],
-                                        frame='icrs', unit=(units.deg, units.deg) )
-
-                    (star_matches, separation) = self.check_separation(dataset_star, field_star,
-                                                params['separation_threshold'])
-
-                    if star_matches:
-                        matched_stars = self.add_to_match_index(field_star_row, dataset_star_row,
-                                                separation, matched_stars, log,
-                                                verbose=verbose)
+                    # Use matching Gaia IDs to accelerate the match process, if available
+                    if 'none' not in str(dataset_star_row['gaia_source_id']).lower():
+                        jdx = np.where(self.field_index['gaia_source_id'] == dataset_star_row['gaia_source_id'])[0]
 
                         if verbose:
-                            log.info(' ---> Matches field star: '+str(field_star_row['field_id'])+' '+str(field_star_row['ra'])+' '+str(field_star_row['dec']))
-                            log.info(' ---> match output: '+repr(star_matches)+' '+repr(separation))
+                            log.info(' --> Gaia ID: '+str(dataset_star_row['gaia_source_id']))
+                            log.info(' --> Found '+str(len(jdx))+' matching entries in field index')
 
-            # Orphans: If we get to here and still have no matching star in
-            # the field_index, then this dataset has detected a star not found
-            # in the field's primary reference or other datasets.
-            orphans = self.add_to_orphans(dataset_star_row, orphans, log, verbose=verbose)
+                        # If a match is found,
+                        if len(jdx) > 0:
+                            field_star_row = self.field_index[jdx]
+                            field_star = SkyCoord( field_star_row['ra'], field_star_row['dec'],
+                                                frame='icrs', unit=(units.deg, units.deg) )
+
+                            # Check separation is below match threshold
+                            (star_matches, separation) = self.check_separation(dataset_star, field_star,
+                                                        params['separation_threshold'])
+
+                            #print(star_matches, separation)
+
+                            # If so, add to the match index
+                            if star_matches:
+                                matched_stars = self.add_to_match_index(field_star_row, dataset_star_row,
+                                                        separation, matched_stars, log,
+                                                        verbose=verbose)
+                            check_against_full_index = False
+
+                        else:
+                            log.info(' --> No matching Gaia ID found')
+                            check_against_full_index = True
+
+                    if verbose:
+                        log.info(' --> Check against full field index? '+str(check_against_full_index))
+
+                    # If no Gaia ID is available, or if no matching ID is found,
+                    # check the star against the rest of the field index:
+                    if check_against_full_index:
+                        jdx = -1
+                        while(jdx < len(self.field_index)-1 and not star_matches):
+                            #for jdx in range(0,len(self.field_index),1):
+                            jdx += 1
+                            field_star_row = self.field_index[jdx]
+                            #print('Full index: ',field_star_row)
+                            field_star = SkyCoord( field_star_row['ra'], field_star_row['dec'],
+                                                frame='icrs', unit=(units.deg, units.deg) )
+
+                            (star_matches, separation) = self.check_separation(dataset_star, field_star,
+                                                        params['separation_threshold'])
+
+                            if star_matches:
+                                matched_stars = self.add_to_match_index(field_star_row, dataset_star_row,
+                                                        separation, matched_stars, log,
+                                                        verbose=verbose)
+
+                                if verbose:
+                                    log.info(' ---> Matches field star: '+str(field_star_row['field_id'])+' '+str(field_star_row['ra'])+' '+str(field_star_row['dec']))
+                                    log.info(' ---> match output: '+repr(star_matches)+' '+repr(separation))
+
+                    # Orphans: If we get to here and still have no matching star in
+                    # the field_index, then this dataset has detected a star not found
+                    # in the field's primary reference or other datasets.
+                    if not star_matches:
+                        orphans = self.add_to_orphans(dataset_star_row, orphans, log, verbose=verbose)
+
 
         return matched_stars, orphans
 
@@ -182,7 +210,8 @@ class CrossMatchTable():
 
     def add_to_match_index(self,field_star, star, separation, matched_stars, log,
                         verbose=False):
-        #print('Field: ', field_star)
+        """Expects field_star and star to be Table rows"""
+        #print('Field: ', field_star['field_id'])
         #print('Dataset: ', star)
         #print('Separation: ', separation)
 
