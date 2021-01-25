@@ -81,7 +81,7 @@ def search_vizier_for_sources(ra, dec, radius, catalog, row_limit=-1,
     if len(result) == 1:
         col_list = []
         for col_id, col_name in cat_col_dict.items():
-            print(col_id, colname)
+            print(col_id, col_name)
             col = table.Column(name=col_name, data=result[0][col_id].data)
             col_list.append(col)
 
