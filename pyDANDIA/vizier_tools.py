@@ -76,9 +76,12 @@ def search_vizier_for_sources(ra, dec, radius, catalog, row_limit=-1,
 
     (status, result) = query_vizier_servers(v, c, r, [cat_id], debug=debug)
 
+    print(result[0])
+    print(result[0].colnames)
     if len(result) == 1:
         col_list = []
         for col_id, col_name in cat_col_dict.items():
+            print(col_id, colname)
             col = table.Column(name=col_name, data=result[0][col_id].data)
             col_list.append(col)
 
