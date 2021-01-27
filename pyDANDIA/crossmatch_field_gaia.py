@@ -5,6 +5,8 @@ from pyDANDIA import logs
 from pyDANDIA import metadata
 from pyDANDIA import match_utils
 from pyDANDIA import vizier_tools
+from astropy import units as u
+from astropy.coordinates import SkyCoord
 
 def crossmatch_field_with_gaia_DR():
 
@@ -13,21 +15,23 @@ def crossmatch_field_with_gaia_DR():
     log = logs.start_stage_log( params['log_dir'], 'crossmatch_gaia' )
 
     xmatch = crossmatch.CrossMatchTable()
-    xmatch.load(params['file_path'],log=log)
+    xmatch.load(params['crossmatch_file'],log=log)
 
     log.info('Searching Vizier for data from '+params['gaia_dr']+' within '+\
             repr(params['search_radius'])+' of '+params['ra']+', '+params['dec'])
-    gaia_data = search_vizier_for_sources(ra, dec, params['search_radius'], params['gaia_dr'])
+    gaia_data = vizier_tools.search_vizier_for_sources(params['ra'], params['dec'],
+                                    params['search_radius'], params['gaia_dr'],
+                                    debug=True)
     log.info('Vizier reports '+str(len(gaia_data))+' entries in '+params['gaia_dr']+' catalogue')
 
     xmatch.match_field_index_with_gaia_catalog(gaia_data, params, log)
 
-    xmatch.save(params['file_path'])
+    xmatch.save(params['crossmatch_file'])
 
     log.info('Crossmatch: complete')
 
     logs.close_log(log)
-    
+
 def get_args():
 
     params = {}
@@ -45,8 +49,9 @@ def get_args():
         params['separation_threshold'] = argv[5]
 
     params['log_dir'] = path.dirname(params['crossmatch_file'])
-    # Default FOV for ROME (LCO/Sinistro cameras)
-    params['search_radius'] = 0.62 * u.debug
+    # Default FOV for ROME (LCO/Sinistro cameras) in arcmin as expected by
+    # Vizier query
+    params['search_radius'] = 0.62 * 60.0
 
     return params
 

@@ -160,10 +160,10 @@ def starfind(setup, path_to_image, reduction_metadata, plot_it=False,
         besty1 = 1
         besty2 = ymax
 
-    #mean, median, std = sigma_clipped_stats(scidata[1:ymax, 1:xmax], sigma=3.0, maxiters=5)
+    mean, median, std = sigma_clipped_stats(scidata[1:ymax, 1:xmax], sigma=3.0, maxiters=5)
     # Evaluate mean, median and standard deviation for the selected subregion
-    mean, median, std = sigma_clipped_stats(scidata[besty1:besty2, bestx1:bestx2],
-                                            sigma=3.0, maxiters=5)
+    #mean, median, std = sigma_clipped_stats(scidata[besty1:besty2, bestx1:bestx2],
+    #                                        sigma=3.0, maxiters=5)
 
     if log is not None:
         log.info(' -> Measured mean, median std for image: '+str(mean)+', '+\
@@ -174,7 +174,7 @@ def starfind(setup, path_to_image, reduction_metadata, plot_it=False,
     #import pdb; pdb.set_trace()
 
     sources = daofind(scidata[besty1:besty2,bestx1:bestx2] - median)
-    
+
     # Write steps to a log file
     if log != None:
         log.info("Identifying sources on image %s ...\n" % path_to_image.split('/')[-1])

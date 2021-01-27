@@ -246,7 +246,7 @@ class CrossMatchTable():
         for j in range(0,len(matched_stars.cat1_index),1):
             jfield = np.where(self.field_index['field_id'] == matched_stars.cat1_index[j])
             row = self.field_index[jfield]
-            row[dataset_code+'_index'] = matched_stars.cat2_index[j]
+            row[dataset_code+'_index'] = matched_stars.cat2_index[j]    # Cat 2 star ID NOT index
             self.field_index[jfield] = row
             log.info(repr(row))
 
@@ -256,11 +256,11 @@ class CrossMatchTable():
         ncol = len(self.field_index.colnames)
         dataset_col = self.field_index.colnames.index(dataset_code+'_index')
         for j in range(0,len(orphans.cat2_index),1):
-            jfield = len(self.field_index) + 1
-            jdataset = orphans.cat2_index[j]
+            jfield = len(self.field_index) + 1      # Becomes new star ID NOT index
+            jdataset = orphans.cat2_index[j] - 1    # Converts cat 2 star ID to index
             gaia_id =  dataset_metadata.star_catalog[1][int(jdataset)]['gaia_source_id']
             row = [jfield, orphans.cat2_ra[j], orphans.cat2_dec[j], gaia_id] + [0]*(ncol-4)
-            row[dataset_col] = orphans.cat2_index[j]
+            row[dataset_col] = orphans.cat2_index[j]    # Star ID in dataset
             self.field_index.add_row(row)
             log.info(repr(row)+' dataset star '+str(j))
 
@@ -321,12 +321,13 @@ class CrossMatchTable():
 
         hdu_list = fits.open(file_path, mmap=True)
         table_data = []
-        for col in hdu_list[0].columns.names:
+        for col in hdu_list[1].columns.names:
             table_data.append( Column(hdu_list[1].data[col], name=col) )
         self.field_index = Table( table_data )
 
-        for col in hdu_list[1].columns.names:
-            table_data.append( Column(hdu_list[1].data[col], name=col) )
+        table_data = []
+        for col in hdu_list[2].columns.names:
+            table_data.append( Column(hdu_list[2].data[col], name=col) )
         self.datasets = Table( table_data )
 
         if log:
