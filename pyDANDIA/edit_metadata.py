@@ -176,3 +176,5 @@ if __name__ == '__main__':
         update_software_table(red_dir)
     elif opt == '7':
         remove_table(red_dir)
+    elif opt == '8':
+        change_reduction_dir(red_dir)
