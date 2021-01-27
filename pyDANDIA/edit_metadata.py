@@ -136,11 +136,12 @@ def change_reduction_dir(red_dir):
     reduction_metadata = metadata.MetaData()
     reduction_metadata.load_all_metadata(red_dir, 'pyDANDIA_metadata.fits')
 
-    reduction_metadata.update_a_cell_to_layer('data_architecture', 0, 'output_directory', new_red_dir)
-    reduction_metadata.update_a_cell_to_layer('data_architecture', 0, 'images_path', os.path.join(new_red_dir,'data'))
-    reduction_metadata.update_a_cell_to_layer('data_architecture', 0, 'ref_path', os.path.join(new_red_dir,'ref'))
-    reduction_metadata.update_a_cell_to_layer('data_architecture', 0, 'kernel_path', os.path.join(new_red_dir,'kernel'))
-    reduction_metadata.update_a_cell_to_layer('data_architecture', 0, 'diffim_path', os.path.join(new_red_dir,'diffim'))
+    print(reduction_metadata.data_architecture[1])
+    reduction_metadata.update_a_cell_to_layer('data_architecture', 0, 'OUTPUT_DIRECTORY', new_red_dir)
+    reduction_metadata.update_a_cell_to_layer('data_architecture', 0, 'IMAGES_PATH', os.path.join(new_red_dir,'data'))
+    reduction_metadata.update_a_cell_to_layer('data_architecture', 0, 'REF_PATH', os.path.join(new_red_dir,'ref'))
+    reduction_metadata.update_a_cell_to_layer('data_architecture', 0, 'KERNEL_PATH', os.path.join(new_red_dir,'kernel'))
+    reduction_metadata.update_a_cell_to_layer('data_architecture', 0, 'DIFFIM_PATH', os.path.join(new_red_dir,'diffim'))
 
     reduction_metadata.save_updated_metadata(red_dir,'pyDANDIA_metadata.fits')
 
