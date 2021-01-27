@@ -136,14 +136,31 @@ def remove_table(red_dir):
 if __name__ == '__main__':
     if len(sys.argv) == 1:
         red_dir = input('Please enter the path to the reduction directory: ')
+        print("""Main menu:
+                Modify reduction status table        1
+                Modify reduction parameters          2
+                Modify headers summary               3
+                Restore PSF dimensions table         4
+                Edit image reduction status          5
+                Update software table                6
+                Remove a table                       7
+                Cancel                               Any other key""")
+        opt = input('Please select an option: ')
     else:
         red_dir = sys.argv[1]
+        opt = sys.argv[2]
 
-    #modify_red_status_table(red_dir)
-    #modify_reduction_parameters(red_dir)
-    #modify_headers_summary(red_dir)
-    #restore_psf_dimensions_table(red_dir)
-    #edit_image_reduction_status(red_dir)
-    #update_software_table(red_dir)
-
-    #remove_table(red_dir)
+    if opt == '1':
+        modify_red_status_table(red_dir)
+    elif opt == '2':
+        modify_reduction_parameters(red_dir)
+    elif opt == '3':
+        modify_headers_summary(red_dir)
+    elif opt == '4':
+        restore_psf_dimensions_table(red_dir)
+    elif opt == '5':
+        edit_image_reduction_status(red_dir)
+    elif opt == '6':
+        update_software_table(red_dir)
+    elif opt == '7':
+        remove_table(red_dir)
