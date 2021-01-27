@@ -136,7 +136,6 @@ def change_reduction_dir(red_dir):
     reduction_metadata = metadata.MetaData()
     reduction_metadata.load_all_metadata(red_dir, 'pyDANDIA_metadata.fits')
 
-    print(reduction_metadata.data_architecture[1])
     reduction_metadata.update_a_cell_to_layer('data_architecture', 0, 'OUTPUT_DIRECTORY', new_red_dir)
     reduction_metadata.update_a_cell_to_layer('data_architecture', 0, 'IMAGES_PATH', os.path.join(new_red_dir,'data'))
     reduction_metadata.update_a_cell_to_layer('data_architecture', 0, 'REF_PATH', os.path.join(new_red_dir,'ref'))
