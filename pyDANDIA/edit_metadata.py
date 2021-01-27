@@ -98,13 +98,9 @@ def update_software_table(red_dir):
 
 def remove_table(red_dir):
 
-    if len(sys.argv) == 3:
-        table_names = sys.argv[2]
-    else:
-        table_names = input('Please enter the name of the table extension to remove (comma-separated, no spaces): ')
+    table_names = input('Please enter the name of the table extension to remove (comma-separated, no spaces): ')
 
     table_names = table_names.split(',')
-    print(table_names)
 
     reduction_metadata = metadata.MetaData()
     reduction_metadata.load_all_metadata(red_dir, 'pyDANDIA_metadata.fits')
