@@ -129,6 +129,21 @@ def remove_table(red_dir):
 
     print('Output revised metadata')
 
+def change_reduction_dir(red_dir):
+
+    new_red_dir = input('Please enter the new reduction directory path: ')
+
+    reduction_metadata = metadata.MetaData()
+    reduction_metadata.load_all_metadata(red_dir, 'pyDANDIA_metadata.fits')
+
+    reduction_metadata.update_a_cell_to_layer('data_architecture', 0, 'output_directory', new_red_dir)
+    reduction_metadata.update_a_cell_to_layer('data_architecture', 0, 'images_path', os.path.join(new_red_dir,'data'))
+    reduction_metadata.update_a_cell_to_layer('data_architecture', 0, 'ref_path', os.path.join(new_red_dir,'ref'))
+    reduction_metadata.update_a_cell_to_layer('data_architecture', 0, 'kernel_path', os.path.join(new_red_dir,'kernel'))
+    reduction_metadata.update_a_cell_to_layer('data_architecture', 0, 'diffim_path', os.path.join(new_red_dir,'diffim'))
+
+    reduction_metadata.save_updated_metadata(red_dir,'pyDANDIA_metadata.fits')
+
 if __name__ == '__main__':
     if len(sys.argv) == 1:
         red_dir = input('Please enter the path to the reduction directory: ')
@@ -140,6 +155,7 @@ if __name__ == '__main__':
                 Edit image reduction status          5
                 Update software table                6
                 Remove a table                       7
+                Change a reduction directory         8
                 Cancel                               Any other key""")
         opt = input('Please select an option: ')
     else:
