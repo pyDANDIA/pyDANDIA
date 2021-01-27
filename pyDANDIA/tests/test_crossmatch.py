@@ -4,6 +4,7 @@ from pyDANDIA import crossmatch_datasets
 from pyDANDIA import match_utils
 from pyDANDIA import metadata
 from pyDANDIA import logs
+from astropy.table import Table
 import numpy as np
 
 def test_params():
@@ -123,35 +124,18 @@ def test_save():
     assert(path.isfile(params['file_path']))
 
 def test_load():
-    params = {'primary_ref_dir': '/Users/rstreet1/OMEGA/test_data/primary_ref_dataset/',
-              'primary_ref_filter': 'ip',
-              'red_dir_list': [ '/Users/rstreet1/OMEGA/test_data/non_ref_dataset/' ],
-              'red_dataset_filters': [ 'rp' ],
-              'file_path': 'data/crossmatch_table.fits'}
-
+    params = test_params()
+    test_save()
+    
     xmatch = crossmatch.CrossMatchTable()
     xmatch.load(params['file_path'])
 
     assert(xmatch.datasets != None)
-    assert(len(xmatch.matched_stars) > 0)
-
-    matched_stars = xmatch.matched_stars[0]
-    p = {'cat1_index': 1,
-         'cat1_ra': 270.0,
-         'cat1_dec': -18.0,
-         'cat1_x': 1000.0,
-         'cat1_y': 1000.0,
-         'cat2_index': 1,
-         'cat2_ra': 270.0,
-         'cat2_dec': -18.0,
-         'cat2_x': 1000.0,
-         'cat2_y': 1000.0,
-         'separation': 0.0}
-
-    matched_stars.add_match(p)
-    xmatch.matched_stars[0] = matched_stars
-
-    xmatch.save(params['file_path'])
+    assert(xmatch.field_index != None)
+    assert(type(xmatch.datasets) == type(Table())
+    assert(type(xmatch.field_index) == type(Table())
+    assert(len(xmatch.datasets) > 0)
+    assert(len(xmatch.field_index) > 0)
 
 def test_init_field_index():
     params = test_params()
@@ -200,7 +184,7 @@ if __name__ == '__main__':
     #test_create()
 #    test_add_dataset()
 #    test_dataset_index()
-    test_save()
-#    test_load()
+    #test_save()
+    test_load()
     #test_init_field_index()
-    test_update_field_index()
+    #test_update_field_index()

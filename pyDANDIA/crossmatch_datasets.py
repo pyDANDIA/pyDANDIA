@@ -16,7 +16,8 @@ def build_crossmatch_table(params):
     log = logs.start_stage_log( params['log_dir'], 'crossmatch' )
 
     xmatch = crossmatch.CrossMatchTable()
-
+    xmatch.gaia_dr = params['gaia_dr']
+    
     params = parse_dataset_list(params,log)
 
     xmatch.create(params)
@@ -25,11 +26,14 @@ def build_crossmatch_table(params):
     # Load the star catalog from the primary dataset's metadata:
     primary_metadata = metadata.MetaData()
     primary_metadata.load_all_metadata(xmatch.primary_ref_dir, 'pyDANDIA_metadata.fits')
+
+    filter_id = find_dataset_filter(primary_metadata)
+    did = np.where(xmatch.datasets['dataset_code'] == xmatch.primary_ref_code)[0][0]
+    xmatch.datasets[did]['dataset_filter'] = filter_id
     log.info('Loaded primary reference metadata from '+xmatch.primary_ref_dir)
 
     # Initialize the field index with the primary reference catalogue
-    # XXXX LIMITED XXXX
-    xmatch.init_field_index(primary_metadata)
+    xmatch.init_field_index(primary_metadata, filter_id)
     log.info('Initialized new field index from the primary reference catalogue')
 
     # Loop over all other datasets
@@ -41,41 +45,26 @@ def build_crossmatch_table(params):
             setup = pipeline_setup.PipelineSetup()
             setup.red_dir = dataset_info[1]
 
-        # Fetch the index of the current dataset in the table, or create an
-        # empty table for a new dataset being added to an existing table
-        #dataset_idx = xmatch.dataset_index(red_dir)
-        #if dataset_idx == -1:
-        #    dataset_idx = xmatch.add_dataset(red_dir, params['red_dataset_filters'][i])
-        #    log.info('Added '+path.basename(red_dir)+' to the crossmatch table')
-        #log.info('Index of dataset in crossmatch table: '+str(dataset_idx))
-
             dataset_metadata = metadata.MetaData()
             dataset_metadata.load_all_metadata(setup.red_dir, 'pyDANDIA_metadata.fits')
             log.info('Loaded dataset metadata')
 
-            dataset_info[-1] = find_dataset_filter(dataset_metadata)
-            params[dataset_code] = dataset_info
+            filter_id = find_dataset_filter(dataset_metadata)
+            did = np.where(xmatch.datasets['dataset_code'] == dataset_code)[0][0]
+            xmatch.datasets[did]['dataset_filter'] = filter_id
 
-            # XXXX LIMITED XXXX
             (matched_stars,orphans) = xmatch.match_dataset_with_field_index(dataset_metadata,
                                                                       params, log)
 
-        #(transform_xy,transform_sky) = calc_transform_to_primary_ref(setup,matched_stars,log)
-
-        # Output the matched_stars table to the dataset's own metadata:
+            # Output the matched_stars table to the dataset's own metadata:
             dataset_metadata.create_matched_stars_layer(matched_stars)
-        #dataset_metadata.create_transform_layer(transform_xy)
             dataset_metadata.save_a_layer_to_file(setup.red_dir,
                                                 'pyDANDIA_metadata.fits',
                                                 'matched_stars', log)
-        #dataset_metadata.save_a_layer_to_file(red_dir,
-        #                                    'pyDANDIA_metadata.fits',
-        #                                    'transformation', log)
 
-        # Update the field index with the matched stars data and the orphans
-            xmatch.matched_stars[dataset_code] = matched_stars
-            xmatch.orphans[dataset_code] = orphans
-            xmatch.update_field_index(dataset_code,matched_stars, orphans, dataset_metadata, log)
+            # Update the field index with the matched stars data and the orphans
+            xmatch.update_field_index(dataset_code, matched_stars, orphans,
+                                      dataset_metadata, log)
 
             log.info('Finished crossmatch for '+dataset_code)
 
@@ -167,10 +156,12 @@ def get_args():
         params['datasets_file'] = input('Please enter the path to the dataset list: ')
         params['separation_threshold'] = input('Please enter the maximum allowed separation in arcsec: ')
         params['file_path'] = input('Please enter the path to the crossmatch table: ')
+        params['gaia_dr'] = input('Please enter Gaia data release used for dataset astrometry: ')
     else:
         params['datasets_file'] = argv[1]
         params['separation_threshold'] = float(argv[2])
         params['file_path'] = argv[3]
+        params['gaia_dr'] = argv[4]
 
     params['log_dir'] = path.dirname(params['file_path'])
 

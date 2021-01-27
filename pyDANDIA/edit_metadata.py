@@ -3,6 +3,8 @@ import sys
 from pyDANDIA import metadata
 from astropy.io import fits
 import numpy as np
+import copy
+import shutil
 
 def modify_red_status_table(red_dir):
 
@@ -94,6 +96,43 @@ def update_software_table(red_dir):
 
     reduction_metadata.save_updated_metadata(red_dir,'pyDANDIA_metadata.fits')
 
+def remove_table(red_dir):
+
+    if len(sys.argv) == 3:
+        table_names = sys.argv[2]
+    else:
+        table_names = input('Please enter the name of the table extension to remove (comma-separated, no spaces): ')
+
+    table_names = table_names.split(',')
+    print(table_names)
+
+    reduction_metadata = metadata.MetaData()
+    reduction_metadata.load_all_metadata(red_dir, 'pyDANDIA_metadata.fits')
+
+    meta2 = copy.deepcopy(reduction_metadata)
+    shutil.move(os.path.join(red_dir, 'pyDANDIA_metadata.fits'),os.path.join(red_dir, 'pyDANDIA_metadata.fits.old'))
+
+    for table in table_names:
+        meta2.remove_metadata_layer(table, red_dir, 'pyDANDIA_metadata.fits')
+
+    # This re-writes the file because the metadata's built-in function
+    # does not remove a table - it can only update the contents of an existing
+    # table
+    hdulist = [fits.PrimaryHDU()]
+    all_layers = meta2.__dict__.keys()
+    for key_layer in all_layers:
+        layer = getattr(meta2, key_layer)
+        if layer != [None, None]:
+            update_layer = fits.BinTableHDU(layer[1], header=layer[0])
+            update_layer.name = update_layer.header['name']
+            hdulist.append(update_layer)
+
+    hdulist = fits.HDUList(hdulist)
+    hdulist.writeto(os.path.join(red_dir, 'pyDANDIA_metadata.fits'),
+                     overwrite=True)
+
+    print('Output revised metadata')
+
 if __name__ == '__main__':
     if len(sys.argv) == 1:
         red_dir = input('Please enter the path to the reduction directory: ')
@@ -105,4 +144,6 @@ if __name__ == '__main__':
     #modify_headers_summary(red_dir)
     #restore_psf_dimensions_table(red_dir)
     #edit_image_reduction_status(red_dir)
-    update_software_table(red_dir)
+    #update_software_table(red_dir)
+
+    #remove_table(red_dir)

@@ -24,11 +24,12 @@ class StarMatchIndex:
         self.separation = []
         self.n_match = 0
 
-    def add_match(self,params, log=None, verbose=False):
+    def add_match(self,params, log=None, verbose=False, replace_worse_matches=True):
 
         add_star = True
 
-        add_star = self.remove_worse_matches(params,log=log)
+        if replace_worse_matches:
+            add_star = self.remove_worse_matches(params,log=log)
 
         if add_star:
             for key, value in params.items():
@@ -44,6 +45,8 @@ class StarMatchIndex:
             if log!=None:
                 log.info('Star '+str(params['cat1_index'])+'='+str(params['cat2_index'])+' added to matched stars index')
 
+        return add_star
+        
     def check_for_duplicates(self,params, log=None):
 
         duplicates = {'cat1_index': [], 'cat2_index': []}
