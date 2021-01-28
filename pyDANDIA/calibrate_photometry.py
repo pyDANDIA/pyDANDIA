@@ -129,7 +129,7 @@ def get_args():
         if '-use-gaia-phot' in a or '-use_gaia_phot' in a:
             params['use_gaia_phot'] = True
         if '-set-phot-calib' in a or '-set_phot_calib' in a:
-            params['set_phot_calib'] =
+            params['set_phot_calib'] = True
         if '-a0' in a:
             params['a0'] = float(str(a).split('=')[-1])
         if '-a1' in a:
