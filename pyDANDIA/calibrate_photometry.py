@@ -128,7 +128,13 @@ def get_args():
     for a in sys.argv:
         if '-use-gaia-phot' in a or '-use_gaia_phot' in a:
             params['use_gaia_phot'] = True
-
+        if '-set_phot_calib' in a or '-set-phot-calib' in a:
+            params['set_phot_calib'] = True
+        if '-a0' in a:
+            params['a0'] = float(str(a).split('=')[-1])
+        if '-a1' in a:
+            params['a1'] = float(str(a).split('=')[-1])
+            
     return params
 
 def assign_parameters(setup,cl_params,log):
