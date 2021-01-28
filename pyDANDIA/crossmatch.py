@@ -19,6 +19,7 @@ class CrossMatchTable():
         self.primary_ref_filter = None
         self.gaia_dr = None
         self.datasets = Table()
+        self.gaia_data = Table()
 
     def create(self, params):
         xmatch = fits.HDUList()
@@ -57,6 +58,29 @@ class CrossMatchTable():
 
         self.datasets = Table(dataset_columns)
         self.field_index = Table(field_index_columns)
+
+    def init_gaia_data_table(self):
+
+        columns = [Column(name='field_id', data=[], dtype='int'),
+                   Column(name='gaia_source_id', data=[], dtype='S19'),
+                   Column(name='ra', data=[], dtype='float'),
+                   Column(name='ra_error', data=[], dtype='float'),
+                   Column(name='dec', data=[], dtype='float'),
+                   Column(name='dec_error', data=[], dtype='float'),
+                   Column(name='phot_g_mean_flux', data=[], dtype='float'),
+                   Column(name='phot_g_mean_flux_error', data=[], dtype='float'),
+                   Column(name='phot_bp_mean_flux', data=[], dtype='float'),
+                   Column(name='phot_bp_mean_flux_error', data=[], dtype='float'),
+                   Column(name='phot_rp_mean_flux', data=[], dtype='float'),
+                   Column(name='phot_rp_mean_flux_error', data=[], dtype='float'),
+                   Column(name='proper_motion', data=[], dtype='float'),
+                   Column(name='pm_ra', data=[], dtype='float'),
+                   Column(name='pm_ra_error', data=[], dtype='float'),
+                   Column(name='pm_dec', data=[], dtype='float'),
+                   Column(name='pm_dec_error', data=[], dtype='float'),
+                   Column(name='parallax', data=[], dtype='float'),
+                   Column(name='parallax_error', data=[], dtype='float')]
+        self.gaia_data = Table(columns)
 
     def add_dataset_header(self, dataset_idx, dataset_code, dataset_info):
 
@@ -153,6 +177,9 @@ class CrossMatchTable():
     def match_field_index_with_gaia_catalog(self, gaia_data, params, log):
         log.info('Matching field index against Gaia data')
 
+        self.gaia_dr = params['gaia_dr']
+        self.init_gaia_data_table()
+
         matched_stars = match_utils.StarMatchIndex()
 
         field_stars = SkyCoord(self.field_index['ra'], self.field_index['dec'],
@@ -160,17 +187,19 @@ class CrossMatchTable():
         gaia_stars = SkyCoord(gaia_data['ra'], gaia_data['dec'],
                             frame='icrs', unit=(units.deg, units.deg) )
 
-        (field_idx, separations2D, separations3D) = dataset_stars.match_to_catalog_3d(field_stars)
+        (field_idx, separations2D, separations3D) = gaia_stars.match_to_catalog_3d(field_stars)
 
         constraint = separations2D < params['separation_threshold']
         matching_gaia_index = np.arange(0,len(gaia_data),1)[constraint]
         matching_field_index = field_idx[constraint]
+        separations = separations2D[constraint]
+        log.info(str(len(matching_field_index))+' matches found between Gaia sources and detected field stars')
 
         for j,jgaia in enumerate(matching_gaia_index):
             jfield = matching_field_index[j]
             p = {'cat1_index': jfield,          # Index NOT target ID
-                 'cat1_ra': field_stars['ra'][jfield],
-                 'cat1_dec': field_stars['dec'][jfield],
+                 'cat1_ra': self.field_index['ra'][jfield],
+                 'cat1_dec': self.field_index['dec'][jfield],
                  'cat1_x': 0.0,
                  'cat1_y': 0.0,
                  'cat2_index': int(gaia_data['source_id'][jgaia]),  # Source ID
@@ -178,16 +207,37 @@ class CrossMatchTable():
                  'cat2_dec': gaia_data['dec'][jgaia],
                  'cat2_x': 0.0,
                  'cat2_y': 0.0,
-                 'separation': separation.value}
+                 'separation': separations[j]}
 
             star_added = matched_stars.add_match(p, log=log, verbose=True)
+            if self.gaia_dr == 'Gaia-EDR3':
+                self.gaia_data.add_row( [jfield, int(gaia_data['source_id'][jgaia]),
+                                    gaia_data['ra'][jgaia], gaia_data['ra_error'][jgaia],
+                                    gaia_data['dec'][jgaia], gaia_data['dec_error'][jgaia],
+                                    gaia_data['phot_g_mean_flux'][jgaia], gaia_data['phot_g_mean_flux_error'][jgaia],
+                                    gaia_data['phot_bp_mean_flux'][jgaia], gaia_data['phot_bp_mean_flux_error'][jgaia],
+                                    gaia_data['phot_rp_mean_flux'][jgaia], gaia_data['phot_rp_mean_flux_error'][jgaia],
+                                    gaia_data['proper_motion'][jgaia],
+                                    gaia_data['pm_ra'][jgaia], gaia_data['pm_ra_error'][jgaia],
+                                    gaia_data['pm_dec'][jgaia], gaia_data['pm_dec_error'][jgaia],
+                                    gaia_data['parallax'][jgaia], gaia_data['parallax_error'][jgaia]] )
+            else:
+                self.gaia_data.add_row( [jfield, int(gaia_data['source_id'][jgaia]),
+                                    gaia_data['ra'][jgaia], gaia_data['ra_error'][jgaia],
+                                    gaia_data['dec'][jgaia], gaia_data['dec_error'][jgaia],
+                                    gaia_data['phot_g_mean_flux'][jgaia], gaia_data['phot_g_mean_flux_error'][jgaia],
+                                    gaia_data['phot_bp_mean_flux'][jgaia], gaia_data['phot_bp_mean_flux_error'][jgaia],
+                                    gaia_data['phot_rp_mean_flux'][jgaia], gaia_data['phot_rp_mean_flux_error'][jgaia],
+                                    0.0,
+                                    0.0,0.0,
+                                    0.0,0.0,
+                                    0.0,0.0] )
 
         for j in range(0,matched_stars.n_match,1):
             self.field_index['gaia_source_id'][matched_stars.cat1_index[j]] = str(matched_stars.cat2_index[j])
 
         log.info('Matched '+str(matched_stars.n_match)+' Gaia targets to stars in field index')
 
-        self.gaia_dr = params['gaia_dr']
 
     def check_separation(self,dataset_star, field_star, separation_threshold,log):
         separation = dataset_star.separation(field_star)
@@ -288,7 +338,8 @@ class CrossMatchTable():
 
         hdu_list = [fits.PrimaryHDU(header=hdr),
                     fits.BinTableHDU(self.field_index, name='FIELD_INDEX'),
-                    fits.BinTableHDU(self.datasets, name='DATASETS')]
+                    fits.BinTableHDU(self.datasets, name='DATASETS'),
+                    fits.BinTableHDU(self.gaia_data, name='GAIA_DATA')]
         hdu_list = fits.HDUList(hdu_list)
         hdu_list.writeto(file_path, overwrite=True)
 

@@ -17,7 +17,7 @@ def build_crossmatch_table(params):
 
     xmatch = crossmatch.CrossMatchTable()
     xmatch.gaia_dr = params['gaia_dr']
-    
+
     params = parse_dataset_list(params,log)
 
     xmatch.create(params)
@@ -154,7 +154,7 @@ def get_args():
 
     if len(argv) < 4:
         params['datasets_file'] = input('Please enter the path to the dataset list: ')
-        params['separation_threshold'] = input('Please enter the maximum allowed separation in arcsec: ')
+        params['separation_threshold'] = float(input('Please enter the maximum allowed separation in arcsec: '))
         params['file_path'] = input('Please enter the path to the crossmatch table: ')
         params['gaia_dr'] = input('Please enter Gaia data release used for dataset astrometry: ')
     else:
