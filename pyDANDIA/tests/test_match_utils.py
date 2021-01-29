@@ -5,34 +5,51 @@ sys.path.append(os.path.join(cwd,'../'))
 import match_utils
 import numpy as np
 import logs
+import copy
 
 def test_add_match():
+    log = logs.start_stage_log( cwd, 'test_match_utils' )
 
     nstars = 10
 
     matched_stars = match_utils.StarMatchIndex()
     for j in range(1,nstars+1,1):
         star = {'cat1_index': j,
-                'cat1_ra': 260.0, 'cat1_dec': -19.0, 'cat1_x': j, 'cat1_y': j,
+                'cat1_ra': 260.0+(j*0.1), 'cat1_dec': -19.0+(j*0.1), 'cat1_x': j+(j*0.1), 'cat1_y': j+(j*0.1),
                 'cat2_index': j,
-                'cat2_ra': 260.0, 'cat2_dec': -19.0, 'cat2_x': j, 'cat2_y': j,
+                'cat2_ra': 260.0+(j*0.1), 'cat2_dec': -19.0+(j*0.1), 'cat2_x': j+(j*0.1), 'cat2_y': j+(j*0.1),
                 'separation': 0.1}
-        matched_stars.add_match(star)
+        matched_stars.add_match(star, log=log)
 
-    assert matched_stars.n_match == nstars
+    assert(matched_stars.n_match == nstars)
 
+    print('Initial match index')
+    for j in range(0,matched_stars.n_match,1):
+        print(j,matched_stars.cat1_index[j], matched_stars.cat1_ra[j], matched_stars.cat1_dec[j],
+                matched_stars.cat2_index[j], matched_stars.cat2_ra[j], matched_stars.cat2_dec[j],matched_stars.separation[j])
+
+    # Testing addition of a duplicate
     new_star_id = 1
     new_separation = 0.01
     new_star = {'cat1_index': new_star_id,
             'cat1_ra': 260.0, 'cat1_dec': -19.0, 'cat1_x': j, 'cat1_y': j,
-            'cat2_index': new_star_id,
+            'cat2_index': nstars+1,
             'cat2_ra': 260.0, 'cat2_dec': -19.0, 'cat2_x': j, 'cat2_y': j,
             'separation': new_separation}
-    matched_stars.add_match(new_star)
+    print('Duplicate star: ',new_star)
+    matched_stars.add_match(new_star, log=log, verbose=True)
 
+    print('Second match index')
+    for j in range(0,matched_stars.n_match,1):
+        print(j,matched_stars.cat1_index[j], matched_stars.cat1_ra[j], matched_stars.cat1_dec[j],
+                matched_stars.cat2_index[j], matched_stars.cat2_ra[j], matched_stars.cat2_dec[j],matched_stars.separation[j])
+
+    print(matched_stars.n_match, nstars)
     assert matched_stars.n_match == nstars
     idx = matched_stars.cat1_index.index(new_star_id)
     assert matched_stars.separation[idx] == new_separation
+
+    logs.close_log(log)
 
 def test_find_starlist_match_index():
 
@@ -200,8 +217,55 @@ def test_filter_duplicates():
 
     logs.close_log(log)
 
+def test_remove_worse_matches():
+    log = logs.start_stage_log( cwd, 'test_match_utils' )
+
+    nstars = 10
+    matched_stars = build_test_matched_stars_index(nstars, log)
+
+    print('Initialized matched_stars index:')
+    print(matched_stars.summary())
+
+    test_match = {'cat1_index': 1,
+                'cat1_ra': 260.0, 'cat1_dec': -19.0, 'cat1_x': 25.0, 'cat1_y': 25.0,
+                'cat2_index': 7,
+                'cat2_ra': 260.0, 'cat2_dec': -19.0, 'cat2_x': 25.0, 'cat2_y': 25.0,
+                'separation': 0.01}
+    print('Proposing test match: ', test_match)
+
+    matched_stars.remove_worse_matches(test_match,log=log)
+
+    print('After duplicate removal:')
+    print(matched_stars.summary())
+
+    # The test_match catalog 1 index should not be in cat1_index and
+    # the test_match catalog 2 index should not be in cat2_index
+    assert 1 not in matched_stars.cat1_index
+    assert 7 not in matched_stars.cat2_index
+
+    matched_stars = build_test_matched_stars_index(nstars, log)
+    matched_stars.separation[5] = 0.005
+    test_match = {'cat1_index': 6,
+                'cat1_ra': 260.0, 'cat1_dec': -19.0, 'cat1_x': 25.0, 'cat1_y': 25.0,
+                'cat2_index': 7,
+                'cat2_ra': 260.0, 'cat2_dec': -19.0, 'cat2_x': 25.0, 'cat2_y': 25.0,
+                'separation': 0.01}
+    print('Proposing test match: ', test_match)
+
+    matched_stars.remove_worse_matches(test_match,log=log)
+
+    print('After duplicate removal:')
+    print(matched_stars.summary())
+
+    # The proposed match is worse than the existing match so the separation
+    # should remain the same as the match should have been rejected
+    assert matched_stars.separation[5] == 0.005
+    
+    logs.close_log(log)
+
 if __name__ == '__main__':
 
     #test_find_starlist_match_index()
     #test_add_match()
-    test_filter_duplicates()
+    #test_filter_duplicates()
+    test_remove_worse_matches()

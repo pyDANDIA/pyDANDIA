@@ -174,7 +174,7 @@ def starfind(setup, path_to_image, reduction_metadata, plot_it=False,
     #import pdb; pdb.set_trace()
 
     sources = daofind(scidata[besty1:besty2,bestx1:bestx2] - median)
-    
+
     # Write steps to a log file
     if log != None:
         log.info("Identifying sources on image %s ...\n" % path_to_image.split('/')[-1])

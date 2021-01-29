@@ -29,7 +29,7 @@ from pyDANDIA import  utilities
 from pyDANDIA import  image_handling
 from skimage.transform import AffineTransform
 
-VERSION = 'pyDANDIA_reference_astrometry_v0.2'
+VERSION = 'pyDANDIA_reference_astrometry_v0.3'
 
 def run_reference_astrometry(setup, **kwargs):
     """Driver function to perform the object detection and astrometric analysis
