@@ -367,19 +367,19 @@ class CrossMatchTable():
     def load(self,file_path, log=None):
         """Method to load an existing crossmatch table"""
 
+        def load_binary_table(hdu_list, hdu_index):
+            table_data = []
+            for col in hdu_list[hdu_index].columns.names:
+                table_data.append( Column(hdu_list[hdu_index].data[col], name=col) )
+            return Table( table_data )
+
         if not path.isfile(file_path):
             raise IOError('Cannot find cross-match table at '+file_path)
 
         hdu_list = fits.open(file_path, mmap=True)
-        table_data = []
-        for col in hdu_list[1].columns.names:
-            table_data.append( Column(hdu_list[1].data[col], name=col) )
-        self.field_index = Table( table_data )
-
-        table_data = []
-        for col in hdu_list[2].columns.names:
-            table_data.append( Column(hdu_list[2].data[col], name=col) )
-        self.datasets = Table( table_data )
+        self.field_index = load_binary_table(hdu_list, 1)
+        self.datasets = load_binary_table(hdu_list, 2)
+        self.gaia_data = load_binary_table(hdu_list, 3)
 
         if log:
             log.info('Loaded crossmatch table from '+file_path)
