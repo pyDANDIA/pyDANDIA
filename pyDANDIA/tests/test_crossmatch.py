@@ -114,10 +114,18 @@ def test_save():
     xmatch = crossmatch.CrossMatchTable()
     xmatch.create(params)
 
-    xmatch.matched_stars[0] = test_matched_stars()
-    xmatch.orphans[0] = test_orphans()
-    row = [1, 250.0, -27.5, '4062470305390987584', 1, 0, 0, 0]
+    row = [1, 250.0, -27.5, 1, 1, '4062470305390987584', 1, 0, 0, 0]
     xmatch.field_index.add_row(row)
+
+    row = [1, 'cpt1m010-fl16-20170720-0104-e91.fits', 'i', 2456655.5000]
+    xmatch.images.add_row(row)
+
+    row = [1, 256.5, -27.2, \
+            17.0, 0.02, 16.7, 0.02, 16.0, 0.02, \
+            17.0, 0.02, 16.7, 0.02, 16.0, 0.02, \
+            17.0, 0.02, 16.7, 0.02, 16.0, 0.02, \
+            '4062470305390987584', 256.5, 0.001, -27.2, 0.001] + [0.0]*13
+    xmatch.stars.add_row(row)
 
     xmatch.save(params['file_path'])
 
@@ -126,14 +134,14 @@ def test_save():
 def test_load():
     params = test_params()
     test_save()
-    
+
     xmatch = crossmatch.CrossMatchTable()
     xmatch.load(params['file_path'])
 
     assert(xmatch.datasets != None)
     assert(xmatch.field_index != None)
-    assert(type(xmatch.datasets) == type(Table())
-    assert(type(xmatch.field_index) == type(Table())
+    assert(type(xmatch.datasets) == type(Table()))
+    assert(type(xmatch.field_index) == type(Table()))
     assert(len(xmatch.datasets) > 0)
     assert(len(xmatch.field_index) > 0)
 
@@ -161,7 +169,7 @@ def test_update_field_index():
     log = logs.start_stage_log( params['log_dir'], 'test_crossmatch' )
     xmatch = crossmatch.CrossMatchTable()
     xmatch.create(params)
-    row = [1, 250.0, -27.5, '4062470305390987584', 1, 0, 0, 0]
+    row = [1, 250.0, -27.5, 1, 1, '4062470305390987584', 1, 0, 0, 0]
     xmatch.field_index.add_row(row)
     dataset_code = 'dataset0'
     matched_stars = test_matched_stars()
@@ -180,11 +188,43 @@ def test_update_field_index():
 
     logs.close_log(log)
 
+def test_assign_quadrants():
+    params = test_params()
+    log = logs.start_stage_log( params['log_dir'], 'test_crossmatch' )
+    xmatch = crossmatch.CrossMatchTable()
+    xmatch.create(params)
+    row = [1, 250.0, -27.5, 0, 0, '4062470305390987584', 1, 0, 0, 0]
+    xmatch.field_index.add_row(row)
+
+    xmatch.assign_stars_to_quadrants()
+
+    assert(xmatch.field_index['quadrant'][0] != 0)
+    assert(xmatch.field_index['quadrant_id'][0] != 0)
+
+    logs.close_log(log)
+
+def test_cone_search():
+
+    params = test_params()
+    log = logs.start_stage_log( params['log_dir'], 'test_crossmatch' )
+
+    xmatch = crossmatch.CrossMatchTable()
+    xmatch.create(params)
+    row = [1, 250.0, -27.5, 1, 1, '4062470305390987584', 1, 0, 0, 0]
+    xmatch.field_index.add_row(row)
+
+    idx = xmatch.cone_search(250.0, -27.5, 2.0, log=log)
+    print(idx)
+    assert(len(idx) == 1)
+    logs.close_log(log)
+
 if __name__ == '__main__':
     #test_create()
 #    test_add_dataset()
 #    test_dataset_index()
     #test_save()
-    test_load()
+    #test_load()
     #test_init_field_index()
     #test_update_field_index()
+    #test_assign_quadrants()
+    test_cone_search()

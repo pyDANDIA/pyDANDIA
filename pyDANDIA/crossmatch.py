@@ -19,7 +19,8 @@ class CrossMatchTable():
         self.primary_ref_filter = None
         self.gaia_dr = None
         self.datasets = Table()
-        self.gaia_data = Table()
+        self.stars = Table()
+        self.images = Table()
 
     def create(self, params):
         xmatch = fits.HDUList()
@@ -32,6 +33,8 @@ class CrossMatchTable():
         field_index_columns = [Column(name='field_id', data=[], dtype='int'),
                     Column(name='ra', data=[], dtype='float'),
                     Column(name='dec', data=[], dtype='float'),
+                    Column(name='quadrant', data=[], dtype='int'),
+                    Column(name='quadrant_id', data=[], dtype='int'),
                     Column(name='gaia_source_id', data=[], dtype='S19'),
                     Column(name=pref+'_index', data=[], dtype='int')]
 
@@ -56,31 +59,58 @@ class CrossMatchTable():
                      Column(name='dataset_filter', data=filters, dtype='S8'),
                      Column(name='primary_ref',data=pref_index, dtype='int')]
 
+        stars_columns = [  Column(name='field_id', data=[], dtype='int'),
+                            Column(name='ra', data=[], dtype='float'),
+                            Column(name='dec', data=[], dtype='float'),
+                            Column(name='cal_g_mag_lsc_doma', data=[], dtype='float'),
+                            Column(name='cal_g_magerr_lsc_doma', data=[], dtype='float'),
+                            Column(name='cal_r_mag_lsc_doma', data=[], dtype='float'),
+                            Column(name='cal_r_magerr_lsc_doma', data=[], dtype='float'),
+                            Column(name='cal_i_mag_lsc_doma', data=[], dtype='float'),
+                            Column(name='cal_i_magerr_lsc_doma', data=[], dtype='float'),
+
+                            Column(name='cal_g_mag_cpt_doma', data=[], dtype='float'),
+                            Column(name='cal_g_magerr_cpt_doma', data=[], dtype='float'),
+                            Column(name='cal_r_mag_cpt_doma', data=[], dtype='float'),
+                            Column(name='cal_r_magerr_cpt_doma', data=[], dtype='float'),
+                            Column(name='cal_i_mag_cpt_doma', data=[], dtype='float'),
+                            Column(name='cal_i_magerr_cpt_doma', data=[], dtype='float'),
+
+                            Column(name='cal_g_mag_coj_doma', data=[], dtype='float'),
+                            Column(name='cal_g_magerr_coj_doma', data=[], dtype='float'),
+                            Column(name='cal_r_mag_coj_doma', data=[], dtype='float'),
+                            Column(name='cal_r_magerr_coj_doma', data=[], dtype='float'),
+                            Column(name='cal_i_mag_coj_doma', data=[], dtype='float'),
+                            Column(name='cal_i_magerr_coj_doma', data=[], dtype='float'),
+
+                           Column(name='gaia_source_id', data=[], dtype='S19'),
+                           Column(name='gaia_ra', data=[], dtype='float'),
+                           Column(name='gaia_ra_error', data=[], dtype='float'),
+                           Column(name='gaia_dec', data=[], dtype='float'),
+                           Column(name='gaia_dec_error', data=[], dtype='float'),
+                           Column(name='phot_g_mean_flux', data=[], dtype='float'),
+                           Column(name='phot_g_mean_flux_error', data=[], dtype='float'),
+                           Column(name='phot_bp_mean_flux', data=[], dtype='float'),
+                           Column(name='phot_bp_mean_flux_error', data=[], dtype='float'),
+                           Column(name='phot_rp_mean_flux', data=[], dtype='float'),
+                           Column(name='phot_rp_mean_flux_error', data=[], dtype='float'),
+                           Column(name='proper_motion', data=[], dtype='float'),
+                           Column(name='pm_ra', data=[], dtype='float'),
+                           Column(name='pm_ra_error', data=[], dtype='float'),
+                           Column(name='pm_dec', data=[], dtype='float'),
+                           Column(name='pm_dec_error', data=[], dtype='float'),
+                           Column(name='parallax', data=[], dtype='float'),
+                           Column(name='parallax_error', data=[], dtype='float')]
+
+        image_columns = [  Column(name='index', data=[], dtype='int'),
+                            Column(name='filename', data=[], dtype='S80'),
+                            Column(name='filter', data=[], dtype='S10'),
+                            Column(name='hjd', data=[], dtype='float')]
+
         self.datasets = Table(dataset_columns)
         self.field_index = Table(field_index_columns)
-
-    def init_gaia_data_table(self):
-
-        columns = [Column(name='field_id', data=[], dtype='int'),
-                   Column(name='gaia_source_id', data=[], dtype='S19'),
-                   Column(name='ra', data=[], dtype='float'),
-                   Column(name='ra_error', data=[], dtype='float'),
-                   Column(name='dec', data=[], dtype='float'),
-                   Column(name='dec_error', data=[], dtype='float'),
-                   Column(name='phot_g_mean_flux', data=[], dtype='float'),
-                   Column(name='phot_g_mean_flux_error', data=[], dtype='float'),
-                   Column(name='phot_bp_mean_flux', data=[], dtype='float'),
-                   Column(name='phot_bp_mean_flux_error', data=[], dtype='float'),
-                   Column(name='phot_rp_mean_flux', data=[], dtype='float'),
-                   Column(name='phot_rp_mean_flux_error', data=[], dtype='float'),
-                   Column(name='proper_motion', data=[], dtype='float'),
-                   Column(name='pm_ra', data=[], dtype='float'),
-                   Column(name='pm_ra_error', data=[], dtype='float'),
-                   Column(name='pm_dec', data=[], dtype='float'),
-                   Column(name='pm_dec_error', data=[], dtype='float'),
-                   Column(name='parallax', data=[], dtype='float'),
-                   Column(name='parallax_error', data=[], dtype='float')]
-        self.gaia_data = Table(columns)
+        self.stars = Table(stars_columns)
+        self.images = Table(image_columns)
 
     def add_dataset_header(self, dataset_idx, dataset_code, dataset_info):
 
@@ -113,7 +143,7 @@ class CrossMatchTable():
         ncol = len(self.field_index.colnames)
 
         for star in metadata.star_catalog[1]:
-            self.field_index.add_row( [star['index'], star['ra'], star['dec'], star['gaia_source_id'], star['index']]+([0]*(ncol-5)) )
+            self.field_index.add_row( [star['index'], star['ra'], star['dec'], 0, 0, star['gaia_source_id'], star['index']]+([0]*(ncol-7)) )
 
     def match_dataset_with_field_index(self, dataset_metadata, params, log,
                                     verbose=True):
@@ -178,7 +208,6 @@ class CrossMatchTable():
         log.info('Matching field index against Gaia data')
 
         self.gaia_dr = params['gaia_dr']
-        self.init_gaia_data_table()
 
         matched_stars = match_utils.StarMatchIndex()
 
@@ -211,7 +240,7 @@ class CrossMatchTable():
 
             star_added = matched_stars.add_match(p, log=log, verbose=True)
             if self.gaia_dr == 'Gaia-EDR3':
-                self.gaia_data.add_row( [jfield, int(gaia_data['source_id'][jgaia]),
+                self.stars.add_row( [jfield] + [0.0]*20 + [int(gaia_data['source_id'][jgaia]),
                                     gaia_data['ra'][jgaia], gaia_data['ra_error'][jgaia],
                                     gaia_data['dec'][jgaia], gaia_data['dec_error'][jgaia],
                                     gaia_data['phot_g_mean_flux'][jgaia], gaia_data['phot_g_mean_flux_error'][jgaia],
@@ -222,7 +251,7 @@ class CrossMatchTable():
                                     gaia_data['pm_dec'][jgaia], gaia_data['pm_dec_error'][jgaia],
                                     gaia_data['parallax'][jgaia], gaia_data['parallax_error'][jgaia]] )
             else:
-                self.gaia_data.add_row( [jfield, int(gaia_data['source_id'][jgaia]),
+                self.stars.add_row( [jfield] + [0.0]*20 + [int(gaia_data['source_id'][jgaia]),
                                     gaia_data['ra'][jgaia], gaia_data['ra_error'][jgaia],
                                     gaia_data['dec'][jgaia], gaia_data['dec_error'][jgaia],
                                     gaia_data['phot_g_mean_flux'][jgaia], gaia_data['phot_g_mean_flux_error'][jgaia],
@@ -309,7 +338,7 @@ class CrossMatchTable():
             jfield = len(self.field_index) + 1      # Becomes new star ID NOT index
             jdataset = orphans.cat2_index[j] - 1    # Converts cat 2 star ID to index
             gaia_id =  dataset_metadata.star_catalog[1][int(jdataset)]['gaia_source_id']
-            row = [jfield, orphans.cat2_ra[j], orphans.cat2_dec[j], gaia_id] + [0]*(ncol-4)
+            row = [jfield, orphans.cat2_ra[j], orphans.cat2_dec[j], 0, 0, gaia_id] + [0]*(ncol-6)
             row[dataset_col] = orphans.cat2_index[j]    # Star ID in dataset
             self.field_index.add_row(row)
             log.info(repr(row)+' dataset star '+str(j))
@@ -329,17 +358,50 @@ class CrossMatchTable():
 
         return idx
 
+    def assign_stars_to_quadrants(self):
+        """Function to assign stars to quadrants of the field pointing,
+        based on sky position.  This will be used to identify stars in the
+        full-field photometry tables, which would be too large to handle if
+        the entire field was stored in a single file"""
+
+        field_stars = SkyCoord(self.field_index['ra'], self.field_index['dec'],
+                            frame='icrs', unit=(units.deg, units.deg) )
+
+        ra_range = (field_stars.ra.min(), field_stars.ra.max())
+        dra = (ra_range[1] - ra_range[0])/2.0
+        dec_range = (field_stars.dec.min(), field_stars.dec.max())
+        ddec = (dec_range[1] - dec_range[0])/2.0
+
+        quadrants = {1: [ra_range[0], ra_range[0]+dra, dec_range[0], dec_range[0]+ddec],
+                     2: [ra_range[0]+dra, ra_range[1], dec_range[0], dec_range[0]+ddec],
+                     3: [ra_range[0]+dra, ra_range[1], dec_range[0]+ddec, dec_range[1]],
+                     4: [ra_range[0], ra_range[0]+dra, dec_range[0]+ddec, dec_range[1]]}
+
+        nstars_quadrants = [0,0,0,0]
+
+        for j in range(0,len(self.field_index),1):
+            star = self.field_index[j]
+
+            for q, quad_data in quadrants.items():
+                if field_stars[j].ra >= quad_data[0] and field_stars[j].ra <= quad_data[1] \
+                    and field_stars[j].dec >= quad_data[2] and field_stars[j].dec <= quad_data[3]:
+                    nstars_quadrants[q-1] += 1
+                    star['quadrant'] = q
+                    star['quadrant_id'] = nstars_quadrants[q-1]
+                    self.field_index[j] = star
+
     def save(self, file_path):
         """Output crossmatch table to file"""
         hdr = fits.Header()
-        hdr['NAME'] = 'Crossmatch table'
+        hdr['NAME'] = 'Field crossmatch table'
         hdr['PRIREFID'] = self.primary_ref_code
         hdr['GAIA_DR'] = self.gaia_dr
 
         hdu_list = [fits.PrimaryHDU(header=hdr),
                     fits.BinTableHDU(self.field_index, name='FIELD_INDEX'),
                     fits.BinTableHDU(self.datasets, name='DATASETS'),
-                    fits.BinTableHDU(self.gaia_data, name='GAIA_DATA')]
+                    fits.BinTableHDU(self.stars, name='STARS'),
+                    fits.BinTableHDU(self.images, name='IMAGES')]
         hdu_list = fits.HDUList(hdu_list)
         hdu_list.writeto(file_path, overwrite=True)
 
@@ -377,9 +439,35 @@ class CrossMatchTable():
             raise IOError('Cannot find cross-match table at '+file_path)
 
         hdu_list = fits.open(file_path, mmap=True)
+        self.gaia_dr = hdu_list[0].header['GAIA_DR']
         self.field_index = load_binary_table(hdu_list, 1)
         self.datasets = load_binary_table(hdu_list, 2)
-        self.gaia_data = load_binary_table(hdu_list, 3)
+        self.stars = load_binary_table(hdu_list, 3)
+        self.images = load_binary_table(hdu_list, 4)
 
         if log:
             log.info('Loaded crossmatch table from '+file_path)
+
+    def cone_search(self, ra_centre, dec_centre, radius, log=None, debug=False):
+        """Method to perform a cone search on the field index for all objects
+        within the search radius (in arcsec) of the (ra_center, dec_centre)
+        given"""
+
+        starlist = SkyCoord(self.field_index['ra'], self.field_index['dec'],
+                            frame='icrs', unit=(units.deg,units.deg))
+
+        target = SkyCoord(params['ra_centre'], params['dec_centre'],
+                            frame='icrs', unit=(units.deg,units.deg))
+
+        separations = target.separation(starlist)
+
+        idx = np.where(separations.value <= radius/3600.0)
+
+        results = self.field_index[idx]
+
+        if debug and len(idx[0]) == 0:
+            print('Nearest closest star: ')
+            idx = np.where(separations.value <= separations.value.min())
+            print(self.field_index['field_id'][idx], self.field_index['ra'][idx], self.field_index['dec'][idx], separations[idx])
+
+        return results
