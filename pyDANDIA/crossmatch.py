@@ -104,6 +104,7 @@ class CrossMatchTable():
 
         image_columns = [  Column(name='index', data=[], dtype='int'),
                             Column(name='filename', data=[], dtype='S80'),
+                            Column(name='dataset_code', data=[], dtype='S80'),
                             Column(name='filter', data=[], dtype='S10'),
                             Column(name='hjd', data=[], dtype='float')]
 
