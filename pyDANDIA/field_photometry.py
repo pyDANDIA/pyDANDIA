@@ -71,16 +71,74 @@ def parse_sloan_filter_ids(filter_name):
 
     return new_filter_name
 
+def build_array_index(array_indices, verbose=False):
+    """Function to construct the multi-dimensional array location index from
+    arrays indicating the selection to be made in each of the dimensions.
+
+    array_indices  list of np.arrays or list of lists
+    """
+
+    # Total number of entries in all of the output selection index elements
+    nentries = len(array_indices[0])
+    for array in array_indices[1:]:
+        nentries *= len(array)
+
+    if verbose:
+        print('Nentries = ',nentries,' based on input array indices of length:')
+        [print(len(array)) for array in array_indices]
+
+    index = []
+
+    for axis in range(0,len(array_indices),1):
+        index.append(np.zeros(nentries, dtype='int'))
+
+        if axis+1 < len(array_indices):
+            nrepeat = len(array_indices[axis+1])
+            for i in range(axis+2,len(array_indices),1):
+                nrepeat *= len(array_indices[i])
+                if verbose: print('nrepeat*= ',nrepeat, i, len(array_indices[i]))
+            if verbose: print('Axis: ',axis,' nrepeat: ',nrepeat)
+
+        else:
+            nrepeat = 1
+
+        istart = 0
+        iend = istart + nrepeat
+        while iend <= nentries:
+            for entry in array_indices[axis]:
+                index[axis][istart:iend].fill(entry)
+                if verbose: print('Loop: ',istart, iend, entry,' axis: ',axis)
+                istart = iend
+                iend = istart + nrepeat
+
+    if verbose: print(index)
+    return tuple(index)
+
 def populate_photometry_array(field_star_index, dataset_star_index,
                                 dataset_image_index, photometry, dataset_photometry,
                                 xmatch, log):
 
+    ndata = len(dataset_photometry[0,:,0])
     # hjd, instrumental_mag, instrumental_mag_err, calibrated_mag, calibrated_mag_err, corrected_mag, corrected_mag_err
-    photometry[field_star_index,:,0][:,dataset_image_index] = dataset_photometry[dataset_star_index,:,9]
-    photometry[field_star_index,:,1][:,dataset_image_index] = dataset_photometry[dataset_star_index,:,11]
-    photometry[field_star_index,:,2][:,dataset_image_index] = dataset_photometry[dataset_star_index,:,12]
-    photometry[field_star_index,:,3][:,dataset_image_index] = dataset_photometry[dataset_star_index,:,13]
-    photometry[field_star_index,:,4][:,dataset_image_index] = dataset_photometry[dataset_star_index,:,14]
+    phot_index = build_array_index([field_star_index, dataset_image_index,[0]])
+    data_index = build_array_index([dataset_star_index, np.arange(0,ndata,1), [9]])
+    photometry[phot_index] = dataset_photometry[data_index]
+
+    phot_index = build_array_index([field_star_index, dataset_image_index,[1]])
+    data_index = build_array_index([dataset_star_index, np.arange(0,ndata,1), [11]])
+    photometry[phot_index] = dataset_photometry[data_index]
+
+    phot_index = build_array_index([field_star_index, dataset_image_index,[2]])
+    data_index = build_array_index([dataset_star_index, np.arange(0,ndata,1), [12]])
+    photometry[phot_index] = dataset_photometry[data_index]
+
+    phot_index = build_array_index([field_star_index, dataset_image_index,[3]])
+    data_index = build_array_index([dataset_star_index, np.arange(0,ndata,1), [13]])
+    photometry[phot_index] = dataset_photometry[data_index]
+
+    phot_index = build_array_index([field_star_index, dataset_image_index,[4]])
+    data_index = build_array_index([dataset_star_index, np.arange(0,ndata,1), [14]])
+    photometry[phot_index] = dataset_photometry[data_index]
 
     # Also update the images table with the timestamp data:
     xmatch.images['hjd'][dataset_image_index] = dataset_photometry[0,:,9]

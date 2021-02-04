@@ -213,12 +213,45 @@ def test_populate_photometry_array():
     (xmatch, photometry) = field_photometry.populate_photometry_array(field_array_idx, dataset_array_idx,
                                     dataset_image_idx, photometry, dataset_photometry, xmatch, log)
 
+    for i,iimage in enumerate(dataset_image_idx):
+        assert(xmatch.images['hjd'][iimage] == dataset_photometry[0,i,9])
+
+    for j in field_array_idx:
+        for i,iimage in enumerate(dataset_image_idx):
+            assert( photometry[j,iimage,0] == dataset_photometry[dataset_array_idx[j],i,9])
+            assert( photometry[j,iimage,3] == dataset_photometry[dataset_array_idx[j],i,13])
+            assert( photometry[j,iimage,4] == dataset_photometry[dataset_array_idx[j],i,14])
 
     logs.close_log(log)
 
+def test_build_array_index_3D():
+
+    idx1 = [1, 2]
+    idx2 = [0, 1, 2]
+    nentries = len(idx1)*len(idx2)
+
+    index = field_photometry.build_array_index([idx1, idx2])
+
+    assert( [type(idx) == type(np.zeros(1)) for idx in index] )
+    assert( [len(idx) == nentries for idx in index])
+    assert( (index[0] == np.array([1,1,1,2,2,2]) ).all() )
+    assert( (index[1] == np.array([0,1,2,0,1,2]) ).all() )
+
+    idx1 = [ 3, 4, 5 ]
+    idx2 = [ 0, 1 ]
+    idx3 = [ 2, 7, 9 ]
+    nentries = len(idx1)*len(idx2)*len(idx3)
+
+    index = field_photometry.build_array_index([idx1, idx2, idx3])
+
+    assert( [type(idx) == type(np.zeros(1)) for idx in index] )
+    assert( (index[0] == np.array([3,3,3,3,3,3,4,4,4,4,4,4,5,5,5,5,5,5]) ).all() )
+    assert( (index[1] == np.array([0,0,0,1,1,1,0,0,0,1,1,1,0,0,0,1,1,1]) ).all() )
+    assert( (index[2] == np.array([2,7,9,2,7,9,2,7,9,2,7,9,2,7,9,2,7,9]) ).all() )
 
 if __name__ == '__main__':
     #test_init_field_data_table()
     #test_populate_images_table()
     #test_populate_stars_table()
     test_populate_photometry_array()
+    #test_build_array_index_3D()
