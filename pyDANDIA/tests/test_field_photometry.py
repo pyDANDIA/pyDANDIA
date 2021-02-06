@@ -5,6 +5,8 @@ from pyDANDIA import logs
 from pyDANDIA import metadata
 from astropy.table import Table, Column
 from astropy.io import fits
+import h5py
+from os import path
 
 def test_params():
     params = {'primary_ref': 'ROME-FIELD-01_lsc-doma-1m0-05-fa15_ip',
@@ -43,8 +45,8 @@ def test_star_catalog(meta):
 
     nstars = 11
     star_catalog = np.zeros((nstars,37))
-    star_catalog[0] = [1, 346.7463278676221, 0.31769726490029015, 267.61861696019145, -29.829605383706895, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0E10, 0.0, 0.0, 0.0, 4056436121079692160, 267.6188626384401, 8.781465530395508, -29.829782879978076, 7.436490535736084, 286.91259765625, 2.5169389247894287, -9999.999, -9999.999, -9999.999, -9999.999, None, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0E10]
-    star_catalog[1] = [2, 1017.3340457345882, 8.379706811851744, 267.70228408545813, -29.83032824102953, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0E10, 0.0, 0.0, 0.0, None, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, None, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0E10]
+    #star_catalog[0] = [1, 346.7463278676221, 0.31769726490029015, 267.61861696019145, -29.829605383706895, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0E10, 0.0, 0.0, 0.0, 4056436121079692160, 267.6188626384401, 8.781465530395508, -29.829782879978076, 7.436490535736084, 286.91259765625, 2.5169389247894287, -9999.999, -9999.999, -9999.999, -9999.999, None, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0E10]
+    #star_catalog[1] = [2, 1017.3340457345882, 8.379706811851744, 267.70228408545813, -29.83032824102953, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0E10, 0.0, 0.0, 0.0, None, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, None, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0E10]
     star_catalog[2] = [3, 3301.8400837300433, 11.255029683618215, 267.9873108673885, -29.829734325692858, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0E10, 0.0, 0.0, 0.0, 4056444539267431040, 267.98727887564667, 0.045853544026613235, -29.829912824096596, 0.03865557536482811, 23195.255859375, 10.54239273071289, 11357.7841796875, 28.62028694152832, 18024.580078125, 40.84840774536133, None, 267.98729, -29.82988, 15.5, 0.0, 14.619999885559082, 0.0, 13.989999771118164, 0.0, 0.0, 1.0E10]
     star_catalog[3] = [4, 3070.9685725169215, 12.842726035986505, 267.9585073984874, -29.83002538112054, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0E10, 0.0, 0.0, 0.0, 4056444878525743616, 267.95849533448626, 0.12481509894132614, -29.830130309157735, 0.1085614413022995, 7796.68701171875, 9.380874633789062, 783.80517578125, 17.880268096923828, 13934.6943359375, 136.3885955810547, None, 267.95851, -29.83011, 20.25, 0.029999999329447746, 16.850000381469727, 0.009999999776482582, 14.739999771118164, 0.009999999776482582, 0.0, 1.0E10]
     star_catalog[4] = [5, 3101.7435341021883, 12.21388380362664, 267.9623466389135, -29.82994179424344, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0E10, 0.0, 0.0, 0.0, 4056444917224603904, 267.9623198050811, 0.22476719319820404, -29.830078194809662, 0.18630900979042053, 11072.041015625, 46.79934310913086, 1684.195068359375, 49.38384246826172, 19294.3125, 126.06063079833984, None, 267.96233, -29.83006, 19.600000381469727, 0.019999999552965164, 16.270000457763672, 0.009999999776482582, 14.380000114440918, 0.009999999776482582, 0.0, 1.0E10]
@@ -204,6 +206,17 @@ def test_populate_photometry_array():
     (xmatch, dataset_image_idx) = field_photometry.populate_images_table(xmatch.datasets[0], meta, xmatch, log)
     dataset_photometry = test_dataset_timeseries_photometry(meta, xmatch)
 
+    # Create the dataset_photometry as an HDF5 object
+    file_path = path.join(params['log_dir'],'test.hdf5')
+    with h5py.File(file_path, "w") as f:
+        dataset_photometry = f.create_dataset('dataset_photometry',
+                                    dataset_photometry.shape,
+                                    dtype='float64',
+                                    data=dataset_photometry)
+    f.close()
+    f = h5py.File(file_path, "r")
+    dataset_photometry = f['dataset_photometry']
+
     (xmatch, field_array_idx, dataset_array_idx) = field_photometry.populate_stars_table(xmatch.datasets[0],xmatch,meta,log)
 
     # Can be initialized only after the images and stars tables have been
@@ -218,6 +231,8 @@ def test_populate_photometry_array():
 
     for j in field_array_idx:
         for i,iimage in enumerate(dataset_image_idx):
+            print('Phot array: ',photometry[j,iimage,0])
+            print('Dataset: ',dataset_photometry[dataset_array_idx[j],i,9])
             assert( photometry[j,iimage,0] == dataset_photometry[dataset_array_idx[j],i,9])
             assert( photometry[j,iimage,3] == dataset_photometry[dataset_array_idx[j],i,13])
             assert( photometry[j,iimage,4] == dataset_photometry[dataset_array_idx[j],i,14])
@@ -249,9 +264,21 @@ def test_build_array_index_3D():
     assert( (index[1] == np.array([0,0,0,1,1,1,0,0,0,1,1,1,0,0,0,1,1,1]) ).all() )
     assert( (index[2] == np.array([2,7,9,2,7,9,2,7,9,2,7,9,2,7,9,2,7,9]) ).all() )
 
+def test_update_array_col_index():
+
+    nentries = 10
+    index = (np.arange(0,nentries,1), np.arange(0,nentries,1), np.arange(0,nentries,1))
+    print(index)
+    new_col_value = 4
+    new_index = field_photometry.update_array_col_index(index, new_col_value)
+    print(new_index)
+
+    assert((new_index[2] == new_col_value).all())
+
 if __name__ == '__main__':
     #test_init_field_data_table()
     #test_populate_images_table()
     #test_populate_stars_table()
-    test_populate_photometry_array()
+    #test_populate_photometry_array()
     #test_build_array_index_3D()
+    test_update_array_col_index()

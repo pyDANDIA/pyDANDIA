@@ -8,6 +8,7 @@ from pyDANDIA import crossmatch_datasets
 from pyDANDIA import hd5_utils
 from pyDANDIA import pipeline_setup
 from astropy.table import Table, Column
+import pdb
 
 def combine_photometry_from_all_datasets():
 
@@ -19,7 +20,7 @@ def combine_photometry_from_all_datasets():
 
     xmatch = crossmatch.CrossMatchTable()
     xmatch.load(params['crossmatch_file'],log=log)
-
+    xmatch.init_images_table()
 
     for dataset in xmatch.datasets:
         log.info('Populating image and star tables with data from '+dataset['dataset_code'])
@@ -27,18 +28,25 @@ def combine_photometry_from_all_datasets():
         setup.red_dir = dataset['dataset_red_dir']
         dataset_metadata = metadata.MetaData()
         dataset_metadata.load_all_metadata(setup.red_dir, 'pyDANDIA_metadata.fits')
-        phot_data = hd5_utils.read_phot_hd5(setup, log=log)
 
         (xmatch,dataset_image_index) = populate_images_table(dataset,dataset_metadata, xmatch, log)
         (xmatch, field_star_index, dataset_stars_index) = populate_stars_table(dataset,xmatch,dataset_metadata,log)
 
+    # These loops are deliberately separated because it makes it easier to
+    # initialize the photometry array for the whole field to the correct size
     photometry = init_field_data_table(xmatch,log)
     for dataset in xmatch.datasets:
         log.info('Populating timeseries photometry with data from '+dataset['dataset_code'])
+        setup = pipeline_setup.PipelineSetup()
+        setup.red_dir = dataset['dataset_red_dir']
+        phot_data = hd5_utils.read_phot_hd5(setup, log=log, return_type='array')
+        (field_star_index, dataset_stars_index) = get_dataset_star_indices(dataset, xmatch)
+        dataset_image_index = get_dataset_image_index(dataset, xmatch)
         (xmatch,photometry) = populate_photometry_array(field_star_index, dataset_stars_index,
-                                        dataset_image_index, photometry, xmatch, log)
+                                        dataset_image_index, photometry, phot_data, xmatch, log)
 
-    # Output tables to field HDF5 file in quadrants
+    # Output tables to field HDF5 files in quadrants and update the xmatch table
+    xmatch.save(params['crossmatch_file'])
     output_field_photometry(params, xmatch, photometry, log)
 
     log.info('Field photometry: complete')
@@ -47,13 +55,17 @@ def combine_photometry_from_all_datasets():
 
 def output_field_photometry(params, xmatch, photometry, log):
 
+    log.info('Outputting field photometry, array shape: '+repr(photometry.shape))
+
     for q in range(1,5,1):
         setup = pipeline_setup.PipelineSetup()
         setup.red_dir = path.join(path.dirname(params['crossmatch_file']))
         filename = params['field_name']+'_quad'+str(q)+'_photometry.hdf5'
 
         idx = np.where(xmatch.field_index['quadrant'] == q)
+        print(idx)
         quad_phot_data = photometry[idx,:,:]
+        print(quad_phot_data.shape)
 
         hd5_utils.write_phot_hd5(setup, quad_phot_data, log=log,
                                     filename=filename)
@@ -114,37 +126,63 @@ def build_array_index(array_indices, verbose=False):
     if verbose: print(index)
     return tuple(index)
 
+def update_array_col_index(index3d, new_col):
+    """Function to substitute a new array column number into the 3rd index in a
+    3D tuple"""
+
+    new_index = np.zeros(len(index3d[2]), dtype='int')
+    new_index.fill(new_col)
+    new_tuple = (index3d[0], index3d[1], new_index)
+
+    return new_tuple
+
 def populate_photometry_array(field_star_index, dataset_star_index,
                                 dataset_image_index, photometry, dataset_photometry,
                                 xmatch, log):
 
-    ndata = len(dataset_photometry[0,:,0])
     # hjd, instrumental_mag, instrumental_mag_err, calibrated_mag, calibrated_mag_err, corrected_mag, corrected_mag_err
+
+    # Build corresponding 3D array index locators for the whole field photometry
+    # array and the dataset photometry array, and use them to transfer the
+    # timestamp data
+    log.info('Dimensions of field photometry array: '+repr(photometry.shape))
+
+    ndata = len(dataset_photometry[0,:,0])
+    log.info('N datapoints in image data: '+str(ndata)+', len dataset_image_index: '+str(len(dataset_image_index)))
+    log.info('Len field_star_index: '+str(len(field_star_index))+' len dataset_star_index: '+str(len(dataset_star_index)))
     phot_index = build_array_index([field_star_index, dataset_image_index,[0]])
     data_index = build_array_index([dataset_star_index, np.arange(0,ndata,1), [9]])
     photometry[phot_index] = dataset_photometry[data_index]
 
-    phot_index = build_array_index([field_star_index, dataset_image_index,[1]])
-    data_index = build_array_index([dataset_star_index, np.arange(0,ndata,1), [11]])
-    photometry[phot_index] = dataset_photometry[data_index]
-
-    phot_index = build_array_index([field_star_index, dataset_image_index,[2]])
-    data_index = build_array_index([dataset_star_index, np.arange(0,ndata,1), [12]])
-    photometry[phot_index] = dataset_photometry[data_index]
-
-    phot_index = build_array_index([field_star_index, dataset_image_index,[3]])
-    data_index = build_array_index([dataset_star_index, np.arange(0,ndata,1), [13]])
-    photometry[phot_index] = dataset_photometry[data_index]
-
-    phot_index = build_array_index([field_star_index, dataset_image_index,[4]])
-    data_index = build_array_index([dataset_star_index, np.arange(0,ndata,1), [14]])
-    photometry[phot_index] = dataset_photometry[data_index]
+    # Update the array indices to refer to the photometry columns, and
+    # transfer those data as well
+    column_index = [(1,11),(2,12),(3,13),(4,14)]
+    for column in column_index:
+        phot_index = update_array_col_index(phot_index, column[0])
+        data_index = update_array_col_index(data_index, column[1])
+        photometry[phot_index] = dataset_photometry[data_index]
 
     # Also update the images table with the timestamp data:
-    xmatch.images['hjd'][dataset_image_index] = dataset_photometry[0,:,9]
+    for i in range(0,ndata,1):
+        jdx = np.where(dataset_photometry[:,i,9] > 0)[0]
+        if len(jdx) > 0:
+            xmatch.images['hjd'][dataset_image_index[i]] = dataset_photometry[jdx[0],i,9]
 
     log.info('-> Populated photometry array with dataset timeseries photometry')
     return xmatch, photometry
+
+def get_dataset_star_indices(dataset, xmatch):
+
+    field_array_idx = np.where(xmatch.field_index[dataset['dataset_code']+'_index'] > 0)[0]
+    dataset_array_idx = xmatch.field_index[dataset['dataset_code']+'_index'][field_array_idx] - 1
+
+    return field_array_idx, dataset_array_idx
+
+def get_dataset_image_index(dataset, xmatch):
+
+    dataset_image_idx = np.where(xmatch.images['dataset_code'] == dataset['dataset_code'])[0]
+
+    return dataset_image_idx
 
 def populate_stars_table(dataset,xmatch,dataset_metadata,log):
 
@@ -155,14 +193,12 @@ def populate_stars_table(dataset,xmatch,dataset_metadata,log):
         mag_column = 'cal_'+filter_name+'_mag_'+dataset_id
         mag_error_column = 'cal_'+filter_name+'_magerr_'+dataset_id
 
-        idx = np.where(xmatch.field_index[dataset['dataset_code']+'_index'] > 0)
-        dataset_array_idx = xmatch.field_index[dataset['dataset_code']+'_index'][idx] - 1
-        field_array_idx = xmatch.field_index['field_id'][idx] - 1
+        (field_array_idx,dataset_array_idx) = get_dataset_star_indices(dataset,xmatch)
 
         xmatch.stars[mag_column][field_array_idx] = dataset_metadata.star_catalog[1]['cal_ref_mag'][dataset_array_idx]
         xmatch.stars[mag_error_column][field_array_idx] = dataset_metadata.star_catalog[1]['cal_ref_mag_error'][dataset_array_idx]
 
-        log.info('-> Populated stars table with dataset reference image photometry')
+        log.info('-> Populated stars table with '+dataset_id+' reference image photometry for filter '+filter_name)
     else:
         log.info('-> Dataset not used as a reference dataset')
 

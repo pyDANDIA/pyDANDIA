@@ -159,9 +159,21 @@ def test_init_field_index():
         star_catalog[j-1,2] = -17.5
     m.create_star_catalog_layer(data=star_catalog)
 
-    xmatch.init_field_index(m)
+    xmatch.init_field_index(m, 'ip')
 
     assert len(xmatch.field_index) == nstars
+
+def test_init_stars_table():
+    params = test_params()
+    xmatch = crossmatch.CrossMatchTable()
+    xmatch.create(params)
+
+    row = [1, 250.0, -27.5, 1, 1, '4062470305390987584', 1, 0, 0, 0]
+    xmatch.field_index.add_row(row)
+
+    xmatch.init_stars_table()
+
+    assert(len(xmatch.field_index) == len(xmatch.stars))
 
 def test_update_field_index():
 
@@ -227,4 +239,5 @@ if __name__ == '__main__':
     #test_init_field_index()
     #test_update_field_index()
     #test_assign_quadrants()
-    test_cone_search()
+    #test_cone_search()
+    test_init_stars_table()

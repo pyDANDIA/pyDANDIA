@@ -23,7 +23,7 @@ def write_phot_hd5(setup, dataset_phot_data, log=None,
                 ' with '+repr(dataset_phot_data.shape)+\
                 ' datapoints')
 
-def read_phot_hd5(setup,log=None, filename=None):
+def read_phot_hd5(setup,log=None, filename=None, return_type='hdf5'):
     """Function to read an existing dataset photometry table in HD5 format
     Function returns two zero-length arrays if none is available"""
 
@@ -31,7 +31,7 @@ def read_phot_hd5(setup,log=None, filename=None):
         input_path = os.path.join(setup.red_dir,'photometry.hdf5')
     else:
         input_path = os.path.join(setup.red_dir,filename)
-        
+
     if os.path.isfile(input_path):
         f = h5py.File(input_path, "r")
         dset = f['dataset_photometry']
@@ -40,8 +40,10 @@ def read_phot_hd5(setup,log=None, filename=None):
             log.info('Loaded photometry data with '+repr(dset.shape)+\
             ' datapoints')
 
-        return dset
-
+        if return_type == 'hdf5':
+            return dset
+        else:
+            return np.array(dset[:])
     else:
         if log:
             log.info('No existing photometry available to load')

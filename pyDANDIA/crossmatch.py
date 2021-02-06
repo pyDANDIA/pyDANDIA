@@ -59,6 +59,18 @@ class CrossMatchTable():
                      Column(name='dataset_filter', data=filters, dtype='S8'),
                      Column(name='primary_ref',data=pref_index, dtype='int')]
 
+        image_columns = [  Column(name='index', data=[], dtype='int'),
+                            Column(name='filename', data=[], dtype='S80'),
+                            Column(name='dataset_code', data=[], dtype='S80'),
+                            Column(name='filter', data=[], dtype='S10'),
+                            Column(name='hjd', data=[], dtype='float')]
+
+        self.datasets = Table(dataset_columns)
+        self.field_index = Table(field_index_columns)
+        self.init_stars_table()
+        self.init_images_table()
+
+    def init_stars_table(self):
         stars_columns = [  Column(name='field_id', data=[], dtype='int'),
                             Column(name='ra', data=[], dtype='float'),
                             Column(name='dec', data=[], dtype='float'),
@@ -102,15 +114,14 @@ class CrossMatchTable():
                            Column(name='parallax', data=[], dtype='float'),
                            Column(name='parallax_error', data=[], dtype='float')]
 
+        self.stars = Table(stars_columns)
+
+    def init_images_table(self):
         image_columns = [  Column(name='index', data=[], dtype='int'),
                             Column(name='filename', data=[], dtype='S80'),
                             Column(name='dataset_code', data=[], dtype='S80'),
                             Column(name='filter', data=[], dtype='S10'),
                             Column(name='hjd', data=[], dtype='float')]
-
-        self.datasets = Table(dataset_columns)
-        self.field_index = Table(field_index_columns)
-        self.stars = Table(stars_columns)
         self.images = Table(image_columns)
 
     def add_dataset_header(self, dataset_idx, dataset_code, dataset_info):
@@ -240,8 +251,10 @@ class CrossMatchTable():
                  'separation': separations[j]}
 
             star_added = matched_stars.add_match(p, log=log, verbose=True)
+            star = self.stars[jfield-1]
             if self.gaia_dr == 'Gaia-EDR3':
-                self.stars.add_row( [jfield] + [0.0]*20 + [int(gaia_data['source_id'][jgaia]),
+                self.stars[jfield-1] = [star['field_id'], star['ra'], star['dec']] + [0.0]*18 + \
+                                    [int(gaia_data['source_id'][jgaia]),
                                     gaia_data['ra'][jgaia], gaia_data['ra_error'][jgaia],
                                     gaia_data['dec'][jgaia], gaia_data['dec_error'][jgaia],
                                     gaia_data['phot_g_mean_flux'][jgaia], gaia_data['phot_g_mean_flux_error'][jgaia],
@@ -250,9 +263,10 @@ class CrossMatchTable():
                                     gaia_data['proper_motion'][jgaia],
                                     gaia_data['pm_ra'][jgaia], gaia_data['pm_ra_error'][jgaia],
                                     gaia_data['pm_dec'][jgaia], gaia_data['pm_dec_error'][jgaia],
-                                    gaia_data['parallax'][jgaia], gaia_data['parallax_error'][jgaia]] )
+                                    gaia_data['parallax'][jgaia], gaia_data['parallax_error'][jgaia]]
             else:
-                self.stars.add_row( [jfield] + [0.0]*20 + [int(gaia_data['source_id'][jgaia]),
+                self.stars[jfield-1] = [star['field_id'], star['ra'], star['dec']] + [0.0]*18 + \
+                                    [int(gaia_data['source_id'][jgaia]),
                                     gaia_data['ra'][jgaia], gaia_data['ra_error'][jgaia],
                                     gaia_data['dec'][jgaia], gaia_data['dec_error'][jgaia],
                                     gaia_data['phot_g_mean_flux'][jgaia], gaia_data['phot_g_mean_flux_error'][jgaia],
@@ -261,7 +275,7 @@ class CrossMatchTable():
                                     0.0,
                                     0.0,0.0,
                                     0.0,0.0,
-                                    0.0,0.0] )
+                                    0.0,0.0]
 
         for j in range(0,matched_stars.n_match,1):
             self.field_index['gaia_source_id'][matched_stars.cat1_index[j]] = str(matched_stars.cat2_index[j])
@@ -391,6 +405,13 @@ class CrossMatchTable():
                     star['quadrant_id'] = nstars_quadrants[q-1]
                     self.field_index[j] = star
 
+    def init_stars_table(self):
+
+        ncols = len(self.stars.colnames) - 3
+
+        for star in self.field_index:
+            self.stars.add_row( [star['field_id'], star['ra'], star['dec']] + [0.0]*ncols )
+
     def save(self, file_path):
         """Output crossmatch table to file"""
         hdr = fits.Header()
@@ -448,6 +469,19 @@ class CrossMatchTable():
 
         if log:
             log.info('Loaded crossmatch table from '+file_path)
+
+    def locate_stars_in_field_index(self, field_ids):
+        """Method to return the field_index indices of a set of stars based on
+        an input list of field_index identifiers"""
+
+        field_index = []
+        for star_id in field_ids:
+            idx = np.where(self.field_index['field_id'] == star_id)[0]
+            if len(idx) == 1:
+                field_index.append(idx[0])
+            else:
+                field_index.append(None)
+        return field_index
 
     def cone_search(self, ra_centre, dec_centre, radius, log=None, debug=False):
         """Method to perform a cone search on the field index for all objects
