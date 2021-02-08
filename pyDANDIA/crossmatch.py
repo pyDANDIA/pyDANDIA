@@ -483,9 +483,9 @@ class CrossMatchTable():
                 field_index.append(None)
         return field_index
 
-    def cone_search(self, ra_centre, dec_centre, radius, log=None, debug=False):
+    def cone_search(self, params, log=None, debug=False):
         """Method to perform a cone search on the field index for all objects
-        within the search radius (in arcsec) of the (ra_center, dec_centre)
+        within the search radius (in decimal degrees) of the (ra_center, dec_centre)
         given"""
 
         starlist = SkyCoord(self.field_index['ra'], self.field_index['dec'],
@@ -496,13 +496,20 @@ class CrossMatchTable():
 
         separations = target.separation(starlist)
 
-        idx = np.where(separations.value <= radius/3600.0)
-
+        idx = np.where(separations.value <= params['radius'])[0]
         results = self.field_index[idx]
+        results.add_column(separations[idx], name='separation')
+
+        log.info('Identified '+str(len(results))+' candidates within '+str(params['radius'])+\
+                    ' of ('+str(params['ra_centre'])+', '+str(params['dec_centre'])+')')
+        log.info(' '.join(results.colnames))
+        for star in results:
+            log.info(' '.join(str(star[col]) for col in results.colnames))
 
         if debug and len(idx[0]) == 0:
-            print('Nearest closest star: ')
-            idx = np.where(separations.value <= separations.value.min())
-            print(self.field_index['field_id'][idx], self.field_index['ra'][idx], self.field_index['dec'][idx], separations[idx])
+            idx = np.where(separations.value == separations.value.min())
+            if log!=None:
+                log.info('Nearest closest star: ')
+                log.info(self.field_index['field_id'][idx], self.field_index['ra'][idx], self.field_index['dec'][idx], separations[idx])
 
         return results

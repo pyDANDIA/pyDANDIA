@@ -2,7 +2,8 @@ from sys import argv
 from os import getcwd, path
 import numpy as np
 from astropy.coordinates import SkyCoord
-from astropy import units, table
+from astropy import units
+from astropy.table import Table, Column
 from pyDANDIA import hd5_utils
 from pyDANDIA import crossmatch
 from pyDANDIA import logs
@@ -28,14 +29,14 @@ def extract_field_star_lightcurves(params, log=None, format='dat'):
 	else:
 		radius = 2.0
 
-	results = xmatch.cone_search_on_position({'ra_centre': c.ra.deg,
-											  'dec_centre': c.dec.deg,
-											  'radius': radius})
+	results = xmatch.cone_search({'ra_centre': c.ra.deg,
+								  'dec_centre': c.dec.deg,
+								  'radius': radius}, log=log)
 
-	if log != None and len(results['star_id']) == 0:
+	if log != None and len(results) == 0:
 		log.info('No matching objects found')
 
-	if log != None and len(results['star_id']) > 0:
+	if log != None and len(results) > 0:
 		log.info('Extracting lightcurves for the following matching objects')
 
 	for star in results:
@@ -75,7 +76,7 @@ def extract_field_star_lightcurves(params, log=None, format='dat'):
 				log.info('Unrecognized lightcurve format requested ('+str(format)+') no output possible')
 
 			if log!=None:
-				log.info('-> Output dataset '+setname)
+				log.info('-> Output photometry for dataset '+dataset_code+' to '+lc_file)
 
 	message = 'OK'
 	logs.close_log(log)
@@ -84,7 +85,8 @@ def extract_field_star_lightcurves(params, log=None, format='dat'):
 
 def fetch_field_photometry_for_star(params, star, xmatch, log):
 
-	phot_file = params['field_name']+'_quad'+str(star['quadrant'].data)+'_photometry.hdf5')
+	phot_file = params['field_name']+'_quad'+str(star['quadrant'])+'_photometry.hdf5'
+	log.info('Extracting target timeseries photometry from '+phot_file)
 
 	setup = pipeline_setup.PipelineSetup()
 	setup.red_dir = params['phot_dir']
@@ -94,7 +96,7 @@ def fetch_field_photometry_for_star(params, star, xmatch, log):
 	photometry = {}
 
 	for dataset in xmatch.datasets:
-		idx = np.where(xmatch.images['dataset_code'] == dataset['dataset_code'])
+		idx = np.where(xmatch.images['dataset_code'] == dataset['dataset_code'])[0]
 		photometry[dataset['dataset_code']] = Table([ Column(name='hjd', data=quad_phot[star['quadrant_id']-1,idx,0], dtype='float'),
 								Column(name='instrumental_mag', data=quad_phot[star['quadrant_id']-1,idx,1], dtype='float'),
 								Column(name='instrumental_mag_err', data=quad_phot[star['quadrant_id']-1,idx,2], dtype='float'),
@@ -104,7 +106,7 @@ def fetch_field_photometry_for_star(params, star, xmatch, log):
 								Column(name='corrected_mag_err', data=quad_phot[star['quadrant_id']-1,idx,6], dtype='float'),
 								])
 
-		log.info('Identified '+str(len(idx))+' '+f+'-band images with photometry for star '+str(star['field_id']))
+		log.info('-> Extract timeseries photometry for star '+str(star['field_id'])+' from dataset '+dataset['dataset_code'])
 
 	return photometry
 
