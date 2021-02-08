@@ -62,10 +62,8 @@ def output_field_photometry(params, xmatch, photometry, log):
         setup.red_dir = path.join(path.dirname(params['crossmatch_file']))
         filename = params['field_name']+'_quad'+str(q)+'_photometry.hdf5'
 
-        idx = np.where(xmatch.field_index['quadrant'] == q)
-        print(idx)
+        idx = np.where(xmatch.field_index['quadrant'] == q)[0]
         quad_phot_data = photometry[idx,:,:]
-        print(quad_phot_data.shape)
 
         hd5_utils.write_phot_hd5(setup, quad_phot_data, log=log,
                                     filename=filename)
