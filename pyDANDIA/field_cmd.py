@@ -1,13 +1,18 @@
-from sys import path
-from os import argv
+from os import path
+from sys import argv
 from pyDANDIA import analyse_cmd
 from pyDANDIA import config_utils
 from pyDANDIA import  logs
 from pyDANDIA import  crossmatch
 from astropy.coordinates import SkyCoord
 from astropy import units as u
+from astropy.table import Column, Table
+import numpy as np
+import copy
+import matplotlib as mpl
+import matplotlib.pyplot as plt
 
-def plot_field_colour_mag_diagram():
+def field_colour_analysis():
 
     config = get_args()
 
@@ -48,12 +53,12 @@ def plot_field_colour_mag_diagram(config, xmatch, valid_stars, selected_stars,
         marker_colour = field_marker_colour
 
     # Plot selected field stars
-    if not params['plot_selected_radius_only']:
+    if not config['plot_selected_radius_only']:
         plt.scatter(xmatch.stars[colour][valid_stars],xmatch.stars[mag_column][valid_stars],
                  c=marker_colour, marker='.', s=1,
                  label='Stars within field of view')
 
-    plt.scatter(xmatch.stars[col_key][selected_stars],xmatch.stars[mag_column][selected_stars],
+    plt.scatter(xmatch.stars[colour][selected_stars],xmatch.stars[mag_column][selected_stars],
               c=default_marker_colour, marker='*', s=5,
               label='Stars meeting selection criteria')
 
@@ -64,10 +69,10 @@ def plot_field_colour_mag_diagram(config, xmatch, valid_stars, selected_stars,
 
     [xmin,xmax,ymin,ymax] = plt.axis()
     col_key = colour.replace('(','').replace(')','').replace('-','')
-    xmin = params['plot_'+col_key+'_range'][0]
-    xmax = params['plot_'+col_key+'_range'][1]
-    ymin = params['plot_'+magnitude+'_range'][0]
-    ymax = params['plot_'+magnitude+'_range'][1]
+    xmin = config['plot_'+col_key+'_range'][0]
+    xmax = config['plot_'+col_key+'_range'][1]
+    ymin = config['plot_'+magnitude+'_range'][0]
+    ymax = config['plot_'+magnitude+'_range'][1]
     plt.axis([xmin,xmax,ymax,ymin])
 
     xticks = np.arange(xmin,xmax,0.1)
@@ -84,9 +89,8 @@ def plot_field_colour_mag_diagram(config, xmatch, valid_stars, selected_stars,
     ax.tick_params(axis="y", labelsize=25)
 
     plot_file = path.join(config['output_dir'],'colour_magnitude_diagram_'+\
-                                            magnitude+'_vs_'+colour\
+                                            magnitude+'_vs_'+colour.replace('(','').replace(')','')\
                                             +'.pdf')
-
     plt.grid()
 
     box = ax.get_position()
@@ -104,10 +108,10 @@ def plot_field_colour_mag_diagram(config, xmatch, valid_stars, selected_stars,
     plt.rcParams.update({'axes.titlesize': 25})
     plt.rcParams.update({'font.size': 25})
 
-    if params['interactive']:
+    if config['interactive']:
         plt.show()
-
-    plt.savefig(plot_file,bbox_inches='tight')
+    else:
+        plt.savefig(plot_file,bbox_inches='tight')
 
     plt.close(1)
 
@@ -126,7 +130,7 @@ def calc_colour_data(blue_phot, blue_phot_err, red_phot, red_phot_err):
     col_data_err = np.zeros(len(red_phot))
     col_data_err.fill(-99.999)
 
-    col_index = (blue_phot > 0.0 && red_phot > 0.0)
+    col_index = np.where(np.logical_and(np.greater(blue_phot,0.0),np.greater(red_phot,0.0)))
 
     col_data[col_index] = blue_phot[col_index] - red_phot[col_index]
 
@@ -141,25 +145,22 @@ def calc_colour_photometry(config, xmatch, log):
                                         xmatch.stars['cal_g_magerr_'+config['reference_dataset_code']],
                                         xmatch.stars['cal_i_mag_'+config['reference_dataset_code']],
                                         xmatch.stars['cal_i_magerr_'+config['reference_dataset_code']])
-
-    xmatch.stars.add_column(gimag, name='(g-i)')
-    xmatch.stars.add_column(gimerr, name='(g-i)_error')
+    xmatch.stars.add_column(Column(name='(g-i)', data=gimag))
+    xmatch.stars.add_column(Column(name='(g-i)_error', data=gimerr))
 
     (rimag, rimerr) = calc_colour_data(xmatch.stars['cal_r_mag_'+config['reference_dataset_code']],
                                         xmatch.stars['cal_r_magerr_'+config['reference_dataset_code']],
                                         xmatch.stars['cal_i_mag_'+config['reference_dataset_code']],
                                         xmatch.stars['cal_i_magerr_'+config['reference_dataset_code']])
-
-    xmatch.stars.add_column(rimag, name='(r-i)')
-    xmatch.stars.add_column(rimerr, name='(r-i)_error')
+    xmatch.stars.add_column(Column(name='(r-i)', data=rimag))
+    xmatch.stars.add_column(Column(name='(r-i)_error', data=rimerr))
 
     (grmag, grmerr) = calc_colour_data(xmatch.stars['cal_g_mag_'+config['reference_dataset_code']],
                                         xmatch.stars['cal_g_magerr_'+config['reference_dataset_code']],
                                         xmatch.stars['cal_r_mag_'+config['reference_dataset_code']],
                                         xmatch.stars['cal_r_magerr_'+config['reference_dataset_code']])
-
-    xmatch.stars.add_column(rimag, name='(g-r)')
-    xmatch.stars.add_column(rimerr, name='(g-r)_error')
+    xmatch.stars.add_column(Column(name='(g-r)', data=grmag))
+    xmatch.stars.add_column(Column(name='(g-r)_error', data=grmerr))
 
     log.info('Computed colour information for all stars with valid measurements for reference dataset '+config['reference_dataset_code'])
 
@@ -176,7 +177,7 @@ def output_photometry(config, xmatch, selected_stars, log):
         f.write('# Selected indicates whether a star lies within the selection radius of a given location, if any.  1=true, 0=false\n')
         f.write('# Star   x_pix    y_pix   ra_deg   dec_deg   g  sigma_g    r  sigma_r    i  sigma_i   (g-i)  sigma(g-i) (g-r)  sigma(g-r)  (r-i) sigma(r-i)  Selected  Gaia_ID\n')
 
-        for star in xmatch.stars:
+        for j,star in enumerate(xmatch.stars):
             if j in selected_stars:
                 selected = 1
             else:
@@ -189,7 +190,7 @@ def output_photometry(config, xmatch, selected_stars, log):
                         str(star['(g-i)'])+' '+str(star['(g-i)_error'])+' '+\
                         str(star['(g-r)'])+' '+str(star['(g-r)_error'])+' '+\
                         str(star['(r-i)'])+' '+str(star['(r-i)_error'])+' '+\
-                        str(selected)+' '+str(int(star['gaia_source_id']))+'\n' )
+                        str(selected)+' '+str(star['gaia_source_id'])+'\n' )
 
         f.close()
 
@@ -204,34 +205,48 @@ def apply_star_selection(config, xmatch, log):
     selected_stars = np.arange(0,len(xmatch.stars),1, dtype='int')
 
     # Select stars by quality criteria:
-    qc_idx = np.where(xmatch.stars['cal_g_magerr_'+config['reference_dataset_code']] <= float(config['g_sigma_max']) && \
-                        xmatch.stars['cal_r_magerr_'+config['reference_dataset_code']] <= float(config['r_sigma_max']) && \
-                        xmatch.stars['cal_i_magerr_'+config['reference_dataset_code']] <= float(config['i_sigma_max']) && \
-                        xmatch.stars['(g-i)_error'] <= float(config['gi_sigma_max']) && \
-                        xmatch.stars['(r-i)_error'] <= float(config['ri_sigma_max']) && \
-                        xmatch.stars['(g-r)_error'] <= float(config['gr_sigma_max']))[0]
+    qc_idx1 = np.where( np.logical_and( np.less_equal(xmatch.stars['cal_g_magerr_'+config['reference_dataset_code']], float(config['g_sigma_max'])),
+                        np.less_equal(xmatch.stars['cal_r_magerr_'+config['reference_dataset_code']], float(config['r_sigma_max'])) ) )[0]
+    qc_idx2 = np.where( np.logical_and( np.less_equal(xmatch.stars['cal_i_magerr_'+config['reference_dataset_code']], float(config['i_sigma_max'])),
+                        np.less_equal(xmatch.stars['(g-i)_error'], float(config['gi_sigma_max'])) ) )[0]
+    qc_idx3 = np.where( np.logical_and( np.less_equal(xmatch.stars['(r-i)_error'], float(config['ri_sigma_max'])),
+                        np.less_equal(xmatch.stars['(g-r)_error'], float(config['gr_sigma_max'])) ) )[0]
+    qc_idx = set(qc_idx2).intersection(set(qc_idx2))
+    qc_idx = np.array(list(qc_idx.intersection(set(qc_idx3))))
     log.info(' -> '+str(len(qc_idx))+' stars meet the quality selection criteria:')
-    log.info('    Max phot uncertainty, g = '+config['g_sigma_max'])
-    log.info('    Max phot uncertainty, r = '+config['r_sigma_max'])
-    log.info('    Max phot uncertainty, i = '+config['i_sigma_max'])
-    log.info('    Max phot uncertainty, (g-i) = '+config['gi_sigma_max'])
-    log.info('    Max phot uncertainty, (r-i) = '+config['ri_sigma_max'])
-    log.info('    Max phot uncertainty, (g-r) = '+config['gr_sigma_max'])
+    log.info('    Max phot uncertainty, g = '+str(config['g_sigma_max']))
+    log.info('    Max phot uncertainty, r = '+str(config['r_sigma_max']))
+    log.info('    Max phot uncertainty, i = '+str(config['i_sigma_max']))
+    log.info('    Max phot uncertainty, (g-i) = '+str(config['gi_sigma_max']))
+    log.info('    Max phot uncertainty, (r-i) = '+str(config['ri_sigma_max']))
+    log.info('    Max phot uncertainty, (g-r) = '+str(config['gr_sigma_max']))
+
+    if len(qc_idx) == 0:
+        raise ValueError('All stars excluded by quality control criteria')
+
+    idx = copy.copy(qc_idx)
 
     # Select stars by spacial cut:
     if float(config['selection_radius']) == 0.0:
         stars = SkyCoord(xmatch.stars['ra'], xmatch.stars['dec'],
                         frame='icrs', unit=(u.deg, u.deg))
         target = SkyCoord(config['target_ra'], config['target_dec'],
-                        frame='icrs', unit(u.hourangle, u.deg))
+                        frame='icrs', unit=(u.hourangle, u.deg))
         separations = target.separation(stars)
 
         spacial_idx = np.where(separations < float(config['selection_radius'])/60.0)[0]
         log.info(' -> '+str(len(spacial_idx))+' stars meet the spacial selection critera:')
         log.info('    Within '+config['selection_radius']+'arcmin of '+config['target_ra']+', '+config['target_dec'])
 
-    # Combine selection criteria to return the selected stars index:
-    idx = list(set(qc_idx).intersection(set(spacial_idx)))
+        if len(spacial_idx) == 0:
+            raise ValueError('All stars excluded by spacial selection criteria')
+
+        # Combine selection criteria:
+        idx = list(set(idx).intersection(set(spacial_idx)))
+
+    if len(idx) == 0:
+        raise ValueError('All stars excluded by combined selection criteria')
+
     selected_stars = selected_stars[idx]
 
     log.info('Total number of stars selected: '+str(len(selected_stars)))
@@ -247,5 +262,14 @@ def get_args():
 
     config = config_utils.build_config_from_json(config_file)
 
+    for key in ['plot_selected_radius_only', 'interactive']:
+        if 'false' in str(config[key]).lower():
+            config[key] = False
+        else:
+            config[key] = True
+
+    return config
+
 
 if __name__ == '__main__':
+    field_colour_analysis()
