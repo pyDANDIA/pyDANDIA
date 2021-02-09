@@ -67,10 +67,10 @@ class CrossMatchTable():
 
         self.datasets = Table(dataset_columns)
         self.field_index = Table(field_index_columns)
-        self.init_stars_table()
-        self.init_images_table()
+        self.create_stars_table()
+        self.create_images_table()
 
-    def init_stars_table(self):
+    def create_stars_table(self):
         stars_columns = [  Column(name='field_id', data=[], dtype='int'),
                             Column(name='ra', data=[], dtype='float'),
                             Column(name='dec', data=[], dtype='float'),
@@ -116,7 +116,7 @@ class CrossMatchTable():
 
         self.stars = Table(stars_columns)
 
-    def init_images_table(self):
+    def create_images_table(self):
         image_columns = [  Column(name='index', data=[], dtype='int'),
                             Column(name='filename', data=[], dtype='S80'),
                             Column(name='dataset_code', data=[], dtype='S80'),
@@ -310,7 +310,7 @@ class CrossMatchTable():
              'cat2_y': 0.0,
              'separation': separation.value}
 
-        star_added = matched_stars.add_match(p, log=log, verbose=True)
+        star_added = matched_stars.add_match(p, log=log)
 
         return star_added, matched_stars
 
@@ -329,7 +329,7 @@ class CrossMatchTable():
 
         # Append the orphan without checking for duplication, since no cat1
         # index is given
-        star_added = orphans.add_match(p,log=log,verbose=True,replace_worse_matches=False)
+        star_added = orphans.add_match(p,log=log,replace_worse_matches=False)
 
         return star_added, orphans
 
@@ -342,7 +342,7 @@ class CrossMatchTable():
             row = self.field_index[jfield]
             row[dataset_code+'_index'] = matched_stars.cat2_index[j]    # Cat 2 star ID NOT index
             self.field_index[jfield] = row
-            log.info(repr(row))
+            #log.info(repr(row))
 
         # Append orphans to the end of the field index
         log.info('Updating field index with orphans:')
@@ -356,7 +356,7 @@ class CrossMatchTable():
             row = [jfield, orphans.cat2_ra[j], orphans.cat2_dec[j], 0, 0, gaia_id] + [0]*(ncol-6)
             row[dataset_col] = orphans.cat2_index[j]    # Star ID in dataset
             self.field_index.add_row(row)
-            log.info(repr(row)+' dataset star '+str(j))
+            #log.info(repr(row)+' dataset star '+str(j))
 
     def dataset_index(self, red_dir):
         """Method to search the header index of matched data directories and
@@ -410,7 +410,8 @@ class CrossMatchTable():
         ncols = len(self.stars.colnames) - 3
 
         for star in self.field_index:
-            self.stars.add_row( [star['field_id'], star['ra'], star['dec']] + [0.0]*ncols )
+            row = [star['field_id'], star['ra'], star['dec']] + [0.0]*ncols
+            self.stars.add_row( row )
 
     def save(self, file_path):
         """Output crossmatch table to file"""
