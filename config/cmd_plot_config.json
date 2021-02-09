@@ -1,0 +1,133 @@
+{  "field_xmatch_file": {
+        "value": "/Users/rstreet1/ROMEREA/test_data/ROME-FIELD-01_field_xmatch.fits",
+        "comment": "Path to field cross-matched reference file",
+        "format": "string",
+        "unit": ""
+    },
+    "reference_dataset_code": {
+        "value": "lsc_doma",
+        "comment": "Identifier for the site/enclosure to be used as the photometry reference dataset, cannot be None [e.g. lsc_doma]",
+        "format": "string",
+        "unit": ""
+    },
+    "output_dir": {
+        "value": "/Users/rstreet1/ROMEREA/ROME-FIELD-01/cmd/",
+        "comment": "Directory path for output",
+        "format": "string",
+        "unit": ""
+    },
+    "photometry_data_file": {
+        "value": "ROME-FIELD-01_colour_photometry.txt",
+        "comment": "Filename for output of multi-band photometry [or None]",
+        "format": "string",
+        "unit": ""
+    },
+    "target_field_id": {
+        "value": 78284,
+        "comment": "Field star ID of a specific star or None",
+        "format": "integer",
+        "unit": ""
+    },
+    "target_ra": {
+        "value": "17:51:55.92",
+        "comment": "Right ascension of field centre or target in sexigesimal format, cannot be None",
+        "format": "string",
+        "unit": ""
+    },
+    "target_dec": {
+        "value": "-29:59:23.1",
+        "comment": "Declination of field centre or target in sexigesimal format, cannot be None",
+        "format": "string",
+        "unit": ""
+    },
+    "selection_radius": {
+        "value": 2.0,
+        "comment": "Maximum radius used to select stars close to the target location. Set to zero for no selection.",
+        "format": "float",
+        "unit": "arcmin"
+    },
+    "plot_selected_radius_only": {
+        "value": "False",
+        "comment": "If true, plot only stars within the selection radius, otherwise any selected stars will be over-plotted.",
+        "format": "string",
+        "unit": ""
+    },
+    "interactive": {
+        "value": "False",
+        "comment": "Switch to display interactive plots",
+        "format": "string",
+        "unit": ""
+    },
+    "plot_i_range": {
+        "value": [12.0, 20.0],
+        "comment": "Minimum and maximum SDSS-i magnitudes to use for plots",
+        "format": "float",
+        "unit": "mag"
+    },
+    "i_sigma_max": {
+        "value": 0.01,
+        "comment": "Maximum SDSS-i magnitude uncertainty to use for plots",
+        "format": "float",
+        "unit": "mag"
+    },
+    "plot_r_range": {
+        "value": [13.0, 21.0],
+        "comment": "Minimum and maximum SDSS-r magnitudes to use for plots",
+        "format": "float",
+        "unit": "mag"
+    },
+    "r_sigma_max": {
+        "value": 0.01,
+        "comment": "Maximum SDSS-r magnitude uncertainty to use for plots",
+        "format": "float",
+        "unit": "mag"
+    },
+    "plot_g_range": {
+        "value": [13.0, 22.5],
+        "comment": "Minimum and maximum SDSS-g magnitudes to use for plots",
+        "format": "float",
+        "unit": "mag"
+    },
+    "g_sigma_max": {
+        "value": 0.01,
+        "comment": "Maximum SDSS-g magnitude uncertainty to use for plots",
+        "format": "float",
+        "unit": "mag"
+    },
+    "plot_ri_range": {
+        "value": [0.0, 3.0],
+        "comment": "Minimum and maximum SDSS-i magnitudes to use for plots",
+        "format": "float",
+        "unit": "mag"
+    },
+    "ri_sigma_max": {
+        "value": 0.02,
+        "comment": "Maximum (r-i) colour uncertainty to use for plots",
+        "format": "float",
+        "unit": "mag"
+    },
+    "plot_gr_range": {
+        "value": [0.0, 5.0],
+        "comment": "Minimum and maximum SDSS-r magnitudes to use for plots",
+        "format": "float",
+        "unit": "mag"
+    },
+    "gr_sigma_max": {
+        "value": 0.02,
+        "comment": "Maximum (g-r) colour uncertainty to use for plots",
+        "format": "float",
+        "unit": "mag"
+    },
+    "plot_gi_range": {
+        "value": [0.0, 6.5],
+        "comment": "Minimum and maximum SDSS-g magnitudes to use for plots",
+        "format": "float",
+        "unit": "mag"
+    },
+    "gi_sigma_max": {
+        "value": 0.02,
+        "comment": "Maximum (g-i) colour uncertainty to use for plots",
+        "format": "float",
+        "unit": "mag"
+    }
+}
