@@ -46,7 +46,7 @@ class StarMatchIndex:
                 log.info('Star '+str(params['cat1_index'])+'='+str(params['cat2_index'])+' added to matched stars index')
 
         return add_star
-        
+
     def check_for_duplicates(self,params, log=None):
 
         duplicates = {'cat1_index': [], 'cat2_index': []}

@@ -4,7 +4,7 @@ from pyDANDIA import analyse_cmd
 from pyDANDIA import config_utils
 from pyDANDIA import  logs
 from pyDANDIA import  crossmatch
-from astropy.coordinates import SkyCoord
+from astropy.coordinates import SkyCoord, Angle
 from astropy import units as u
 from astropy.table import Column, Table
 import numpy as np
@@ -53,7 +53,7 @@ def plot_field_colour_mag_diagram(config, xmatch, valid_stars, selected_stars,
         marker_colour = field_marker_colour
 
     # Plot selected field stars
-    if not config['plot_selected_radius_only']:
+    if not config['plot_selected_stars_only']:
         plt.scatter(xmatch.stars[colour][valid_stars],xmatch.stars[mag_column][valid_stars],
                  c=marker_colour, marker='.', s=1,
                  label='Stars within field of view')
@@ -205,12 +205,43 @@ def apply_star_selection(config, xmatch, log):
     selected_stars = np.arange(0,len(xmatch.stars),1, dtype='int')
 
     # Select stars by quality criteria:
-    qc_idx1 = np.where( np.logical_and( np.less_equal(xmatch.stars['cal_g_magerr_'+config['reference_dataset_code']], float(config['g_sigma_max'])),
-                        np.less_equal(xmatch.stars['cal_r_magerr_'+config['reference_dataset_code']], float(config['r_sigma_max'])) ) )[0]
-    qc_idx2 = np.where( np.logical_and( np.less_equal(xmatch.stars['cal_i_magerr_'+config['reference_dataset_code']], float(config['i_sigma_max'])),
-                        np.less_equal(xmatch.stars['(g-i)_error'], float(config['gi_sigma_max'])) ) )[0]
-    qc_idx3 = np.where( np.logical_and( np.less_equal(xmatch.stars['(r-i)_error'], float(config['ri_sigma_max'])),
-                        np.less_equal(xmatch.stars['(g-r)_error'], float(config['gr_sigma_max'])) ) )[0]
+    qc_idx = select_by_photometry_quality(xmatch, config, log)
+
+    # Initialize the combined selection index based on those stars which
+    # meet the quality criteria
+    idx = copy.copy(qc_idx)
+
+    # Select stars by spacial cut:
+    if config['selection_radius'] > 0.0:
+        spacial_idx = select_by_position(xmatch, config, log)
+        idx = list(set(idx).intersection(set(spacial_idx)))
+
+    # Select stars by parallax:
+    if config['parallax_min'] > -99.0 and config['parallax_max'] < 99.0:
+        parallax_idx = select_by_parallax(xmatch, config, log)
+        idx = list(set(idx).intersection(set(parallax_idx)))
+
+    # Select stars by proper motion:
+    if config['pm_min'] > -99.0 and config['pm_max'] < 99.0:
+        pm_idx = select_by_parallax(xmatch, config, log)
+        idx = list(set(idx).intersection(set(pm_idx)))
+
+    if len(idx) == 0:
+        raise ValueError('All stars excluded by combined selection criteria')
+
+    selected_stars = selected_stars[idx]
+
+    log.info('Total number of stars selected: '+str(len(selected_stars)))
+
+    return qc_idx, selected_stars
+
+def select_by_photometry_quality(xmatch, config, log):
+    qc_idx1 = np.where( np.logical_and( np.less_equal(xmatch.stars['cal_g_magerr_'+config['reference_dataset_code']], config['g_sigma_max']),
+                        np.less_equal(xmatch.stars['cal_r_magerr_'+config['reference_dataset_code']], config['r_sigma_max']) ) )[0]
+    qc_idx2 = np.where( np.logical_and( np.less_equal(xmatch.stars['cal_i_magerr_'+config['reference_dataset_code']], config['i_sigma_max']),
+                        np.less_equal(xmatch.stars['(g-i)_error'], config['gi_sigma_max']) ) )[0]
+    qc_idx3 = np.where( np.logical_and( np.less_equal(xmatch.stars['(r-i)_error'], config['ri_sigma_max']),
+                        np.less_equal(xmatch.stars['(g-r)_error'], config['gr_sigma_max']) ) )[0]
     qc_idx = set(qc_idx2).intersection(set(qc_idx2))
     qc_idx = np.array(list(qc_idx.intersection(set(qc_idx3))))
     log.info(' -> '+str(len(qc_idx))+' stars meet the quality selection criteria:')
@@ -224,34 +255,55 @@ def apply_star_selection(config, xmatch, log):
     if len(qc_idx) == 0:
         raise ValueError('All stars excluded by quality control criteria')
 
-    idx = copy.copy(qc_idx)
+    return qc_idx
 
-    # Select stars by spacial cut:
-    if float(config['selection_radius']) == 0.0:
-        stars = SkyCoord(xmatch.stars['ra'], xmatch.stars['dec'],
-                        frame='icrs', unit=(u.deg, u.deg))
-        target = SkyCoord(config['target_ra'], config['target_dec'],
-                        frame='icrs', unit=(u.hourangle, u.deg))
-        separations = target.separation(stars)
+def select_by_position(xmatch, config, log):
+    stars = SkyCoord(xmatch.stars['ra'], xmatch.stars['dec'],
+                    frame='icrs', unit=(u.deg, u.deg))
+    target = SkyCoord(config['target_ra'], config['target_dec'],
+                    frame='icrs', unit=(u.hourangle, u.deg))
+    separations = target.separation(stars)
 
-        spacial_idx = np.where(separations < float(config['selection_radius'])/60.0)[0]
-        log.info(' -> '+str(len(spacial_idx))+' stars meet the spacial selection critera:')
-        log.info('    Within '+config['selection_radius']+'arcmin of '+config['target_ra']+', '+config['target_dec'])
+    spacial_idx = np.where(separations < Angle((config['selection_radius']/60.0), unit=u.deg))[0]
+    log.info(' -> '+str(len(spacial_idx))+' stars meet the spacial selection critera:')
+    log.info('    Within '+str(config['selection_radius'])+'arcmin of '+config['target_ra']+', '+config['target_dec'])
 
-        if len(spacial_idx) == 0:
-            raise ValueError('All stars excluded by spacial selection criteria')
+    if len(spacial_idx) == 0:
+        raise ValueError('All stars excluded by spacial selection criteria')
 
-        # Combine selection criteria:
-        idx = list(set(idx).intersection(set(spacial_idx)))
+    return spacial_idx
 
-    if len(idx) == 0:
-        raise ValueError('All stars excluded by combined selection criteria')
+def select_by_parallax(xmatch, config, log):
 
-    selected_stars = selected_stars[idx]
+    idx1 = np.where(xmatch.stars['gaia_source_id'] != '0.0')[0]
+    idx2 = np.where(np.logical_and( np.greater_equal(xmatch.stars['parallax'], config['parallax_min']),
+                        np.less_equal(xmatch.stars['parallax'], config['parallax_max']) ) )[0]
+    parallax_idx = np.array(list(set(idx1).intersection(set(idx2))))
 
-    log.info('Total number of stars selected: '+str(len(selected_stars)))
+    log.info(' -> '+str(len(parallax_idx))+' stars have meet the parallax selection critera:')
+    log.info('    '+str(len(idx1))+' stars have Gaia measurements')
+    log.info('    Between '+str(config['parallax_min'])+' and '+str(config['parallax_max']))
 
-    return qc_idx, selected_stars
+    if len(parallax_idx) == 0:
+        raise ValueError('All stars excluded by parallax selection criteria')
+
+    return parallax_idx
+
+def select_by_proper_motion(xmatch, config, log):
+
+    idx1 = np.where(xmatch.stars['gaia_source_id'] != '0.0')[0]
+    idx2 = np.where(np.logical_and( np.greater_equal(xmatch.stars['proper_motion'], config['pm_min']),
+                        np.less_equal(xmatch.stars['proper_motion'], config['pm_max']) ) )[0]
+    pm_idx = np.array(list(set(idx1).intersection(set(idx2))))
+
+    log.info(' -> '+str(len(pm_idx))+' stars have meet the proper motion selection critera:')
+    log.info('    '+str(len(idx1))+' stars have Gaia measurements')
+    log.info('    Between '+str(config['pm_min'])+' and '+str(config['pm_max']))
+
+    if len(pm_idx) == 0:
+        raise ValueError('All stars excluded by spacial selection criteria')
+
+    return pm_idx
 
 def get_args():
 
@@ -262,11 +314,14 @@ def get_args():
 
     config = config_utils.build_config_from_json(config_file)
 
-    for key in ['plot_selected_radius_only', 'interactive']:
+    for key in ['plot_selected_stars_only', 'interactive']:
         if 'false' in str(config[key]).lower():
             config[key] = False
         else:
             config[key] = True
+
+    for key in ['selection_radius', 'parallax_min', 'parallax_max', 'pm_min', 'pm_max']:
+        config[key] = float(config[key])
 
     return config
 
