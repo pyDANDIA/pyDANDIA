@@ -11,7 +11,7 @@
         "unit": ""
     },
     "output_dir": {
-        "value": "/Users/rstreet1/ROMEREA/ROME-FIELD-01/cmd/",
+        "value": "/Users/rstreet1/ROMEREA/test_data/",
         "comment": "Directory path for output",
         "format": "string",
         "unit": ""
@@ -23,34 +23,58 @@
         "unit": ""
     },
     "target_field_id": {
-        "value": 78284,
+        "value": "None",
         "comment": "Field star ID of a specific star or None",
         "format": "integer",
         "unit": ""
     },
     "target_ra": {
-        "value": "17:51:55.92",
+        "value": "17:50:41.0",
         "comment": "Right ascension of field centre or target in sexigesimal format, cannot be None",
         "format": "string",
         "unit": ""
     },
     "target_dec": {
-        "value": "-29:59:23.1",
+        "value": "-30:12:36",
         "comment": "Declination of field centre or target in sexigesimal format, cannot be None",
         "format": "string",
         "unit": ""
     },
     "selection_radius": {
-        "value": 2.0,
+        "value": 10.0,
         "comment": "Maximum radius used to select stars close to the target location. Set to zero for no selection.",
         "format": "float",
         "unit": "arcmin"
     },
-    "plot_selected_radius_only": {
-        "value": "False",
+    "plot_selected_stars_only": {
+        "value": "True",
         "comment": "If true, plot only stars within the selection radius, otherwise any selected stars will be over-plotted.",
         "format": "string",
         "unit": ""
+    },
+    "parallax_min": {
+        "value": -99.0,
+        "comment": "Maximum Gaia parallax used to select stars. Set to -99.0 for no selection.",
+        "format": "float",
+        "unit": "arcmin"
+    },
+    "parallax_max": {
+        "value": 99.0,
+        "comment": "Maximum Gaia parallax used to select stars. Set to +99.0 for no selection.",
+        "format": "float",
+        "unit": "arcmin"
+    },
+    "pm_min": {
+        "value": -99.0,
+        "comment": "Maximum Gaia parallax used to select stars. Set to -99.0 for no selection.",
+        "format": "float",
+        "unit": "arcmin"
+    },
+    "pm_max": {
+        "value": 99.0,
+        "comment": "Maximum Gaia parallax used to select stars. Set to +99.0 for no selection.",
+        "format": "float",
+        "unit": "arcmin"
     },
     "interactive": {
         "value": "False",
@@ -65,7 +89,7 @@
         "unit": "mag"
     },
     "i_sigma_max": {
-        "value": 0.01,
+        "value": 1.0,
         "comment": "Maximum SDSS-i magnitude uncertainty to use for plots",
         "format": "float",
         "unit": "mag"
@@ -77,7 +101,7 @@
         "unit": "mag"
     },
     "r_sigma_max": {
-        "value": 0.01,
+        "value": 1.0,
         "comment": "Maximum SDSS-r magnitude uncertainty to use for plots",
         "format": "float",
         "unit": "mag"
@@ -89,7 +113,7 @@
         "unit": "mag"
     },
     "g_sigma_max": {
-        "value": 0.01,
+        "value": 1.0,
         "comment": "Maximum SDSS-g magnitude uncertainty to use for plots",
         "format": "float",
         "unit": "mag"
@@ -101,7 +125,7 @@
         "unit": "mag"
     },
     "ri_sigma_max": {
-        "value": 0.02,
+        "value": 1.0,
         "comment": "Maximum (r-i) colour uncertainty to use for plots",
         "format": "float",
         "unit": "mag"
@@ -113,7 +137,7 @@
         "unit": "mag"
     },
     "gr_sigma_max": {
-        "value": 0.02,
+        "value": 10.0,
         "comment": "Maximum (g-r) colour uncertainty to use for plots",
         "format": "float",
         "unit": "mag"
@@ -125,7 +149,7 @@
         "unit": "mag"
     },
     "gi_sigma_max": {
-        "value": 0.02,
+        "value": 1.0,
         "comment": "Maximum (g-i) colour uncertainty to use for plots",
         "format": "float",
         "unit": "mag"
