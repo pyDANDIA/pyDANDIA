@@ -206,8 +206,7 @@ def populate_stars_table(dataset,xmatch,dataset_metadata,log):
         log.info('-> Populated stars table with '+dataset_id+' reference image photometry for filter '+filter_name)
     else:
         log.info('-> Dataset not used as a reference dataset')
-        field_array_idx = np.array([])
-        dataset_array_idx = np.array([])
+        (field_array_idx,dataset_array_idx) = get_dataset_star_indices(dataset,xmatch)
 
     return xmatch, field_array_idx, dataset_array_idx
 
