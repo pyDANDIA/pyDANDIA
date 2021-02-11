@@ -182,12 +182,19 @@ def get_dataset_image_index(dataset, xmatch):
 
     return dataset_image_idx
 
+def check_for_reference_dataset(dataset_code):
+    dataset_id = '_'.join(dataset_code.split('_')[1].split('-')[0:2])
+    if dataset_id in ['lsc_doma', 'cpt_doma', 'coj_doma']:
+        return True
+    else:
+        return False
+
 def populate_stars_table(dataset,xmatch,dataset_metadata,log):
 
     dataset_id = '_'.join(dataset['dataset_code'].split('_')[1].split('-')[0:2])
     filter_name = parse_sloan_filter_ids(dataset['dataset_filter'])
 
-    if dataset_id in ['lsc_doma', 'cpt_doma', 'coj_doma']:
+    if check_for_reference_dataset(dataset['dataset_code']):
         mag_column = 'cal_'+filter_name+'_mag_'+dataset_id
         mag_error_column = 'cal_'+filter_name+'_magerr_'+dataset_id
 
@@ -199,6 +206,8 @@ def populate_stars_table(dataset,xmatch,dataset_metadata,log):
         log.info('-> Populated stars table with '+dataset_id+' reference image photometry for filter '+filter_name)
     else:
         log.info('-> Dataset not used as a reference dataset')
+        field_array_idx = np.array([])
+        dataset_array_idx = np.array([])
 
     return xmatch, field_array_idx, dataset_array_idx
 
