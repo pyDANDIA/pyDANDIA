@@ -175,7 +175,7 @@ def output_photometry(config, xmatch, selected_stars, log):
         f = open(path.join(config['output_dir'],config['photometry_data_file']), 'w')
         f.write('# All measured floating point quantities in units of magnitude\n')
         f.write('# Selected indicates whether a star lies within the selection radius of a given location, if any.  1=true, 0=false\n')
-        f.write('# Star   x_pix    y_pix   ra_deg   dec_deg   g  sigma_g    r  sigma_r    i  sigma_i   (g-i)  sigma(g-i) (g-r)  sigma(g-r)  (r-i) sigma(r-i)  Selected  Gaia_ID\n')
+        f.write('# Field_ID   ra_deg   dec_deg   g  sigma_g    r  sigma_r    i  sigma_i   (g-i)  sigma(g-i) (g-r)  sigma(g-r)  (r-i) sigma(r-i)  Selected  Gaia_ID parallax parallax_error proper_motion\n')
 
         for j,star in enumerate(xmatch.stars):
             if j in selected_stars:
@@ -190,7 +190,9 @@ def output_photometry(config, xmatch, selected_stars, log):
                         str(star['(g-i)'])+' '+str(star['(g-i)_error'])+' '+\
                         str(star['(g-r)'])+' '+str(star['(g-r)_error'])+' '+\
                         str(star['(r-i)'])+' '+str(star['(r-i)_error'])+' '+\
-                        str(selected)+' '+str(star['gaia_source_id'])+'\n' )
+                        str(selected)+' '+str(star['gaia_source_id'])+' '+\
+                        str(star['parallax'])+' '+str(star['parallax_error'])+' '+\
+                        str(star['proper_motion'])+'\n' )
 
         f.close()
 
@@ -267,6 +269,7 @@ def select_by_position(xmatch, config, log):
     spacial_idx = np.where(separations < Angle((config['selection_radius']/60.0), unit=u.deg))[0]
     log.info(' -> '+str(len(spacial_idx))+' stars meet the spacial selection critera:')
     log.info('    Within '+str(config['selection_radius'])+'arcmin of '+config['target_ra']+', '+config['target_dec'])
+    log.info('    i.e. within '+str(config['selection_radius'])+'arcmin of '+str(target.ra.deg)+' deg, '+str(target.dec.deg))
 
     if len(spacial_idx) == 0:
         raise ValueError('All stars excluded by spacial selection criteria')

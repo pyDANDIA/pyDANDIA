@@ -20,7 +20,7 @@ def combine_photometry_from_all_datasets():
 
     xmatch = crossmatch.CrossMatchTable()
     xmatch.load(params['crossmatch_file'],log=log)
-    xmatch.init_images_table()
+    xmatch.create_images_table()
 
     for dataset in xmatch.datasets:
         log.info('Populating image and star tables with data from '+dataset['dataset_code'])
