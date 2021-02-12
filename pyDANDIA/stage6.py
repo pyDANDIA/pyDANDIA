@@ -61,6 +61,7 @@ def run_stage6(setup, **kwargs):
     # find the metadata
     reduction_metadata = metadata.MetaData()
     reduction_metadata.load_all_metadata(setup.red_dir, 'pyDANDIA_metadata.fits')
+    reduction_metadata.expand_headers_summary_layer()
 
     dataset_params = harvest_stage6_parameters(setup,kwargs,reduction_metadata,stage6_version)
 
@@ -221,6 +222,8 @@ def run_stage6(setup, **kwargs):
             image_params['version'] = stage6_version
             image_params['facility'] = dataset_params['facility']
             image_params['filter'] = dataset_params['filter']
+            reduction_metadata.headers_summary[1]['HJD'][index_image] = image_params['hjd']
+            reduction_metadata.headers_summary[1]['AIRMASS'][index_image] = image_params['airmass']
 
             if kwargs['build_phot_db']:
                 db_phot.check_before_commit(conn, image_params, 'facilities', facility_keys, 'facility_code')
