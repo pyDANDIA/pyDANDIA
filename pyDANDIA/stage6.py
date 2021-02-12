@@ -51,7 +51,7 @@ def run_stage6(setup, **kwargs):
 
     """
 
-    stage6_version = 'pyDANDIA_stage6_v1.1.0'
+    stage6_version = 'pyDANDIA_stage6_v1.2.0'
 
     log = logs.start_stage_log(setup.red_dir, 'stage6', version=stage6_version)
     log.info('Setup:\n' + setup.summary() + '\n')
@@ -1147,8 +1147,7 @@ def store_stamp_photometry_to_array(setup, conn, params, reduction_metadata,
 
     # The index of the data from a given image corresponds to the index of that
     # image in the metadata
-    image_dataset_id = np.where(new_image == reduction_metadata.headers_summary[1]['IMAGES'].data)[0][0]
-    image_dataset_index = image_dataset_id - 1
+    image_dataset_index = np.where(new_image == reduction_metadata.headers_summary[1]['IMAGES'].data)[0][0]
 
     star_dataset_ids = np.array(phot_table['star_id'].data)
     star_dataset_ids = star_dataset_ids.astype('float')
@@ -1161,6 +1160,8 @@ def store_stamp_photometry_to_array(setup, conn, params, reduction_metadata,
             f.write(str(s)+'\n')
         f.close()
 
+    # At this stage, the matched_stars index contains star ID numbers corresponding
+    # to the dataset stage_catalog IDs
     log.info('Starting match index search for '+str(len(star_dataset_ids))+' stars')
     (star_dataset_ids, star_field_ids) = matched_stars.find_starlist_match_ids('cat2_index', star_dataset_ids, log,
                                                                                 verbose=True)
