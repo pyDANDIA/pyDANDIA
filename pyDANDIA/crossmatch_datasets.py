@@ -186,6 +186,8 @@ def parse_dataset_list(params,log):
         for line in file_lines:
             if len(line.replace('\n','')) > 0:
                 (dataset_path, ref_status) = line.replace('\n','').split()
+                if '/' in dataset_path[-1:]:
+                    dataset_path = dataset_path[:-1]
                 dataset_code = path.basename(dataset_path)
                 params['datasets'][dataset_code] = [ref_status, dataset_path, None]
                 if ref_status in ['primary_ref', 'primary-ref']:
