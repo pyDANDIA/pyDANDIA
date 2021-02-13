@@ -40,10 +40,11 @@ def combine_photometry_from_all_datasets():
         setup = pipeline_setup.PipelineSetup()
         setup.red_dir = dataset['dataset_red_dir']
         phot_data = hd5_utils.read_phot_hd5(setup, log=log, return_type='array')
-        (field_star_index, dataset_stars_index) = get_dataset_star_indices(dataset, xmatch)
-        dataset_image_index = get_dataset_image_index(dataset, xmatch)
-        (xmatch,photometry) = populate_photometry_array(field_star_index, dataset_stars_index,
-                                        dataset_image_index, photometry, phot_data, xmatch, log)
+        if len(phot_data) > 0:
+            (field_star_index, dataset_stars_index) = get_dataset_star_indices(dataset, xmatch)
+            dataset_image_index = get_dataset_image_index(dataset, xmatch)
+            (xmatch,photometry) = populate_photometry_array(field_star_index, dataset_stars_index,
+                                            dataset_image_index, photometry, phot_data, xmatch, log)
 
     # Output tables to field HDF5 files in quadrants and update the xmatch table
     xmatch.save(params['crossmatch_file'])
