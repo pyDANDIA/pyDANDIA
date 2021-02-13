@@ -67,8 +67,8 @@ def edit_image_reduction_status(red_dir):
     reduction_metadata.load_all_metadata(red_dir, 'pyDANDIA_metadata.fits')
 
     if len(sys.argv) > 2:
-        image_name = sys.argv[2]
-        status = sys.argv[3]
+        image_name = sys.argv[3]
+        status = sys.argv[4]
     else:
         image_name = input('Please enter the name of the image whose status you want to edit: ')
         status = input('Please enter, in list format, the updated status of this image in all stages (e.g. [0,0,0,0,0,0,0,0]): ')
