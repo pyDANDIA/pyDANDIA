@@ -722,7 +722,7 @@ class MetaData:
 
             new_column = Column(new_column_data, name=new_column_name.upper(),
                             dtype=new_column_format, unit=new_column_unit)
-        layer[1].add_column(new_column)
+            layer[1].add_column(new_column)
 
     def update_row_to_layer(self, key_layer, row_index, new_row):
         '''
