@@ -225,12 +225,7 @@ class CrossMatchTable():
 
         field_stars = SkyCoord(self.field_index['ra'], self.field_index['dec'],
                             frame='icrs', unit=(units.deg, units.deg) )
-
-        jdx1 = np.where(np.isnan(gaia_data['ra']))[0]
-        gaia_data['ra'][jdx1] = 999.0
-        jdx2 = np.where(np.isnan(gaia_data['dec']))[0]
-        gaia_data['dec'][jdx2] = 999.0
-        gaia_stars = SkyCoord(gaia_data['ra'][jdx], gaia_data['dec'][jdx],
+        gaia_stars = SkyCoord(gaia_data['ra'], gaia_data['dec'],
                             frame='icrs', unit=(units.deg, units.deg) )
 
         if len(jdx1) > 0 or len(jdx2) > 0:

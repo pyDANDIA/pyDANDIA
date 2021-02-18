@@ -27,6 +27,8 @@ def crossmatch_field_with_gaia_DR():
                                     row_limit=-1,log=log,debug=True)
     log.info('Vizier reports '+str(len(gaia_data))+' entries in '+params['gaia_dr']+' catalogue')
 
+    gaia_data = clean_gaia_catalog(gaia_data, log)
+
     xmatch.match_field_index_with_gaia_catalog(gaia_data, params, log)
 
     xmatch.save(params['crossmatch_file'])
@@ -34,6 +36,19 @@ def crossmatch_field_with_gaia_DR():
     log.info('Crossmatch: complete')
 
     logs.close_log(log)
+
+def clean_gaia_catalog(gaia_data, log):
+    """Function to search for and remove Gaia catalog entries with NaNs in the
+    RA and Dec columns, to avoid this causing issues during the crossmatch"""
+
+    jdx1 = np.where(np.isnan(gaia_data['ra']))[0]
+    gaia_data.remove_rows(jdx1)
+    jdx2 = np.where(np.isnan(gaia_data['dec']))[0]
+    gaia_data.remove_rows(jdx2)
+
+    log.info('Scanned the Gaia data for NaN entries, found and removed '+str(len(jdx1)+len(jdx2)))
+
+    return gaia_data
 
 def get_args():
 
