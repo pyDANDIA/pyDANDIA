@@ -228,6 +228,9 @@ class CrossMatchTable():
         gaia_stars = SkyCoord(gaia_data['ra'], gaia_data['dec'],
                             frame='icrs', unit=(units.deg, units.deg) )
 
+        log.info('Matching '+str(len(field_stars))+' field stars against '+\
+                str(len(gaia_stars))+' stars in the Gaia catalog')
+
         (field_idx, separations2D, separations3D) = gaia_stars.match_to_catalog_3d(field_stars)
 
         constraint = separations2D < params['separation_threshold']
