@@ -225,17 +225,18 @@ class CrossMatchTable():
 
         field_stars = SkyCoord(self.field_index['ra'], self.field_index['dec'],
                             frame='icrs', unit=(units.deg, units.deg) )
-        gaia_stars = SkyCoord(gaia_data['ra'], gaia_data['dec'],
+
+        jdx1 = np.where(np.isnan(gaia_data['ra']))[0]
+        gaia_data['ra'][jdx1] = 999.0
+        jdx2 = np.where(np.isnan(gaia_data['dec']))[0]
+        gaia_data['dec'][jdx2] = 999.0
+        gaia_stars = SkyCoord(gaia_data['ra'][jdx], gaia_data['dec'][jdx],
                             frame='icrs', unit=(units.deg, units.deg) )
 
-        jdx = np.where(np.isnan(self.field_index['ra']))
-        print('JDX 1: ',jdx)
-        jdx = np.where(np.isnan(self.field_index['dec']))
-        print('JDX 2: ',jdx)
-        jdx = np.where(np.isnan(gaia_data['ra']))
-        print('JDX 3: ',jdx)
-        jdx = np.where(np.isnan(gaia_data['dec']))
-        print('JDX 4: ',jdx)
+        if len(jdx1) > 0 or len(jdx2) > 0:
+            log.info('WARNING: Found '+str(len(jdx1))+' NaNs in the Gaia RA array and '+\
+            str(len(jdx2))+' NaNs in the Gaia Dec array.  Set to 999.0')
+
         log.info('Matching '+str(len(field_stars))+' field stars against '+\
                 str(len(gaia_stars))+' stars in the Gaia catalog')
 
