@@ -7,6 +7,7 @@ from pyDANDIA import match_utils
 from pyDANDIA import vizier_tools
 from astropy import units as u
 from astropy.coordinates import SkyCoord
+import numpy as np
 
 def crossmatch_field_with_gaia_DR():
 
