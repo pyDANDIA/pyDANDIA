@@ -228,10 +228,6 @@ class CrossMatchTable():
         gaia_stars = SkyCoord(gaia_data['ra'], gaia_data['dec'],
                             frame='icrs', unit=(units.deg, units.deg) )
 
-        if len(jdx1) > 0 or len(jdx2) > 0:
-            log.info('WARNING: Found '+str(len(jdx1))+' NaNs in the Gaia RA array and '+\
-            str(len(jdx2))+' NaNs in the Gaia Dec array.  Set to 999.0')
-
         log.info('Matching '+str(len(field_stars))+' field stars against '+\
                 str(len(gaia_stars))+' stars in the Gaia catalog')
 
