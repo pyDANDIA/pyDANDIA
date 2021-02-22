@@ -59,12 +59,6 @@ class CrossMatchTable():
                      Column(name='dataset_filter', data=filters, dtype='S8'),
                      Column(name='primary_ref',data=pref_index, dtype='int')]
 
-        image_columns = [  Column(name='index', data=[], dtype='int'),
-                            Column(name='filename', data=[], dtype='S80'),
-                            Column(name='dataset_code', data=[], dtype='S80'),
-                            Column(name='filter', data=[], dtype='S10'),
-                            Column(name='hjd', data=[], dtype='float')]
-
         self.datasets = Table(dataset_columns)
         self.field_index = Table(field_index_columns)
         self.create_stars_table()
@@ -117,11 +111,41 @@ class CrossMatchTable():
         self.stars = Table(stars_columns)
 
     def create_images_table(self):
+        # Index filename dataset_code filter hjd datetime exposure RA Dec moon_ang_separation moon_fraction airmass sigma_x sigma_y \
+        # sky median_sky fwhm corr_xy nstars fraction_saturated_pix symmetry use_phot use_ref shift_x shift_y pscale pscale_error \
+        # var_per_pix_diff n_unmasked skew_diff kurtosis_diff
         image_columns = [  Column(name='index', data=[], dtype='int'),
                             Column(name='filename', data=[], dtype='S80'),
                             Column(name='dataset_code', data=[], dtype='S80'),
                             Column(name='filter', data=[], dtype='S10'),
-                            Column(name='hjd', data=[], dtype='float')]
+                            Column(name='hjd', data=[], dtype='float'),
+                            Column(name='datetime', data=[], dtype='S25'),
+                            Column(name='exposure', data=[], dtype='float'),
+                            Column(name='RA', data=[], dtype='S15'),
+                            Column(name='Dec', data=[], dtype='S15'),
+                            Column(name='moon_ang_separation', data=[], dtype='float'),
+                            Column(name='moon_fraction', data=[], dtype='float'),
+                            Column(name='airmass', data=[], dtype='float'),
+                            Column(name='sigma_x', data=[], dtype='float'),
+                            Column(name='sigma_y', data=[], dtype='float'),
+                            Column(name='sky', data=[], dtype='float'),
+                            Column(name='median_sky', data=[], dtype='float'),
+                            Column(name='fwhm', data=[], dtype='float'),
+                            Column(name='corr_xy', data=[], dtype='float'),
+                            Column(name='nstars', data=[], dtype='int'),
+                            Column(name='frac_sat_pix', data=[], dtype='float'),
+                            Column(name='symmetry', data=[], dtype='float'),
+                            Column(name='use_phot', data=[], dtype='int'),
+                            Column(name='use_ref', data=[], dtype='int'),
+                            Column(name='shift_x', data=[], dtype='float'),
+                            Column(name='shift_y', data=[], dtype='float'),
+                            Column(name='pscale', data=[], dtype='float'),
+                            Column(name='pscale_err', data=[], dtype='float'),
+                            Column(name='var_per_pix_diff', data=[], dtype='float'),
+                            Column(name='n_unmasked', data=[], dtype='float'),
+                            Column(name='skew_diff', data=[], dtype='float'),
+                            Column(name='kurtosis_diff', data=[], dtype='float'),
+                            ]
         self.images = Table(image_columns)
 
     def add_dataset_header(self, dataset_idx, dataset_code, dataset_info):

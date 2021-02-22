@@ -212,12 +212,30 @@ def populate_stars_table(dataset,xmatch,dataset_metadata,log):
     return xmatch, field_array_idx, dataset_array_idx
 
 def populate_images_table(dataset,dataset_metadata, xmatch, log):
+    """Function to populate the table of image properties from the corresponding
+    data in the datasets metadata tables.  Table columns are:
+
+    Index filename dataset_code filter hjd datetime exposure RA Dec moon_ang_separation moon_fraction airmass sigma_x sigma_y \
+    sky median_sky fwhm corr_xy nstars frac_sat_pix symmetry use_phot use_ref shift_x shift_y pscale pscale_err \
+    var_per_pix_diff n_unmasked skew_diff kurtosis_diff"""
 
     iimage = len(xmatch.images)
     image_index = []
     for i,image in enumerate(dataset_metadata.headers_summary[1]):
-        xmatch.images.add_row([iimage+i, image['IMAGES'], dataset['dataset_code'], image['FILTKEY'], 0.0])
+        xmatch.images.add_row( [iimage+i, image['IMAGES'], dataset['dataset_code'], image['FILTKEY'], 0.0, \
+                                image['DATEKEY'], image['EXPKEY'], image['RAKEY'], image['DECKEY'], \
+                                image['MOONDKEY'], image['MOONFKEY'], image['AIRMASS'] ] + [0.0]*6 + [0] +[0.0]*2 + [0,0] + [0.0]*8 )
         image_index.append(iimage+i)
+
+    images_stats_keys = ['sigma_x', 'sigma_y', 'sky', 'median_sky', 'fwhm', \
+                         'corr_xy', 'nstars', 'frac_sat_pix', 'symmetry',  \
+                         'use_phot', 'use_ref', 'shift_x', 'shift_y', \
+                         'pscale', 'pscale_err', 'var_per_pix_diff', 'n_unmasked',\
+                         'skew_diff', 'kurtosis_diff']
+    for image in dataset_metadata.images_stats[1]:
+        i = np.where(xmatch.images['filename'] == image['IM_NAME'])
+        for key in images_stats_keys:
+            xmatch.images[key][i] = image[key.upper()]
 
     log.info('-> Populated image table')
     return xmatch, image_index

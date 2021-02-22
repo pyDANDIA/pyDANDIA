@@ -5,6 +5,7 @@ from pyDANDIA import logs
 from pyDANDIA import metadata
 from astropy.table import Table, Column
 from astropy.io import fits
+import astropy.units as u
 import h5py
 from os import path
 
@@ -113,19 +114,51 @@ def test_dataset_timeseries_photometry(meta, xmatch):
 def test_headers_summary(meta):
     names = np.array(['IMAGES', 'EXPKEY', 'OBJKEY', 'OBSKEY', 'DATEKEY', \
                         'TIMEKEY', 'RAKEY', 'DECKEY', 'FILTKEY', \
-                        'MOONDKEY', 'MOONFKEY'])
-    formats = np.array(['S200']*11)
+                        'MOONDKEY', 'MOONFKEY', 'AIRMASS', 'HJD'])
+    formats = np.array(['S200']*11 + ['float']*2)
     data = np.array([['lsc1m005-fa15-20190612-0216-e91.fits', '300.0', 'ROME-FIELD-01',
             'EXPOSE', '2019-06-13T02:36:47.449', '02:36:47.449', '17:51:22.5696',
-            '-30:03:37.550', 'ip', '60.7240446', '0.799005'],
+            '-30:03:37.550', 'ip', '60.7240446', '0.799005', '0.91', '2452103.2'],
             ['lsc1m005-fa15-20190612-0217-e91.fits', '300.0', 'ROME-FIELD-01',
         'EXPOSE', '2019-06-13T02:37:00.449', '02:36:47.449', '17:51:22.5696',
-        '-30:03:37.550', 'ip', '60.7240446', '0.799005'],
+        '-30:03:37.550', 'ip', '60.7240446', '0.799005', '0.92', '2452103.21'],
         ['lsc1m005-fa15-20190612-0218-e91.fits', '300.0', 'ROME-FIELD-01',
     'EXPOSE', '2019-06-13T02:38:00.449', '02:36:47.449', '17:51:22.5696',
-    '-30:03:37.550', 'ip', '60.7240446', '0.799005']
+    '-30:03:37.550', 'ip', '60.7240446', '0.799005', '0.93', '2452103.22']
             ])
     meta.create_headers_summary_layer(names, formats, units=None, data=data)
+
+    return meta
+
+def test_images_stats(meta):
+
+    table_data = [ Column(name='IM_NAME', data=np.array(['lsc1m005-fa15-20190612-0216-e91.fits', 'lsc1m005-fa15-20190612-0217-e91.fits', 'lsc1m005-fa15-20190612-0218-e91.fits']), unit=None, dtype='S100'),
+                   Column(name='SIGMA_X', data=np.array([1.8786789649990936,2.383945680326521,1.9404641389250232]), unit=u.pix, dtype='float'),
+                   Column(name='SIGMA_Y', data=np.array([1.7507988428740193,2.54539354930874,1.7089054606217395]), unit=u.pix, dtype='float'),
+                   Column(name='FWHM', data=np.array([4.273383547487297, 5.8038534133512645, 4.296804342369643]), unit=u.pix, dtype='float'),
+                   Column(name='SKY', data=np.array([2180.902135178605, 2045.2229424690008,2005.4675269716945]), unit=u.adu, dtype='float'),
+                   Column(name='CORR_XY', data=np.array([-0.09175497562167338, 0.1128353104292111,-0.17466349715857915]), unit=None, dtype='float'),
+                   Column(name='NSTARS', data=np.array([20, 12, 48]), unit=None, dtype='int'),
+                   Column(name='FRAC_SAT_PIX', data=np.array([0.0, 0.0, 0.0]), unit=None, dtype='float'),
+                   Column(name='SYMMETRY', data=np.array([0.06594043970108032, 0.1263662725687027,0.09608365595340729]), unit=None, dtype='float'),
+                   Column(name='USE_PHOT', data=np.array([1,0,1]), unit=None, dtype='int'),
+                   Column(name='USE_REF', data=np.array([1,0,1]), unit=None, dtype='int'),
+                   Column(name='SHIFT_X', data=np.array([18.7, 8.0, 3.3]), unit=None, dtype='float'),
+                   Column(name='SHIFT_Y', data=np.array([51.4, 86.7, 72.4]), unit=None, dtype='float'),
+                   Column(name='PSCALE', data=np.array([1.304527793209856, 2.1691397412945386, 2.282448295973614]), unit=None, dtype='float'),
+                   Column(name='PSCALE_ERR', data=np.array([9.88518365653761E-9, 1.1109174691900272E-8, 9.202312487729357E-9]), unit=None, dtype='float'),
+                   Column(name='MEDIAN_SKY', data=np.array([-73.95321752298457, -73.95321752298457, -73.95321752298457]), unit=None, dtype='float'),
+                   Column(name='VAR_PER_PIX_DIFF', data=np.array([0.0457529108700811, 0.15137651432510715, 0.11725083370344544]), unit=None, dtype='float'),
+                   Column(name='N_UNMASKED', data=np.array([1013100.0, 1013100.0, 1013100.0]), unit=None, dtype='float'),
+                   Column(name='SKEW_DIFF', data=np.array([6.172574787633106, -0.03582948547777698, 7.67133980818663]), unit=None, dtype='float'),
+                   Column(name='KURTOSIS_DIFF', data=np.array([9.88518365653761E-9, 1.1109174691900272E-8, 9.202312487729357E-9]), unit=None, dtype='float')]
+
+    layer_header = fits.Header()
+    layer_header.update({'NAME': 'images_stats'})
+    layer_table = Table(table_data)
+    layer = [layer_header, layer_table]
+
+    setattr(meta, 'images_stats', layer)
 
     return meta
 
@@ -151,14 +184,38 @@ def test_populate_images_table():
 
     meta = metadata.MetaData()
     meta = test_headers_summary(meta)
+    meta = test_images_stats(meta)
 
     (xmatch, image_index) = field_photometry.populate_images_table(xmatch.datasets[0], meta, xmatch, log)
 
-    assert(len(xmatch.images) == 1)
-    assert(xmatch.images['filename'] == data[0])
-    assert(xmatch.images['filter'] == data[8])
-    assert(xmatch.images['dataset_code'] == xmatch.datasets[0]['dataset_code'])
-    assert(xmatch.images['hjd'] == 0.0)
+    assert(len(xmatch.images) == len(meta.headers_summary[1]))
+
+    keys = ['index', 'filename', 'dataset_code', 'filter', 'hjd', 'datetime', \
+            'exposure', 'RA', 'Dec', 'moon_ang_separation', 'moon_fraction', 'airmass',\
+            'sigma_x', 'sigma_y', 'sky', 'median_sky', 'fwhm', \
+            'corr_xy', 'nstars', 'frac_sat_pix', 'symmetry',  \
+            'use_phot', 'use_ref', 'shift_x', 'shift_y', \
+            'pscale', 'pscale_err', 'var_per_pix_diff', 'n_unmasked',\
+            'skew_diff', 'kurtosis_diff']
+    for key in keys:
+        assert(key in xmatch.images.colnames)
+
+    for image in meta.headers_summary[1]:
+        i = np.where(xmatch.images['filename'] == image['IMAGES'])[0]
+        assert(len(i) > 0)
+        assert(xmatch.images['filter'][i] == image['FILTKEY'])
+        assert(xmatch.images['dataset_code'][i] == xmatch.datasets[0]['dataset_code'])
+        assert(xmatch.images['airmass'][i] == image['AIRMASS'])
+
+    stats_keys = ['sigma_x', 'sigma_y', 'sky', 'median_sky', 'fwhm', \
+                    'corr_xy', 'nstars', 'frac_sat_pix', 'symmetry',  \
+                    'use_phot', 'use_ref', 'shift_x', 'shift_y', \
+                    'pscale', 'pscale_err', 'var_per_pix_diff', 'n_unmasked',\
+                    'skew_diff', 'kurtosis_diff']
+    for image in meta.images_stats[1]:
+        i = np.where(xmatch.images['filename'] == image['IM_NAME'])[0]
+        for key in stats_keys:
+            assert(xmatch.images[key][i] == image[key.upper()])
 
     logs.close_log(log)
 
@@ -277,8 +334,8 @@ def test_update_array_col_index():
 
 if __name__ == '__main__':
     #test_init_field_data_table()
-    #test_populate_images_table()
+    test_populate_images_table()
     #test_populate_stars_table()
     #test_populate_photometry_array()
     #test_build_array_index_3D()
-    test_update_array_col_index()
+    #test_update_array_col_index()
