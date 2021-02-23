@@ -56,25 +56,25 @@
         "value": -99.0,
         "comment": "Maximum Gaia parallax used to select stars. Set to -99.0 for no selection.",
         "format": "float",
-        "unit": "arcmin"
+        "unit": "mas"
     },
     "parallax_max": {
         "value": 99.0,
         "comment": "Maximum Gaia parallax used to select stars. Set to +99.0 for no selection.",
         "format": "float",
-        "unit": "arcmin"
+        "unit": "mas"
     },
     "pm_min": {
         "value": -99.0,
         "comment": "Maximum Gaia parallax used to select stars. Set to -99.0 for no selection.",
         "format": "float",
-        "unit": "arcmin"
+        "unit": ""
     },
     "pm_max": {
         "value": 99.0,
         "comment": "Maximum Gaia parallax used to select stars. Set to +99.0 for no selection.",
         "format": "float",
-        "unit": "arcmin"
+        "unit": ""
     },
     "interactive": {
         "value": "False",
