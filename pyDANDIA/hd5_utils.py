@@ -49,3 +49,19 @@ def read_phot_hd5(setup,log=None, filename=None, return_type='hdf5'):
             log.info('No existing photometry available to load')
 
         return np.array([])
+
+
+def read_phot_from_hd5_file(file_path, return_type='hdf5'):
+    """Function to read an existing dataset photometry table in HD5 format
+    Function returns two zero-length arrays if none is available"""
+
+    if not os.path.isfile(file_path):
+        raise IOError('Cannot find input photometry file '+file_path)
+
+    f = h5py.File(file_path, "r")
+    dset = f['dataset_photometry']
+
+    if return_type == 'hdf5':
+        return dset
+    else:
+        return np.array(dset[:])
