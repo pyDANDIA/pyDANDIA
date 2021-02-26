@@ -434,11 +434,58 @@ class CrossMatchTable():
 
     def init_stars_table(self):
 
-        ncols = len(self.stars.colnames) - 3
+        #ncols = len(self.stars.colnames) - 3
 
-        for star in self.field_index:
-            row = [star['field_id'], star['ra'], star['dec']] + [0.0]*ncols
-            self.stars.add_row( row )
+        #for star in self.field_index:
+        #    row = [star['field_id'], star['ra'], star['dec']] + [0.0]*ncols
+        #    self.stars.add_row( row )
+
+        nstars = len(self.field_index['field_id'])
+
+        stars_columns = [  Column(name='field_id', data=self.field_index['field_id'], dtype='int'),
+                    Column(name='ra', data=self.field_index['ra'], dtype='float'),
+                    Column(name='dec', data=self.field_index['dec'], dtype='float'),
+                    Column(name='cal_g_mag_lsc_doma', data=np.zeros(nstars), dtype='float'),
+                    Column(name='cal_g_magerr_lsc_doma', data=np.zeros(nstars), dtype='float'),
+                    Column(name='cal_r_mag_lsc_doma', data=np.zeros(nstars), dtype='float'),
+                    Column(name='cal_r_magerr_lsc_doma', data=np.zeros(nstars), dtype='float'),
+                    Column(name='cal_i_mag_lsc_doma', data=np.zeros(nstars), dtype='float'),
+                    Column(name='cal_i_magerr_lsc_doma', data=np.zeros(nstars), dtype='float'),
+
+                    Column(name='cal_g_mag_cpt_doma', data=np.zeros(nstars), dtype='float'),
+                    Column(name='cal_g_magerr_cpt_doma', data=np.zeros(nstars), dtype='float'),
+                    Column(name='cal_r_mag_cpt_doma', data=np.zeros(nstars), dtype='float'),
+                    Column(name='cal_r_magerr_cpt_doma', data=np.zeros(nstars), dtype='float'),
+                    Column(name='cal_i_mag_cpt_doma', data=np.zeros(nstars), dtype='float'),
+                    Column(name='cal_i_magerr_cpt_doma', data=np.zeros(nstars), dtype='float'),
+
+                    Column(name='cal_g_mag_coj_doma', data=np.zeros(nstars), dtype='float'),
+                    Column(name='cal_g_magerr_coj_doma', data=np.zeros(nstars), dtype='float'),
+                    Column(name='cal_r_mag_coj_doma', data=np.zeros(nstars), dtype='float'),
+                    Column(name='cal_r_magerr_coj_doma', data=np.zeros(nstars), dtype='float'),
+                    Column(name='cal_i_mag_coj_doma', data=np.zeros(nstars), dtype='float'),
+                    Column(name='cal_i_magerr_coj_doma', data=np.zeros(nstars), dtype='float'),
+
+                   Column(name='gaia_source_id', data=np.array(['0.0']*nstars)),
+                   Column(name='gaia_ra', data=np.zeros(nstars), dtype='float'),
+                   Column(name='gaia_ra_error', data=np.zeros(nstars), dtype='float'),
+                   Column(name='gaia_dec', data=np.zeros(nstars), dtype='float'),
+                   Column(name='gaia_dec_error', data=np.zeros(nstars), dtype='float'),
+                   Column(name='phot_g_mean_flux', data=np.zeros(nstars), dtype='float'),
+                   Column(name='phot_g_mean_flux_error', data=np.zeros(nstars), dtype='float'),
+                   Column(name='phot_bp_mean_flux', data=np.zeros(nstars), dtype='float'),
+                   Column(name='phot_bp_mean_flux_error', data=np.zeros(nstars), dtype='float'),
+                   Column(name='phot_rp_mean_flux', data=np.zeros(nstars), dtype='float'),
+                   Column(name='phot_rp_mean_flux_error', data=np.zeros(nstars), dtype='float'),
+                   Column(name='proper_motion', data=np.zeros(nstars), dtype='float'),
+                   Column(name='pm_ra', data=np.zeros(nstars), dtype='float'),
+                   Column(name='pm_ra_error', data=np.zeros(nstars), dtype='float'),
+                   Column(name='pm_dec', data=np.zeros(nstars), dtype='float'),
+                   Column(name='pm_dec_error', data=np.zeros(nstars), dtype='float'),
+                   Column(name='parallax', data=np.zeros(nstars), dtype='float'),
+                   Column(name='parallax_error', data=np.zeros(nstars), dtype='float')]
+
+        self.stars = Table(stars_columns)
 
     def save(self, file_path):
         """Output crossmatch table to file"""
