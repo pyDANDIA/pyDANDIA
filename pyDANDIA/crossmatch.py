@@ -460,7 +460,7 @@ class CrossMatchTable():
                     Column(name='cal_i_mag_coj_doma', data=np.zeros(nstars), dtype='float'),
                     Column(name='cal_i_magerr_coj_doma', data=np.zeros(nstars), dtype='float'),
 
-                   Column(name='gaia_source_id', data=np.array(['0.0']*nstars)),
+                   Column(name='gaia_source_id', data=np.array(['0.0']*nstars), dtype='S19'),
                    Column(name='gaia_ra', data=np.zeros(nstars), dtype='float'),
                    Column(name='gaia_ra_error', data=np.zeros(nstars), dtype='float'),
                    Column(name='gaia_dec', data=np.zeros(nstars), dtype='float'),
