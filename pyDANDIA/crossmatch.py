@@ -434,12 +434,6 @@ class CrossMatchTable():
 
     def init_stars_table(self):
 
-        #ncols = len(self.stars.colnames) - 3
-
-        #for star in self.field_index:
-        #    row = [star['field_id'], star['ra'], star['dec']] + [0.0]*ncols
-        #    self.stars.add_row( row )
-
         nstars = len(self.field_index['field_id'])
 
         stars_columns = [  Column(name='field_id', data=self.field_index['field_id'], dtype='int'),
