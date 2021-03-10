@@ -151,7 +151,8 @@ def test_images_stats(meta):
                    Column(name='VAR_PER_PIX_DIFF', data=np.array([0.0457529108700811, 0.15137651432510715, 0.11725083370344544]), unit=None, dtype='float'),
                    Column(name='N_UNMASKED', data=np.array([1013100.0, 1013100.0, 1013100.0]), unit=None, dtype='float'),
                    Column(name='SKEW_DIFF', data=np.array([6.172574787633106, -0.03582948547777698, 7.67133980818663]), unit=None, dtype='float'),
-                   Column(name='KURTOSIS_DIFF', data=np.array([9.88518365653761E-9, 1.1109174691900272E-8, 9.202312487729357E-9]), unit=None, dtype='float')]
+                   Column(name='KURTOSIS_DIFF', data=np.array([9.88518365653761E-9, 1.1109174691900272E-8, 9.202312487729357E-9]), unit=None, dtype='float'),
+                   ]
 
     layer_header = fits.Header()
     layer_header.update({'NAME': 'images_stats'})
@@ -159,6 +160,23 @@ def test_images_stats(meta):
     layer = [layer_header, layer_table]
 
     setattr(meta, 'images_stats', layer)
+
+    return meta
+
+def test_stamps_table(meta):
+
+    table_data = [Column(name='PIXEL_INDEX', data=np.arange(0,16,1), unit=None, dtype='int'),
+                  Column(name='Y_MIN', data=np.array([0,0,0,0,990,990,990,990,1990,1990,1990,1990,2990,2990,2990,2990]), unit=None, dtype='int'),
+                  Column(name='Y_MAX', data=np.array([1010,1010,1010,1010,2010,2010,2010,2010,3010,3010,3010,3010,4096,4096,4096,4096]), unit=None, dtype='int'),
+                  Column(name='X_MIN', data=np.array([0,990,1990,2990,0,990,1990,2990,0,990,1990,2990,0,990,1990,2990]), unit=None, dtype='int'),
+                  Column(name='X_MAX', data=np.array([1010,2010,3010,4096,1010,2010,3010,4096,1010,2010,3010,4096,1010,2010,3010,4096]), unit=None, dtype='int'),
+                   ]
+    layer_header = fits.Header()
+    layer_header.update({'NAME': 'stamps'})
+    layer_table = Table(table_data)
+    layer = [layer_header, layer_table]
+
+    setattr(meta, 'stamps', layer)
 
     return meta
 

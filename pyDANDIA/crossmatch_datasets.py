@@ -69,9 +69,6 @@ def build_crossmatch_table(params):
             # Populate the stamps table:
             xmatch.record_dataset_stamps(dataset_code, dataset_metadata, log)
 
-            # Extract the stamp transformation data and add it to the stamps table:
-            XXXX
-            
             log.info('Finished crossmatch for '+dataset_code)
 
     xmatch.assign_stars_to_quadrants()

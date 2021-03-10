@@ -147,22 +147,35 @@ class CrossMatchTable():
                             Column(name='n_unmasked', data=[], dtype='float'),
                             Column(name='skew_diff', data=[], dtype='float'),
                             Column(name='kurtosis_diff', data=[], dtype='float'),
+                            Column(name='warp_matrix_0', data=[], dtype='float'),
+                            Column(name='warp_matrix_1', data=[], dtype='float'),
+                            Column(name='warp_matrix_2', data=[], dtype='float'),
+                            Column(name='warp_matrix_3', data=[], dtype='float'),
+                            Column(name='warp_matrix_4', data=[], dtype='float'),
+                            Column(name='warp_matrix_5', data=[], dtype='float'),
+                            Column(name='warp_matrix_6', data=[], dtype='float'),
+                            Column(name='warp_matrix_7', data=[], dtype='float'),
+                            Column(name='warp_matrix_8', data=[], dtype='float'),
                             ]
         self.images = Table(image_columns)
 
     def create_stamps_table(self):
         stamps_columns = [   Column(name='dataset_code', data=[], dtype='S80'),
+                            Column(name='filename', data=[], dtype='S80'),
                             Column(name='stamp_id', data=[], dtype='int'),
                             Column(name='xmin', data=[], dtype='float'),
                             Column(name='xmax', data=[], dtype='float'),
                             Column(name='ymin', data=[], dtype='float'),
                             Column(name='ymax', data=[], dtype='float'),
-                            Column(name='transform_0', data=[], dtype='float'),
-                            Column(name='transform_1', data=[], dtype='float'),
-                            Column(name='transform_2', data=[], dtype='float'),
-                            Column(name='transform_3', data=[], dtype='float'),
-                            Column(name='transform_4', data=[], dtype='float'),
-                            Column(name='transform_5', data=[], dtype='float'),
+                            Column(name='warp_matrix_0', data=[], dtype='float'),
+                            Column(name='warp_matrix_1', data=[], dtype='float'),
+                            Column(name='warp_matrix_2', data=[], dtype='float'),
+                            Column(name='warp_matrix_3', data=[], dtype='float'),
+                            Column(name='warp_matrix_4', data=[], dtype='float'),
+                            Column(name='warp_matrix_5', data=[], dtype='float'),
+                            Column(name='warp_matrix_6', data=[], dtype='float'),
+                            Column(name='warp_matrix_7', data=[], dtype='float'),
+                            Column(name='warp_matrix_8', data=[], dtype='float'),
                             ]
         self.stamps = Table(stamps_columns)
 
@@ -500,32 +513,21 @@ class CrossMatchTable():
         self.stars = Table(stars_columns)
 
     def record_dataset_stamps(self, dataset_code, dataset_metadata, log):
-        
-        list_of_stamps = dataset_metadata.stamps[1]['PIXEL_INDEX'].tolist()
-        for stamp in list_of_stamps:
-            stamp_row = np.where(dataset_metadata.stamps[1]['PIXEL_INDEX'] == stamp)[0][0]
-            xmin = int(dataset_metadata.stamps[1][stamp_row]['X_MIN'])
-            xmax = int(dataset_metadata.stamps[1][stamp_row]['X_MAX'])
-            ymin = int(dataset_metadata.stamps[1][stamp_row]['Y_MIN'])
-            ymax = int(dataset_metadata.stamps[1][stamp_row]['Y_MAX'])
 
-            self.stamps.add_row([dataset_code, stamp, xmin, xmax, ymin, ymax, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+        images = dataset_metadata.images_stats[1]['IM_NAME'].tolist()
+        list_of_stamps = dataset_metadata.stamps[1]['PIXEL_INDEX'].tolist()
+
+        for image in images:
+            for stamp in list_of_stamps:
+                stamp_row = np.where(dataset_metadata.stamps[1]['PIXEL_INDEX'] == stamp)[0][0]
+                xmin = int(dataset_metadata.stamps[1][stamp_row]['X_MIN'])
+                xmax = int(dataset_metadata.stamps[1][stamp_row]['X_MAX'])
+                ymin = int(dataset_metadata.stamps[1][stamp_row]['Y_MIN'])
+                ymax = int(dataset_metadata.stamps[1][stamp_row]['Y_MAX'])
+
+                self.stamps.add_row([dataset_code, image, stamp, xmin, xmax, ymin, ymax]+[0.0]*9)
 
         log.info('Recorded stamp dimensions for dataset '+dataset_code)
-
-    stamps_columns = [   Column(name='dataset_code', data=[], dtype='S80'),
-                        Column(name='stamp_id', data=[], dtype='int'),
-                        Column(name='xmin', data=[], dtype='float'),
-                        Column(name='xmax', data=[], dtype='float'),
-                        Column(name='ymin', data=[], dtype='float'),
-                        Column(name='ymax', data=[], dtype='float'),
-                        Column(name='transform_0', data=[], dtype='float'),
-                        Column(name='transform_1', data=[], dtype='float'),
-                        Column(name='transform_2', data=[], dtype='float'),
-                        Column(name='transform_3', data=[], dtype='float'),
-                        Column(name='transform_4', data=[], dtype='float'),
-                        Column(name='transform_5', data=[], dtype='float'),
-                        ]
 
     def save(self, file_path):
         """Output crossmatch table to file"""

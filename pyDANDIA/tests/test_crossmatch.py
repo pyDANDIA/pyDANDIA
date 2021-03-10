@@ -5,6 +5,7 @@ from pyDANDIA import crossmatch_field_gaia
 from pyDANDIA import match_utils
 from pyDANDIA import metadata
 from pyDANDIA import logs
+import test_field_photometry
 from astropy.table import Table, Column
 from astropy import units as u
 import numpy as np
@@ -123,6 +124,8 @@ def test_metadata():
         star_catalog[j-1,2] = -17.5
     star_catalog[1,13] = '4062470305390995584'
     dataset_metadata.create_star_catalog_layer(data=star_catalog)
+
+
     return dataset_metadata
 
 def test_create():
@@ -326,8 +329,34 @@ def test_load_gaia_catalog_file():
     gaia_data = crossmatch_field_gaia.load_gaia_catalog(params,log)
 
     assert(type(gaia_data) == type(Table()))
-    
+
     logs.close_log(log)
+
+def test_record_dataset_stamps():
+
+    params = test_params()
+    log = logs.start_stage_log( params['log_dir'], 'test_crossmatch' )
+
+    xmatch = crossmatch.CrossMatchTable()
+    xmatch.create(params)
+
+    meta = metadata.MetaData()
+    meta = test_field_photometry.test_star_catalog(meta)
+    meta = test_field_photometry.test_headers_summary(meta)
+    meta = test_field_photometry.test_images_stats(meta)
+    meta = test_field_photometry.test_stamps_table(meta)
+
+    xmatch.record_dataset_stamps('dataset0', meta, log)
+
+    assert('stamps' in dir(xmatch))
+    assert(type(xmatch.stamps) == type(Table()))
+    columns = ['dataset_code', 'filename', 'stamp_id', 'xmin', 'xmax', 'ymin', 'ymax',\
+                'warp_matrix_0', 'warp_matrix_1', 'warp_matrix_2', \
+                'warp_matrix_3', 'warp_matrix_4', 'warp_matrix_5', \
+                'warp_matrix_6', 'warp_matrix_7', 'warp_matrix_8']
+    for column in columns:
+        assert(column in xmatch.stamps.colnames)
+    assert(len(xmatch.stamps) == len(meta.images_stats[1])*len(meta.stamps[1]))
 
 if __name__ == '__main__':
     #test_create()
@@ -341,4 +370,5 @@ if __name__ == '__main__':
     #test_cone_search()
     #test_init_stars_table()
     #test_match_field_index_with_gaia_catalog()
-    test_load_gaia_catalog_file()
+    #test_load_gaia_catalog_file()
+    test_record_dataset_stamps()
