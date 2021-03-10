@@ -66,6 +66,12 @@ def build_crossmatch_table(params):
             xmatch.update_field_index(dataset_code, matched_stars, orphans,
                                       dataset_metadata, log)
 
+            # Populate the stamps table:
+            xmatch.record_dataset_stamps(dataset_code, dataset_metadata, log)
+
+            # Extract the stamp transformation data and add it to the stamps table:
+            XXXX
+            
             log.info('Finished crossmatch for '+dataset_code)
 
     xmatch.assign_stars_to_quadrants()

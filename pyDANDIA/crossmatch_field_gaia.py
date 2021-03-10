@@ -7,6 +7,8 @@ from pyDANDIA import match_utils
 from pyDANDIA import vizier_tools
 from astropy import units as u
 from astropy.coordinates import SkyCoord
+from astropy.io import fits
+from astropy.table import Table, Column
 import numpy as np
 
 def crossmatch_field_with_gaia_DR():
@@ -21,12 +23,16 @@ def crossmatch_field_with_gaia_DR():
     # Clear any previous Gaia identifications to avoid confusion over the source
     xmatch.field_index['gaia_source_id'].fill(None)
 
-    log.info('Searching Vizier for data from '+params['gaia_dr']+' within '+\
+    if params['gaia_catalog_file'] == 'query':
+        log.info('Searching Vizier for data from '+params['gaia_dr']+' within '+\
             repr(params['search_radius'])+' arcmin of '+params['ra']+', '+params['dec'])
-    gaia_data = vizier_tools.search_vizier_for_sources(params['ra'], params['dec'],
+        gaia_data = vizier_tools.search_vizier_for_sources(params['ra'], params['dec'],
                                     params['search_radius'], params['gaia_dr'],
                                     row_limit=-1,log=log,debug=True)
-    log.info('Vizier reports '+str(len(gaia_data))+' entries in '+params['gaia_dr']+' catalogue')
+        log.info('Vizier reports '+str(len(gaia_data))+' entries in '+params['gaia_dr']+' catalogue')
+
+    else:
+        gaia_data = load_gaia_catalog(params, log)
 
     gaia_data = clean_gaia_catalog(gaia_data, log)
 
@@ -37,6 +43,26 @@ def crossmatch_field_with_gaia_DR():
     log.info('Crossmatch: complete')
 
     logs.close_log(log)
+
+def load_gaia_catalog(params, log):
+    """Function to load a preexisting Gaia catalog from file"""
+
+    if not path.isfile(params['gaia_catalog_file']):
+        log.into('Cannot find Gaia catalog file '+params['gaia_catalog_file'])
+        raise IOError('Cannot find Gaia catalog file '+params['gaia_catalog_file'])
+
+    data = fits.open(params['gaia_catalog_file'])
+
+    table_data = []
+    for i,col in enumerate(data[1].columns.names):
+        table_data.append( Column(name=col, data=data[1].data[col]) )
+
+    gaia_data = Table(table_data)
+
+    log.info('Loaded data for '+str(len(gaia_data))+' stars from the catalog file '+\
+                params['gaia_catalog_file'])
+    
+    return gaia_data
 
 def clean_gaia_catalog(gaia_data, log):
     """Function to search for and remove Gaia catalog entries with NaNs in the
@@ -57,15 +83,17 @@ def get_args():
     if len(argv) < 2:
         params['crossmatch_file'] = input('Please enter the path to the crossmatch table for this field: ')
         params['gaia_dr'] = input('Please enter the ID of the Gaia data release to use [Gaia-DR2, Gaia-EDR3]: ')
+        params['gaia_catalog_file'] = input('Please enter the path to the Gaia catalog file or enter "query": ')
         params['ra'] = input('Please enter search centroid RA in sexigesimal format: ')
         params['dec'] = input('Please enter search centroid Dec in sexigesimal format: ')
         params['separation_threshold'] = input('Please enter the maximum allowed separation in arcsec: ')
     else:
         params['crossmatch_file'] = argv[1]
         params['gaia_dr'] = argv[2]
-        params['ra'] = argv[3]
-        params['dec'] = argv[4]
-        params['separation_threshold'] = argv[5]
+        params['gaia_catalog_file'] = argv[3]
+        params['ra'] = argv[4]
+        params['dec'] = argv[5]
+        params['separation_threshold'] = argv[6]
 
     params['log_dir'] = path.dirname(params['crossmatch_file'])
     # Default FOV for ROME (LCO/Sinistro cameras) in arcmin as expected by

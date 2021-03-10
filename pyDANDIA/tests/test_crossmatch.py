@@ -1,6 +1,7 @@
 from os import path, remove
 from pyDANDIA import crossmatch
 from pyDANDIA import crossmatch_datasets
+from pyDANDIA import crossmatch_field_gaia
 from pyDANDIA import match_utils
 from pyDANDIA import metadata
 from pyDANDIA import logs
@@ -314,6 +315,20 @@ def test_match_field_index_with_gaia_catalog():
 
     logs.close_log(log)
 
+def test_load_gaia_catalog_file():
+
+    params = {}
+    params['gaia_catalog_file'] = '/Users/rstreet1/ROMEREA/test_data/config/ROME-FIELD-01_Gaia_EDR3.fits'
+    params['log_dir'] = '.'
+
+    log = logs.start_stage_log( params['log_dir'], 'test_crossmatch' )
+
+    gaia_data = crossmatch_field_gaia.load_gaia_catalog(params,log)
+
+    assert(type(gaia_data) == type(Table()))
+    
+    logs.close_log(log)
+
 if __name__ == '__main__':
     #test_create()
 #    test_add_dataset()
@@ -325,4 +340,5 @@ if __name__ == '__main__':
     #test_assign_quadrants()
     #test_cone_search()
     #test_init_stars_table()
-    test_match_field_index_with_gaia_catalog()
+    #test_match_field_index_with_gaia_catalog()
+    test_load_gaia_catalog_file()

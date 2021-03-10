@@ -39,12 +39,28 @@ def combine_photometry_from_all_datasets():
         log.info('Populating timeseries photometry with data from '+dataset['dataset_code'])
         setup = pipeline_setup.PipelineSetup()
         setup.red_dir = dataset['dataset_red_dir']
+        dataset_metadata = metadata.MetaData()
+        dataset_metadata.load_all_metadata(setup.red_dir, 'pyDANDIA_metadata.fits')
         phot_data = hd5_utils.read_phot_hd5(setup, log=log, return_type='array')
         if len(phot_data) > 0:
             (field_star_index, dataset_stars_index) = get_dataset_star_indices(dataset, xmatch)
             dataset_image_index = get_dataset_image_index(dataset, xmatch)
             (xmatch,photometry) = populate_photometry_array(field_star_index, dataset_stars_index,
-                                            dataset_image_index, photometry, phot_data, xmatch, log)
+                                            dataset_image_index, photometry, phot_data, xmatch, log,
+                                            dataset_metadata)
+
+    # With the photometry array properly scaled, loop back over each dataset to
+    # populate the stamp_index, which has to be stored per star per dataset for
+    # all datasets (unlike the stars table).  Yes, re-looping over all datasets
+    # is awkward but less ugly than pre-defining array sizes and easier to test.
+    for dataset in xmatch.datasets:
+        log.info('Populating stamp table and index for '+dataset['dataset_code'])
+        setup = pipeline_setup.PipelineSetup()
+        setup.red_dir = dataset['dataset_red_dir']
+        dataset_metadata = metadata.MetaData()
+        dataset_metadata.load_all_metadata(setup.red_dir, 'pyDANDIA_metadata.fits')
+
+        photometry = populate_stamp_index(dataset_metadata, photometry, log)
 
     # Output tables to field HDF5 files in quadrants and update the xmatch table
     xmatch.save(params['crossmatch_file'])
@@ -137,10 +153,13 @@ def update_array_col_index(index3d, new_col):
 
 def populate_photometry_array(field_star_index, dataset_star_index,
                                 dataset_image_index, photometry, dataset_photometry,
-                                xmatch, log):
+                                xmatch, log, dataset_metadata):
 
-    # hjd, instrumental_mag, instrumental_mag_err, calibrated_mag, calibrated_mag_err, corrected_mag, corrected_mag_err
-
+    # Columns: hjd, instrumental_mag, instrumental_mag_err,
+    # calibrated_mag, calibrated_mag_err, corrected_mag, corrected_mag_err,
+    # phot_scale_factor, phot_scale_factor_err, stamp_index,
+    # sub_image_sky_bkgd, sub_image_sky_bkgd_err,
+    # residual_x, residual_y
     # Build corresponding 3D array index locators for the whole field photometry
     # array and the dataset photometry array, and use them to transfer the
     # timestamp data
@@ -155,11 +174,33 @@ def populate_photometry_array(field_star_index, dataset_star_index,
 
     # Update the array indices to refer to the photometry columns, and
     # transfer those data as well
-    column_index = [(1,11),(2,12),(3,13),(4,14)]
+    column_index = [(1,11),(2,12),(3,13),(4,14),(7,19),(8,20),(10,21),(11,22),(12,7),(13,8)]
     for column in column_index:
         phot_index = update_array_col_index(phot_index, column[0])
         data_index = update_array_col_index(data_index, column[1])
         photometry[phot_index] = dataset_photometry[data_index]
+
+    # Populate the stamp index:
+    list_of_stamps = dataset_metadata.stamps[1]['PIXEL_INDEX'].tolist()
+    for stamp in list_of_stamps:
+        stamp_row = np.where(dataset_metadata.stamps[1]['PIXEL_INDEX'] == stamp)[0][0]
+        xmin = int(dataset_metadata.stamps[1][stamp_row]['X_MIN'])
+        xmax = int(dataset_metadata.stamps[1][stamp_row]['X_MAX'])
+        ymin = int(dataset_metadata.stamps[1][stamp_row]['Y_MIN'])
+        ymax = int(dataset_metadata.stamps[1][stamp_row]['Y_MAX'])
+
+        stamp_star_idx = (dataset_metadata.star_catalog[1]['x'] < xmax) & (dataset_metadata.star_catalog[1]['x'] > xmin) & \
+                     (dataset_metadata.star_catalog[1]['y'] < ymax) & (dataset_metadata.star_catalog[1]['y'] > ymin)
+
+        field_stamp_star_idx = []
+        for dataset_idx in stamp_star_idx:
+            idx = np.where(dataset_star_index == dataset_idx)
+            field_stamp_star_idx.append(idx)
+
+        phot_index = build_array_index([field_stamp_star_id, dataset_image_index,[0]])
+        phot_index = update_array_col_index(phot_index, 9)
+
+        photometry[phot_index] = stamp
 
     # Also update the images table with the timestamp data:
     for i in range(0,ndata,1):
@@ -244,10 +285,14 @@ def init_field_data_table(xmatch,log):
     # Photometry data array is initialized as a list because this is a
     # faster way to add rows.  Structure is:
     # [Nimages, Nstars, Ncolumns]
-    # Columns: hjd, instrumental_mag, instrumental_mag_err, calibrated_mag, calibrated_mag_err, corrected_mag, corrected_mag_err
-    # Note: Last two columns included to allow for likely future expansion;
+    # Columns: hjd, instrumental_mag, instrumental_mag_err,
+    # calibrated_mag, calibrated_mag_err, corrected_mag, corrected_mag_err,
+    # phot_scale_factor, phot_scale_factor_err, stamp_index,
+    # sub_image_sky_bkgd, sub_image_sky_bkgd_err,
+    # residual_x, residual_y
+    # Note: corrected_mag columns included to allow for likely future expansion;
     # not yet populated
-    photometry = np.zeros( (len(xmatch.stars), len(xmatch.images), 7) )
+    photometry = np.zeros( (len(xmatch.stars), len(xmatch.images), 14) )
     log.info('Initialized timeseries photometry array')
 
     return photometry

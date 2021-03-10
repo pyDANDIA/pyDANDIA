@@ -21,6 +21,7 @@ class CrossMatchTable():
         self.datasets = Table()
         self.stars = Table()
         self.images = Table()
+        self.stamps = Table()
 
     def create(self, params):
         xmatch = fits.HDUList()
@@ -63,6 +64,7 @@ class CrossMatchTable():
         self.field_index = Table(field_index_columns)
         self.create_stars_table()
         self.create_images_table()
+        self.create_stamps_table()
 
     def create_stars_table(self):
         stars_columns = [  Column(name='field_id', data=[], dtype='int'),
@@ -100,11 +102,11 @@ class CrossMatchTable():
                            Column(name='phot_bp_mean_flux_error', data=[], dtype='float'),
                            Column(name='phot_rp_mean_flux', data=[], dtype='float'),
                            Column(name='phot_rp_mean_flux_error', data=[], dtype='float'),
-                           Column(name='proper_motion', data=[], dtype='float'),
-                           Column(name='pm_ra', data=[], dtype='float'),
-                           Column(name='pm_ra_error', data=[], dtype='float'),
-                           Column(name='pm_dec', data=[], dtype='float'),
-                           Column(name='pm_dec_error', data=[], dtype='float'),
+                           Column(name='pm', data=[], dtype='float'),
+                           Column(name='pmra', data=[], dtype='float'),
+                           Column(name='pmra_error', data=[], dtype='float'),
+                           Column(name='pmdec', data=[], dtype='float'),
+                           Column(name='pmdec_error', data=[], dtype='float'),
                            Column(name='parallax', data=[], dtype='float'),
                            Column(name='parallax_error', data=[], dtype='float')]
 
@@ -147,6 +149,22 @@ class CrossMatchTable():
                             Column(name='kurtosis_diff', data=[], dtype='float'),
                             ]
         self.images = Table(image_columns)
+
+    def create_stamps_table(self):
+        stamps_columns = [   Column(name='dataset_code', data=[], dtype='S80'),
+                            Column(name='stamp_id', data=[], dtype='int'),
+                            Column(name='xmin', data=[], dtype='float'),
+                            Column(name='xmax', data=[], dtype='float'),
+                            Column(name='ymin', data=[], dtype='float'),
+                            Column(name='ymax', data=[], dtype='float'),
+                            Column(name='transform_0', data=[], dtype='float'),
+                            Column(name='transform_1', data=[], dtype='float'),
+                            Column(name='transform_2', data=[], dtype='float'),
+                            Column(name='transform_3', data=[], dtype='float'),
+                            Column(name='transform_4', data=[], dtype='float'),
+                            Column(name='transform_5', data=[], dtype='float'),
+                            ]
+        self.stamps = Table(stamps_columns)
 
     def add_dataset_header(self, dataset_idx, dataset_code, dataset_info):
 
@@ -287,9 +305,9 @@ class CrossMatchTable():
                                     gaia_data['phot_g_mean_flux'][jgaia], gaia_data['phot_g_mean_flux_error'][jgaia],
                                     gaia_data['phot_bp_mean_flux'][jgaia], gaia_data['phot_bp_mean_flux_error'][jgaia],
                                     gaia_data['phot_rp_mean_flux'][jgaia], gaia_data['phot_rp_mean_flux_error'][jgaia],
-                                    gaia_data['proper_motion'][jgaia],
-                                    gaia_data['pm_ra'][jgaia], gaia_data['pm_ra_error'][jgaia],
-                                    gaia_data['pm_dec'][jgaia], gaia_data['pm_dec_error'][jgaia],
+                                    gaia_data['pm'][jgaia],
+                                    gaia_data['pmra'][jgaia], gaia_data['pmra_error'][jgaia],
+                                    gaia_data['pmdec'][jgaia], gaia_data['pmdec_error'][jgaia],
                                     gaia_data['parallax'][jgaia], gaia_data['parallax_error'][jgaia]]
             else:
                 self.stars[jfield] = [star['field_id'], star['ra'], star['dec']] + [0.0]*18 + \
@@ -471,7 +489,7 @@ class CrossMatchTable():
                    Column(name='phot_bp_mean_flux_error', data=np.zeros(nstars), dtype='float'),
                    Column(name='phot_rp_mean_flux', data=np.zeros(nstars), dtype='float'),
                    Column(name='phot_rp_mean_flux_error', data=np.zeros(nstars), dtype='float'),
-                   Column(name='proper_motion', data=np.zeros(nstars), dtype='float'),
+                   Column(name='pm', data=np.zeros(nstars), dtype='float'),
                    Column(name='pm_ra', data=np.zeros(nstars), dtype='float'),
                    Column(name='pm_ra_error', data=np.zeros(nstars), dtype='float'),
                    Column(name='pm_dec', data=np.zeros(nstars), dtype='float'),
@@ -480,6 +498,34 @@ class CrossMatchTable():
                    Column(name='parallax_error', data=np.zeros(nstars), dtype='float')]
 
         self.stars = Table(stars_columns)
+
+    def record_dataset_stamps(self, dataset_code, dataset_metadata, log):
+        
+        list_of_stamps = dataset_metadata.stamps[1]['PIXEL_INDEX'].tolist()
+        for stamp in list_of_stamps:
+            stamp_row = np.where(dataset_metadata.stamps[1]['PIXEL_INDEX'] == stamp)[0][0]
+            xmin = int(dataset_metadata.stamps[1][stamp_row]['X_MIN'])
+            xmax = int(dataset_metadata.stamps[1][stamp_row]['X_MAX'])
+            ymin = int(dataset_metadata.stamps[1][stamp_row]['Y_MIN'])
+            ymax = int(dataset_metadata.stamps[1][stamp_row]['Y_MAX'])
+
+            self.stamps.add_row([dataset_code, stamp, xmin, xmax, ymin, ymax, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+
+        log.info('Recorded stamp dimensions for dataset '+dataset_code)
+
+    stamps_columns = [   Column(name='dataset_code', data=[], dtype='S80'),
+                        Column(name='stamp_id', data=[], dtype='int'),
+                        Column(name='xmin', data=[], dtype='float'),
+                        Column(name='xmax', data=[], dtype='float'),
+                        Column(name='ymin', data=[], dtype='float'),
+                        Column(name='ymax', data=[], dtype='float'),
+                        Column(name='transform_0', data=[], dtype='float'),
+                        Column(name='transform_1', data=[], dtype='float'),
+                        Column(name='transform_2', data=[], dtype='float'),
+                        Column(name='transform_3', data=[], dtype='float'),
+                        Column(name='transform_4', data=[], dtype='float'),
+                        Column(name='transform_5', data=[], dtype='float'),
+                        ]
 
     def save(self, file_path):
         """Output crossmatch table to file"""
