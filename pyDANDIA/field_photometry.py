@@ -243,7 +243,7 @@ def populate_stars_table(dataset,xmatch,dataset_metadata,log):
 
     return xmatch, field_array_idx, dataset_array_idx
 
-def populate_images_table(dataset,dataset_metadata, xmatch, log):
+def populate_images_table(dataset, dataset_metadata, xmatch, log):
     """Function to populate the table of image properties from the corresponding
     data in the datasets metadata tables.  Table columns are:
 
@@ -260,6 +260,14 @@ def populate_images_table(dataset,dataset_metadata, xmatch, log):
                                 [0.0]*6 + [0] +[0.0]*2 + [0,0] + [0.0]*17 + [0]
         xmatch.images.add_row(row)
         image_index.append(iimage+i)
+
+    for image in dataset_metadata.reduction_status[1]:
+        i = np.where(xmatch.images['filename'] == image['IMAGES'])
+        qc_flag = 0
+        for k in range(0,6,1):
+            if image['STAGE_'+str(k)] == -1:
+                qc_flag = -1
+        xmatch.images['qc_flag'][i] = qc_flag
 
     images_stats_keys = ['sigma_x', 'sigma_y', 'sky', 'median_sky', 'fwhm', \
                          'corr_xy', 'nstars', 'frac_sat_pix', 'symmetry',  \

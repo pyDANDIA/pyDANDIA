@@ -214,6 +214,32 @@ def test_images_stats(meta):
 
     return meta
 
+def test_reduction_status(meta):
+    nimages = len(meta.images_stats[1]['IM_NAME'].data)
+
+    table_data = [Column(name='IMAGES', data=meta.images_stats[1]['IM_NAME'].data),
+                  Column(name='STAGE_0', data=np.ones(nimages)),
+                  Column(name='STAGE_1', data=np.ones(nimages)),
+                  Column(name='STAGE_2', data=np.ones(nimages)),
+                  Column(name='STAGE_3', data=np.ones(nimages)),
+                  Column(name='STAGE_4', data=np.ones(nimages)),
+                  Column(name='STAGE_5', data=np.ones(nimages)),
+                  Column(name='STAGE_6', data=np.ones(nimages)),
+                  Column(name='STAGE_7', data=np.zeros(nimages))]
+
+    layer_table = Table(table_data)
+    layer_table['STAGE_4'][1] = -1
+    layer_table['STAGE_5'][1] = -1
+    layer_table['STAGE_6'][1] = -1
+    layer_table['STAGE_7'][1] = -1
+    layer_header = fits.Header()
+    layer_header.update({'NAME': 'reduction_status'})
+    layer = [layer_header, layer_table]
+
+    setattr(meta, 'reduction_status', layer)
+
+    return meta
+
 def test_stamps_table(meta):
 
     table_data = [Column(name='PIXEL_INDEX', data=np.arange(0,16,1), unit=None, dtype='int'),
@@ -254,6 +280,8 @@ def test_populate_images_table():
     meta = metadata.MetaData()
     meta = test_headers_summary(meta)
     meta = test_images_stats(meta)
+    meta = test_reduction_status(meta)
+    meta = test_data_architecture(meta)
 
     (xmatch, image_index) = field_photometry.populate_images_table(xmatch.datasets[0], meta, xmatch, log)
 
@@ -285,6 +313,12 @@ def test_populate_images_table():
         i = np.where(xmatch.images['filename'] == image['IM_NAME'])[0]
         for key in stats_keys:
             assert(xmatch.images[key][i] == image[key.upper()])
+
+    for image in meta.reduction_status[1]:
+        i = np.where(xmatch.images['filename'] == image['IMAGES'])[0]
+        for k in range(0,7,1):
+            if image['STAGE_'+str(k)] == -1:
+                assert(xmatch.images[i]['qc_flag'] == int(image['STAGE_'+str(k)]))
 
     logs.close_log(log)
 
@@ -460,9 +494,9 @@ def test_populate_stamps_table():
 
 if __name__ == '__main__':
     #test_init_field_data_table()
-    #test_populate_images_table()
+    test_populate_images_table()
     #test_populate_stars_table()
-    test_populate_photometry_array()
+    #test_populate_photometry_array()
     #test_build_array_index_3D()
     #test_update_array_col_index()
     #test_populate_stamps_table()
