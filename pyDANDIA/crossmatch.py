@@ -540,7 +540,8 @@ class CrossMatchTable():
                     fits.BinTableHDU(self.field_index, name='FIELD_INDEX'),
                     fits.BinTableHDU(self.datasets, name='DATASETS'),
                     fits.BinTableHDU(self.stars, name='STARS'),
-                    fits.BinTableHDU(self.images, name='IMAGES')]
+                    fits.BinTableHDU(self.images, name='IMAGES'),
+                    fits.BinTableHDU(self.stamps, name='STAMPS')]
         hdu_list = fits.HDUList(hdu_list)
         hdu_list.writeto(file_path, overwrite=True)
 
@@ -583,6 +584,7 @@ class CrossMatchTable():
         self.datasets = load_binary_table(hdu_list, 2)
         self.stars = load_binary_table(hdu_list, 3)
         self.images = load_binary_table(hdu_list, 4)
+        self.stamps = load_binary_table(hdu_list, 5)
 
         if log:
             log.info('Loaded crossmatch table from '+file_path)

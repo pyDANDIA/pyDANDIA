@@ -32,7 +32,7 @@ def combine_photometry_from_all_datasets():
         (xmatch,dataset_image_index) = populate_images_table(dataset,dataset_metadata, xmatch, log)
         (xmatch, field_star_index, dataset_stars_index) = populate_stars_table(dataset,xmatch,dataset_metadata,log)
         xmatch = populate_stamps_table(xmatch, dataset_code, dataset_metadata, log)
-        
+
     # These loops are deliberately separated because it makes it easier to
     # initialize the photometry array for the whole field to the correct size
     photometry = init_field_data_table(xmatch,log)
@@ -49,19 +49,6 @@ def combine_photometry_from_all_datasets():
             (xmatch,photometry) = populate_photometry_array(field_star_index, dataset_stars_index,
                                             dataset_image_index, photometry, phot_data, xmatch, log,
                                             dataset_metadata)
-
-    # With the photometry array properly scaled, loop back over each dataset to
-    # populate the stamp_index, which has to be stored per star per dataset for
-    # all datasets (unlike the stars table).  Yes, re-looping over all datasets
-    # is awkward but less ugly than pre-defining array sizes and easier to test.
-    for dataset in xmatch.datasets:
-        log.info('Populating stamp table and index for '+dataset['dataset_code'])
-        setup = pipeline_setup.PipelineSetup()
-        setup.red_dir = dataset['dataset_red_dir']
-        dataset_metadata = metadata.MetaData()
-        dataset_metadata.load_all_metadata(setup.red_dir, 'pyDANDIA_metadata.fits')
-
-        photometry = populate_stamp_index(dataset_metadata, photometry, log)
 
     # Output tables to field HDF5 files in quadrants and update the xmatch table
     xmatch.save(params['crossmatch_file'])
@@ -190,15 +177,18 @@ def populate_photometry_array(field_star_index, dataset_star_index,
         ymin = int(dataset_metadata.stamps[1][stamp_row]['Y_MIN'])
         ymax = int(dataset_metadata.stamps[1][stamp_row]['Y_MAX'])
 
-        stamp_star_idx = (dataset_metadata.star_catalog[1]['x'] < xmax) & (dataset_metadata.star_catalog[1]['x'] > xmin) & \
+        stamp_stars = (dataset_metadata.star_catalog[1]['x'] < xmax) & (dataset_metadata.star_catalog[1]['x'] > xmin) & \
                      (dataset_metadata.star_catalog[1]['y'] < ymax) & (dataset_metadata.star_catalog[1]['y'] > ymin)
+
+        stamp_star_idx = dataset_metadata.star_catalog[1]['index'][stamp_stars] - 1
 
         field_stamp_star_idx = []
         for dataset_idx in stamp_star_idx:
-            idx = np.where(dataset_star_index == dataset_idx)
-            field_stamp_star_idx.append(idx)
+            idx = np.where(dataset_star_index == dataset_idx)[0]
+            if len(idx) > 0:
+                field_stamp_star_idx.append(field_star_index[idx[0]])
 
-        phot_index = build_array_index([field_stamp_star_id, dataset_image_index,[0]])
+        phot_index = build_array_index([field_stamp_star_idx, dataset_image_index,[0]])
         phot_index = update_array_col_index(phot_index, 9)
 
         photometry[phot_index] = stamp
@@ -264,9 +254,10 @@ def populate_images_table(dataset,dataset_metadata, xmatch, log):
     iimage = len(xmatch.images)
     image_index = []
     for i,image in enumerate(dataset_metadata.headers_summary[1]):
-        xmatch.images.add_row( [iimage+i, image['IMAGES'], dataset['dataset_code'], image['FILTKEY'], 0.0, \
+        row = [iimage+i, image['IMAGES'], dataset['dataset_code'], image['FILTKEY'], 0.0, \
                                 image['DATEKEY'], image['EXPKEY'], image['RAKEY'], image['DECKEY'], \
-                                image['MOONDKEY'], image['MOONFKEY'], image['AIRMASS'] ] + [0.0]*6 + [0] +[0.0]*2 + [0,0] + [0.0]*14 )
+                                image['MOONDKEY'], image['MOONFKEY'], image['AIRMASS'] ] + [0.0]*6 + [0] +[0.0]*2 + [0,0] + [0.0]*17
+        xmatch.images.add_row(row)
         image_index.append(iimage+i)
 
     images_stats_keys = ['sigma_x', 'sigma_y', 'sky', 'median_sky', 'fwhm', \
@@ -274,13 +265,13 @@ def populate_images_table(dataset,dataset_metadata, xmatch, log):
                          'use_phot', 'use_ref', 'shift_x', 'shift_y', \
                          'pscale', 'pscale_err', 'var_per_pix_diff', 'n_unmasked',\
                          'skew_diff', 'kurtosis_diff']
-    red_dir = dataset_metadata.data_architecture[1]['output_directory'][0]
+    red_dir = dataset_metadata.data_architecture[1]['OUTPUT_DIRECTORY'][0]
     for image in dataset_metadata.images_stats[1]:
         i = np.where(xmatch.images['filename'] == image['IM_NAME'])
         for key in images_stats_keys:
             xmatch.images[key][i] = image[key.upper()]
 
-        image_matrix_file = path.join(red_dir, 'resampled', image, 'warp_matrice_image.npy')
+        matrix_file = path.join(red_dir, 'resampled', image['IM_NAME'], 'warp_matrice_image.npy')
         matrix = np.load(matrix_file)
         transformation = matrix.ravel()
         for j in range(0,len(transformation),1):
@@ -291,8 +282,8 @@ def populate_images_table(dataset,dataset_metadata, xmatch, log):
 
 def populate_stamps_table(xmatch, dataset_code, dataset_metadata, log):
 
-    red_dir = dataset_metadata.data_architecture[1]['output_directory'][0]
-    dataset_stamps_idx = np.where(xmatch.stamps['dataset_code'] == dataset_code)
+    red_dir = dataset_metadata.data_architecture[1]['OUTPUT_DIRECTORY'][0]
+    dataset_stamps_idx = np.where(xmatch.stamps['dataset_code'] == dataset_code)[0]
 
     for i in dataset_stamps_idx:
         image_file = xmatch.stamps['filename'][i]
@@ -304,7 +295,7 @@ def populate_stamps_table(xmatch, dataset_code, dataset_metadata, log):
             xmatch.stamps[i]['warp_matrix_'+str(j)] = transformation[j]
 
     log.info('-> Populated the stamps table with transform data for '+\
-            str(len(dataset_stamps_idx)+' stamps for dataset '+dataset_code))
+            str(len(dataset_stamps_idx))+' stamps for dataset '+dataset_code)
 
     return xmatch
 
