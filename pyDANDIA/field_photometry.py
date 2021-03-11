@@ -256,7 +256,8 @@ def populate_images_table(dataset,dataset_metadata, xmatch, log):
     for i,image in enumerate(dataset_metadata.headers_summary[1]):
         row = [iimage+i, image['IMAGES'], dataset['dataset_code'], image['FILTKEY'], 0.0, \
                                 image['DATEKEY'], image['EXPKEY'], image['RAKEY'], image['DECKEY'], \
-                                image['MOONDKEY'], image['MOONFKEY'], image['AIRMASS'] ] + [0.0]*6 + [0] +[0.0]*2 + [0,0] + [0.0]*17
+                                image['MOONDKEY'], image['MOONFKEY'], image['AIRMASS'] ] + \
+                                [0.0]*6 + [0] +[0.0]*2 + [0,0] + [0.0]*17 + [0]
         xmatch.images.add_row(row)
         image_index.append(iimage+i)
 
@@ -272,8 +273,11 @@ def populate_images_table(dataset,dataset_metadata, xmatch, log):
             xmatch.images[key][i] = image[key.upper()]
 
         matrix_file = path.join(red_dir, 'resampled', image['IM_NAME'], 'warp_matrice_image.npy')
-        matrix = np.load(matrix_file)
-        transformation = matrix.ravel()
+        if path.isfile(matrix_file):
+            matrix = np.load(matrix_file)
+            transformation = matrix.ravel()
+        else:
+            transformation = np.zeros(9)
         for j in range(0,len(transformation),1):
             xmatch.images[i]['warp_matrix_'+str(j)] = transformation[j]
 
@@ -289,8 +293,11 @@ def populate_stamps_table(xmatch, dataset_code, dataset_metadata, log):
         image_file = xmatch.stamps['filename'][i]
         sid = xmatch.stamps['stamp_id'][i]
         matrix_file = path.join(red_dir, 'resampled', image_file, 'warp_matrice_stamp_'+str(sid)+'.npy')
-        matrix = np.load(matrix_file)
-        transformation = matrix.ravel()
+        if path.isfile(matrix_file):
+            matrix = np.load(matrix_file)
+            transformation = matrix.ravel()
+        else:
+            transformation = np.zeros(9)
         for j in range(0,len(transformation),1):
             xmatch.stamps[i]['warp_matrix_'+str(j)] = transformation[j]
 
@@ -308,9 +315,10 @@ def init_field_data_table(xmatch,log):
     # phot_scale_factor, phot_scale_factor_err, stamp_index,
     # sub_image_sky_bkgd, sub_image_sky_bkgd_err,
     # residual_x, residual_y
+    # qc_flag
     # Note: corrected_mag columns included to allow for likely future expansion;
     # not yet populated
-    photometry = np.zeros( (len(xmatch.stars), len(xmatch.images), 14) )
+    photometry = np.zeros( (len(xmatch.stars), len(xmatch.images), 15) )
     log.info('Initialized timeseries photometry array')
 
     return photometry

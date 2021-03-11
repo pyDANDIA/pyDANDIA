@@ -156,6 +156,7 @@ class CrossMatchTable():
                             Column(name='warp_matrix_6', data=[], dtype='float'),
                             Column(name='warp_matrix_7', data=[], dtype='float'),
                             Column(name='warp_matrix_8', data=[], dtype='float'),
+                            Column(name='qc_flag', data=[], dtype='int'),
                             ]
         self.images = Table(image_columns)
 
