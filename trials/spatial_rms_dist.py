@@ -54,7 +54,7 @@ def rms_spatial_distribution(reduction_dir, dataset_code, n_samples):
             if len(lc[:,3][good])>0:
                 ra.append(ra_select[entry_idx])
                 dec.append(dec_select[entry_idx])
-                rms.append(np.std(lc[:,3]))
+                rms.append(np.std(lc[:,3][good]))
                 
     ra = np.array(ra)
     dec = np.array(dec)
