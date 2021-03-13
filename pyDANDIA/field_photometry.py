@@ -282,7 +282,7 @@ def populate_images_table(dataset, dataset_metadata, xmatch, log):
                          'skew_diff', 'kurtosis_diff']
     red_dir = dataset_metadata.data_architecture[1]['OUTPUT_DIRECTORY'][0]
     for image in dataset_metadata.images_stats[1]:
-        log.info('-> Populating image statistics and warp matrix for '+image['IMAGES'])
+        log.info('-> Populating image statistics and warp matrix for '+image['IM_NAME'])
         i = np.where(xmatch.images['filename'] == image['IM_NAME'])
         for key in images_stats_keys:
             xmatch.images[key][i] = image[key.upper()]
