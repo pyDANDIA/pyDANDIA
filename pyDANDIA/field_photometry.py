@@ -299,6 +299,12 @@ def populate_images_table(dataset, dataset_metadata, xmatch, log):
             xmatch.images[i]['warp_matrix_'+str(j)] = transformation[j]
 
     log.info('-> Populated image table')
+    print(xmatch.images['qc_flag'], xmatch.images['warp_matrix_0'], \
+            xmatch.images['warp_matrix_1'],xmatch.images['warp_matrix_2'],\
+            xmatch.images['warp_matrix_3'],xmatch.images['warp_matrix_4'],\
+            xmatch.images['warp_matrix_5'],xmatch.images['warp_matrix_6'],\
+            xmatch.images['warp_matrix_7'],xmatch.images['warp_matrix_8'])
+            
     return xmatch, image_index
 
 def populate_stamps_table(xmatch, dataset_code, dataset_metadata, log):
