@@ -260,14 +260,20 @@ def populate_images_table(dataset, dataset_metadata, xmatch, log):
                                 [0.0]*6 + [0] +[0.0]*2 + [0,0] + [0.0]*17 + [0]
         xmatch.images.add_row(row)
         image_index.append(iimage+i)
+    log.info('-> Populated images table with data from FITS image headers')
 
     for image in dataset_metadata.reduction_status[1]:
+        log.info('-> Populating image QC flag from reduction status '+image['IMAGES'])
         i = np.where(xmatch.images['filename'] == image['IMAGES'])
+        log.info('--> Entry '+str(i)+' in images table')
         qc_flag = 0
         for k in range(0,6,1):
+            log.info('--> stage '+str(k)+' '+str(image['STAGE_'+str(k)]))
             if image['STAGE_'+str(k)] == -1:
                 qc_flag = -1
         xmatch.images['qc_flag'][i] = qc_flag
+        log.info('--> xmatch.images qc flag entry: '+str(xmatch.images['qc_flag'][i]))
+    log.info('-> Populated images table with reduction status QC data')
 
     images_stats_keys = ['sigma_x', 'sigma_y', 'sky', 'median_sky', 'fwhm', \
                          'corr_xy', 'nstars', 'frac_sat_pix', 'symmetry',  \
@@ -276,6 +282,7 @@ def populate_images_table(dataset, dataset_metadata, xmatch, log):
                          'skew_diff', 'kurtosis_diff']
     red_dir = dataset_metadata.data_architecture[1]['OUTPUT_DIRECTORY'][0]
     for image in dataset_metadata.images_stats[1]:
+        log.info('-> Populating image statistics and warp matrix for '+image['IMAGES'])
         i = np.where(xmatch.images['filename'] == image['IM_NAME'])
         for key in images_stats_keys:
             xmatch.images[key][i] = image[key.upper()]
@@ -283,10 +290,12 @@ def populate_images_table(dataset, dataset_metadata, xmatch, log):
         matrix_file = path.join(red_dir, 'resampled', image['IM_NAME'], 'warp_matrice_image.npy')
         if path.isfile(matrix_file):
             matrix = np.load(matrix_file)
+            log.info('--> Loaded matrix: '+repr(matrix))
             transformation = matrix.ravel()
         else:
             transformation = np.zeros(9)
         for j in range(0,len(transformation),1):
+            log.info('--> Storing matrix element '+str(j)+' '+str(transformation[j]))
             xmatch.images[i]['warp_matrix_'+str(j)] = transformation[j]
 
     log.info('-> Populated image table')
