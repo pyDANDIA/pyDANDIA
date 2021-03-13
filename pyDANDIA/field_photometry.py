@@ -31,7 +31,7 @@ def combine_photometry_from_all_datasets():
 
         (xmatch,dataset_image_index) = populate_images_table(dataset,dataset_metadata, xmatch, log)
         (xmatch, field_star_index, dataset_stars_index) = populate_stars_table(dataset,xmatch,dataset_metadata,log)
-        xmatch = populate_stamps_table(xmatch, dataset_code, dataset_metadata, log)
+        xmatch = populate_stamps_table(xmatch, dataset['dataset_code'], dataset_metadata, log)
 
     # These loops are deliberately separated because it makes it easier to
     # initialize the photometry array for the whole field to the correct size
