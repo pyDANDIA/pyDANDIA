@@ -304,7 +304,7 @@ def populate_images_table(dataset, dataset_metadata, xmatch, log):
             xmatch.images['warp_matrix_3'],xmatch.images['warp_matrix_4'],\
             xmatch.images['warp_matrix_5'],xmatch.images['warp_matrix_6'],\
             xmatch.images['warp_matrix_7'],xmatch.images['warp_matrix_8'])
-            
+
     return xmatch, image_index
 
 def populate_stamps_table(xmatch, dataset_code, dataset_metadata, log):
