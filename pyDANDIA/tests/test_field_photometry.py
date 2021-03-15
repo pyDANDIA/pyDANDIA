@@ -314,11 +314,20 @@ def test_populate_images_table():
         for key in stats_keys:
             assert(xmatch.images[key][i] == image[key.upper()])
 
+    red_dir = meta.data_architecture[1]['OUTPUT_DIRECTORY'][0]
     for image in meta.reduction_status[1]:
         i = np.where(xmatch.images['filename'] == image['IMAGES'])[0]
         for k in range(0,7,1):
             if image['STAGE_'+str(k)] == -1:
                 assert(xmatch.images[i]['qc_flag'] == int(image['STAGE_'+str(k)]))
+        matrix_file = path.join(red_dir, 'resampled', image['IMAGES'], 'warp_matrice_image.npy')
+        if path.isfile(matrix_file):
+            matrix = np.load(matrix_file)
+            transformation = matrix.ravel()
+        else:
+            transformation = np.zeros(9)
+        for j in range(0,len(transformation),1):
+            assert(xmatch.images[i]['warp_matrix_'+str(j)] == transformation[j])
 
     logs.close_log(log)
 

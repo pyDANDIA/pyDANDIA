@@ -295,15 +295,10 @@ def populate_images_table(dataset, dataset_metadata, xmatch, log):
         else:
             transformation = np.zeros(9)
         for j in range(0,len(transformation),1):
-            log.info('--> Storing matrix element '+str(j)+' '+str(transformation[j]))
-            xmatch.images[i]['warp_matrix_'+str(j)] = transformation[j]
+            xmatch.images['warp_matrix_'+str(j)][i] = transformation[j]
+            log.info('--> Storing matrix element '+str(j)+' for image '+repr(i)+' '+str(xmatch.images[i]['warp_matrix_'+str(j)]))
 
     log.info('-> Populated image table')
-    print(xmatch.images['qc_flag'], xmatch.images['warp_matrix_0'], \
-            xmatch.images['warp_matrix_1'],xmatch.images['warp_matrix_2'],\
-            xmatch.images['warp_matrix_3'],xmatch.images['warp_matrix_4'],\
-            xmatch.images['warp_matrix_5'],xmatch.images['warp_matrix_6'],\
-            xmatch.images['warp_matrix_7'],xmatch.images['warp_matrix_8'])
 
     return xmatch, image_index
 
