@@ -46,9 +46,9 @@ def calc_mean_rms_mag(photometry_data,log,use_calib_mag=True):
         mag_col = 11
         merr_col = 12
 
-    phot_statistics = np.zeros( (len(photometry_data),3) )
+    phot_statistics = np.zeros( (len(photometry_data),4) )
 
-    (phot_statistics[:,0], _) = calc_weighted_mean_2D(photometry_data, mag_col, merr_col)
+    (phot_statistics[:,0], phot_statistics[:,3]) = calc_weighted_mean_2D(photometry_data, mag_col, merr_col)
     log.info('Calculated stellar mean magnitudes weighted by the photometric uncertainties')
 
     phot_statistics[:,1] = calc_weighted_rms(photometry_data, phot_statistics[:,0], mag_col, merr_col)

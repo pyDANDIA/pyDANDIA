@@ -267,7 +267,7 @@ def populate_images_table(dataset, dataset_metadata, xmatch, log):
         i = np.where(xmatch.images['filename'] == image['IMAGES'])
         log.info('--> Entry '+str(i)+' in images table')
         qc_flag = 0
-        for k in range(0,6,1):
+        for k in range(0,7,1):
             log.info('--> stage '+str(k)+' '+str(image['STAGE_'+str(k)])+' '+repr(type(image['STAGE_'+str(k)])))
             if int(image['STAGE_'+str(k)]) == -1:
                 qc_flag = -1
