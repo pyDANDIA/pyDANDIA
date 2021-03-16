@@ -268,8 +268,8 @@ def populate_images_table(dataset, dataset_metadata, xmatch, log):
         log.info('--> Entry '+str(i)+' in images table')
         qc_flag = 0
         for k in range(0,6,1):
-            log.info('--> stage '+str(k)+' '+str(image['STAGE_'+str(k)]))
-            if image['STAGE_'+str(k)] == -1:
+            log.info('--> stage '+str(k)+' '+str(image['STAGE_'+str(k)])+' '+repr(type(image['STAGE_'+str(k)])))
+            if int(image['STAGE_'+str(k)]) == -1:
                 qc_flag = -1
         xmatch.images['qc_flag'][i] = qc_flag
         log.info('--> xmatch.images qc flag entry: '+str(xmatch.images['qc_flag'][i]))
