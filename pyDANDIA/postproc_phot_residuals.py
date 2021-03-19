@@ -6,6 +6,7 @@ from pyDANDIA import hd5_utils
 from pyDANDIA import logs
 from pyDANDIA import metadata
 from pyDANDIA import plot_rms
+import matplotlib.pyplot as plt
 
 def run_postproc():
     """Driver function for post-processing:
@@ -25,25 +26,33 @@ def run_postproc():
     photometry = grow_photometry_array(photometry,log)
 
     # Calculate mean_mag, RMS for all stars
-    phot_stats = phot_rms.calc_mean_rms_mag(photometry,log,use_calib_mag=True)
+    phot_stats = plot_rms.calc_mean_rms_mag(photometry,log,use_calib_mag=True)
+    plot_rms.plot_rms(phot_stats, params, log,
+                    plot_file=path.join(params['red_dir'],'init_rms_mag.png'))
 
     # Calculate photometric residuals
     phot_residuals = calc_phot_residuals(photometry, phot_stats, log)
 
     # Calculate mean residual per image
     image_residuals = calc_image_residuals(phot_residuals,log)
-    
+    plot_image_residuals(params, image_residuals, log)
+
     # Compensate for mean residual per image and output to photometry array
+    photometry = apply_image_mag_correction(image_residuals, photometry, log, use_calib_mag=True)
 
     # Re-calculate mean_mag, RMS for all stars, using corrected magnitudes
-    phot_stats = phot_rms.calc_mean_rms_mag(photometry,log,use_calib_mag=True)
+    phot_stats = plot_rms.calc_mean_rms_mag(photometry,log,use_calib_mag=True)
+    plot_rms.plot_rms(phot_stats, params, log,
+                    plot_file=path.join(params['red_dir'],'postproc_rms_mag.png'))
 
     # Re-calculate photometric residuals
     phot_residuals = calc_phot_residuals(photometry, phot_stats, log)
 
     # Calculate photometric scatter per image
+    image_rms = calc_image_rms(phot_residuals, log)
 
     # Factor photometric scatter into photometric residuals
+    photometry = apply_image_merr_correction(photometry, image_rms, log, use_calib_mag=True)
 
     log.info('Post-processing: complete')
 
@@ -103,3 +112,68 @@ def calc_image_residuals(phot_residuals,log):
     log.info('Calculated weighted mean photometric residual per image')
 
     return image_residuals
+
+def plot_image_residuals(params, image_residuals, log):
+
+    fig = plt.figure(1,(10,10))
+
+    xdata = np.arange(0,len(image_residuals),1)
+    for i in range(0,len(image_residuals),1):
+        print(image_residuals[i,0], image_residuals[i,1])
+        
+    plt.errorbar(xdata, image_residuals[:,0],
+                yerr=image_residuals[:,1],
+                color='m', fmt='none')
+    plt.plot(xdata,image_residuals[:,0],'m.')
+    plt.xlabel('Image index')
+    plt.ylabel('Weighted mean photometric residual [mag]')
+    plt.savefig(path.join(params['red_dir'],'image_phot_residuals.png'))
+
+    plt.close(1)
+
+def apply_image_mag_correction(image_residuals, photometry, log, use_calib_mag=True):
+
+    mag_col = 13
+    merr_col = 14
+    if not use_calib_mag:
+        mag_col = 11
+        merr_col = 12
+
+    dimage = image_residuals[:,0]
+    dimage_err = image_residuals[:,1]
+
+    photometry[:,:,photometry.shape[2]-2] = photometry[:,:,mag_col] + dimage
+    photometry[:,:,photometry.shape[2]-1] = np.sqrt( photometry[:,:,merr_col]*photometry[:,:,merr_col] + \
+                                                        dimage_err*dimage_err )
+
+    log.info('Applied magnitude offset to calculate corrected magnitudes')
+
+    return photometry
+
+def calc_image_rms(phot_residuals, log):
+
+    err_squared_inv = 1.0 / (phot_residuals[:,:,1]*phot_residuals[:,:,1])
+    rms =  np.sqrt( (phot_residuals[:,:,0]**2 * err_squared_inv).sum(axis=0) / (err_squared_inv.sum(axis=0)) )
+
+    log.info('Calculated RMS of photometric residuals per image')
+
+    return rms
+
+def apply_image_merr_correction(photometry, image_rms, log, use_calib_mag=True):
+
+    mag_col = 13
+    merr_col = 14
+    if not use_calib_mag:
+        mag_col = 11
+        merr_col = 12
+
+    photometry[:,:,photometry.shape[2]-1] = np.sqrt( photometry[:,:,merr_col]*photometry[:,:,merr_col] + \
+                                                        image_rms*image_rms )
+
+    log.info('Factored RMS of image residuals into photometric uncertainties')
+
+    return photometry
+
+
+if __name__ == '__main__':
+    run_postproc()

@@ -92,7 +92,7 @@ def calc_percentile_rms(data, mean_mag, magcol, errcol):
 
     return rms_per
 
-def plot_rms(phot_statistics, params, log):
+def plot_rms(phot_statistics, params, log, plot_file=None):
 
     fig = plt.figure(1,(10,10))
     plt.rcParams.update({'font.size': 18})
@@ -116,11 +116,13 @@ def plot_rms(phot_statistics, params, log):
     [xmin,xmax,ymin,ymax] = plt.axis()
     plt.axis([xmin,xmax,1e-3,5.0])
 
-    plot_file = path.join(params['red_dir'],'rms.png')
+    if plot_file == None:
+        plot_file = path.join(params['red_dir'],'rms.png')
     plt.savefig(plot_file)
 
     log.info('Output RMS plot to '+plot_file)
-
+    plt.close(1)
+    
 def get_args():
 
     params = {}

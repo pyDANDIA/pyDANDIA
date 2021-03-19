@@ -15,7 +15,7 @@ def test_params():
 
 def test_photometry(log):
 
-    nstars = 10
+    nstars = 100
     nimages = 10
     ncols = 25
     photometry = np.zeros((nstars,nimages,ncols))
@@ -93,7 +93,64 @@ def test_calc_image_residuals():
     assert(image_residuals[:,1] == test_mean_uncert).all()
     logs.close_log(log)
 
+def test_apply_image_mag_correction():
+
+    params = test_params()
+    log = logs.start_stage_log( params['log_dir'], 'test_postproc_phot' )
+
+    (photometry, phot_stats) = test_photometry(log)
+
+    image_residuals = np.zeros((photometry.shape[1],2))
+    image_residuals[:,0].fill(-0.02)
+    image_residuals[:,1].fill(0.002)
+
+    photometry = postproc_phot_residuals.apply_image_mag_correction(image_residuals, photometry, log,
+                                                                        use_calib_mag=True)
+
+    assert( (photometry[:,:,23]-image_residuals[:,0] == photometry[:,:,13]).all() )
+    assert( (photometry[:,:,24] == np.sqrt(photometry[:,:,14]*photometry[:,:,14] + \
+                                    image_residuals[:,1]*image_residuals[:,1])).all() )
+
+    logs.close_log(log)
+
+def test_calc_image_rms():
+
+    params = test_params()
+    log = logs.start_stage_log( params['log_dir'], 'test_postproc_phot' )
+
+    (photometry, phot_stats) = test_photometry(log)
+
+    phot_residuals = postproc_phot_residuals.calc_phot_residuals(photometry, phot_stats, log)
+
+    rms = postproc_phot_residuals.calc_image_rms(phot_residuals, log)
+
+    assert( type(rms) == type(np.zeros(1)) )
+    assert( rms.shape == (photometry.shape[1],) )
+
+    logs.close_log(log)
+
+def test_apply_image_merr_correction():
+
+    params = test_params()
+    log = logs.start_stage_log( params['log_dir'], 'test_postproc_phot' )
+
+    (photometry, phot_stats) = test_photometry(log)
+    photometry[:,:,23] = photometry[:,:,13]
+    photometry[:,:,24] = photometry[:,:,14]
+
+    image_rms = np.array([0.01]*photometry.shape[1])
+
+    photometry = postproc_phot_residuals.apply_image_merr_correction(photometry, image_rms, log, use_calib_mag=True)
+
+    assert( (photometry[:,:,24] == np.sqrt(photometry[:,:,14]*photometry[:,:,14] + \
+                                    image_rms*image_rms)).all() )
+
+    logs.close_log(log)
+
 if __name__ == '__main__':
     #test_grow_photometry_array()
     #test_calc_phot_residuals()
-    test_calc_image_residuals()
+    #test_calc_image_residuals()
+    #test_apply_image_mag_correction()
+    #test_calc_image_rms()
+    test_apply_image_merr_correction()
