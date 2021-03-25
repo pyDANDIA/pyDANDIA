@@ -17,3 +17,4 @@ pystackreg
 astroalign
 psutil
 seaborn
+pillow>=8.1.1
