@@ -13,7 +13,7 @@ from sys import argv
 import glob
 from shutil import move
 
-def sort_data(data_dir,log=None):
+def sort_data(data_dir,option,log=None):
     """Function to sort a directory of FITS frames into per-target, per-filter
     sub-directories"""
 
@@ -21,7 +21,7 @@ def sort_data(data_dir,log=None):
 
     for image in image_list:
 
-        ds = get_image_dataset(image)
+        ds = get_image_dataset(image,option)
 
         sort_image_to_dataset(image,ds,data_dir,log=log)
 
@@ -49,13 +49,17 @@ class Dataset():
         if self.network == None:
             self.network = 'EXTN'
 
-    def get_dataset_code(self):
-        self.id_code = str(self.target)+'_' + \
+    def get_dataset_code(self, separate_instruments=False):
+
+        if separate_instruments:
+            self.id_code = str(self.target)+'_' + \
                     str(self.site).lower()+'-'+\
                     str(self.enclosure).lower()+'-'+\
                     str(self.tel).lower()+'-'+\
                     str(self.instrument).lower()+'_'+\
                     self.filter
+        else:
+            self.id_code = str(self.target)+'_' + self.filter
 
 def get_image_parameters(hdr):
 
@@ -69,12 +73,13 @@ def get_image_parameters(hdr):
 
     return ds
 
-def get_image_dataset(image):
+def get_image_dataset(image, option):
     """Function to identify what dataset an image belongs to, based on the
     target, instrument and filter information from its FITS header.
 
     Inputs:
         :param str image: Full path to image FITS file
+        :param bool option: Sort data into separate instruments or not
     """
 
     telescopes = {'Faulkes Telescope South': ['LCOGT','COJ','CLMA','FTS'],
@@ -88,10 +93,10 @@ def get_image_dataset(image):
         ds = get_image_parameters(hdu[0].header)
     except KeyError:
         ds = get_image_parameters(hdu[1].header)
-        
+
     ds.parse_telescope()
 
-    ds.get_dataset_code()
+    ds.get_dataset_code(separate_instruments=option)
 
     return ds
 
@@ -135,9 +140,16 @@ if __name__ == '__main__':
 
     if len(argv) == 1:
       	data_dir = raw_input('Please enter data directory path: ')
+        option = input('Combine all data for a given target from multiple instruments?  T or F: ')
     else:
       	data_dir = argv[1]
+        option = argv[2]
 
-    sort_data(data_dir)
+    if 't' in str(option).lower():
+        option = True
+    else:
+        option = False
+
+    sort_data(data_dir, option)
 
     print('Completed data sorting')
