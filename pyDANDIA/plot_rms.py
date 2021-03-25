@@ -22,7 +22,7 @@ def calc_rms():
 
     photometry_data = fetch_dataset_photometry(params,log)
 
-    phot_statistics = calc_mean_rms_mag(photometry_data,log)
+    phot_statistics = calc_mean_rms_mag(photometry_data,log,'calibrated')
 
     plot_rms(phot_statistics, params, log)
 
@@ -38,13 +38,29 @@ def fetch_dataset_photometry(params,log):
 
     return photometry_data
 
-def calc_mean_rms_mag(photometry_data,log,use_calib_mag=True):
+def get_photometry_columns(phot_columns='instrumental'):
+    """Function to return the column indices of the magnitude and magnitude uncertainties
+    in the photometry array for a single dataset.  Options are:
+    instrumental
+    calibrated
+    corrected
+    """
 
-    mag_col = 13
-    merr_col = 14
-    if not use_calib_mag:
+    if phot_columns == 'instrumental':
+        mag_col = 13
+        merr_col = 14
+    elif phot_columns == 'calibrated':
         mag_col = 11
         merr_col = 12
+    elif phot_columns == 'corrected':
+        mag_col = 23
+        merr_col = 24
+
+    return mag_col, merr_col
+
+def calc_mean_rms_mag(photometry_data,log,phot_columns):
+
+    (mag_col, merr_col) = get_photometry_columns(phot_columns)
 
     phot_statistics = np.zeros( (len(photometry_data),4) )
 
@@ -122,7 +138,7 @@ def plot_rms(phot_statistics, params, log, plot_file=None):
 
     log.info('Output RMS plot to '+plot_file)
     plt.close(1)
-    
+
 def get_args():
 
     params = {}

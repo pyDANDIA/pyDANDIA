@@ -23,14 +23,13 @@ def test_photometry(log):
     phot_stats = np.zeros((nstars,3))
     phot_stats[:,0] = np.linspace(16.0, 21.0, nstars)
     phot_stats[:,1] = phot_scatter_model(phot_stats[:,0])
-
     for j in range(0,nstars,1):
         photometry[j,:,11] = np.random.normal(phot_stats[j,0], scale=phot_stats[j,1], size=nimages)
         photometry[j,:,12] = phot_scatter_model(photometry[j,:,11])
         photometry[j,:,13] = photometry[j,:,11] + 0.01
         photometry[j,:,14] = photometry[j,:,12] + 0.001
 
-    phot_stats = plot_rms.calc_mean_rms_mag(photometry,log,use_calib_mag=True)
+    phot_stats = plot_rms.calc_mean_rms_mag(photometry,log,'calibrated')
 
     return photometry, phot_stats
 
@@ -55,6 +54,20 @@ def test_grow_photometry_array():
 
     logs.close_log(log)
 
+def test_mask_photometry_array():
+
+    params = test_params()
+    log = logs.start_stage_log( params['log_dir'], 'test_postproc_phot' )
+
+    (photometry, phot_stats) = test_photometry(log)
+
+    photometry[0,0,13] = 0.0
+
+    photometry = postproc_phot_residuals.mask_photometry_array(photometry, log, use_calib_mag=True)
+
+    print(photometry)
+    logs.close_log(log)
+
 def test_calc_phot_residuals():
 
     params = test_params()
@@ -76,6 +89,7 @@ def test_calc_image_residuals():
 
     params = test_params()
     log = logs.start_stage_log( params['log_dir'], 'test_postproc_phot' )
+    (photometry, phot_stats) = test_photometry(log)
 
     nstars = 10
     nimages = 10
@@ -87,10 +101,24 @@ def test_calc_image_residuals():
     phot_residuals[:,:,0].fill(test_value)
     phot_residuals[:,:,1].fill(test_uncert)
 
-    image_residuals = postproc_phot_residuals.calc_image_residuals(phot_residuals,log)
+    exclude_stars = [5]
+    exclude_images = [5]
+    phot_residuals[exclude_stars,exclude_images,0] = 0.0
+    mask = np.empty(phot_residuals.shape)
+    mask.fill(False)
+    mask[exclude_stars,exclude_images,0] = True
+    include_images = []
+    for i in range(0,nimages,1):
+        if i not in exclude_images:
+            include_images.append(i)
 
-    assert(image_residuals[:,0] == test_value).all()
-    assert(image_residuals[:,1] == test_mean_uncert).all()
+    phot_residuals = np.ma.masked_array(phot_residuals, mask=mask)
+
+    image_residuals = postproc_phot_residuals.calc_image_residuals(photometry, phot_residuals,log)
+
+    assert(image_residuals.shape == (nimages,3))
+    assert(image_residuals[include_images,0] == test_value).all()
+    assert(image_residuals[include_images,1] == test_mean_uncert).all()
     logs.close_log(log)
 
 def test_apply_image_mag_correction():
@@ -105,7 +133,7 @@ def test_apply_image_mag_correction():
     image_residuals[:,1].fill(0.002)
 
     photometry = postproc_phot_residuals.apply_image_mag_correction(image_residuals, photometry, log,
-                                                                        use_calib_mag=True)
+                                                                        'calibrated')
 
     assert( (photometry[:,:,23]-image_residuals[:,0] == photometry[:,:,13]).all() )
     assert( (photometry[:,:,24] == np.sqrt(photometry[:,:,14]*photometry[:,:,14] + \
@@ -150,7 +178,8 @@ def test_apply_image_merr_correction():
 if __name__ == '__main__':
     #test_grow_photometry_array()
     #test_calc_phot_residuals()
-    #test_calc_image_residuals()
+    test_calc_image_residuals()
     #test_apply_image_mag_correction()
     #test_calc_image_rms()
-    test_apply_image_merr_correction()
+    #test_apply_image_merr_correction()
+    #test_mask_photometry_array()
