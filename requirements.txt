@@ -16,3 +16,4 @@ uncertainties
 pystackreg
 astroalign
 psutil
+pillow>=8.1.1
