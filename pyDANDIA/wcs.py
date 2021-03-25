@@ -1036,7 +1036,7 @@ def match_stars_pixel_coords(detected_sources,catalog_sources,log,
 
     log.info(' -> Matched '+str(matched_stars.n_match)+' stars')
 
-    log.info('Completed star match in world coordinates')
+    log.info('Completed star match in pixel coordinates')
 
     return matched_stars
 

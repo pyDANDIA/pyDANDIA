@@ -282,6 +282,174 @@ def run_reference_astrometry(setup, **kwargs):
 
     return 'OK', 'Reference astrometry complete'
 
+
+def run_reference_astrometry2(setup, **kwargs):
+    """Driver function to perform the object detection and astrometric analysis
+    of the reference frame from a given dataset.
+
+    The optional flag force_rotate_ref allows an override of the default
+    pipeline configuration, in the event that the reference image for a specific
+    dataset requires it.
+    """
+
+    log = logs.start_stage_log( setup.red_dir, 'reference_astrometry', version=VERSION )
+
+    kwargs = get_default_config(kwargs, log)
+    xmatch = True
+    if 'catalog_xmatch' in kwargs.keys() and kwargs['catalog_xmatch'] == False:
+        xmatch = False
+        log.info('CATALOG FULL CROSS-MATCH SWITCHED OFF')
+
+    reduction_metadata = metadata.MetaData()
+    reduction_metadata.load_a_layer_from_file( setup.red_dir,
+                                              'pyDANDIA_metadata.fits',
+                                              'reduction_parameters' )
+    reduction_metadata.load_a_layer_from_file( setup.red_dir,
+                                              'pyDANDIA_metadata.fits',
+                                              'headers_summary' )
+    reduction_metadata.load_a_layer_from_file( setup.red_dir,
+                                              'pyDANDIA_metadata.fits',
+                                              'images_stats' )
+    reduction_metadata.load_a_layer_from_file( setup.red_dir,
+                                              'pyDANDIA_metadata.fits',
+                                              'data_architecture' )
+
+    sane = stage3.check_metadata(reduction_metadata,log)
+
+    if sane:
+        meta_pars = stage3.extract_parameters_stage3(reduction_metadata,log)
+
+        sane = stage3.sanity_checks(reduction_metadata,log,meta_pars)
+
+    if sane:
+
+        header = image_handling.get_science_header(meta_pars['ref_image_path'])
+
+        image_wcs = aWCS(header)
+
+        field = header['OBJECT']
+        fov = reduction_metadata.reduction_parameters[1]['FOV'][0]
+        stellar_density_threshold = reduction_metadata.reduction_parameters[1]['STAR_DENSITY_THRESH'][0]
+        rotate_wcs = reduction_metadata.reduction_parameters[1]['ROTATE_WCS'][0]
+
+        # Calculates initial RA,Dec from image WCS
+        detected_sources = detect_objects_in_reference_image(setup,
+                                                             reduction_metadata,
+                                                             meta_pars,
+                                                             image_wcs, log)
+
+        stellar_density = utilities.stellar_density_wcs(detected_sources,
+                                                        image_wcs)
+
+        # Calculates initial x,y from image WCS, initializes (x,y) -> (x1,y1)
+        gaia_sources = catalog_objects_in_reference_image(setup, header,
+                                                          image_wcs, log,
+                                                          stellar_density,
+                                                          rotate_wcs,
+                                                          kwargs,
+                                                          stellar_density_threshold)
+
+        vphas_sources = phot_catalog_objects_in_reference_image(setup, header, fov,
+                                                                image_wcs, log, xmatch)
+
+        selection_radius = 0.05 #degrees
+        (bright_central_detected_stars, bright_central_gaia_stars, selection_radius) = \
+            wcs.extract_bright_central_stars(setup,detected_sources, gaia_sources,
+                                             image_wcs, log, radius=selection_radius)
+
+        wcs.plot_overlaid_sources(os.path.join(setup.red_dir,'ref'),
+                      bright_central_detected_stars, bright_central_gaia_stars, interactive=False)
+
+        # Apply initial transform, if any
+        transform = AffineTransform()
+        it = 0
+        max_it = 5
+        iterate = True
+        method = 'ransac'
+        old_n_match = 0
+
+        log.info('Trusting original WCS solution, transformation will be calculated after catalog match to original pixel positions')
+        transform = AffineTransform(translation=(0.0, 0.0))
+
+        #stellar_density = utilities.stellar_density(bright_central_gaia_stars,
+        #                                    selection_radius)
+
+        matched_stars = match_utils.StarMatchIndex()
+        matched_stars = wcs.match_stars_pixel_coords(bright_central_detected_stars,
+                                                 bright_central_gaia_stars,log,
+                                                 tol=2.0,verbose=False)
+
+        if len(matched_stars.cat1_index) > 3:
+            transform = calc_coord_offsets.calc_pixel_transform(setup,
+                                        bright_central_gaia_stars[matched_stars.cat2_index],
+                                        bright_central_detected_stars[matched_stars.cat1_index],
+                                        log, coordinates='pixel')
+
+       
+
+        log.info('Transforming catalogue coordinates')
+
+        gaia_sources = update_catalog_image_coordinates(setup, image_wcs,
+                                                        gaia_sources, log, 'catalog_stars_full_revised_'+str(it)+'.reg',
+                                                        stellar_density, rotate_wcs, kwargs,
+                                                        stellar_density_threshold,
+                                                        transform=transform, radius=None)
+
+        transform = calc_coord_offsets.calc_world_transform(setup,
+                                                bright_central_detected_stars[matched_stars.cat1_index],
+                                                bright_central_gaia_stars[matched_stars.cat2_index],
+                                                log)
+
+        detected_sources = calc_coord_offsets.transform_coordinates(setup, detected_sources,
+                                                                transform, coords='radec',
+                                                                verbose=True)
+
+        log.info('Proceeding to x-match of full catalogs')
+
+        if xmatch:
+            matched_stars_gaia = wcs.match_stars_world_coords(detected_sources,gaia_sources,log,'Gaia',
+                                                          radius=0.5, ra_centre=image_wcs.wcs.crval[0],
+                                                          dec_centre=image_wcs.wcs.crval[1],
+                                                          verbose=False)
+
+            matched_stars_vphas = wcs.match_stars_world_coords(detected_sources,vphas_sources,log,'VPHAS+',
+                                                          radius=0.5, ra_centre=image_wcs.wcs.crval[0],
+                                                          dec_centre=image_wcs.wcs.crval[1],
+                                                          verbose=False)
+
+        else:
+            matched_stars_gaia = matched_stars
+            matched_stars_vphas = match_utils.StarMatchIndex()
+
+        ref_source_catalog = wcs.build_ref_source_catalog(detected_sources,\
+                                                        gaia_sources, vphas_sources,\
+                                                        matched_stars_gaia,
+                                                        matched_stars_vphas,
+                                                        image_wcs)
+
+        log.info('Built reference image source catalogue of '+\
+                 str(len(ref_source_catalog))+' objects')
+
+        reduction_metadata.create_a_new_layer_from_table('star_catalog',ref_source_catalog)
+        reduction_metadata.save_a_layer_to_file(setup.red_dir,
+                                                'pyDANDIA_metadata.fits',
+                                                'star_catalog', log=log)
+
+        log.info('-> Output reference source FITS catalogue')
+        log.info('Completed astrometry of reference image')
+
+    logs.close_log(log)
+
+    return 'OK', 'Reference astrometry complete'
+
+
+
+
+
+
+
+
+
 def get_default_config(kwargs, log):
 
     log.info('Received kwargs:')
@@ -440,3 +608,70 @@ def update_catalog_image_coordinates(setup, image_wcs, gaia_sources,
                                                 transformed_coords=True)
 
     return gaia_sources
+    
+    
+    
+### New WCS method
+    
+def find_initial_image_rotation_translation(model_img,img):
+    #import pdb; pdb.set_trace()
+    solutions = []
+    for i in range(4):
+    
+        sol = phase_cross_correlation(model,rotate(img.astype(float),90*i),upsample_factor=10)
+        
+        solutions.append([sol[0][1],sol[0][0],i*np.pi/2])
+        
+    solutions = np.array(solutions)
+    print(solutions)
+    good_combination =  (solutions[:,0]**2+solutions[:,1]**2).argmin()
+    
+    return solutions[good_combination]    
+    
+    
+def generate_gaia_image_model(ra,dec,radius,img_shape):
+
+    coord = SkyCoord(ra=ra, dec=dec, unit=(u.degree, u.degree), frame='icrs')
+
+    catalog = Gaia.cone_search_async(coord, radius*u.arcmin)
+
+    catalog = catalog.get_results()
+
+    X,Y = wcs.wcs_world2pix(catalog['ra'],catalog['dec'],0)
+
+   
+    sigma_psf = 3.0
+    sources = Table()
+    sources['flux'] = catalog['phot_g_mean_flux']
+    sources['x_mean'] = X
+    sources['y_mean'] = Y
+    sources['x_stddev'] = sigma_psf*np.ones(len(X))
+    sources['y_stddev'] = sources['x_stddev']
+    sources['theta'] = [0]*len(X)
+    sources['id'] = np.arange(0,len(X)).tolist()
+    tshape = img_shape
+
+    #size of the psf stamp
+    
+    size = 21
+
+    yy,xx = np.indices((size,size))
+    aa = psf.Gaussian2D()
+
+    model = np.zeros(image[1].shape)
+
+    for ind in range(len(X)):
+
+        posy = int(sources['y_mean'][ind])
+        posx = int(sources['x_mean'][ind])
+
+        momo = aa.psf_model(yy,xx,[sources['flux'][ind],sources['y_mean'][ind]-posy+int((size-1)/2),sources['x_mean'][ind]-posx+int((size-1)/2),sources['y_stddev'][ind],sources['x_stddev'][ind]])
+
+        model[posy-int((size-1)/2):posy+int((size-1)/2)+1, posx-int((size-1)/2):posx+int((size-1)/2+1)] += momo   
+    
+    #only return bright ones
+    mask = sources['flux']>10000
+    return model,X[mask],Y[mask]
+    
+    
+    

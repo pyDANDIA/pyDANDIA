@@ -396,16 +396,18 @@ def identify_inlying_matched_stars(match_index, log):
 def calc_world_transform(setup, detected_stars, catalog_stars, log):
 
     det_array = np.zeros((len(detected_stars),2))
-    det_array[:,0] = detected_stars['ra'].data
-    det_array[:,1] = detected_stars['dec'].data
+    det_array[:,0] = detected_stars['ra'].data-detected_stars['ra'].data.mean()
+    det_array[:,1] = detected_stars['dec'].data-detected_stars['dec'].data.mean()
 
     cat_array = np.zeros((len(catalog_stars),2))
-    cat_array[:,0] = catalog_stars['ra'].data
-    cat_array[:,1] = catalog_stars['dec'].data
+    cat_array[:,0] = catalog_stars['ra'].data-catalog_stars['ra'].data.mean()
+    cat_array[:,1] = catalog_stars['dec'].data-catalog_stars['dec'].data.mean()
 
-    (model, inliers) = ransac((det_array, cat_array), AffineTransform, min_samples=3,
-                               residual_threshold=2, max_trials=100)
+    (model, inliers) = ransac((det_array, cat_array), AffineTransform, min_samples=20,
+                               residual_threshold=0.0003, max_trials=100)
 
+
+    
     log.info('RANSAC identified '+str(len(inliers))+' inlying objects in the matched set')
     log.info('Pixel offsets, dRA='+str(model.translation[0])+', dDec='+str(model.translation[1])+' deg')
     log.info('Pixel scale factor '+repr(model.scale))
@@ -421,8 +423,8 @@ def transform_coordinates(setup, detected_stars, transform, coords='pixel',
         x = detected_stars['x'].data
         y = detected_stars['y'].data
     else:
-        x = detected_stars['ra'].data
-        y = detected_stars['dec'].data
+        x = detected_stars['ra'].data-detected_stars['ra'].data.mean()
+        y = detected_stars['dec'].data-detected_stars['dec'].data.mean()
 
     #print('A coeffs: ',transform.params[0,:])
     x1 = transform.params[0,0] * x + \
