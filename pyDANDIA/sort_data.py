@@ -16,7 +16,7 @@ from shutil import move
 def sort_data(data_dir,option,log=None):
     """Function to sort a directory of FITS frames into per-target, per-filter
     sub-directories"""
-
+    print(option, type(option))
     image_list = make_image_list(data_dir)
 
     for image in image_list:
@@ -139,10 +139,10 @@ def sort_image_to_dataset(image,ds,data_dir,log=None):
 if __name__ == '__main__':
 
     if len(argv) == 1:
-      	data_dir = raw_input('Please enter data directory path: ')
+        data_dir = input('Please enter data directory path: ')
         option = input('Combine all data for a given target from multiple instruments?  T or F: ')
     else:
-      	data_dir = argv[1]
+        data_dir = argv[1]
         option = argv[2]
 
     if 't' in str(option).lower():
