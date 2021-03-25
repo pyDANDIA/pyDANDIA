@@ -16,14 +16,15 @@ from shutil import move
 def sort_data(data_dir,option,log=None):
     """Function to sort a directory of FITS frames into per-target, per-filter
     sub-directories"""
-    
+
     image_list = make_image_list(data_dir)
 
     for image in image_list:
 
-        ds = get_image_dataset(image,option)
+        ds = get_image_dataset(image,option,log=log)
 
-        sort_image_to_dataset(image,ds,data_dir,log=log)
+        if ds:
+            sort_image_to_dataset(image,ds,data_dir,log=log)
 
 class Dataset():
     """Class describing a unique dataset from the LCO Network"""
@@ -73,7 +74,7 @@ def get_image_parameters(hdr):
 
     return ds
 
-def get_image_dataset(image, option):
+def get_image_dataset(image, option, log=None):
     """Function to identify what dataset an image belongs to, based on the
     target, instrument and filter information from its FITS header.
 
@@ -86,17 +87,23 @@ def get_image_dataset(image, option):
                   'Faulkes Telescope North': ['LCOGT','OGG','CLMA', 'FTN'],
         		'Liverpool Telescope': ['LJMU','LAP','LT','LT'] }
 
-    hdu = fits.open(image)
-
     try:
-        hdr = hdu[0].header
-        ds = get_image_parameters(hdu[0].header)
-    except KeyError:
-        ds = get_image_parameters(hdu[1].header)
+        hdu = fits.open(image)
 
-    ds.parse_telescope()
+        try:
+            hdr = hdu[0].header
+            ds = get_image_parameters(hdu[0].header)
+        except KeyError:
+            ds = get_image_parameters(hdu[1].header)
 
-    ds.get_dataset_code(separate_instruments=option)
+        ds.parse_telescope()
+
+        ds.get_dataset_code(separate_instruments=option)
+
+    except OSError:
+        if log!=None:
+            log.info('ERROR opening image '+image)
+        ds = None
 
     return ds
 
