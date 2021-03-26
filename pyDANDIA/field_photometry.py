@@ -148,6 +148,7 @@ def populate_photometry_array(field_star_index, dataset_star_index,
     # phot_scale_factor, phot_scale_factor_err, stamp_index,
     # sub_image_sky_bkgd, sub_image_sky_bkgd_err,
     # residual_x, residual_y
+    # qc_flag
     # Build corresponding 3D array index locators for the whole field photometry
     # array and the dataset photometry array, and use them to transfer the
     # timestamp data
