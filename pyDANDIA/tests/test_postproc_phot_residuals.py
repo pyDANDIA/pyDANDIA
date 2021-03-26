@@ -29,6 +29,8 @@ def test_photometry(log):
         photometry[j,:,13] = photometry[j,:,11] + 0.01
         photometry[j,:,14] = photometry[j,:,12] + 0.001
 
+    photometry = np.ma.masked_array(photometry, mask=None)
+
     phot_stats = plot_rms.calc_mean_rms_mag(photometry,log,'calibrated')
 
     return photometry, phot_stats
@@ -48,9 +50,10 @@ def test_grow_photometry_array():
 
     photometry = postproc_phot_residuals.grow_photometry_array(test_photometry,log)
 
-    assert(photometry.shape[2] == ncols+2)
+    assert(photometry.shape[2] == ncols+3)
     assert((photometry[0,0,ncols] == 0.0).all())
     assert((photometry[0,0,ncols+1] == 0.0).all())
+    assert((photometry[0,0,ncols+2] == 0.0).all())
 
     logs.close_log(log)
 
@@ -128,9 +131,10 @@ def test_apply_image_mag_correction():
 
     (photometry, phot_stats) = test_photometry(log)
 
-    image_residuals = np.zeros((photometry.shape[1],2))
+    image_residuals = np.zeros((photometry.shape[1],3))
     image_residuals[:,0].fill(-0.02)
     image_residuals[:,1].fill(0.002)
+    image_residuals[:,2] = np.linspace(2456655.0, 2456670.0, len(image_residuals))
 
     photometry = postproc_phot_residuals.apply_image_mag_correction(image_residuals, photometry, log,
                                                                         'calibrated')
@@ -175,11 +179,36 @@ def test_apply_image_merr_correction():
 
     logs.close_log(log)
 
+def test_mask_phot_from_bad_images():
+
+    params = test_params()
+    log = logs.start_stage_log( params['log_dir'], 'test_postproc_phot' )
+
+    (photometry, phot_stats) = test_photometry(log)
+
+    image_residuals = np.zeros((photometry.shape[1],3))
+    image_residuals[:,0].fill(-0.02)
+    image_residuals[:,1].fill(0.002)
+    image_residuals[:,2] = np.linspace(2456655.0, 2456670.0, len(image_residuals))
+
+    mask_image = 1
+    image_residuals[mask_image,0] = -0.4
+
+    photometry = postproc_phot_residuals.mask_phot_from_bad_images(photometry, image_residuals, log)
+
+    mask = np.ma.getmask(photometry)
+
+    assert( (mask[:,mask_image,:] == True).all() )
+
+    logs.close_log(log)
+
+
 if __name__ == '__main__':
     #test_grow_photometry_array()
     #test_calc_phot_residuals()
-    test_calc_image_residuals()
+    #test_calc_image_residuals()
     #test_apply_image_mag_correction()
     #test_calc_image_rms()
     #test_apply_image_merr_correction()
     #test_mask_photometry_array()
+    test_mask_phot_from_bad_images()

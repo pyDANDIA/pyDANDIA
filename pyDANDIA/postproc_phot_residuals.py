@@ -1,4 +1,4 @@
-from os import path
+from os import path, rename
 from sys import argv
 import numpy as np
 from pyDANDIA import crossmatch
@@ -41,9 +41,11 @@ def run_postproc():
     image_residuals = calc_image_residuals(reduction_metadata, photometry, phot_residuals,log)
     plot_image_residuals(params, image_residuals, log)
 
-    # INSTEAD: FLAG BAD DATA MASK FROM ARRAYS AND RECALC RESIDUALS AND RMS
+    # Mask photometry from images with excessive average photometric residuals
+    photometry = mask_phot_from_bad_images(photometry, image_residuals, log)
+
     # Compensate for mean residual per image and output to photometry array
-    photometry = apply_image_mag_correction(params, image_residuals, photometry, log, 'calibrated')
+    #photometry = apply_image_mag_correction(params, image_residuals, photometry, log, 'calibrated')
 
     # Re-calculate mean_mag, RMS for all stars, using corrected magnitudes
     phot_stats = plot_rms.calc_mean_rms_mag(photometry,log,'corrected')
@@ -60,7 +62,11 @@ def run_postproc():
     # Factor photometric scatter into photometric residuals
     photometry = apply_image_merr_correction(photometry, image_rms, log, 'corrected')
 
-    # OUTPUT UPDATED PHOTOMETRY WITH CORRECTED AND FLAGGED DATA
+    # Set quality control flags to indicate suspect data points in photometry array
+
+    # Ouput updated photometry
+    output_revised_photometry(params, photometry, log)
+
     log.info('Post-processing: complete')
 
     logs.close_log(log)
@@ -91,7 +97,7 @@ def grow_photometry_array(photometry,log):
 
     (mag_col, merr_col) = plot_rms.get_photometry_columns('calibrated')
 
-    new_photometry = np.zeros((photometry.shape[0], photometry.shape[1], photometry.shape[2]+2))
+    new_photometry = np.zeros((photometry.shape[0], photometry.shape[1], photometry.shape[2]+3))
     new_photometry[:,:,0:photometry.shape[2]] = photometry
     log.info('Added two columns to the photometry array')
 
@@ -318,6 +324,38 @@ def apply_image_merr_correction(photometry, image_rms, log, phot_columns):
 
     return photometry
 
+def output_revised_photometry(params, photometry, log):
+
+    # Back up the older photometry file for now
+    phot_file_name = path.join(params['red_dir'],'photometry.hdf5')
+    bkup_file_name = path.join(params['red_dir'],'photometry_stage6.hdf5')
+    if path.isfile(phot_file_name):
+        rename(phot_file_name, bkup_file_name)
+
+    # Output file with additional columns:
+    setup = PipelineSetup.pipeline_setup(params)
+    hd5_utils.write_phot_hd5(setup,photometry,log=log)
+
+def mask_phot_from_bad_images(photometry, image_residuals, log):
+
+    residuals_threshold = 0.15
+    idx = np.where(abs(image_residuals[:,0]) > residuals_threshold)[0]
+
+    expand_mask = np.ma.getmask(photometry)
+    for i in idx:
+        mask = np.empty((photometry.shape[0],photometry.shape[2]), dtype='bool')
+        mask.fill(True)
+        expand_mask[:,i,:] = mask
+
+    photometry = np.ma.masked_array(photometry[:,:,:], mask=expand_mask)
+
+    log.info('Masked photometric data for images with excessive average residuals')
+
+    return photometry
+
+def set_photometry_qc_flags(reduction_metadata, photometry, log):
+
+    
 
 if __name__ == '__main__':
     run_postproc()
