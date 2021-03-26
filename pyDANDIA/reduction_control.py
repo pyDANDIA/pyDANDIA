@@ -16,6 +16,7 @@ from pyDANDIA import stage0
 from pyDANDIA import stage1
 from pyDANDIA import stage2
 from pyDANDIA import reference_astrometry
+from pyDANDIA import new_reference_astrometry
 from pyDANDIA import stage3
 from pyDANDIA import stage3_db_ingest
 from pyDANDIA import stage4
@@ -107,7 +108,7 @@ def run_reference_image_analysis(setup,red_log):
 
     status = 'OK'
 
-    status = execute_stage(reference_astrometry.run_reference_astrometry,
+    status = execute_stage(new_reference_astrometry.run_reference_astrometry,
                            'reference astrometry', setup, status, red_log)
 
     status = execute_stage(stage3.run_stage3, 'stage 3', setup, status, red_log)
@@ -317,7 +318,7 @@ def run_new_reduction(setup, config, red_log):
     if not check_for_assigned_ref_image(setup, red_log):
         status = execute_stage(stage2.run_stage2, 'stage 2', setup, status, red_log, **config)
 
-    status = execute_stage(reference_astrometry.run_reference_astrometry,
+    status = execute_stage(new_reference_astrometry.run_reference_astrometry,
                            'reference astrometry', setup, status, red_log, **config)
 
     status = execute_stage(stage3.run_stage3, 'stage 3', setup, status, red_log, **config)
@@ -389,7 +390,7 @@ def extract_target_lightcurve(setup, log):
 
     log.info('Searching phot DB '+setup.phot_db_path+' for '+ref_header['OBJECT'])
 
-    lightcurves.extract_star_lightcurve_isolated_reduction(params, log=log, format='csv')
+    lightcurves.extract_star_lightcurve_isolated_reduction(params, log=log, format='dat')
 
     log.info('Extracted lightcurve for '+ref_header['OBJECT']+' at RA,Dec='+\
             repr(ref_header['CAT-RA'])+', '+repr(ref_header['CAT-DEC'])+\
