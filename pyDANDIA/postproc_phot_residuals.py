@@ -355,7 +355,10 @@ def mask_phot_from_bad_images(photometry, image_residuals, log):
 
 def set_photometry_qc_flags(reduction_metadata, photometry, log):
 
-    
+    mask = np.ma.getmask(photometry)
+    idx = np.where(mask[:,:,13] == True)
+    print(idx)
+    #photometry[:,:,25]
 
 if __name__ == '__main__':
     run_postproc()
