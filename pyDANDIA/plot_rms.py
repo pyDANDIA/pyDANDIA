@@ -47,11 +47,11 @@ def get_photometry_columns(phot_columns='instrumental'):
     """
 
     if phot_columns == 'instrumental':
-        mag_col = 13
-        merr_col = 14
-    elif phot_columns == 'calibrated':
         mag_col = 11
         merr_col = 12
+    elif phot_columns == 'calibrated':
+        mag_col = 13
+        merr_col = 14
     elif phot_columns == 'corrected':
         mag_col = 23
         merr_col = 24
@@ -81,6 +81,9 @@ def calc_weighted_mean_2D(data, col, errcol):
     mags = np.ma.array(data[:,:,col], mask=mask)
     errs = np.ma.array(data[:,:,errcol], mask=mask)
 
+    print(mags)
+    idx = np.where(mags > 0.0)
+    print(idx, len(idx))
     err_squared_inv = 1.0 / (errs*errs)
     wmean =  (mags * err_squared_inv).sum(axis=1) / (err_squared_inv.sum(axis=1))
     werror = 1.0 / (err_squared_inv.sum(axis=1))
@@ -138,6 +141,16 @@ def plot_rms(phot_statistics, params, log, plot_file=None):
 
     log.info('Output RMS plot to '+plot_file)
     plt.close(1)
+
+def output_phot_statistics(phot_statistics, file_path, log):
+
+    f = open(file_path, 'w')
+    f.write('# Star_index  weighted_mean_mag  weighted_rms percentile_rms weighted_mean_mag_error')
+    for j in range(0,len(phot_statistics),1):
+        f.write(str(j)+' '+str(phot_statistics[j,0])+' '+str(phot_statistics[j,1])+' '+\
+                str(phot_statistics[j,2])+' '+str(phot_statistics[j,3])+'\n')
+    f.close()
+    log.info('Output photometric statistics to '+file_path)
 
 def get_args():
 

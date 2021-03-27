@@ -17,7 +17,7 @@ def test_photometry(log):
 
     nstars = 100
     nimages = 10
-    ncols = 25
+    ncols = 26
     photometry = np.zeros((nstars,nimages,ncols))
 
     phot_stats = np.zeros((nstars,3))
@@ -202,6 +202,29 @@ def test_mask_phot_from_bad_images():
 
     logs.close_log(log)
 
+def test_set_photometry_qc_flags():
+
+    params = test_params()
+    log = logs.start_stage_log( params['log_dir'], 'test_postproc_phot' )
+
+    (photometry, phot_stats) = test_photometry(log)
+
+    bad_j = [0,3,4]
+    bad_i = [0,1,6]
+    photometry[bad_j,bad_i,13] = -99.999
+    photometry[bad_j,bad_i,14] = -99.999
+    mask = np.empty(photometry.shape)
+    mask.fill(False)
+    mask[bad_j,bad_i,13] = True
+    mask[bad_j,bad_i,14] = True
+    photometry = np.ma.masked_array(photometry[:,:,:], mask=mask)
+
+    photometry = postproc_phot_residuals.set_photometry_qc_flags(photometry, log)
+
+    assert( (photometry[bad_j, bad_i, 25] == -1).all() )
+    
+    logs.close_log(log)
+
 
 if __name__ == '__main__':
     #test_grow_photometry_array()
@@ -211,4 +234,5 @@ if __name__ == '__main__':
     #test_calc_image_rms()
     #test_apply_image_merr_correction()
     #test_mask_photometry_array()
-    test_mask_phot_from_bad_images()
+    #test_mask_phot_from_bad_images()
+    test_set_photometry_qc_flags()

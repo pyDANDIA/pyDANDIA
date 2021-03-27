@@ -6,6 +6,7 @@ from pyDANDIA import hd5_utils
 from pyDANDIA import logs
 from pyDANDIA import metadata
 from pyDANDIA import plot_rms
+from pyDANDIA import pipeline_setup
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 from astropy import visualization
@@ -32,6 +33,9 @@ def run_postproc():
     phot_stats = plot_rms.calc_mean_rms_mag(photometry,log,'calibrated')
     plot_rms.plot_rms(phot_stats, params, log,
                     plot_file=path.join(params['red_dir'],'init_rms_mag.png'))
+    plot_rms.output_phot_statistics(phot_stats,
+                                    path.join(params['red_dir'],'init_rms_mag.txt'),
+                                    log)
 
     # Calculate photometric residuals
     phot_residuals = calc_phot_residuals(photometry, phot_stats, log, 'calibrated')
@@ -44,6 +48,9 @@ def run_postproc():
     # Mask photometry from images with excessive average photometric residuals
     photometry = mask_phot_from_bad_images(photometry, image_residuals, log)
 
+    # Mirror calibrated photometry to corrected columns ready for processing:
+    photometry = mirror_mag_columns(photometry, 'calibrated', log)
+
     # Compensate for mean residual per image and output to photometry array
     #photometry = apply_image_mag_correction(params, image_residuals, photometry, log, 'calibrated')
 
@@ -52,6 +59,9 @@ def run_postproc():
     phot_stats = mask_photometry_stats(phot_stats, log)
     plot_rms.plot_rms(phot_stats, params, log,
                     plot_file=path.join(params['red_dir'],'postproc_rms_mag.png'))
+    plot_rms.output_phot_statistics(phot_stats,
+                path.join(params['red_dir'],'postproc_rms_mag.txt'),
+                log)
 
     # Re-calculate photometric residuals
     phot_residuals = calc_phot_residuals(photometry, phot_stats, log, 'corrected')
@@ -63,6 +73,7 @@ def run_postproc():
     photometry = apply_image_merr_correction(photometry, image_rms, log, 'corrected')
 
     # Set quality control flags to indicate suspect data points in photometry array
+    photometry = set_photometry_qc_flags(photometry, log)
 
     # Ouput updated photometry
     output_revised_photometry(params, photometry, log)
@@ -99,7 +110,7 @@ def grow_photometry_array(photometry,log):
 
     new_photometry = np.zeros((photometry.shape[0], photometry.shape[1], photometry.shape[2]+3))
     new_photometry[:,:,0:photometry.shape[2]] = photometry
-    log.info('Added two columns to the photometry array')
+    log.info('Added three columns to the photometry array')
 
     return new_photometry
 
@@ -333,7 +344,7 @@ def output_revised_photometry(params, photometry, log):
         rename(phot_file_name, bkup_file_name)
 
     # Output file with additional columns:
-    setup = PipelineSetup.pipeline_setup(params)
+    setup = pipeline_setup.pipeline_setup(params)
     hd5_utils.write_phot_hd5(setup,photometry,log=log)
 
 def mask_phot_from_bad_images(photometry, image_residuals, log):
@@ -353,12 +364,33 @@ def mask_phot_from_bad_images(photometry, image_residuals, log):
 
     return photometry
 
-def set_photometry_qc_flags(reduction_metadata, photometry, log):
+def mirror_mag_columns(photometry, phot_columns, log):
+
+    (mag_col, merr_col) = plot_rms.get_photometry_columns(phot_columns)
+
+    photometry[:,:,mag_col] = photometry[:,:,23]
+    photometry[:,:,merr_col] = photometry[:,:,24]
+
+    log.info('Mirrored '+phot_columns+' photometry data to corrected columns ready for post-processing')
+
+    idx = np.where(photometry[:,:,23] > 0.0)
+    print('INDEX: ',idx)
+    idx = np.where(photometry[:,:,13] > 0.0)
+    print('INDEX: ',idx)
+    mask = np.ma.getmask(photometry)
+    print(mask[:,:,23])
+    print((mask[:,:,23] == True).all())
+    return photometry
+
+def set_photometry_qc_flags(photometry, log):
 
     mask = np.ma.getmask(photometry)
     idx = np.where(mask[:,:,13] == True)
-    print(idx)
-    #photometry[:,:,25]
+    photometry[idx[0],idx[1],25] = -1
+
+    log.info('Set quality control flag for datapoints with excessive photometric residuals')
+
+    return photometry
 
 if __name__ == '__main__':
     run_postproc()
