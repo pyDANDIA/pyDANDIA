@@ -786,7 +786,7 @@ class MetaData:
             return None
 
     def find_images_need_to_be_process(self, setup, list_of_images, stage_number=None,
-                                       rerun_all=None,
+                                       rerun_all=None,process_missing=True,
                                        log=None):
         '''
         This finds the images that need to be processed by the pipeline, i.e not already done.
@@ -794,6 +794,9 @@ class MetaData:
         :param object reduction_metadata: the metadata object
         :param  list list_of_images: the directory of the images
         :param boolean verbose: switch to True to have more information
+        :param boolean process_missing: switch to trigger inclusion of added
+                                    images not yet included in the
+                                    reduction_status table
 
         :return: the new images that need to be processed.
         :rtype: list
@@ -831,11 +834,14 @@ class MetaData:
                             new_images.append(name)
 
                     else:
-
-                        logs.ifverbose(log, setup,
+                        if process_missing:
+                            logs.ifverbose(log, setup,
                                        name + ' is a new image to process by stage number: ' + str(stage_number))
-                        new_images.append(name)
-
+                            new_images.append(name)
+                        else:
+                            logs.ifverbose(log, setup,
+                                       name + ' is a recently-added image not yet ready for processing by stage number: ' + str(stage_number))
+                                       
         except:
             if log != None:
                 log.info('Error in scanning for new images to reduce')

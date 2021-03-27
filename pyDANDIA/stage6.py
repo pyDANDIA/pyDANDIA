@@ -101,7 +101,8 @@ def run_stage6(setup, **kwargs):
                                                     os.path.join(setup.red_dir, 'data'), log=log)
 
     new_images = reduction_metadata.find_images_need_to_be_process(setup, all_images,
-                                                                   stage_number=6, log=log)
+                                                                   stage_number=6, log=log,
+                                                                   process_missing=False)
 
     # find the starlist
     starlist = reduction_metadata.star_catalog[1]
