@@ -55,6 +55,7 @@ def run_postproc():
     #photometry = apply_image_mag_correction(params, image_residuals, photometry, log, 'calibrated')
 
     # Re-calculate mean_mag, RMS for all stars, using corrected magnitudes
+    print('Recalculating statistics')
     phot_stats = plot_rms.calc_mean_rms_mag(photometry,log,'corrected')
     phot_stats = mask_photometry_stats(phot_stats, log)
     plot_rms.plot_rms(phot_stats, params, log,
@@ -108,11 +109,14 @@ def grow_photometry_array(photometry,log):
 
     (mag_col, merr_col) = plot_rms.get_photometry_columns('calibrated')
 
-    new_photometry = np.zeros((photometry.shape[0], photometry.shape[1], photometry.shape[2]+3))
-    new_photometry[:,:,0:photometry.shape[2]] = photometry
-    log.info('Added three columns to the photometry array')
-
-    return new_photometry
+    if photometry.shape[2] < 26:
+        new_photometry = np.zeros((photometry.shape[0], photometry.shape[1], photometry.shape[2]+3))
+        new_photometry[:,:,0:photometry.shape[2]] = photometry
+        log.info('Added three columns to the photometry array')
+        return new_photometry
+    else:
+        log.info('Photometry array already has all 26 columns')
+        return photometry
 
 def mask_photometry_array(reduction_metadata, photometry, log):
 
@@ -368,8 +372,8 @@ def mirror_mag_columns(photometry, phot_columns, log):
 
     (mag_col, merr_col) = plot_rms.get_photometry_columns(phot_columns)
 
-    photometry[:,:,mag_col] = photometry[:,:,23]
-    photometry[:,:,merr_col] = photometry[:,:,24]
+    photometry[:,:,23] = photometry[:,:,mag_col]
+    photometry[:,:,24] = photometry[:,:,merr_col]
 
     log.info('Mirrored '+phot_columns+' photometry data to corrected columns ready for post-processing')
 
