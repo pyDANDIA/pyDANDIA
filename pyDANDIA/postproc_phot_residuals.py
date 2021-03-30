@@ -72,9 +72,10 @@ def run_postproc():
 
     # Factor photometric scatter into photometric residuals
     photometry = apply_image_merr_correction(photometry, image_residuals, log, 'corrected')
+    phot_stats = plot_rms.calc_mean_rms_mag(photometry,log,'corrected')
 
     # Set quality control flags to indicate suspect data points in photometry array
-    photometry = set_photometry_qc_flags(photometry, log)
+    photometry = set_image_photometry_qc_flags(photometry, log)
 
     # Ouput updated photometry
     output_revised_photometry(params, photometry, log)
@@ -293,9 +294,7 @@ def test_plot_lcs(params, photometry, log):
     for star in test_star_idxs:
         init_lcs.append( photometry[star,:,[9,13,14]].T )
         lc = photometry[star,:,[9,23,24,25]].T
-        print(lc)
         idx = np.where(lc[:,3] == 0)[0]
-        print(idx)
         post_lcs.append( lc[idx,:] )
 
     for j, star in enumerate(test_star_idxs):
@@ -404,13 +403,38 @@ def mirror_mag_columns(photometry, phot_columns, log):
 
     return photometry
 
-def set_photometry_qc_flags(photometry, log):
+def set_image_photometry_qc_flags(photometry, log):
 
     mask = np.ma.getmask(photometry)
     idx = np.where(mask[:,:,13] == True)
     photometry[idx[0],idx[1],25] = -1
 
-    log.info('Set quality control flag for datapoints with excessive photometric residuals')
+    log.info('Set quality control flag for datapoints from images with excessive photometric residuals')
+
+    return photometry
+
+def set_star_photometry_qc_flags(photometry, phot_stats, log):
+    "Function to evaluate the photometric uncertainty of each datapoint, and
+    flag datapoints with excessive uncertainties as suspect.
+    The scaling relation used to make this determination was based on a fit to the
+    weighted RMS .vs. weighted mean magnitude data for ROME-FIELD-01"
+
+    a0 = 0.232444
+    a0_error = 0.0006723
+    a1 = -5.0562
+    a1_error = 0.01163
+    rms = 0.310577
+
+    max_uncertainty = 10**(a0 * phot_stats[:,0] - a1 + rms)
+
+    error_threshold = np.zeros((photometry.shape[0], photometry.shape[1]))
+    for i in range(0,photometry.shape[1],1):
+        error_threshold[:,i] = max_uncertainty
+
+    idx = np.where(photometry[:,:,24] > error_threshold)
+    photometry[idx[0],idx[1],25] -= 1
+
+    log.info('Set quality control flag for datapoints with photometric uncertainties exceeding mag-dependend threshold')
 
     return photometry
 
