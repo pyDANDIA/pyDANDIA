@@ -232,8 +232,13 @@ def test_set_star_photometry_qc_flags():
 
     (photometry, phot_stats) = test_photometry(log)
 
+    test_star = 0
+    photometry[test_star,:,24].fill(1.0)
+
     photometry = postproc_phot_residuals.set_star_photometry_qc_flags(photometry, phot_stats, log)
 
+    assert((photometry[test_star,:,25] < 0).all())
+    
     logs.close_log(log)
 
 if __name__ == '__main__':
@@ -246,4 +251,4 @@ if __name__ == '__main__':
     #test_mask_photometry_array()
     #test_mask_phot_from_bad_images()
     #test_set_photometry_qc_flags()
-    test_set_star_photometry_qc_flags(
+    test_set_star_photometry_qc_flags()

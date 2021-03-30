@@ -167,12 +167,14 @@ def extract_star_lightcurve_isolated_reduction(params, log=None, format='dat'):
 
 		if format == 'dat':
 			datafile = open(lc_file,'w')
-			datafile.write('# HJD    Instrumental mag, mag_error   Calibrated mag, mag_error\n')
+			datafile.write('# HJD    Instrumental mag, mag_error   Calibrated mag, mag_error   Corrected mag, mag_error  QC Flag\n')
 
 			for i in time_order:
 				datafile.write(str(photometry_data['hjd'][i])+'  '+\
 						str(photometry_data['instrumental_mag'][i])+'  '+str(photometry_data['instrumental_mag_err'][i])+'  '+\
-						str(photometry_data['calibrated_mag'][i])+'  '+str(photometry_data['calibrated_mag_err'][i])+'\n')
+						str(photometry_data['calibrated_mag'][i])+'  '+str(photometry_data['calibrated_mag_err'][i])+\
+						str(photometry_data['corrected_mag'][i])+'  '+str(photometry_data['corrected_mag_err'][i])+\
+						str(photometry_data['qc_flag'][i])+'\n')
 
 			datafile.close()
 
@@ -342,12 +344,22 @@ def fetch_photometry_for_isolated_dataset(params, star_dataset_id, log):
 	log.info('Star array index: '+str(star_dataset_index))
 	photometry_data = dataset_photometry[star_dataset_index,:,:]
 
+	if photometry_data.shape[2] == 26:
+		corr_mags = table.Column(name='corrected_mag', data=dataset_photometry[star_dataset_index,:,23])
+		corr_merr = table.Column(name='corrected_mag_err', data=dataset_photometry[star_dataset_index,:,24])
+		qc_flag = table.Column(name='qc_flag', data=dataset_photometry[star_dataset_index,:,25])
+	else:
+		nimages = len(dataset_photometry[star_dataset_index,:,23])
+		corr_mags = table.Column(name='corrected_mag', data=np.zeros(nimages))
+		corr_merr = table.Column(name='corrected_mag_err', data=np.zeros(nimages))
+		qc_flag = table.Column(name='qc_flag', data=np.zeros(nimages))
+
 	photometry_data = table.Table( [ table.Column(name='hjd', data=dataset_photometry[star_dataset_index,:,9]),
 									 table.Column(name='instrumental_mag', data=dataset_photometry[star_dataset_index,:,11]),
 									 table.Column(name='instrumental_mag_err', data=dataset_photometry[star_dataset_index,:,12]),
 									  table.Column(name='calibrated_mag', data=dataset_photometry[star_dataset_index,:,13]),
 									  table.Column(name='calibrated_mag_err', data=dataset_photometry[star_dataset_index,:,14]),
-									  ] )
+									  corr_mags, corr_merr, qc_flag] )
 
 	return photometry_data
 

@@ -77,6 +77,9 @@ def run_postproc():
     # Set quality control flags to indicate suspect data points in photometry array
     photometry = set_image_photometry_qc_flags(photometry, log)
 
+    # Set quality control flags to indicate datapoints with large uncertainties:
+    photometry = set_star_photometry_qc_flags(photometry, phot_stats, log)
+    
     # Ouput updated photometry
     output_revised_photometry(params, photometry, log)
 
@@ -414,10 +417,10 @@ def set_image_photometry_qc_flags(photometry, log):
     return photometry
 
 def set_star_photometry_qc_flags(photometry, phot_stats, log):
-    "Function to evaluate the photometric uncertainty of each datapoint, and
+    """Function to evaluate the photometric uncertainty of each datapoint, and
     flag datapoints with excessive uncertainties as suspect.
     The scaling relation used to make this determination was based on a fit to the
-    weighted RMS .vs. weighted mean magnitude data for ROME-FIELD-01"
+    weighted RMS .vs. weighted mean magnitude data for ROME-FIELD-01"""
 
     a0 = 0.232444
     a0_error = 0.0006723
@@ -425,7 +428,7 @@ def set_star_photometry_qc_flags(photometry, phot_stats, log):
     a1_error = 0.01163
     rms = 0.310577
 
-    max_uncertainty = 10**(a0 * phot_stats[:,0] - a1 + rms)
+    max_uncertainty = 10**(a0 * phot_stats[:,0] + a1 + rms)
 
     error_threshold = np.zeros((photometry.shape[0], photometry.shape[1]))
     for i in range(0,photometry.shape[1],1):
