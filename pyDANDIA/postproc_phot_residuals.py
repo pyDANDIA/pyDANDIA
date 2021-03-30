@@ -55,7 +55,6 @@ def run_postproc():
     #photometry = apply_image_mag_correction(params, image_residuals, photometry, log, 'calibrated')
 
     # Re-calculate mean_mag, RMS for all stars, using corrected magnitudes
-    print('Recalculating statistics')
     phot_stats = plot_rms.calc_mean_rms_mag(photometry,log,'corrected')
     phot_stats = mask_photometry_stats(phot_stats, log)
     plot_rms.plot_rms(phot_stats, params, log,
@@ -66,18 +65,21 @@ def run_postproc():
 
     # Re-calculate photometric residuals
     phot_residuals = calc_phot_residuals(photometry, phot_stats, log, 'corrected')
+    image_residuals = calc_image_residuals(reduction_metadata, photometry, phot_residuals,log)
 
     # Calculate photometric scatter per image
     image_rms = calc_image_rms(phot_residuals, log)
 
     # Factor photometric scatter into photometric residuals
-    photometry = apply_image_merr_correction(photometry, image_rms, log, 'corrected')
+    photometry = apply_image_merr_correction(photometry, image_residuals, log, 'corrected')
 
     # Set quality control flags to indicate suspect data points in photometry array
     photometry = set_photometry_qc_flags(photometry, log)
 
     # Ouput updated photometry
     output_revised_photometry(params, photometry, log)
+
+    test_plot_lcs(params, photometry, log)
 
     log.info('Post-processing: complete')
 
@@ -113,9 +115,13 @@ def grow_photometry_array(photometry,log):
         new_photometry = np.zeros((photometry.shape[0], photometry.shape[1], photometry.shape[2]+3))
         new_photometry[:,:,0:photometry.shape[2]] = photometry
         log.info('Added three columns to the photometry array')
+        print((new_photometry[:,:,25]==0).all())
         return new_photometry
     else:
-        log.info('Photometry array already has all 26 columns')
+        log.info('Photometry array already has all 26 columns, zeroing columns 23,24,25')
+        photometry[:,:,23].fill(0.0)
+        photometry[:,:,24].fill(0.0)
+        photometry[:,:,25].fill(0.0)
         return photometry
 
 def mask_photometry_array(reduction_metadata, photometry, log):
@@ -270,28 +276,29 @@ def apply_image_mag_correction(params, image_residuals, photometry, log, phot_co
 
     (mag_col, merr_col) = plot_rms.get_photometry_columns(phot_columns)
 
-    test_star_idxs = [30001, 78283, 109708, 120495, 166501, 205177]
-    init_lcs = []
-    for star in test_star_idxs:
-        init_lcs.append( photometry[star,:,[9,mag_col,merr_col]].T )
-
     photometry[:,:,photometry.shape[2]-2] = photometry[:,:,mag_col] - image_residuals[:,0]
     photometry[:,:,photometry.shape[2]-1] = np.sqrt( photometry[:,:,merr_col]*photometry[:,:,merr_col] + \
                                                         image_residuals[:,1]*image_residuals[:,1] )
-
-    post_lcs = []
-    for star in test_star_idxs:
-        post_lcs.append( photometry[star,:,[9,photometry.shape[2]-2,photometry.shape[2]-1]].T )
-
-    test_plot_lcs(params, test_star_idxs, init_lcs, post_lcs)
 
     log.info('Applied magnitude offset to calculate corrected magnitudes')
 
     return photometry
 
-def test_plot_lcs(params, star_idxs, init_lcs, post_lcs):
+def test_plot_lcs(params, photometry, log):
 
-    for j, star in enumerate(star_idxs):
+    test_star_idxs = [30001, 78283, 109708, 120495, 166501, 205177]
+
+    init_lcs = []
+    post_lcs = []
+    for star in test_star_idxs:
+        init_lcs.append( photometry[star,:,[9,13,14]].T )
+        lc = photometry[star,:,[9,23,24,25]].T
+        print(lc)
+        idx = np.where(lc[:,3] == 0)[0]
+        print(idx)
+        post_lcs.append( lc[idx,:] )
+
+    for j, star in enumerate(test_star_idxs):
         init_lc = init_lcs[j]
         post_lc = post_lcs[j]
 
@@ -299,43 +306,58 @@ def test_plot_lcs(params, star_idxs, init_lcs, post_lcs):
         mean_mag = init_lc[:,1].mean()
         ymin2 = mean_mag + 1.0
         ymax2 = mean_mag - 1.0
-        with_errors = False
+        with_errors = True
         if with_errors:
             plt.errorbar(init_lc[:,0]-2450000.0,init_lc[:,1],
                     yerr=init_lc[:,2],
                     color='k', fmt='none')
-            plt.errorbar(post_lc[:,0]-2450000.0,post_lc[:,1],
-                    yerr=post_lc[:,2],
-                    color='m', fmt='none')
         else:
             plt.plot(init_lc[:,0]-2450000.0,init_lc[:,1],'k.')
-            plt.plot(post_lc[:,0]-2450000.0,post_lc[:,1],'m.')
-
         plt.xlabel('HJD-2450000.0')
         plt.ylabel('Mag')
         plt.title('Star '+str(star+1))
         (xmin,xmax,ymin1,ymax1) = plt.axis()
         plt.axis([xmin,xmax,ymin2,ymax2])
-        plt.savefig(path.join(params['red_dir'],'test_lightcurve_'+str(star+1)+'.png'))
+        plt.savefig(path.join(params['red_dir'],'test_lightcurve_init_'+str(star+1)+'.png'))
         plt.close(1)
+
+        fig = plt.figure(2,(10,10))
+        if with_errors:
+            plt.errorbar(post_lc[:,0]-2450000.0,post_lc[:,1],
+                    yerr=post_lc[:,2],
+                    color='m', fmt='none')
+        else:
+            plt.plot(post_lc[:,0]-2450000.0,post_lc[:,1],'m.')
+        plt.xlabel('HJD-2450000.0')
+        plt.ylabel('Mag')
+        plt.title('Star '+str(star+1))
+        (xmin,xmax,ymin1,ymax1) = plt.axis()
+        plt.axis([xmin,xmax,ymin2,ymax2])
+        plt.savefig(path.join(params['red_dir'],'test_lightcurve_post_'+str(star+1)+'.png'))
+        plt.close(2)
+
+    log.info('Plotted test star lightcurves')
 
 def calc_image_rms(phot_residuals, log):
 
     err_squared_inv = 1.0 / (phot_residuals[:,:,1]*phot_residuals[:,:,1])
     rms =  np.sqrt( (phot_residuals[:,:,0]**2 * err_squared_inv).sum(axis=0) / (err_squared_inv.sum(axis=0)) )
+    error = np.sqrt( 1.0 / (err_squared_inv.sum(axis=0)) )
 
-    log.info('Calculated RMS of photometric residuals per image')
+    log.info('Calculated RMS of photometric residuals per image ')
+    log.info('Image   RMS  std.error')
+    for i in range(0,len(rms),1):
+        log.info(str(i)+' '+str(rms[i])+' '+str(error[i]))
+    return error
 
-    return rms
-
-def apply_image_merr_correction(photometry, image_rms, log, phot_columns):
+def apply_image_merr_correction(photometry, image_residuals, log, phot_columns):
 
     (mag_col, merr_col) = plot_rms.get_photometry_columns(phot_columns)
 
-    photometry[:,:,photometry.shape[2]-1] = np.sqrt( photometry[:,:,merr_col]*photometry[:,:,merr_col] + \
-                                                        image_rms*image_rms )
+    photometry[:,:,merr_col] = np.sqrt( photometry[:,:,merr_col]*photometry[:,:,merr_col] + \
+                                                        image_residuals[:,0]*image_residuals[:,0] )
 
-    log.info('Factored RMS of image residuals into photometric uncertainties')
+    log.info('Factored the image residuals into photometric uncertainties')
 
     return photometry
 
@@ -377,13 +399,9 @@ def mirror_mag_columns(photometry, phot_columns, log):
 
     log.info('Mirrored '+phot_columns+' photometry data to corrected columns ready for post-processing')
 
-    idx = np.where(photometry[:,:,23] > 0.0)
-    print('INDEX: ',idx)
     idx = np.where(photometry[:,:,13] > 0.0)
-    print('INDEX: ',idx)
     mask = np.ma.getmask(photometry)
-    print(mask[:,:,23])
-    print((mask[:,:,23] == True).all())
+
     return photometry
 
 def set_photometry_qc_flags(photometry, log):
