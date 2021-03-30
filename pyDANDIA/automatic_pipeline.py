@@ -279,7 +279,8 @@ def parse_configured_datasets(config,log):
             entries = open(dataset_list,'r').readlines()
             for dataset_name in entries:
                 if len(dataset_name.replace('\n','')) > 0:
-                    datasets.append( path.join(config['data_red_dir'], dataset_name.replace('\n','')) )
+                    dir_path = path.join(config['data_red_dir'], dataset_name.replace('\n',''))
+                    datasets.append( dir_path.rstrip() )
 
             log.info('Read '+str(len(datasets))+' datasets to be reduced from '+dataset_list+':')
             [log.info(path.basename(x)) for x in datasets]
