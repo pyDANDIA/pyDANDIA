@@ -172,8 +172,8 @@ def extract_star_lightcurve_isolated_reduction(params, log=None, format='dat'):
 			for i in time_order:
 				datafile.write(str(photometry_data['hjd'][i])+'  '+\
 						str(photometry_data['instrumental_mag'][i])+'  '+str(photometry_data['instrumental_mag_err'][i])+'  '+\
-						str(photometry_data['calibrated_mag'][i])+'  '+str(photometry_data['calibrated_mag_err'][i])+\
-						str(photometry_data['corrected_mag'][i])+'  '+str(photometry_data['corrected_mag_err'][i])+\
+						str(photometry_data['calibrated_mag'][i])+'  '+str(photometry_data['calibrated_mag_err'][i])+' '+\
+						str(photometry_data['corrected_mag'][i])+'  '+str(photometry_data['corrected_mag_err'][i])+' '+\
 						str(photometry_data['qc_flag'][i])+'\n')
 
 			datafile.close()
@@ -342,9 +342,8 @@ def fetch_photometry_for_isolated_dataset(params, star_dataset_id, log):
 	star_dataset_index = star_dataset_id - 1
 
 	log.info('Star array index: '+str(star_dataset_index))
-	photometry_data = dataset_photometry[star_dataset_index,:,:]
 
-	if photometry_data.shape[2] == 26:
+	if dataset_photometry.shape[2] == 26:
 		corr_mags = table.Column(name='corrected_mag', data=dataset_photometry[star_dataset_index,:,23])
 		corr_merr = table.Column(name='corrected_mag_err', data=dataset_photometry[star_dataset_index,:,24])
 		qc_flag = table.Column(name='qc_flag', data=dataset_photometry[star_dataset_index,:,25])
