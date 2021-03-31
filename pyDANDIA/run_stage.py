@@ -28,6 +28,7 @@ from pyDANDIA import stage6
 from pyDANDIA import starfind
 from pyDANDIA import logs
 from pyDANDIA import image_coadd
+from pyDANDIA import postproc_phot_residuals
 
 def run_stage_stand_alone():
     """Function to run a stage or section of pyDANDIA in stand alone mode."""
@@ -90,6 +91,10 @@ def run_stage_stand_alone():
     elif params['stage'] == 'stage6':
 
         (status, report) = stage6.run_stage6(setup, **params)
+
+    elif params['stage'] == 'post_processing':
+
+        (status, report) = postproc_phot_residuals.run_postproc(setup, **params)
 
     elif params['stage'] == 'image_coadd':
 

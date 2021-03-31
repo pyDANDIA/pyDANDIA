@@ -11,17 +11,17 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 from astropy import visualization
 
-def run_postproc():
+def run_postproc(setup, **params):
     """Driver function for post-processing:
     Assessment of photometric residuals and uncertainties
     """
-    params = get_args()
 
-    log = logs.start_stage_log( params['log_dir'], 'postproc_phot' )
+    log = logs.start_stage_log( setup.red_dir, 'postproc_phot' )
+    (setup, params) = sanity_check(setup, params)
 
     reduction_metadata = metadata.MetaData()
-    reduction_metadata.load_all_metadata(params['red_dir'], 'pyDANDIA_metadata.fits')
-    phot_file = path.join(params['red_dir'],'photometry.hdf5')
+    reduction_metadata.load_all_metadata(setup.red_dir, 'pyDANDIA_metadata.fits')
+    phot_file = path.join(setup.red_dir,'photometry.hdf5')
     photometry = hd5_utils.read_phot_from_hd5_file(phot_file, return_type='array')
     log.info('Loaded dataset photometry and metadata')
 
@@ -32,9 +32,9 @@ def run_postproc():
     # Calculate mean_mag, RMS for all stars
     phot_stats = plot_rms.calc_mean_rms_mag(photometry,log,'calibrated')
     plot_rms.plot_rms(phot_stats, params, log,
-                    plot_file=path.join(params['red_dir'],'init_rms_mag.png'))
+                    plot_file=path.join(setup.red_dir,'init_rms_mag.png'))
     plot_rms.output_phot_statistics(phot_stats,
-                                    path.join(params['red_dir'],'init_rms_mag.txt'),
+                                    path.join(setup.red_dir,'init_rms_mag.txt'),
                                     log)
 
     # Calculate photometric residuals
@@ -58,9 +58,9 @@ def run_postproc():
     phot_stats = plot_rms.calc_mean_rms_mag(photometry,log,'corrected')
     phot_stats = mask_photometry_stats(phot_stats, log)
     plot_rms.plot_rms(phot_stats, params, log,
-                    plot_file=path.join(params['red_dir'],'postproc_rms_mag.png'))
+                    plot_file=path.join(setup.red_dir,'postproc_rms_mag.png'))
     plot_rms.output_phot_statistics(phot_stats,
-                path.join(params['red_dir'],'postproc_rms_mag.txt'),
+                path.join(setup.red_dir,'postproc_rms_mag.txt'),
                 log)
 
     # Re-calculate photometric residuals
@@ -79,15 +79,19 @@ def run_postproc():
 
     # Set quality control flags to indicate datapoints with large uncertainties:
     photometry = set_star_photometry_qc_flags(photometry, phot_stats, log)
-    
-    # Ouput updated photometry
-    output_revised_photometry(params, photometry, log)
 
-    test_plot_lcs(params, photometry, log)
+    # Ouput updated photometry
+    output_revised_photometry(setup, photometry, log)
+
+    test_plot_lcs(setup, photometry, log)
 
     log.info('Post-processing: complete')
 
     logs.close_log(log)
+
+    status = 'OK'
+    report = 'Completed successfully'
+    return status, report
 
 def get_args():
 
@@ -108,8 +112,20 @@ def get_args():
         params['diagnostic_plots'] = False
 
     params['log_dir'] = params['red_dir']
+    setup = pipeline_setup.pipeline_setup(params)
 
-    return params
+    return setup, params
+
+def sanity_check(setup, params):
+
+    for key in ['red_dir', 'log_dir']:
+        if key not in params.keys():
+            params[key] = getattr(setup,key)
+
+    if 'diagnostic_plots' not in params.keys():
+        params['diagnostic_plots'] = False
+
+    return setup, params
 
 def grow_photometry_array(photometry,log):
 
@@ -288,7 +304,7 @@ def apply_image_mag_correction(params, image_residuals, photometry, log, phot_co
 
     return photometry
 
-def test_plot_lcs(params, photometry, log):
+def test_plot_lcs(setup, photometry, log):
 
     test_star_idxs = [30001, 78283, 109708, 120495, 166501, 205177]
 
@@ -320,7 +336,7 @@ def test_plot_lcs(params, photometry, log):
         plt.title('Star '+str(star+1))
         (xmin,xmax,ymin1,ymax1) = plt.axis()
         plt.axis([xmin,xmax,ymin2,ymax2])
-        plt.savefig(path.join(params['red_dir'],'test_lightcurve_init_'+str(star+1)+'.png'))
+        plt.savefig(path.join(setup.red_dir,'test_lightcurve_init_'+str(star+1)+'.png'))
         plt.close(1)
 
         fig = plt.figure(2,(10,10))
@@ -335,7 +351,7 @@ def test_plot_lcs(params, photometry, log):
         plt.title('Star '+str(star+1))
         (xmin,xmax,ymin1,ymax1) = plt.axis()
         plt.axis([xmin,xmax,ymin2,ymax2])
-        plt.savefig(path.join(params['red_dir'],'test_lightcurve_post_'+str(star+1)+'.png'))
+        plt.savefig(path.join(setup.red_dir,'test_lightcurve_post_'+str(star+1)+'.png'))
         plt.close(2)
 
     log.info('Plotted test star lightcurves')
@@ -363,16 +379,15 @@ def apply_image_merr_correction(photometry, image_residuals, log, phot_columns):
 
     return photometry
 
-def output_revised_photometry(params, photometry, log):
+def output_revised_photometry(setup, photometry, log):
 
     # Back up the older photometry file for now
-    phot_file_name = path.join(params['red_dir'],'photometry.hdf5')
-    bkup_file_name = path.join(params['red_dir'],'photometry_stage6.hdf5')
+    phot_file_name = path.join(setup.red_dir,'photometry.hdf5')
+    bkup_file_name = path.join(setup.red_dir,'photometry_stage6.hdf5')
     if path.isfile(phot_file_name):
         rename(phot_file_name, bkup_file_name)
 
     # Output file with additional columns:
-    setup = pipeline_setup.pipeline_setup(params)
     hd5_utils.write_phot_hd5(setup,photometry,log=log)
 
 def mask_phot_from_bad_images(photometry, image_residuals, log):
@@ -442,4 +457,6 @@ def set_star_photometry_qc_flags(photometry, phot_stats, log):
     return photometry
 
 if __name__ == '__main__':
-    run_postproc()
+
+    (setup, params) = get_args()
+    (status, report) = run_postproc(setup, **params)
