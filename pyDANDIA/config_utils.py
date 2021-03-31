@@ -64,6 +64,16 @@ def build_config_from_json(config_file):
 
     return config
 
+def parse_boolean_keys(keys, config):
+    
+    for key in boolean_keys:
+        if key in config.keys():
+            if 'true' in str(config[key]).lower():
+                config[key] = True
+            else:
+                config[key] = False
+    return config
+
 def set_default_config(defaults, kwargs, log):
 
     for key, value in defaults.items():

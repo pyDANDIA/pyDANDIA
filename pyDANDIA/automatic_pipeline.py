@@ -103,7 +103,10 @@ def reduce_datasets(config,datasets,running_processes,log):
         for dir in datasets:
 
             data_status = 'primary-ref'
-            phot_db_path = path.join(dir, path.basename(dir)+'_phot.db')
+            if config['build_phot_db']:
+                phot_db_path = path.join(dir, path.basename(dir)+'_phot.db')
+            else:
+                phot_db_path = 'None'
 
             pid = trigger_parallel_auto_reduction(config,dir,phot_db_path,
                                                     data_status)
@@ -160,6 +163,9 @@ def get_config():
     else:
         exit()
 
+    boolean_keys = ['use_gaia_phot', 'catalog_xmatch', 'build_phot_db']
+    config = config_utils.parse_boolean_keys(boolean_keys, config)
+    
     return config
 
 def list_supported_instruments(config,log):

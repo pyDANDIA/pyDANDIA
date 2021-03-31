@@ -402,7 +402,7 @@ def check_stage3_db_ingest(setup,log):
 
     sane = False
 
-    if path.isfile(setup.phot_db_path):
+    if path.isfile(setup.phot_db_path) and setup.phot_db_path != 'None':
 
         conn = db_phot.get_connection(dsn=setup.phot_db_path)
         conn.execute('pragma synchronous=OFF')
@@ -425,10 +425,10 @@ def check_stage3_db_ingest(setup,log):
 
             log.info(' -> '+repr(sane))
 
+        conn.close()
+
     else:
         log.info('No phot DB found for this field at '+str(setup.phot_db_path))
-
-    conn.close()
 
     return sane
 
