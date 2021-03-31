@@ -207,15 +207,19 @@ def run_stage4(setup, **kwargs):
                                                    new_column_unit=column_unit)
 
         (new_images, image_red_status) = quality_control.verify_image_shifts(new_images,
-                                                    data, image_red_status)
+                                                    data, image_red_status, log=log)
 
-        px_scale = float(reduction_metadata.reduction_parameters[1]['PIX_SCALE'])
-        #resample_image(new_images, reference_image_name, reference_image_directory, reduction_metadata, setup,
-        #               data_image_directory, resampled_directory_path, ref_row_index, px_scale, log=log,
-        #               mask_extension_in=3)
-        image_red_status = resample_image_stamps(new_images, reference_image_name, reference_image_directory, reduction_metadata, setup,
-                       data_image_directory, resampled_directory_path, ref_row_index, px_scale,
-                       image_red_status, log=log, mask_extension_in=-1)
+        if len(new_images) == 0:
+            log.info('No new images remain to be processed')
+
+        else:
+            px_scale = float(reduction_metadata.reduction_parameters[1]['PIX_SCALE'])
+            #resample_image(new_images, reference_image_name, reference_image_directory, reduction_metadata, setup,
+            #               data_image_directory, resampled_directory_path, ref_row_index, px_scale, log=log,
+            #               mask_extension_in=3)
+            image_red_status = resample_image_stamps(new_images, reference_image_name, reference_image_directory, reduction_metadata, setup,
+                           data_image_directory, resampled_directory_path, ref_row_index, px_scale,
+                           image_red_status, log=log, mask_extension_in=-1)
 
         #image_red_status = metadata.set_image_red_status(image_red_status,'1',image_list=new_images)
         reduction_metadata.update_reduction_metadata_reduction_status_dict(image_red_status,

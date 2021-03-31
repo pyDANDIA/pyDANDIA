@@ -213,7 +213,7 @@ def verify_telescope_pointing(image_header):
         # If this is true, assume the data were taken of a non-sidereal object
         return True
 
-def verify_image_shifts(new_images, shift_data, image_red_status):
+def verify_image_shifts(new_images, shift_data, image_red_status, log=None):
     """Function to review the measured pixel offsets of each image from the
     reference for that dataset, and ensure that any severely offset images
     are marked as bad.  These images are removed from the new_images list.
@@ -239,6 +239,9 @@ def verify_image_shifts(new_images, shift_data, image_red_status):
             idx = np.where(image_list == image)
             if len(idx[0]) > 0:
                 rm_image = new_images.pop(idx[0][0])
+                if log != None:
+                    log.info('QC removed image '+rm_image+\
+                        ' from processing list due to excessive pixel offset')
 
     return new_images, image_red_status
 
