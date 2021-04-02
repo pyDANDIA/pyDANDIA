@@ -24,6 +24,7 @@ from pyDANDIA import stage5
 from pyDANDIA import stage6
 from pyDANDIA import logs
 from pyDANDIA import reset_stage_metadata
+from pyDANDIA import reset_pipeline
 from pyDANDIA import config_utils
 from pyDANDIA import metadata
 from pyDANDIA import phot_db as db_phot
@@ -293,7 +294,9 @@ def run_existing_reduction(setup, config, red_log):
     status = execute_stage(stage4.run_stage4, 'stage 4', setup, status, red_log)
 
     reset_stage_metadata.reset_red_status_for_stage(setup.red_dir,5)
-    red_log.info('Reset stage 5 of existing reduction')
+    reset_pipeline.reset_stage5_data_products(setup, log)
+    reset_pipeline.reset_stage6_data_products(setup, log)
+    red_log.info('Reset stages 5 and 6 of existing reduction')
 
     status = execute_stage(stage5.run_stage5, 'stage 5', setup, status, red_log)
 

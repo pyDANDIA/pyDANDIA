@@ -20,6 +20,16 @@ def reset_stage5_data_products(setup,log):
             rmtree(dir)
             log.info(' -> Removed '+dir)
 
+def reset_stage6_data_products(setup, log):
+
+    log.info('Removing any stage 6 data products from earlier reductions, if present')
+
+    file_list = [path.join(setup.red_dir, 'stage6.log'),
+                 path.join(setup.red_dir, 'photometry.hdf5')]
+    for file in file_list:
+        if path.isfile(file):
+            remove(file)
+            log.info(' -> Removed '+file)
 
 if __name__ == '__main__':
 
@@ -32,5 +42,6 @@ if __name__ == '__main__':
     log = logs.start_stage_log(setup.red_dir, 'reset_stage5')
 
     reset_stage5_data_products(setup,log)
+    reset_stage6_data_products(setup,log)
 
     logs.close_log(log)
