@@ -294,8 +294,8 @@ def run_existing_reduction(setup, config, red_log):
     status = execute_stage(stage4.run_stage4, 'stage 4', setup, status, red_log)
 
     reset_stage_metadata.reset_red_status_for_stage(setup.red_dir,5)
-    reset_pipeline.reset_stage5_data_products(setup, log)
-    reset_pipeline.reset_stage6_data_products(setup, log)
+    reset_pipeline.reset_stage5_data_products(setup, red_log)
+    reset_pipeline.reset_stage6_data_products(setup, red_log)
     red_log.info('Reset stages 5 and 6 of existing reduction')
 
     status = execute_stage(stage5.run_stage5, 'stage 5', setup, status, red_log)
