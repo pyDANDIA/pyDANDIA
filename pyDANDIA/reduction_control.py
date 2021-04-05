@@ -480,7 +480,7 @@ def got_existing_reference(setup,log):
 
     existing_reduction = False
 
-    if path.join(setup.red_dir, 'ref'):
+    if path.isdir(path.join(setup.red_dir, 'ref')):
 
         list_red_ref_image = glob.glob(path.join(setup.red_dir, 'ref', '*_res.fits'))
 

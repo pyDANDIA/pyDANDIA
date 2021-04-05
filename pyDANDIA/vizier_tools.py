@@ -131,7 +131,7 @@ def query_vizier_servers(query_service, coord, search_radius, catalog_id, log=No
 
                 return status, result
 
-        if len(result) > 0:
+        if result == None or len(result) > 0:
             continue_query = False
         elif len(result) == 0:
             iserver += 1
