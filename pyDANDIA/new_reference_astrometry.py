@@ -120,14 +120,14 @@ def run_reference_astrometry(setup, **kwargs):
         wcs.plot_overlaid_sources(os.path.join(setup.red_dir,'ref'),
                       bright_central_detected_stars, bright_central_gaia_stars, interactive=False)
 
-        
-        
+
+
 
         ### NEW IMPLEMENTATION ###
-        
-       
-        
-        
+
+
+
+
         reference_image_name = reduction_metadata.data_architecture[1]['REF_IMAGE'].data[0]
         reference_image_directory = reduction_metadata.data_architecture[1]['REF_PATH'].data[0]
         ref_structure = image_handling.determine_image_struture(os.path.join(reference_image_directory, reference_image_name), log=log)
@@ -136,7 +136,7 @@ def run_reference_astrometry(setup, **kwargs):
 
         ref_header = image_handling.get_science_header(meta_pars['ref_image_path'])
 
-        wcs_ref = aWCS(ref_header) 
+        wcs_ref = aWCS(ref_header)
 
         ra = wcs_ref.wcs.crval[0]
         dec = wcs_ref.wcs.crval[1]
@@ -151,13 +151,13 @@ def run_reference_astrometry(setup, **kwargs):
         translation_rotation = find_initial_image_rotation_translation(model,reference_image)
         translation = translation_rotation[:2]
         rota_matrix = np.array([[np.cos(translation_rotation[-1]),-np.sin(translation_rotation[-1])],[np.sin(translation_rotation[-1]),np.cos(translation_rotation[-1])]])
-        
-        affine_matrix = np.c_[np.r_[rota_matrix.tolist(),[[0,0]]],[translation[0],translation[1],1]]           
+
+        affine_matrix = np.c_[np.r_[rota_matrix.tolist(),[[0,0]]],[translation[0],translation[1],1]]
         center_matrix = np.array([[1,0,-int(reference_image.shape[1]/2)],
                                   [0,1,-int(reference_image.shape[0]/2)],
                                   [0,0,1]])
-                                  
-        tot_transform = np.dot(affine_matrix,center_matrix)                          
+
+        tot_transform = np.dot(affine_matrix,center_matrix)
         tot_transform[0][2] += int(reference_image.shape[1]/2)
         tot_transform[1][2] += int(reference_image.shape[0]/2)
 
@@ -175,7 +175,7 @@ def run_reference_astrometry(setup, **kwargs):
 
         x = bright_central_gaia_stars['x']
         y = bright_central_gaia_stars['y']
-           
+
         new_coords = transform(np.c_[x,y])
         bright_central_gaia_stars['x1'] = new_coords[:,0]
         bright_central_gaia_stars['y1'] = new_coords[:,1]
@@ -183,8 +183,8 @@ def run_reference_astrometry(setup, **kwargs):
         matched_stars = wcs.match_stars_pixel_coords(bright_central_detected_stars,
                                                      bright_central_gaia_stars,log,
                                                      tol=10.0,verbose=False)
- 
-       
+
+
         aa = bright_central_detected_stars[matched_stars.cat1_index]['x']
         bb = bright_central_detected_stars[matched_stars.cat1_index]['y']
         cc = bright_central_gaia_stars[matched_stars.cat2_index]['x']
@@ -192,28 +192,28 @@ def run_reference_astrometry(setup, **kwargs):
 
         transform_robust, inliers = ransac((np.c_[cc,dd],np.c_[aa,bb]),tf.AffineTransform,residual_threshold = 0.5,min_samples=np.min([len(aa),20]))
 
-                                                                
+
         #gaia_sources = update_catalog_image_coordinates(setup, image_wcs, gaia_sources, log, 'catalog_stars_bright_revised_'+str(0)+'.reg',
         #                                            stellar_density, rotate_wcs, kwargs,
         #                                            stellar_density_threshold,
-        #                                            transform=transform_robust, radius=selection_radius)                                                                
-        x = bright_central_gaia_stars['x'] 
-        y = bright_central_gaia_stars['y'] 
-        
+        #                                            transform=transform_robust, radius=selection_radius)
+        x = bright_central_gaia_stars['x']
+        y = bright_central_gaia_stars['y']
+
         new_coords = transform_robust(np.c_[x,y])
-        
-        
-        bright_central_gaia_stars['x1'] = new_coords[:,0] 
-        bright_central_gaia_stars['y1'] = new_coords[:,1] 
-                                                            
+
+
+        bright_central_gaia_stars['x1'] = new_coords[:,0]
+        bright_central_gaia_stars['y1'] = new_coords[:,1]
+
         matched_stars = wcs.match_stars_pixel_coords(bright_central_detected_stars,
                                                      bright_central_gaia_stars,log,
                                                      tol=10.0,verbose=False)
-                                                              
+
 
         ### NEW IMPLEMENTATION ###
-        
-        
+
+
         # Apply initial transform, if any
         #transform = AffineTransform()
         it = 0
@@ -221,14 +221,14 @@ def run_reference_astrometry(setup, **kwargs):
         iterate = True
         method = 'ransac'
         old_n_match = 0
-      
+
 
         log.info('Transforming catalogue coordinates')
 
-     
+
         center_ra = bright_central_gaia_stars['ra'].mean()
         center_dec = bright_central_gaia_stars['dec'].mean()
-        
+
         x = bright_central_gaia_stars['ra'] - center_ra
         y = bright_central_gaia_stars['dec'] - center_dec
 
@@ -236,12 +236,12 @@ def run_reference_astrometry(setup, **kwargs):
         yy = bright_central_detected_stars['dec'] - center_dec
 
         transform_robust, inliers = ransac((np.c_[xx,yy][matched_stars.cat1_index],np.c_[x,y][matched_stars.cat2_index]),tf.AffineTransform,residual_threshold = 0.0006,min_samples=np.min([len(aa),20]))
-    
+
         x = detected_sources['ra'] - center_ra
         y = detected_sources['dec'] - center_dec
         new_coords = transform_robust(np.c_[x,y])
 
-        
+
         detected_sources['ra'] = new_coords[:,0]+center_ra
         detected_sources['dec'] = new_coords[:,1]+center_dec
         log.info('Proceeding to x-match of full catalogs')
@@ -444,35 +444,35 @@ def update_catalog_image_coordinates(setup, image_wcs, gaia_sources,
                                                 transformed_coords=True)
 
     return gaia_sources
-    
-    
-    
+
+
+
 ### New WCS method
-    
+
 def find_initial_image_rotation_translation(model_img,img,delta = 500):
     #import pdb; pdb.set_trace()
     solutions = []
     for i in range(4):
-    
+
         sol = phase_cross_correlation(model_img[int(model_img.shape[0]/2-delta):int(model_img.shape[0]/2+delta),int(model_img.shape[1]/2-delta):int(model_img.shape[1]/2+delta)],          rotate(img.astype(float),90*i)[int(img.shape[0]/2-delta):int(img.shape[0]/2+delta),int(model_img.shape[1]/2-delta):int(model_img.shape[1]/2+delta)],
                                       upsample_factor=10)
-        #import pdb; pdb.set_trace()     
+        #import pdb; pdb.set_trace()
         solutions.append([sol[0][1],sol[0][0],i*np.pi/2])
-        
+
     solutions = np.array(solutions)
     print(solutions)
     good_combination =  (solutions[:,0]**2+solutions[:,1]**2).argmin()
-    
-    return solutions[good_combination]    
-    
-    
+
+    return solutions[good_combination]
+
+
 def generate_gaia_image_model(ra,dec,radius,wcs,img_shape):
 
     catalog = vizier_tools.search_vizier_for_sources(str(ra),str(dec),radius,'Gaia-DR2',coords='degrees')
 
     X,Y = wcs.wcs_world2pix(catalog['ra'],catalog['dec'],0)
 
-   
+
     sigma_psf = 3.0
     sources = Table()
     sources['flux'] = catalog['phot_g_mean_flux']
@@ -485,7 +485,7 @@ def generate_gaia_image_model(ra,dec,radius,wcs,img_shape):
     tshape = img_shape
 
     #size of the psf stamp
-    
+
     size = 21
 
     yy,xx = np.indices((size,size))
@@ -500,12 +500,9 @@ def generate_gaia_image_model(ra,dec,radius,wcs,img_shape):
 
         momo = aa.psf_model(yy,xx,[sources['flux'][ind],sources['y_mean'][ind]-posy+int((size-1)/2),sources['x_mean'][ind]-posx+int((size-1)/2),sources['y_stddev'][ind],sources['x_stddev'][ind]])
 
-        model[posy-int((size-1)/2):posy+int((size-1)/2)+1, posx-int((size-1)/2):posx+int((size-1)/2+1)] += momo   
-    
+        model[posy-int((size-1)/2):posy+int((size-1)/2)+1, posx-int((size-1)/2):posx+int((size-1)/2+1)] += momo
+
     #only return bright ones
     mask = sources['flux']>10000
-    
+
     return model,X[mask],Y[mask]
-    
-    
-    

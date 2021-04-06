@@ -60,7 +60,7 @@ def search_vizier_for_sources(ra, dec, radius, catalog, row_limit=-1,
 
     (status, result) = query_vizier_servers(v, c, r, [cat_id], debug=debug)
 
-    if len(result) == 1:
+    if result != None and len(result) == 1:
 
         col_list = []
         for col_id, col_name in cat_col_dict.items():
@@ -68,7 +68,8 @@ def search_vizier_for_sources(ra, dec, radius, catalog, row_limit=-1,
             col_list.append(col)
 
         result = table.Table( col_list )
-
+    else:
+        result = table.Table([])
     return result
 
 def query_vizier_servers(query_service, coord, search_radius, catalog_id, log=None,
