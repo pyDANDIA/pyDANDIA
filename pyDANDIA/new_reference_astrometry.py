@@ -146,7 +146,7 @@ def run_reference_astrometry(setup, **kwargs):
 
 
 
-        model,X,Y = generate_gaia_image_model(ra,dec,radius,wcs_ref,reference_image.shape)
+        model,X,Y = generate_gaia_image_model(wcs_ref,reference_image.shape,gaia_sources)
 
         translation_rotation = find_initial_image_rotation_translation(model,reference_image)
         translation = translation_rotation[:2]
@@ -466,11 +466,11 @@ def find_initial_image_rotation_translation(model_img,img,delta = 500):
     return solutions[good_combination]
 
 
-def generate_gaia_image_model(ra,dec,radius,wcs,img_shape):
+def generate_gaia_image_model(wcs_img,img_shape,catalog):
 
-    catalog = vizier_tools.search_vizier_for_sources(str(ra),str(dec),radius,'Gaia-DR2',coords='degrees')
+    #catalog = vizier_tools.search_vizier_for_sources(str(ra),str(dec),radius,'Gaia-DR2',coords='degrees')
 
-    X,Y = wcs.wcs_world2pix(catalog['ra'],catalog['dec'],0)
+    X,Y = wcs_img.wcs_world2pix(catalog['ra'],catalog['dec'],0)
 
 
     sigma_psf = 3.0
