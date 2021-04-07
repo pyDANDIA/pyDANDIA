@@ -144,9 +144,11 @@ def run_reference_astrometry(setup, **kwargs):
         diagonal = np.sqrt(ref_header['NAXIS1']*ref_header['NAXIS1'] +ref_header['NAXIS2']*ref_header['NAXIS2'])
         radius = diagonal*ref_header['PIXSCALE']/60.0/2.0/2 # ~ 5 arcminutes
 
+        mask = (gaia_sources['ra']-ra)**2+(gaia_sources['dec']-dec)**2<radius**2
+        
+        sub_catalog = gaia_sources[mask]
 
-
-        model,X,Y = generate_gaia_image_model(wcs_ref,reference_image.shape,gaia_sources)
+        model,X,Y = generate_gaia_image_model(wcs_ref,reference_image.shape,sub_catalog)
 
         translation_rotation = find_initial_image_rotation_translation(model,reference_image)
         translation = translation_rotation[:2]
