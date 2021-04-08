@@ -155,8 +155,9 @@ def run_stage5(setup, **kwargs):
 
         if kernel_size_tmp < 1:
             kernel_size_tmp = 1
-
-        kernel_size_array.append(kernel_size_tmp)
+            
+        if not kernel_size_tmp in kernel_size_array:
+            kernel_size_array.append(kernel_size_tmp)
 
     shifts = np.array(shifts)
     # requires images to be sufficiently aligned and adds a safety margin of 10 -> mv to config.json
