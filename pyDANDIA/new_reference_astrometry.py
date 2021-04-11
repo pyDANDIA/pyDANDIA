@@ -142,7 +142,7 @@ def run_reference_astrometry(setup, **kwargs):
         dec = wcs_ref.wcs.crval[1]
 
         diagonal = np.sqrt(ref_header['NAXIS1']*ref_header['NAXIS1'] +ref_header['NAXIS2']*ref_header['NAXIS2'])
-        radius = diagonal*ref_header['PIXSCALE']/60.0/2.0/2 # ~ 5 arcminutes
+        radius = diagonal*ref_header['PIXSCALE']/3600.0/4.0 # ~ 5 arcminutes
 
         mask = (gaia_sources['ra']-ra)**2+(gaia_sources['dec']-dec)**2<radius**2
         
