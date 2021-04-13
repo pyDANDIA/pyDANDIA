@@ -206,8 +206,10 @@ def run_stage4(setup, **kwargs):
                                                    new_column_format=column_format,
                                                    new_column_unit=column_unit)
 
+
+        max_threshold = reduction_metadata.reduction_parameters[1]['MAX_SHIFTS'][0]
         (new_images, image_red_status) = quality_control.verify_image_shifts(new_images,
-                                                    data, image_red_status, log=log)
+                                                    data, image_red_status, threshold = max_treshold, log=log)
 
         if len(new_images) == 0:
             log.info('No new images remain to be processed')

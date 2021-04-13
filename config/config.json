@@ -316,5 +316,11 @@
     "value": 1.5,
     "format": "float",
     "unit": ""
+  },
+ "max_shifts": {
+    "comment": "max_shift - FLOAT - Maximum pixel range allowed for frames shifts",
+    "value": 1000,
+    "format": "float",
+    "unit": ""
   }
 }
