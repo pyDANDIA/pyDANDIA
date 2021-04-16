@@ -122,7 +122,8 @@ def extract_star_lightcurves_on_cone(params, log=None):
 
 	return message
 
-def extract_star_lightcurve_isolated_reduction(params, log=None, format='dat'):
+def extract_star_lightcurve_isolated_reduction(params, log=None, format='dat',
+											valid_data_only=True):
 	"""Function to extract a lightcurve for a single star based on its RA, Dec
 	using the star_catolog in the metadata for a single reduction."""
 
@@ -170,10 +171,16 @@ def extract_star_lightcurve_isolated_reduction(params, log=None, format='dat'):
 			datafile.write('# HJD    Instrumental mag, mag_error   Calibrated mag, mag_error\n')
 
 			for i in time_order:
-				datafile.write(str(photometry_data['hjd'][i])+'  '+\
+				if valid_data_only:
+					if photometry_data['instrumental_mag'][i] > 0.0:
+						datafile.write(str(photometry_data['hjd'][i])+'  '+\
 						str(photometry_data['instrumental_mag'][i])+'  '+str(photometry_data['instrumental_mag_err'][i])+'  '+\
 						str(photometry_data['calibrated_mag'][i])+'  '+str(photometry_data['calibrated_mag_err'][i])+'\n')
-
+				else:
+					datafile.write(str(photometry_data['hjd'][i])+'  '+\
+					str(photometry_data['instrumental_mag'][i])+'  '+str(photometry_data['instrumental_mag_err'][i])+'  '+\
+					str(photometry_data['calibrated_mag'][i])+'  '+str(photometry_data['calibrated_mag_err'][i])+'\n')
+			
 			datafile.close()
 
 		elif format == 'csv':
