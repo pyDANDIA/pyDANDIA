@@ -308,7 +308,7 @@ def run_existing_reduction(setup, config, red_log):
 
     status = execute_stage(stage6.run_stage6, 'stage 6', setup, status, red_log, **config)
 
-    extract_target_lightcurve(setup, red_log)
+    extract_target_lightcurve(setup, config, red_log)
 
     return status
 
@@ -336,7 +336,7 @@ def run_new_reduction(setup, config, red_log):
 
     status = execute_stage(stage6.run_stage6, 'stage 6', setup, status, red_log, **config)
 
-    extract_target_lightcurve(setup, red_log)
+    extract_target_lightcurve(setup, config, red_log)
 
     return status
 
@@ -361,7 +361,7 @@ def check_for_assigned_ref_image(setup, log):
         log.info('No reference image assigned to this reduction')
         return False
 
-def extract_target_lightcurve(setup, log):
+def extract_target_lightcurve(setup, config, log):
     """Function to extract the lightcurve of the target indicated in the
     FITS image header."""
 
@@ -394,7 +394,8 @@ def extract_target_lightcurve(setup, log):
 
     log.info('Searching phot DB '+setup.phot_db_path+' for '+ref_header['OBJECT'])
 
-    lightcurves.extract_star_lightcurve_isolated_reduction(params, log=log, format='dat')
+    lightcurves.extract_star_lightcurve_isolated_reduction(params, log=log, format='dat',
+                                                            phot_error_threshold=config['phot_error_threshold'])
 
     log.info('Extracted lightcurve for '+ref_header['OBJECT']+' at RA,Dec='+\
             repr(ref_header['CAT-RA'])+', '+repr(ref_header['CAT-DEC'])+\

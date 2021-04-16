@@ -70,5 +70,11 @@
       "comment": "Switch to rely on the WCS in the image header",
       "format": "string",
       "unit": ""
+  },
+  "phot_error_threshold": {
+      "value": 0.05,
+      "comment": "Lightcurve quality control threshold",
+      "format": "float",
+      "unit": "mag"
   }
 }

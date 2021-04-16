@@ -123,7 +123,7 @@ def extract_star_lightcurves_on_cone(params, log=None):
 	return message
 
 def extract_star_lightcurve_isolated_reduction(params, log=None, format='dat',
-											valid_data_only=True):
+											valid_data_only=True,phot_error_threshold=10.0):
 	"""Function to extract a lightcurve for a single star based on its RA, Dec
 	using the star_catolog in the metadata for a single reduction."""
 
@@ -136,6 +136,8 @@ def extract_star_lightcurve_isolated_reduction(params, log=None, format='dat',
 
 	if log != None:
 		log.info('Searching for star at RA,Dec='+str(params['ra'])+', '+str(params['dec']))
+		log.info('Configured threshold for valid photometric datapoints is phot uncertainty <= '+\
+					str(phot_error_threshold)+' mag')
 
 	c = SkyCoord(params['ra'], params['dec'], frame='icrs', unit=(units.hourangle, units.deg))
 
@@ -172,7 +174,8 @@ def extract_star_lightcurve_isolated_reduction(params, log=None, format='dat',
 
 			for i in time_order:
 				if valid_data_only:
-					if photometry_data['instrumental_mag'][i] > 0.0:
+					if photometry_data['instrumental_mag'][i] > 0.0 and \
+							photometry_data['instrumental_mag_err'][i] <= phot_error_threshold:
 						datafile.write(str(photometry_data['hjd'][i])+'  '+\
 						str(photometry_data['instrumental_mag'][i])+'  '+str(photometry_data['instrumental_mag_err'][i])+'  '+\
 						str(photometry_data['calibrated_mag'][i])+'  '+str(photometry_data['calibrated_mag_err'][i])+'\n')
@@ -180,7 +183,7 @@ def extract_star_lightcurve_isolated_reduction(params, log=None, format='dat',
 					datafile.write(str(photometry_data['hjd'][i])+'  '+\
 					str(photometry_data['instrumental_mag'][i])+'  '+str(photometry_data['instrumental_mag_err'][i])+'  '+\
 					str(photometry_data['calibrated_mag'][i])+'  '+str(photometry_data['calibrated_mag_err'][i])+'\n')
-			
+
 			datafile.close()
 
 		elif format == 'csv':
