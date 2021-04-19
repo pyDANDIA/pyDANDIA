@@ -313,7 +313,7 @@
   },
   "qc_max_bad_pixel": {
     "comment": "qc_max_bad_pixel - FLOAT - Maximum percentage of bad pixels in a single frame",
-    "value": 1.5,
+    "value": 10,
     "format": "float",
     "unit": ""
   },
@@ -323,10 +323,11 @@
     "format": "float",
     "unit": ""
   },
-  "central_pixel": {
-    "comment": "central_pixel - BOOL - Reduction of the central pixel only ",
+   "central_pixel": {
+    "comment": "central_pixel - STRING - Reduction of the central pixel only ",
     "value": "True",
-    "format": "boolean",
+    "format": "S200",
     "unit": ""
   }
+
 }
