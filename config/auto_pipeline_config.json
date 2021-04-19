@@ -71,5 +71,10 @@
       "format": "string",
       "unit": ""
   },
-  
+  "phot_error_threshold": {
+      "value": 0.05,
+      "comment": "Lightcurve quality control threshold",
+      "format": "float",
+      "unit": "mag"
+  }
 }
