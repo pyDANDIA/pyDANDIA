@@ -734,7 +734,7 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
         data_image = fits.open(image_file_path)[image_structure['sci']].data
 
         stamps_directory = os.path.join(data_image_directory, new_image)
-
+        #import pdb; pdb.set_trace()
         warp_matrix =  np.load(os.path.join(stamps_directory, 'warp_matrice_image.npy'))
         resample_image = stage4.warp_image(data_image,warp_matrix)
 

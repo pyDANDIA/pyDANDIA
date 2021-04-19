@@ -322,5 +322,11 @@
     "value": 1000,
     "format": "float",
     "unit": ""
+  },
+  "central_pixel": {
+    "comment": "central_pixel - BOOL - Reduction of the central pixel only ",
+    "value": "True",
+    "format": "boolean",
+    "unit": ""
   }
 }

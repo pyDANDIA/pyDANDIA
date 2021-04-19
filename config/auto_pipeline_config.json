@@ -70,5 +70,6 @@
       "comment": "Switch to rely on the WCS in the image header",
       "format": "string",
       "unit": ""
-  }
+  },
+  
 }
