@@ -44,6 +44,7 @@ def run_stage0(setup):
     # find and update the pipeline config
     pipeline_config = read_the_config_file(setup.pipeline_config_dir, log=log)
 
+
     reduction_metadata = create_or_load_the_reduction_metadata(setup,
                                                                setup.red_dir,
                                                                metadata_name='pyDANDIA_metadata.fits',
@@ -51,6 +52,7 @@ def run_stage0(setup):
 
     update_reduction_metadata_with_config_file(reduction_metadata,
                                                pipeline_config, log=log)
+
 
     # find all images
 
@@ -88,8 +90,8 @@ def run_stage0(setup):
     reduction_metadata.update_reduction_metadata_reduction_status(new_images, stage_number=0, status=0, log=log)
 
     # construct the stamps if needed
-    central_pixel = bool(reduction_metadata.reduction_parameters[1]['central_pixel'])
-    
+    central_pixel = bool(reduction_metadata.reduction_parameters[1]['CENTRAL_PIXEL'])
+
     if reduction_metadata.stamps[1]:
         pass
     else:
@@ -705,9 +707,9 @@ def update_reduction_metadata_stamps(setup, reduction_metadata, open_image,
     if central_stamp:
         (status, report, stamps) =  construct_central_stamp(open_image, stamp_size, arcseconds_stamp_size,
                                                     pixel_scale, log=log)
-    
+
     else:
-    
+
         (status, report, stamps) = construct_the_stamps(open_image, stamp_size, arcseconds_stamp_size,
                                                     pixel_scale, number_of_overlaping_pixels=number_of_overlaping_pixels, log=log)
 
@@ -718,8 +720,8 @@ def update_reduction_metadata_stamps(setup, reduction_metadata, open_image,
     reduction_metadata.create_stamps_layer(names, formats, units, stamps)
 
     logs.ifverbose(log, setup, 'Updated reduction metadata stamps')
-    
-    
+
+
 def construct_central_stamp(open_image, stamp_size=None, arcseconds_stamp_size=(110, 110),
                          pixel_scale=None, log=None):
     '''
@@ -729,7 +731,7 @@ def construct_central_stamp(open_image, stamp_size=None, arcseconds_stamp_size=(
     :param list stamp_sizes: list of integer give the X,Y stamp size , i.e [150,52] give 150 pix in X, 52 in Y
     :param tuple arcseconds_stamp_size: list of integer give the X,Y stamp size in arcseconds units
     :param float pixel_scale: pixel scale of the CCD, in arcsec/pix
-    
+
 
 
     :return an array containing the pixel index, Y_min, Y_max, X_min, X_max (i.e matrix index definition)
@@ -748,7 +750,7 @@ def construct_central_stamp(open_image, stamp_size=None, arcseconds_stamp_size=(
 
         y_stamp_size = 1000
         x_stamp_size = 1000
-    
+
     stamps_center_x, stamps_center_y = ( int(full_image_y_size/2), int(full_image_x_size/2))
 
     stamps = [[0, stamps_center_y-int(y_stamp_size/2),stamps_center_y+int(y_stamp_size/2),stamps_center_x-int(x_stamp_size/2),stamps_center_x+int(x_stamp_size/2)]]
