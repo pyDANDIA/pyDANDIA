@@ -76,5 +76,17 @@
       "comment": "Lightcurve quality control threshold",
       "format": "float",
       "unit": "mag"
+  },
+  "awsid": {
+    "value": "roboarchiver",
+    "comment": "Default UID for upload to AWS",
+    "format": "string",
+    "unit": ""
+  },
+  "aws_bucket": {
+    "value": "robonet.lco.global",
+    "comment": "AWS bucket path",
+    "format": "string",
+    "unit": ""
   }
 }
