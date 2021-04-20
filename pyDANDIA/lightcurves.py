@@ -123,7 +123,8 @@ def extract_star_lightcurves_on_cone(params, log=None):
 	return message
 
 def extract_star_lightcurve_isolated_reduction(params, log=None, format='dat',
-											valid_data_only=True,phot_error_threshold=10.0):
+											valid_data_only=True,phot_error_threshold=10.0,
+											output_neighbours=False):
 	"""Function to extract a lightcurve for a single star based on its RA, Dec
 	using the star_catolog in the metadata for a single reduction."""
 
@@ -131,7 +132,7 @@ def extract_star_lightcurve_isolated_reduction(params, log=None, format='dat',
 
 	reduction_metadata = metadata.MetaData()
 	reduction_metadata.load_all_metadata(params['red_dir'], 'pyDANDIA_metadata.fits')
-	lc_file = None
+	lc_files = None
 
 	#filter_name = reduction_metadata.fetch_reduction_filter()
 
@@ -150,16 +151,26 @@ def extract_star_lightcurve_isolated_reduction(params, log=None, format='dat',
 	results = reduction_metadata.cone_search_on_position({'ra_centre': c.ra.deg,
 														 'dec_centre': c.dec.deg,
 														 'radius': radius})
+
 	if log != None and len(results['star_id']) == 0:
 		log.info('No matching objects found')
 
 	if log != None and len(results['star_id']) > 0:
 		log.info('Extracting lightcurves for the following matching objects')
 
-	for star_dataset_id in results['star_id']:
+	order_by_proximity = results['separation'].data.argsort()
+
+	if output_neighbours:
+		star_order = order_by_proximity
+	else:
+		star_order = [ order_by_proximity[0] ]
+
+	for j in star_order:
+
+		star_dataset_id = results['star_id'][j]
 
 		if log!=None:
-			log.info('-> Star dataset ID: '+str(star_dataset_id)+' separation: '+str(results['separation'])+' deg')
+			log.info('-> Star dataset ID: '+str(star_dataset_id)+' separation: '+str(results['separation'][j])+' deg')
 
 		photometry_data = fetch_photometry_for_isolated_dataset(params, star_dataset_id, log)
 
