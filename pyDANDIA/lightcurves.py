@@ -131,6 +131,7 @@ def extract_star_lightcurve_isolated_reduction(params, log=None, format='dat',
 
 	reduction_metadata = metadata.MetaData()
 	reduction_metadata.load_all_metadata(params['red_dir'], 'pyDANDIA_metadata.fits')
+	lc_file = None
 
 	#filter_name = reduction_metadata.fetch_reduction_filter()
 
@@ -205,7 +206,7 @@ def extract_star_lightcurve_isolated_reduction(params, log=None, format='dat',
 	message = 'OK'
 	logs.close_log(log)
 
-	return message
+	return message, lc_file
 
 
 
