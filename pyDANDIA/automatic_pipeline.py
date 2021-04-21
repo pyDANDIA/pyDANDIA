@@ -12,6 +12,7 @@ from pyDANDIA import pipeline_setup
 from pyDANDIA import config_utils
 from pyDANDIA import logs
 from datetime import datetime
+import numpy as np
 
 class DataGroup:
 
@@ -311,7 +312,7 @@ def parse_configured_datasets(config,log):
         # the same set of datasets each time when the maximum number of
         # reductions is capped:
         np.random.shuffle(datasets)
-        
+
     return datasets
 
 def sanity_check_data_before_reduction(datasets,log):
