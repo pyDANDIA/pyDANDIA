@@ -664,6 +664,8 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
     master_mask_hdu.writeto(os.path.join(reference_image_directory, 'master_mask.fits'), overwrite=True)
 
 
+
+
 def resample_image_stamps(new_images, reference_image_name, reference_image_directory, reduction_metadata, setup,
                    data_image_directory, resampled_directory_path, ref_row_index, px_scale,
                    image_red_status, log=None, mask_extension_in=-1):
@@ -746,7 +748,7 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
 
                     model_robust, inliers = ransac((pts_reference2[:5000, :2] , pts_data[:5000, :2] ), tf.AffineTransform,
                                                    min_samples=min(50, int(0.1 * len(pts_data[:5000]))),
-                                                   residual_threshold=0.05, max_trials=1000)
+                                                   residual_threshold=1, max_trials=1000)
 
                     if len(pts_data[:5000][inliers])<10:
                         raise ValueError("Not enough matching stars! Switching to translation")
@@ -762,7 +764,8 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
 
 
 
-                    shifted = tf.warp(data_image, inverse_map=model_final, output_shape=data_image.shape, order=5,mode='constant', cval=0, clip=True, preserve_range=True)
+                    shifted = tf.warp(data_image/data_image.max(), inverse_map=model_final, output_shape=data_image.shape, order=3,mode='constant', cval=0, clip=True, preserve_range=True)*data_image.max()
+
                     shifted_mask = tf.warp(mask_image, inverse_map=model_final, output_shape=data_image.shape, order=1, mode='constant', cval=1, clip=True, preserve_range=True)
 
                     corr = np.corrcoef(reference_image[~shifted_mask.astype(bool)], shifted[~shifted_mask.astype(bool)])[0, 1]
@@ -786,6 +789,7 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
                 pass
 
             log.info(' -> Resampling image stamps')
+
             for stamp in list_of_stamps:
                 try:
                     stamp_row = np.where(reduction_metadata.stamps[1]['PIXEL_INDEX'] == stamp)[0][0]
@@ -795,28 +799,37 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
                     ymax = reduction_metadata.stamps[1][stamp_row]['Y_MAX'].astype(int)
 
                     img = shifted[ymin:ymax, xmin:xmax]
+                    sub_ref = reference_image[ymin:ymax,xmin:xmax].astype(float)
+                    shifts, errors, phasediff = register_translation(sub_ref,img)
+                    #model_stamp = tf.SimilarityTransform(translation=(-shifts[1],-shifts[0]))
 
                     stamp_mask = (ref_sources['xcentroid']<xmax) & (ref_sources['xcentroid']>xmin ) &\
                                  (ref_sources['ycentroid']<ymax) & (ref_sources['ycentroid']>ymin )
+
                     ref_stamps = ref_sources[stamp_mask]
+                    ref_stamps['xcentroid'] -= xmin
+                    ref_stamps['ycentroid'] -= ymin
+                    #ref_stamps = ref_stamps[ref_stamps['flux'].argsort()[::-1],]
 
                     data_stamps, stamps_fwhm = extract_catalog(reduction_metadata, img, row_index, log)
+                    #data_stamps = data_stamps[data_stamps['flux'].argsort()[::-1],]
+                    #data_stamps['xcentroid'] += xmin
+                    #data_stamps['ycentroid'] += ymin
 
-                    data_stamps['xcentroid'] += xmin
-                    data_stamps['ycentroid'] += ymin
-
-                    pts_data, pts_reference, e_pos = crossmatch_catalogs(ref_stamps, data_stamps,0,0)
+                    pts_data, pts_reference, e_pos = crossmatch_catalogs(ref_stamps, data_stamps,-shifts[1],-shifts[0])
 
                     model_stamp, inliers = ransac((pts_reference[:5000, :2] , pts_data[:5000, :2] ),
                                                tf.AffineTransform, min_samples=min(50, int(0.1 * len(pts_data[:5000]))),
-                                               residual_threshold=0.05, max_trials=1000)
+                                               residual_threshold=1, max_trials=1000)
 
+                    if len(pts_data[:5000][inliers])<10:
+                        raise ValueError("Not enough matching stars in stamps! Switching to translation")
                     #save the warp matrices instead of images
                     np.save(os.path.join(resample_directory, 'warp_matrice_stamp_' + str(stamp) + '.npy'), model_stamp.params)
 
                 except:
 
-                   model_stamp = tf.SimilarityTransform(translation=(0,0))
+                   model_stamp = tf.SimilarityTransform(translation=(-shifts[1],-shifts[0]))
                    np.save(os.path.join(resample_directory, 'warp_matrice_stamp_' + str(stamp) + '.npy'), model_stamp.params)
 
 
@@ -841,8 +854,8 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
 
 def warp_image(image_to_warp,warp_matrix):
 
-    warp_image = tf.warp(image_to_warp, inverse_map=warp_matrix, output_shape=image_to_warp.shape, order=5,
-                                  mode='constant', cval=0, clip=True, preserve_range=True)
+    warp_image = tf.warp(image_to_warp/image_to_warp.max(), inverse_map=warp_matrix, output_shape=image_to_warp.shape, order=3,
+                                  mode='constant', cval=0, clip=True, preserve_range=True)*image_to_warp.max()
 
     return warp_image
 
