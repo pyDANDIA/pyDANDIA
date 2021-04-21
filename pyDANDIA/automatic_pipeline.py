@@ -12,6 +12,7 @@ from pyDANDIA import pipeline_setup
 from pyDANDIA import config_utils
 from pyDANDIA import logs
 from datetime import datetime
+import numpy as np
 
 class DataGroup:
 
