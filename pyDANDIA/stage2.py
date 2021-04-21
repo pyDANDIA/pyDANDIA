@@ -182,10 +182,21 @@ def run_stage2(setup, **kwargs):
                 image_structure = image_handling.determine_image_struture(os.path.join(data_directory_path,image_filename), log=log)
                 hl_data = fits.open(os.path.join(data_directory_path,image_filename))
                 data = hl_data[image_structure['sci']].data
-                mean, median, std = sigma_clipped_stats(data, sigma=3.0)
-                fraction_3sig = float(len(np.where(data>3.*std+median)[1]))/data.size
+
+                img = data
+                center_px = np.shape(img)[0]//2, np.shape(img)[1]//2
+                subregion = np.shape(img)[0]//8, np.shape(img)[1]//8
+                img = data[center_px[0] - subregion[0]: center_px[0] + subregion[0],
+                           center_px[1] - subregion[1]: center_px[1] + subregion[1]]
+                img = img / np.sum(img)
+                ftransform = np.fft.fft2(img) * np.fft.fft2(img[::-1,::-1])
+                absconv = np.abs(np.fft.ifft2(ftransform))
+                ranking_key = np.max(absconv)
+                #mean, median, std = sigma_clipped_stats(data, sigma=3.0)
+                #fraction_3sig = float(len(np.where(data>3.*std+median)[1]))/data.size
+                #ranking_key = 1/(1/(fraction_3sig**2) +fwhm_value**2 )
                 hl_data.close()
-                ranking_key = 1/(1/(fraction_3sig**2) +fwhm_value**2 )
+
                 reference_ranking.append([image_filename, ranking_key])
                 entry = [image_filename, moon_status, ranking_key]
                 reduction_metadata.add_row_to_layer(key_layer='reference_inventory',
