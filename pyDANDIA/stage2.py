@@ -186,8 +186,8 @@ def run_stage2(setup, **kwargs):
                 img = data
                 center_px = np.shape(img)[0]//2, np.shape(img)[1]//2
                 subregion = np.shape(img)[0]//8, np.shape(img)[1]//8
-                img = hdulist[0].data[center_px[0] - subregion[0]: center_px[0] + subregion[0],
-                                      center_px[1] - subregion[1]: center_px[1] + subregion[1]]
+                img = data[center_px[0] - subregion[0]: center_px[0] + subregion[0],
+                           center_px[1] - subregion[1]: center_px[1] + subregion[1]]
                 img = img / np.sum(img)
                 ftransform = np.fft.fft2(img) * np.fft.fft2(img[::-1,::-1])
                 absconv = np.abs(np.fft.ifft2(ftransform))
