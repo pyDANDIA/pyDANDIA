@@ -165,7 +165,7 @@ def get_config():
 
     boolean_keys = ['use_gaia_phot', 'catalog_xmatch', 'build_phot_db']
     config = config_utils.parse_boolean_keys(boolean_keys, config)
-    
+
     return config
 
 def list_supported_instruments(config,log):
@@ -307,6 +307,11 @@ def parse_configured_datasets(config,log):
         log.info('Found '+str(len(datasets))+' datasets to be reduced in '+config['data_red_dir']+':')
         [log.info(path.basename(x)) for x in datasets]
 
+        # Shuffle dataset list to avoid the pipeline reprocessing the
+        # the same set of datasets each time when the maximum number of
+        # reductions is capped:
+        np.random.shuffle(datasets)
+        
     return datasets
 
 def sanity_check_data_before_reduction(datasets,log):
