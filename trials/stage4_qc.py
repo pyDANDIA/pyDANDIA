@@ -12,6 +12,8 @@ def inspect_resampled_params(params):
 
     plot_coefficients(params, frame_list, coefficients)
 
+    filter_coefficients(params, frame_list, coefficients)
+
 def load_resampled_data(params):
 
     resampled_dir = path.join(params['red_dir'], 'resampled')
@@ -56,6 +58,19 @@ def plot_coefficients(params, frame_list, coefficients):
     plt.tight_layout()
 
     plt.savefig(path.join(params['red_dir'], 'warp_matrices.png'), )
+
+def filter_coefficients(params, frame_list, coefficients):
+
+    threshold = 100.0
+
+    idx = np.where(coefficients > threshold)[0]
+
+    if len(idx) == 0:
+        print('No frames exceed QC threshold of '+str(threshold))
+    else:
+        print('The following frames exceed the QC threshold of '+str(threshold))
+        for i in idx:
+            print(frame_list[i])
 
 if __name__ == '__main__':
 
