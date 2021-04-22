@@ -195,7 +195,7 @@ def verify_telescope_pointing(image_header):
                                      the QC test
     """
 
-    threshold = (1.0/60.0) * u.deg
+    threshold = (5.0/60.0) * u.deg
 
     if 'N/A' not in image_header['CAT-RA'] and 'N/A' not in image_header['CAT-DEC']:
         requested_pointing = SkyCoord(image_header['CAT-RA']+' '+image_header['CAT-DEC'],
