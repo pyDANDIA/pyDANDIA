@@ -149,50 +149,51 @@ def extract_star_lightcurve_isolated_reduction(params, log=None, format='dat'):
 	if log != None and len(results['star_id']) == 0:
 		log.info('No matching objects found')
 
-	if log != None and len(results['star_id']) > 0:
-		log.info('Extracting lightcurves for the following matching objects')
+	else:
+		if log != None and len(results['star_id']) > 0:
+			log.info('Extracting lightcurves for the following matching objects')
 
-	for star_dataset_id in results['star_id']:
+		for star_dataset_id in results['star_id']:
 
-		if log!=None:
-			log.info('-> Star dataset ID: '+str(star_dataset_id)+' separation: '+str(results['separation'])+' deg')
+			if log!=None:
+				log.info('-> Star dataset ID: '+str(star_dataset_id)+' separation: '+str(results['separation'])+' deg')
 
-		photometry_data = fetch_photometry_for_isolated_dataset(params, star_dataset_id, log)
+			photometry_data = fetch_photometry_for_isolated_dataset(params, star_dataset_id, log)
 
-		time_order = np.argsort(photometry_data['hjd'])
-		#setname = path.basename(params['red_dir']).split('_')[1]
-		setname = path.basename("_".join((params['red_dir']).split('_')[1:]))
+			time_order = np.argsort(photometry_data['hjd'])
+			#setname = path.basename(params['red_dir']).split('_')[1]
+			setname = path.basename("_".join((params['red_dir']).split('_')[1:]))
 
-		lc_file = path.join(params['output_dir'],'star_'+str(star_dataset_id)+'_'+setname+'.'+str(format))
+			lc_file = path.join(params['output_dir'],'star_'+str(star_dataset_id)+'_'+setname+'.'+str(format))
 
-		if format == 'dat':
-			datafile = open(lc_file,'w')
-			datafile.write('# HJD    Instrumental mag, mag_error   Calibrated mag, mag_error   Corrected mag, mag_error  QC Flag\n')
+			if format == 'dat':
+				datafile = open(lc_file,'w')
+				datafile.write('# HJD    Instrumental mag, mag_error   Calibrated mag, mag_error   Corrected mag, mag_error  QC Flag\n')
 
-			for i in time_order:
-				datafile.write(str(photometry_data['hjd'][i])+'  '+\
-						str(photometry_data['instrumental_mag'][i])+'  '+str(photometry_data['instrumental_mag_err'][i])+'  '+\
-						str(photometry_data['calibrated_mag'][i])+'  '+str(photometry_data['calibrated_mag_err'][i])+' '+\
-						str(photometry_data['corrected_mag'][i])+'  '+str(photometry_data['corrected_mag_err'][i])+' '+\
-						str(photometry_data['qc_flag'][i])+'\n')
-
-			datafile.close()
-
-		elif format == 'csv':
-			with open(lc_file, 'w', newline='') as csvfile:
-				datafile = csv.writer(csvfile, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
-				datafile.writerow(['time', 'filter', 'magnitude', 'error'])
 				for i in time_order:
-					if photometry_data['instrumental_mag'][i] > 0.0:
-						datafile.writerow([str(photometry_data['hjd'][i]), params['filter_name'],
-											str(photometry_data['instrumental_mag'][i]),
-											str(photometry_data['instrumental_mag_err'][i])])
+					datafile.write(str(photometry_data['hjd'][i])+'  '+\
+							str(photometry_data['instrumental_mag'][i])+'  '+str(photometry_data['instrumental_mag_err'][i])+'  '+\
+							str(photometry_data['calibrated_mag'][i])+'  '+str(photometry_data['calibrated_mag_err'][i])+' '+\
+							str(photometry_data['corrected_mag'][i])+'  '+str(photometry_data['corrected_mag_err'][i])+' '+\
+							str(photometry_data['qc_flag'][i])+'\n')
 
-		else:
-			log.info('Unrecognized lightcurve format requested ('+str(format)+') no output possible')
+				datafile.close()
 
-		if log!=None:
-			log.info('-> Output dataset '+setname)
+			elif format == 'csv':
+				with open(lc_file, 'w', newline='') as csvfile:
+					datafile = csv.writer(csvfile, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
+					datafile.writerow(['time', 'filter', 'magnitude', 'error'])
+					for i in time_order:
+						if photometry_data['instrumental_mag'][i] > 0.0:
+							datafile.writerow([str(photometry_data['hjd'][i]), params['filter_name'],
+												str(photometry_data['instrumental_mag'][i]),
+												str(photometry_data['instrumental_mag_err'][i])])
+
+			else:
+				log.info('Unrecognized lightcurve format requested ('+str(format)+') no output possible')
+
+			if log!=None:
+				log.info('-> Output dataset '+setname)
 
 	message = 'OK'
 	logs.close_log(log)
