@@ -155,64 +155,65 @@ def extract_star_lightcurve_isolated_reduction(params, log=None, format='dat',
 	if log != None and len(results['star_id']) == 0:
 		log.info('No matching objects found')
 
-	if log != None and len(results['star_id']) > 0:
-		log.info('Extracting lightcurves for the following matching objects')
-
-	order_by_proximity = results['separation'].data.argsort()
-
-	if output_neighbours:
-		star_order = order_by_proximity
 	else:
-		star_order = [ order_by_proximity[0] ]
+		if log != None and len(results['star_id']) > 0:
+			log.info('Extracting lightcurves for the following matching objects')
 
-	for j in star_order:
+		order_by_proximity = results['separation'].data.argsort()
 
-		star_dataset_id = results['star_id'][j]
+		if output_neighbours:
+			star_order = order_by_proximity
+		else:
+			star_order = [ order_by_proximity[0] ]
 
-		if log!=None:
-			log.info('-> Star dataset ID: '+str(star_dataset_id)+' separation: '+str(results['separation'][j])+' deg')
+		for j in star_order:
 
-		photometry_data = fetch_photometry_for_isolated_dataset(params, star_dataset_id, log)
+			star_dataset_id = results['star_id'][j]
 
-		time_order = np.argsort(photometry_data['hjd'])
-		#setname = path.basename(params['red_dir']).split('_')[1]
-		setname = path.basename("_".join((params['red_dir']).split('_')[1:]))
+			if log!=None:
+				log.info('-> Star dataset ID: '+str(star_dataset_id)+' separation: '+str(results['separation'][j])+' deg')
 
-		lc_file = path.join(params['output_dir'],'star_'+str(star_dataset_id)+'_'+setname+'.'+str(format))
+			photometry_data = fetch_photometry_for_isolated_dataset(params, star_dataset_id, log)
 
-		if format == 'dat':
-			datafile = open(lc_file,'w')
-			datafile.write('# HJD    Instrumental mag, mag_error   Calibrated mag, mag_error\n')
+			time_order = np.argsort(photometry_data['hjd'])
+			#setname = path.basename(params['red_dir']).split('_')[1]
+			setname = path.basename("_".join((params['red_dir']).split('_')[1:]))
 
-			for i in time_order:
-				if valid_data_only:
-					if photometry_data['instrumental_mag'][i] > 0.0 and \
-							photometry_data['instrumental_mag_err'][i] <= phot_error_threshold:
+			lc_file = path.join(params['output_dir'],'star_'+str(star_dataset_id)+'_'+setname+'.'+str(format))
+
+			if format == 'dat':
+				datafile = open(lc_file,'w')
+				datafile.write('# HJD    Instrumental mag, mag_error   Calibrated mag, mag_error\n')
+
+				for i in time_order:
+					if valid_data_only:
+						if photometry_data['instrumental_mag'][i] > 0.0 and \
+								photometry_data['instrumental_mag_err'][i] <= phot_error_threshold:
+							datafile.write(str(photometry_data['hjd'][i])+'  '+\
+							str(photometry_data['instrumental_mag'][i])+'  '+str(photometry_data['instrumental_mag_err'][i])+'  '+\
+							str(photometry_data['calibrated_mag'][i])+'  '+str(photometry_data['calibrated_mag_err'][i])+'\n')
+					else:
 						datafile.write(str(photometry_data['hjd'][i])+'  '+\
 						str(photometry_data['instrumental_mag'][i])+'  '+str(photometry_data['instrumental_mag_err'][i])+'  '+\
 						str(photometry_data['calibrated_mag'][i])+'  '+str(photometry_data['calibrated_mag_err'][i])+'\n')
-				else:
-					datafile.write(str(photometry_data['hjd'][i])+'  '+\
-					str(photometry_data['instrumental_mag'][i])+'  '+str(photometry_data['instrumental_mag_err'][i])+'  '+\
-					str(photometry_data['calibrated_mag'][i])+'  '+str(photometry_data['calibrated_mag_err'][i])+'\n')
 
-			datafile.close()
+				datafile.close()
 
-		elif format == 'csv':
-			with open(lc_file, 'w', newline='') as csvfile:
-				datafile = csv.writer(csvfile, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
-				datafile.writerow(['time', 'filter', 'magnitude', 'error'])
-				for i in time_order:
-					if photometry_data['instrumental_mag'][i] > 0.0:
-						datafile.writerow([str(photometry_data['hjd'][i]), params['filter_name'],
-											str(photometry_data['instrumental_mag'][i]),
-											str(photometry_data['instrumental_mag_err'][i])])
+			elif format == 'csv':
+				with open(lc_file, 'w', newline='') as csvfile:
+					datafile = csv.writer(csvfile, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
+					datafile.writerow(['time', 'filter', 'magnitude', 'error'])
+					for i in time_order:
+						if photometry_data['instrumental_mag'][i] > 0.0:
+							datafile.writerow([str(photometry_data['hjd'][i]), params['filter_name'],
+												str(photometry_data['instrumental_mag'][i]),
+												str(photometry_data['instrumental_mag_err'][i])])
 
-		else:
-			log.info('Unrecognized lightcurve format requested ('+str(format)+') no output possible')
+			else:
+				log.info('Unrecognized lightcurve format requested ('+str(format)+') no output possible')
 
-		if log!=None:
-			log.info('-> Output dataset '+setname)
+			if log!=None:
+				log.info('-> Output dataset '+setname)
 
 	message = 'OK'
 	logs.close_log(log)
