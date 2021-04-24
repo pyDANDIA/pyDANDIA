@@ -132,7 +132,9 @@ def extract_star_lightcurve_isolated_reduction(params, log=None, format='dat',
 
 	reduction_metadata = metadata.MetaData()
 	reduction_metadata.load_all_metadata(params['red_dir'], 'pyDANDIA_metadata.fits')
-	lc_file = None
+	params['filter_name'] = reduction_metadata.headers_summary[1]['FILTKEY'][0]
+
+	lc_files = []
 
 	#filter_name = reduction_metadata.fetch_reduction_filter()
 
@@ -175,52 +177,84 @@ def extract_star_lightcurve_isolated_reduction(params, log=None, format='dat',
 
 			photometry_data = fetch_photometry_for_isolated_dataset(params, star_dataset_id, log)
 
-			time_order = np.argsort(photometry_data['hjd'])
-			#setname = path.basename(params['red_dir']).split('_')[1]
-			setname = path.basename("_".join((params['red_dir']).split('_')[1:]))
+			lc_files = output_lightcurve(params, photometry_data, star_dataset_id, format,
+								  			valid_data_only, phot_error_threshold, log)
 
-			lc_file = path.join(params['output_dir'],'star_'+str(star_dataset_id)+'_'+setname+'.'+str(format))
-
-			if format == 'dat':
-				datafile = open(lc_file,'w')
-				datafile.write('# HJD    Instrumental mag, mag_error   Calibrated mag, mag_error\n')
-
-				for i in time_order:
-					if valid_data_only:
-						if photometry_data['instrumental_mag'][i] > 0.0 and \
-								photometry_data['instrumental_mag_err'][i] <= phot_error_threshold:
-							datafile.write(str(photometry_data['hjd'][i])+'  '+\
-							str(photometry_data['instrumental_mag'][i])+'  '+str(photometry_data['instrumental_mag_err'][i])+'  '+\
-							str(photometry_data['calibrated_mag'][i])+'  '+str(photometry_data['calibrated_mag_err'][i])+'\n')
-					else:
-						datafile.write(str(photometry_data['hjd'][i])+'  '+\
-						str(photometry_data['instrumental_mag'][i])+'  '+str(photometry_data['instrumental_mag_err'][i])+'  '+\
-						str(photometry_data['calibrated_mag'][i])+'  '+str(photometry_data['calibrated_mag_err'][i])+'\n')
-
-				datafile.close()
-
-			elif format == 'csv':
-				with open(lc_file, 'w', newline='') as csvfile:
-					datafile = csv.writer(csvfile, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
-					datafile.writerow(['time', 'filter', 'magnitude', 'error'])
-					for i in time_order:
-						if photometry_data['instrumental_mag'][i] > 0.0:
-							datafile.writerow([str(photometry_data['hjd'][i]), params['filter_name'],
-												str(photometry_data['instrumental_mag'][i]),
-												str(photometry_data['instrumental_mag_err'][i])])
-
-			else:
-				log.info('Unrecognized lightcurve format requested ('+str(format)+') no output possible')
-
-			if log!=None:
-				log.info('-> Output dataset '+setname)
 
 	message = 'OK'
 	logs.close_log(log)
 
-	return message, lc_file
+	return message, lc_files
 
+def get_setname(params):
 
+	reddir = params['red_dir']
+	if '/' in reddir[-1]:
+		reddir = reddir[:-1]
+	setname = path.basename(reddir)
+	entries = setname.split('_')
+	if len(entries) == 3:
+		setname = "_".join(entries[1:])
+
+	return setname
+
+def output_lightcurve(params, photometry_data, star_dataset_id, format,
+					  valid_data_only, phot_error_threshold, log):
+
+	time_order = np.argsort(photometry_data['hjd'])
+
+	setname = get_setname(params)
+
+	lc_file_list = []
+
+	if 'dat' in format:
+
+		lc_file = path.join(params['output_dir'],'star_'+str(star_dataset_id)+'_'+setname+'.dat')
+		datafile = open(lc_file,'w')
+		datafile.write('# HJD    Instrumental mag, mag_error   Calibrated mag, mag_error\n')
+
+		for i in time_order:
+			if valid_data_only:
+				if photometry_data['instrumental_mag'][i] > 0.0 and \
+						photometry_data['instrumental_mag_err'][i] <= phot_error_threshold:
+					datafile.write(str(photometry_data['hjd'][i])+'  '+\
+					str(photometry_data['instrumental_mag'][i])+'  '+str(photometry_data['instrumental_mag_err'][i])+'  '+\
+					str(photometry_data['calibrated_mag'][i])+'  '+str(photometry_data['calibrated_mag_err'][i])+'\n')
+			else:
+				datafile.write(str(photometry_data['hjd'][i])+'  '+\
+				str(photometry_data['instrumental_mag'][i])+'  '+str(photometry_data['instrumental_mag_err'][i])+'  '+\
+				str(photometry_data['calibrated_mag'][i])+'  '+str(photometry_data['calibrated_mag_err'][i])+'\n')
+
+		datafile.close()
+		lc_file_list.append(lc_file)
+
+	if 'csv' in format:
+
+		lc_file = path.join(params['output_dir'],'star_'+str(star_dataset_id)+'_'+setname+'.csv')
+		with open(lc_file, 'w', newline='') as csvfile:
+			datafile = csv.writer(csvfile, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
+			datafile.writerow(['time', 'filter', 'magnitude', 'error'])
+			for i in time_order:
+				if valid_data_only:
+					if photometry_data['instrumental_mag'][i] > 0.0 and \
+						photometry_data['instrumental_mag_err'][i] <= phot_error_threshold:
+						datafile.writerow([str(photometry_data['hjd'][i]), params['filter_name'],
+										str(photometry_data['instrumental_mag'][i]),
+										str(photometry_data['instrumental_mag_err'][i])])
+				else:
+					datafile.writerow([str(photometry_data['hjd'][i]), params['filter_name'],
+									str(photometry_data['instrumental_mag'][i]),
+									str(photometry_data['instrumental_mag_err'][i])])
+
+		lc_file_list.append(lc_file)
+
+	if 'dat' not in format and 'csv' not in format:
+		log.info('Unrecognized lightcurve format requested ('+str(format)+') no output possible')
+
+	if log!=None:
+		log.info('-> Output dataset '+setname)
+
+	return lc_file_list
 
 
 
@@ -420,5 +454,8 @@ if __name__ == '__main__':
 	#message = extract_star_lightcurves_on_position(params)
     #print(message)
 
-	extract_star_lightcurve_isolated_reduction(params, log=None, format='dat',
+	(message, lc_files) = extract_star_lightcurve_isolated_reduction(params, log=None, format='dat_csv',
 												valid_data_only=False)
+	print(message)
+	for f in lc_files:
+		print(f)

@@ -309,9 +309,10 @@ def run_existing_reduction(setup, config, red_log):
 
     status = execute_stage(stage6.run_stage6, 'stage 6', setup, status, red_log, **config)
 
-    lc_file = extract_target_lightcurve(setup, config, red_log)
+    lc_files = extract_target_lightcurve(setup, config, red_log)
 
-    aws_utils.upload_lightcurve_aws(config, lc_file, log=red_log)
+    for lc_file in lc_files:
+        aws_utils.upload_lightcurve_aws(config, lc_file, log=red_log)
 
     return status
 
@@ -339,9 +340,10 @@ def run_new_reduction(setup, config, red_log):
 
     status = execute_stage(stage6.run_stage6, 'stage 6', setup, status, red_log, **config)
 
-    lc_file = extract_target_lightcurve(setup, config, red_log)
+    lc_files = extract_target_lightcurve(setup, config, red_log)
 
-    aws_utils.upload_lightcurve_aws(config, lc_file, log=red_log)
+    for lc_file in lc_files:
+        aws_utils.upload_lightcurve_aws(config, lc_file, log=red_log)
 
     return status
 
@@ -399,14 +401,14 @@ def extract_target_lightcurve(setup, config, log):
 
     log.info('Searching phot DB '+setup.phot_db_path+' for '+ref_header['OBJECT'])
 
-    (message, lc_file) = lightcurves.extract_star_lightcurve_isolated_reduction(params, log=log, format='dat',
+    (message, lc_files) = lightcurves.extract_star_lightcurve_isolated_reduction(params, log=log, format='dat',
                                                             phot_error_threshold=config['phot_error_threshold'])
 
-    log.info('Extracted lightcurve for '+ref_header['OBJECT']+' at RA,Dec='+\
+    log.info('Extracted lightcurve(s) for '+ref_header['OBJECT']+' at RA,Dec='+\
             repr(ref_header['CAT-RA'])+', '+repr(ref_header['CAT-DEC'])+\
             ' and output to '+lc_dir)
 
-    return lc_file
+    return lc_files
 
 def check_stage3_db_ingest(setup,log):
     """Function to verify whether the photometry for a dataset has been
