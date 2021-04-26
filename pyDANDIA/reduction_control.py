@@ -312,7 +312,8 @@ def run_existing_reduction(setup, config, red_log):
 
     lc_files = extract_target_lightcurve(setup, config, red_log)
 
-    aws_utils.remove_old_reduction_data_products(config, log=red_log)
+    if len(lc_files) > 0:
+        aws_utils.remove_old_reduction_data_products(config, log=red_log)
 
     for lc_file in lc_files:
         aws_utils.upload_lightcurve_aws(config, lc_file, log=red_log)
@@ -345,7 +346,8 @@ def run_new_reduction(setup, config, red_log):
 
     lc_files = extract_target_lightcurve(setup, config, red_log)
 
-    aws_utils.remove_old_reduction_data_products(config, log=red_log)
+    if len(lc_files) > 0:
+        aws_utils.remove_old_reduction_data_products(config, log=red_log)
 
     for lc_file in lc_files:
         aws_utils.upload_lightcurve_aws(config, lc_file, log=red_log)
