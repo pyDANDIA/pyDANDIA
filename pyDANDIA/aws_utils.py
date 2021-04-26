@@ -66,6 +66,62 @@ def get_credentials(config, log=None):
 
     return config
 
+def list_available_lightcurves(config, s3_client):
+
+    aws_path = path.join(config['aws_bucket'], 'OMEGA', 'realtime_lightcurves/')
+    aws_path = path.join(config['aws_bucket'])
+
+    response = s3_client.list_objects(Bucket=config['aws_bucket'], Prefix='OMEGA/realtime_lightcurves')
+
+    file_list = []
+    for entry in response['Contents']:
+        file_list.append(entry['Key'])
+
+    return file_list
+
+def search_for_event_data(config, s3_client, event_name, log=None):
+
+    file_list = list_available_lightcurves(config, s3_client)
+
+    event_files = []
+    for entry in file_list:
+        if event_name in entry:
+            event_files.append(entry)
+
+    if log!=None:
+        if len(event_files) == 0:
+            log.info('Found no matching data files in AWS for '+event_name)
+        else:
+            log.info('Found the following data files in AWS matching '+event_name)
+            for entry in event_files:
+                log.info(entry)
+
+    return event_files
+
+def remove_files(config, s3_client, key_list, log=None):
+
+    if log!=None:
+        log.info('Removing '+str(len(key_list))+' pre-existing data files for this object')
+
+    for entry in key_list:
+        s3_client.delete_object(Bucket=config['aws_bucket'], Key=entry)
+        if log!=None:
+            log.info(' -> '+str(entry))
+
+def remove_old_reduction_data_products(config, log=None):
+
+    config = get_credentials(config, log=log)
+
+    if log!=None:
+        log.info('Searching AWS for pre-existing data products from old reductions for this event')
+
+    s3_client = start_s3_client(config)
+
+    event_name = path.basename(config['red_dir'])
+    key_list = search_for_event_data(config, s3_client, event_name, log=log)
+
+    if len(key_list) > 0:
+        remove_files(config, s3_client, key_list, log=log)
 
 if __name__ == '__main__':
     log = logs.start_stage_log('.', 'upload_lc')

@@ -265,6 +265,7 @@ def run_automatic_reduction(setup,red_log,params):
 
     config = get_auto_config(setup,red_log)
     config['primary_flag'] = params['primary_flag']
+    config['red_dir'] = setup.red_dir
 
     locked = check_dataset_lock(setup,red_log)
 
@@ -311,6 +312,8 @@ def run_existing_reduction(setup, config, red_log):
 
     lc_files = extract_target_lightcurve(setup, config, red_log)
 
+    aws_utils.remove_old_reduction_data_products(config, log=red_log)
+
     for lc_file in lc_files:
         aws_utils.upload_lightcurve_aws(config, lc_file, log=red_log)
 
@@ -341,6 +344,8 @@ def run_new_reduction(setup, config, red_log):
     status = execute_stage(stage6.run_stage6, 'stage 6', setup, status, red_log, **config)
 
     lc_files = extract_target_lightcurve(setup, config, red_log)
+
+    aws_utils.remove_old_reduction_data_products(config, log=red_log)
 
     for lc_file in lc_files:
         aws_utils.upload_lightcurve_aws(config, lc_file, log=red_log)
