@@ -147,7 +147,7 @@ if __name__ == '__main__':
 
     if len(argv) == 1:
         data_dir = input('Please enter data directory path: ')
-        option = input('Combine all data for a given target from multiple instruments?  T or F: ')
+        option = input('Separate data for a given target from multiple instruments?  T or F: ')
     else:
         data_dir = argv[1]
         option = argv[2]
