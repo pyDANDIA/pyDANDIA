@@ -20,6 +20,7 @@ from pyDANDIA import  pipeline_setup
 from pyDANDIA import  metadata
 from pyDANDIA import  logs
 import csv
+from datetime import datetime
 
 
 def extract_star_lightcurves_on_cone_to_list(params):
@@ -177,7 +178,7 @@ def extract_star_lightcurve_isolated_reduction(params, log=None, format='dat',
 
 			photometry_data = fetch_photometry_for_isolated_dataset(params, star_dataset_id, log)
 
-			lc_files = output_lightcurve(params, photometry_data, star_dataset_id, format,
+			lc_files = output_lightcurve(params, reduction_metadata, photometry_data, star_dataset_id, format,
 								  			valid_data_only, phot_error_threshold, log)
 
 
@@ -198,10 +199,17 @@ def get_setname(params):
 
 	return setname
 
-def output_lightcurve(params, photometry_data, star_dataset_id, format,
+def output_lightcurve(params, reduction_metadata, photometry_data, star_dataset_id, format,
 					  valid_data_only, phot_error_threshold, log):
 
-	time_order = np.argsort(photometry_data['hjd'])
+	image_list = reduction_metadata.headers_summary[1]['IMAGES'].data
+	date_list = reduction_metadata.headers_summary[1]['DATEKEY'].data
+	image_ts = []
+	for ts in date_list:
+		image_ts.append( datetime.strptime(ts, "%Y-%m-%dT%H:%M:%S.%f") )
+	image_ts = np.array(image_ts)
+
+	time_order = np.argsort(image_ts)
 
 	setname = get_setname(params)
 
@@ -219,11 +227,13 @@ def output_lightcurve(params, photometry_data, star_dataset_id, format,
 						photometry_data['instrumental_mag_err'][i] <= phot_error_threshold:
 					datafile.write(str(photometry_data['hjd'][i])+'  '+\
 					str(photometry_data['instrumental_mag'][i])+'  '+str(photometry_data['instrumental_mag_err'][i])+'  '+\
-					str(photometry_data['calibrated_mag'][i])+'  '+str(photometry_data['calibrated_mag_err'][i])+'\n')
+					str(photometry_data['calibrated_mag'][i])+'  '+str(photometry_data['calibrated_mag_err'][i])+' '+\
+					str(image_list[i])+'\n')
 			else:
 				datafile.write(str(photometry_data['hjd'][i])+'  '+\
 				str(photometry_data['instrumental_mag'][i])+'  '+str(photometry_data['instrumental_mag_err'][i])+'  '+\
-				str(photometry_data['calibrated_mag'][i])+'  '+str(photometry_data['calibrated_mag_err'][i])+'\n')
+				str(photometry_data['calibrated_mag'][i])+'  '+str(photometry_data['calibrated_mag_err'][i])+' '+\
+				str(image_list[i])+'\n')
 
 		datafile.close()
 		lc_file_list.append(lc_file)

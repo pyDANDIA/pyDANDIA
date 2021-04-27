@@ -25,6 +25,7 @@ def extract_star_lightcurve_star_id(params, log=None, format='dat',
 
     reduction_metadata = metadata.MetaData()
     reduction_metadata.load_all_metadata(params['red_dir'], 'pyDANDIA_metadata.fits')
+
     lc_files = []
 
     if log != None:
@@ -36,7 +37,7 @@ def extract_star_lightcurve_star_id(params, log=None, format='dat',
 
         photometry_data = lightcurves.fetch_photometry_for_isolated_dataset(params, params['star_id'], log)
 
-        lc_files = lightcurves.output_lightcurve(params, photometry_data, params['star_id'], format,
+        lc_files = lightcurves.output_lightcurve(params, reduction_metadata, photometry_data, params['star_id'], format,
                                         valid_data_only, phot_error_threshold, log)
 
     message = 'OK'
