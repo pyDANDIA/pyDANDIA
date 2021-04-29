@@ -258,7 +258,9 @@ def run_reference_astrometry(setup, **kwargs):
                                                           verbose=False)
 
         else:
-            matched_stars_gaia = matched_stars
+            matched_stars_gaia = match_utils.transfer_main_catalog_indices(matched_stars,
+                                            bright_central_detected_stars, bright_central_gaia_stars,
+                                            detected_sources, gaia_sources, log)
             matched_stars_vphas = match_utils.StarMatchIndex()
 
         ref_source_catalog = wcs.build_ref_source_catalog(detected_sources,\
@@ -385,7 +387,7 @@ def run_reference_astrometry2(setup, **kwargs):
                                         bright_central_detected_stars[matched_stars.cat1_index],
                                         log, coordinates='pixel')
 
-       
+
 
         log.info('Transforming catalogue coordinates')
 
@@ -608,27 +610,27 @@ def update_catalog_image_coordinates(setup, image_wcs, gaia_sources,
                                                 transformed_coords=True)
 
     return gaia_sources
-    
-    
-    
+
+
+
 ### New WCS method
-    
+
 def find_initial_image_rotation_translation(model_img,img):
     #import pdb; pdb.set_trace()
     solutions = []
     for i in range(4):
-    
+
         sol = phase_cross_correlation(model,rotate(img.astype(float),90*i),upsample_factor=10)
-        
+
         solutions.append([sol[0][1],sol[0][0],i*np.pi/2])
-        
+
     solutions = np.array(solutions)
     print(solutions)
     good_combination =  (solutions[:,0]**2+solutions[:,1]**2).argmin()
-    
-    return solutions[good_combination]    
-    
-    
+
+    return solutions[good_combination]
+
+
 def generate_gaia_image_model(ra,dec,radius,img_shape):
 
     coord = SkyCoord(ra=ra, dec=dec, unit=(u.degree, u.degree), frame='icrs')
@@ -639,7 +641,7 @@ def generate_gaia_image_model(ra,dec,radius,img_shape):
 
     X,Y = wcs.wcs_world2pix(catalog['ra'],catalog['dec'],0)
 
-   
+
     sigma_psf = 3.0
     sources = Table()
     sources['flux'] = catalog['phot_g_mean_flux']
@@ -652,7 +654,7 @@ def generate_gaia_image_model(ra,dec,radius,img_shape):
     tshape = img_shape
 
     #size of the psf stamp
-    
+
     size = 21
 
     yy,xx = np.indices((size,size))
@@ -667,11 +669,8 @@ def generate_gaia_image_model(ra,dec,radius,img_shape):
 
         momo = aa.psf_model(yy,xx,[sources['flux'][ind],sources['y_mean'][ind]-posy+int((size-1)/2),sources['x_mean'][ind]-posx+int((size-1)/2),sources['y_stddev'][ind],sources['x_stddev'][ind]])
 
-        model[posy-int((size-1)/2):posy+int((size-1)/2)+1, posx-int((size-1)/2):posx+int((size-1)/2+1)] += momo   
-    
+        model[posy-int((size-1)/2):posy+int((size-1)/2)+1, posx-int((size-1)/2):posx+int((size-1)/2+1)] += momo
+
     #only return bright ones
     mask = sources['flux']>10000
     return model,X[mask],Y[mask]
-    
-    
-    

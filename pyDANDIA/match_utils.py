@@ -104,11 +104,13 @@ class StarMatchIndex:
 
     def summary(self,units='deg'):
 
+        output = 'Summary of '+str(self.n_match)+' stars: \n'
+
         for j in range(0,self.n_match,1):
 
             if units=='deg':
 
-                output = 'Catalog 1 star '+str(self.cat1_index[j])+' at ('+\
+                output += 'Catalog 1 star '+str(self.cat1_index[j])+' at ('+\
                     str(self.cat1_ra[j])+', '+str(self.cat1_dec[j])+\
                     ') matches Catalog 2 star '+str(self.cat2_index[j])+' at ('+\
                     str(self.cat2_ra[j])+', '+str(self.cat2_dec[j])+\
@@ -116,7 +118,7 @@ class StarMatchIndex:
 
             else:
 
-                output = 'Catalog 1 star '+str(self.cat1_index[j])+' at ('+\
+                output += 'Catalog 1 star '+str(self.cat1_index[j])+' at ('+\
                     str(self.cat1_x[j])+', '+str(self.cat1_y[j])+\
                     ') matches Catalog 2 star '+str(self.cat2_index[j])+' at ('+\
                     str(self.cat2_x[j])+', '+str(self.cat2_y[j])+\
@@ -249,3 +251,38 @@ class StarMatchIndex:
         result_star_index[present] = result_catalog_index[entries]
 
         return star_ids, result_star_index
+
+def transfer_main_catalog_indices(matched_stars, sub_detected_sources, sub_catalog_sources,
+                                full_detected_sources, full_catalog_sources, log):
+
+    log.info('Transferring the indices for matched stars from the full catalog array')
+
+    new_matched_stars = StarMatchIndex()
+
+    for j in range(0,len(matched_stars.cat1_index),1):
+
+        # Array indices of matched star in the sub-catalogs
+        sdet = matched_stars.cat1_index[j]
+        scat = matched_stars.cat2_index[j]
+        # Entries of the corresponding star from the full catalogs
+        detected_star = sub_detected_sources[sdet]
+        sub_catalog_star = sub_catalog_sources[scat]
+
+        jdx = np.where(full_catalog_sources['source_id'] == sub_catalog_star['source_id'])[0][0]
+        catalog_star = full_catalog_sources[jdx]
+
+        p = {'cat1_index': detected_star['index']-1, # Convert star number->array index
+             'cat1_ra': detected_star['ra'],
+             'cat1_dec': detected_star['dec'],
+             'cat1_x': detected_star['x'],
+             'cat1_y': detected_star['y'],
+             'cat2_index': jdx,
+             'cat2_ra': catalog_star['ra'],
+             'cat2_dec': catalog_star['dec'], \
+             'cat2_x': catalog_star['x'],
+             'cat2_y': catalog_star['y'], \
+             'separation': matched_stars.separation[j]}
+
+        new_matched_stars.add_match(p)
+
+    return new_matched_stars

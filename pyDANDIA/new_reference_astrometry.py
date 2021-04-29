@@ -145,7 +145,7 @@ def run_reference_astrometry(setup, **kwargs):
         radius = diagonal*ref_header['PIXSCALE']/3600.0/4.0 # ~ 5 arcminutes
 
         mask = (gaia_sources['ra']-ra)**2+(gaia_sources['dec']-dec)**2<radius**2
-        
+
         sub_catalog = gaia_sources[mask]
 
         model,X,Y = generate_gaia_image_model(wcs_ref,reference_image.shape,sub_catalog)
@@ -182,6 +182,13 @@ def run_reference_astrometry(setup, **kwargs):
         bright_central_gaia_stars['x1'] = new_coords[:,0]
         bright_central_gaia_stars['y1'] = new_coords[:,1]
 
+        filename = 'catalog_stars_bright_revised1.reg'
+        cat_catalog_file = os.path.join(setup.red_dir,'ref', filename)
+        catalog_utils.output_ds9_overlay_from_table(bright_central_gaia_stars,cat_catalog_file,
+                                                    colour='red',
+                                                    transformed_coords=True)
+
+        # Matched indices refer to the array entries in the bright-central subcatalogs
         matched_stars = wcs.match_stars_pixel_coords(bright_central_detected_stars,
                                                      bright_central_gaia_stars,log,
                                                      tol=10.0,verbose=False)
@@ -208,10 +215,12 @@ def run_reference_astrometry(setup, **kwargs):
         bright_central_gaia_stars['x1'] = new_coords[:,0]
         bright_central_gaia_stars['y1'] = new_coords[:,1]
 
+        # Matched indices refer to the array entries in the bright-central subcatalogs
         matched_stars = wcs.match_stars_pixel_coords(bright_central_detected_stars,
                                                      bright_central_gaia_stars,log,
                                                      tol=10.0,verbose=False)
 
+        log.info(matched_stars.summary(units='pixels'))
 
         ### NEW IMPLEMENTATION ###
 
@@ -246,9 +255,9 @@ def run_reference_astrometry(setup, **kwargs):
 
         detected_sources['ra'] = new_coords[:,0]+center_ra
         detected_sources['dec'] = new_coords[:,1]+center_dec
-        log.info('Proceeding to x-match of full catalogs')
 
         if xmatch:
+            log.info('Proceeding to x-match of full catalogs')
             matched_stars_gaia = wcs.match_stars_world_coords(detected_sources,gaia_sources,log,'Gaia',
                                                           radius=0.5, ra_centre=image_wcs.wcs.crval[0],
                                                           dec_centre=image_wcs.wcs.crval[1],
@@ -260,8 +269,24 @@ def run_reference_astrometry(setup, **kwargs):
                                                           verbose=False)
 
         else:
-            matched_stars_gaia = matched_stars
+            log.info('Proceeding with x-match of stars in the centre of the frame only')
+            matched_stars_gaia = match_utils.transfer_main_catalog_indices(matched_stars,
+                                            bright_central_detected_stars, bright_central_gaia_stars,
+                                            detected_sources, gaia_sources, log)
+
             matched_stars_vphas = match_utils.StarMatchIndex()
+
+            # Matched indices should now refer to the array entries in the full catalogs
+            verbose=True
+            if verbose:
+                for j in range(0,len(matched_stars_gaia.cat1_index),1):
+
+                    idx1 = int(matched_stars_gaia.cat1_index[j])
+                    idx2 = int(matched_stars_gaia.cat2_index[j])
+
+                    log.info('Detected source '+str(idx1)+' '+str(detected_sources['ra'][idx1])+' '+str(detected_sources['dec'][idx1])+\
+                        ' matched to Gaia source '+str(idx2)+' '+gaia_sources['source_id'][idx2]+' '+str(gaia_sources['ra'][idx2])+' '+str(gaia_sources['dec'][idx2]))
+
 
         ref_source_catalog = wcs.build_ref_source_catalog(detected_sources,\
                                                         gaia_sources, vphas_sources,\
