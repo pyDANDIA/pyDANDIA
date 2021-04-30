@@ -210,7 +210,6 @@ def output_lightcurve(params, reduction_metadata, photometry_data, star_dataset_
 	image_ts = np.array(image_ts)
 
 	time_order = np.argsort(image_ts)
-
 	setname = get_setname(params)
 
 	lc_file_list = []
