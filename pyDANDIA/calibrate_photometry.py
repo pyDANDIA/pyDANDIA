@@ -21,6 +21,7 @@ from astropy.table import Table
 
 import numpy as np
 from scipy import optimize
+from scipy.odr import *
 import matplotlib as mpl
 mpl.use('Agg')
 import matplotlib.pyplot as plt
@@ -57,12 +58,12 @@ def calibrate_photometry(setup, reduction_metadata, log, **kwargs):
     if params['set_phot_calib'] == False:
         star_catalog = select_calibration_stars(star_catalog,params,log)
 
-        match_index = extract_matched_stars_index(star_catalog,log)
+        match_index = extract_matched_stars_index(star_catalog,params,log)
 
         if len(match_index) > 0:
-            fit = calc_phot_calib(params,star_catalog,match_index,log)
+            (fit,covar_fit) = calc_phot_calib(params,star_catalog,match_index,log)
 
-            star_catalog = apply_phot_calib(star_catalog,fit,log)
+            star_catalog = apply_phot_calib(star_catalog,fit,covar_fit,log)
 
             output_to_metadata(setup, params, fit, star_catalog, reduction_metadata, log)
         else:
@@ -456,7 +457,7 @@ def match_stars_by_position(star_catalog,log):
 
     return match_index
 
-def extract_matched_stars_index(star_catalog,log):
+def extract_matched_stars_index(star_catalog,params,log):
     """Function to extracted a match_stars index dictionary of stars
     cross-matched by position.
 
@@ -466,7 +467,11 @@ def extract_matched_stars_index(star_catalog,log):
 
     match_index = {}
 
-    ddx = np.where(star_catalog['clean'] == 1.0)[0]
+    # By default, this selects all stars with VPHAS data.
+    if params['use_gaia_phot']:
+        ddx = np.where(star_catalog['gaia_source_id'] != 'None')[0]
+    else:
+        ddx = np.where(star_catalog['clean'] == 1.0)[0]
 
     if len(ddx) == 0:
         log.info('Insufficient matched stars to continue photometric calibration')
@@ -496,23 +501,24 @@ def calc_phot_calib(params,star_catalog,match_index,log):
 
     fit = [0.0, 0.0]
 
-    fit = model_phot_transform2(params,star_catalog,
+    (fit,covar_fit) = model_phot_transform2(params,star_catalog,
                                    match_index,fit,log)
 
     if fit[0] > -9999.0:
         for i in range(0,1,1):
 
-            fit = model_phot_transform2(params,star_catalog,
+            (fit,covar_fit) = model_phot_transform2(params,star_catalog,
                                        match_index,fit,log, diagnostics=True)
 
             log.info('Fit result ['+str(i)+']: '+repr(fit))
+            log.info('Fit covarience: '+repr(covar_fit))
 
             match_index = exclude_outliers(star_catalog,params,
                                             match_index,fit,log)
 
         log.info('Final fitted photometric calibration: '+repr(fit))
 
-    return fit
+    return fit, covar_fit
 
 def model_phot_transform(params,star_catalog,vphas_cat,match_index,fit,
                          log, diagnostics=True):
@@ -600,7 +606,7 @@ def model_phot_transform(params,star_catalog,vphas_cat,match_index,fit,
     xbins = np.array(xbins)
     ybins = np.array(ybins)
 
-    fit = calc_transform(fit, xbins, ybins)
+    (fit,covar_fit) = calc_transform(fit, xbins, ybins)
 
     if diagnostics:
 
@@ -716,11 +722,13 @@ def model_phot_transform2(params,star_catalog,match_index,fit,
 
     cmag = params['cat_mag_col']
     cerr = params['cat_err_col']
+    fit = np.array([-9999.9999, -9999.9999])
+    covar_fit = np.zeros((3,3))
 
     if cmag not in star_catalog.colnames or cerr not in star_catalog.colnames:
         log.info('WARNING: No catalog photometry available to automatically calibrate instrumental data in '+params['filter'])
 
-        return [-9999.9999, -9999.9999]
+        return fit, covar_fit
 
     else:
         log.info('Using catalog photometry columns: '+cmag+', '+cerr)
@@ -771,9 +779,9 @@ def model_phot_transform2(params,star_catalog,match_index,fit,
         if len(xbins) <= 1 or len(ybins) <= 1:
             log.info('Insufficient datapoints selected by calibration magnitude limits')
 
-            return [-9999.9999, -9999.9999]
+            return fit, covar_fit
 
-        fit = calc_transform(fit, xbins, ybins)
+        (fit,covar_fit) = calc_transform(fit, xbins, ybins)
 
         if diagnostics:
 
@@ -810,7 +818,7 @@ def model_phot_transform2(params,star_catalog,match_index,fit,
             plt.xlabel('Instrumental magnitude')
 
             cat_name = 'VPHAS+'
-            if params['use_gaia_phot']: cat_name = 'Gaia'
+            if params['use_gaia_phot']: cat_name = '(Transformed to SDSS) Gaia'
             plt.ylabel(cat_name+' catalog magnitude')
 
             [xmin,xmax,ymin,ymax] = plt.axis()
@@ -825,7 +833,7 @@ def model_phot_transform2(params,star_catalog,match_index,fit,
 
         log.info('Fitted parameters: '+repr(fit))
 
-        return fit
+        return fit, covar_fit
 
 def phot_weighted_mean(data,sigma):
     """Function to calculate the mean of a set of magnitude measurements,
@@ -840,7 +848,8 @@ def phot_weighted_mean(data,sigma):
 def phot_func(p,mags):
     """Photometric transform function"""
 
-    return p[0] + p[1]*mags
+    #return p[0] + p[1]*mags
+    return p[0]*mags + p[1]
 
 def errfunc(p,x,y):
     """Function to calculate the residuals on the photometric transform"""
@@ -852,9 +861,17 @@ def calc_transform(pinit, x, y):
     of catalogue magnitudes and the instrumental magnitudes for the same stars
     """
 
-    (pfit,iexec) = optimize.leastsq(errfunc,pinit,args=(x,y))
+    #(pfit,iexec) = optimize.leastsq(errfunc,pinit,args=(x,y))
+    #(pfit,covar_fit) = np.polyfit(x,y,1,cov=True)
+    linear_model = Model(phot_func)
+    dataset = Data(x, y)
+    odr_obj = ODR(dataset, linear_model, beta0=pinit)
+    results = odr_obj.run()
 
-    return pfit
+    pfit = [results.beta[0], results.beta[1]]
+    covar_fit = results.cov_beta*results.res_var
+
+    return pfit, covar_fit
 
 def exclude_outliers(star_catalog,params,match_index,fit,log):
 
@@ -888,20 +905,42 @@ def calc_MAD(x):
 
     return median, MAD
 
-def apply_phot_calib(star_catalog,fit_params,log):
+def calc_calibrated_mags(fit_params, covar_fit, star_catalog, log):
+
+    log.info('-> Calculating calibrated mag uncertainties from covarience matrix')
+
+    ccalib = np.eye(3)
+    ccalib[:2,:2] = covar_fit
+    ccalib[2,2] = fit_params[0]**2
+    log.info(repr(ccalib))
+    jac = np.c_[star_catalog['mag'], [1]*len(star_catalog), star_catalog['mag_err']]
+    star_catalog['cal_ref_mag'] = phot_func(fit_params,star_catalog['mag'])
+    #res = jac@np.dot(ccalib,jac.T)
+    #res = np.dot(jac,np.dot(ccalib,jac.T))
+    #star_catalog['cal_ref_mag_err'] = res.diagonal()**0.5
+    errors = []
+    for i in range(len(jac)):
+        vect = []
+        for j in range(len(ccalib)):
+            vect.append(np.sum(ccalib[j]*jac[i]))
+        errors.append(np.sum(vect*jac[i])**0.5)
+    star_catalog['cal_ref_mag_err'] = errors
+    idx = np.where(star_catalog['mag'] < 7.0)
+    star_catalog['cal_ref_mag'][idx] = 0.0
+    star_catalog['cal_ref_mag_err'][idx] = 0.0
+
+    return star_catalog
+
+def apply_phot_calib(star_catalog,fit_params,covar_fit,log):
     """Function to apply the computed photometric calibration to calculate
     calibrated magnitudes for all detected stars"""
+
+    log.info('Applying the photometric calibration')
 
     mags = star_catalog['mag']
 
     if fit_params[0] > -9999.0 and fit_params[1] > -9999.0:
-        cal_mags = phot_func(fit_params,mags)
-
-        idx = np.where(star_catalog['mag'] < 7.0)
-        cal_mags[idx] = 0.0
-
-        star_catalog['cal_ref_mag'] = cal_mags
-        star_catalog['cal_ref_mag_err'] = star_catalog['mag_err']
+        star_catalog = calc_calibrated_mags(fit_params, covar_fit, star_catalog, log)
 
         (cal_flux, cal_flux_error) = photometry.convert_mag_to_flux(star_catalog['cal_ref_mag'],
                                                                     star_catalog['cal_ref_mag_err'])
