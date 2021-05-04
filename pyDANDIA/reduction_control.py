@@ -408,7 +408,7 @@ def extract_target_lightcurve(setup, config, log):
 
     log.info('Searching phot DB '+setup.phot_db_path+' for '+ref_header['OBJECT'])
 
-    (message, lc_files) = lightcurves.extract_star_lightcurve_isolated_reduction(params, log=log, format='dat',
+    (message, lc_files) = lightcurves.extract_star_lightcurve_isolated_reduction(params, log=log, format='dat_csv',
                                                             phot_error_threshold=config['phot_error_threshold'])
 
     log.info('Extracted lightcurve(s) for '+ref_header['OBJECT']+' at RA,Dec='+\
