@@ -137,7 +137,7 @@ def extract_star_lightcurve_isolated_reduction(params, log=None, format='dat',
 		params['filter_name'] = reduction_metadata.headers_summary[1]['FILTKEY'][0]
 
 	log.info('Configuration received: '+repr(params))
-	
+
 	lc_files = []
 
 	if log != None:
@@ -196,7 +196,11 @@ def get_setname(params):
 	setname = path.basename(reddir)
 	entries = setname.split('_')
 	if len(entries) == 3:
-		setname = "_".join(entries[1:])
+		sub_entries = entries[1].split('-')
+		if len(sub_entries) == 1:
+			setname = "_".join(entries[:])
+		else:
+			setname = "_".join(entries[1:])
 
 	return setname
 
