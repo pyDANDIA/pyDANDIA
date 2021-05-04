@@ -127,7 +127,7 @@
     },
     "maxval": {
         "comment": "maxval - DOUBLE - Maximum useful pixel value in a raw image (ADU).",
-        "value": 82800.0,
+        "value": 121600.0,
 	"format":"float",
 	"unit":"adu"
     },
