@@ -383,12 +383,20 @@ def extract_target_lightcurve(setup, config, log):
     reduction_metadata.load_a_layer_from_file( setup.red_dir,
                                               'pyDANDIA_metadata.fits',
                                               'data_architecture' )
+    reduction_metadata.load_a_layer_from_file( setup.red_dir,
+                                              'pyDANDIA_metadata.fits',
+                                              'reduction_parameters' )
 
     ref_path = str(reduction_metadata.data_architecture[1]['REF_PATH'][0]) +'/'+\
                 str(reduction_metadata.data_architecture[1]['REF_IMAGE'][0])
+    config['instrument'] = str(reduction_metadata.reduction_parameters[1]['INSTRID'][0])
 
     ref_header = image_handling.get_science_header(ref_path)
     filter_name = reduction_metadata.fetch_reduction_filter()
+    if 'project_id' in config.keys():
+        attribution = config['project_id']+'_'+config['instrument']+'_'+filter_name
+    else:
+        attribution = config['instrument']+'_'+filter_name
 
     lc_dir = path.join(setup.red_dir, 'lc')
     if path.isdir(lc_dir) == False:
@@ -404,7 +412,7 @@ def extract_target_lightcurve(setup, config, log):
     params = {'red_dir': setup.red_dir, 'db_file_path': setup.phot_db_path,
                 'ra': ra, 'dec': dec,
                 'radius': (2.0 / 3600.0), 'output_dir': lc_dir,
-                'filter_name': filter_name }
+                'filter_name': attribution }
 
     log.info('Searching phot DB '+setup.phot_db_path+' for '+ref_header['OBJECT'])
 

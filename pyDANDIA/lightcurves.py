@@ -133,11 +133,12 @@ def extract_star_lightcurve_isolated_reduction(params, log=None, format='dat',
 
 	reduction_metadata = metadata.MetaData()
 	reduction_metadata.load_all_metadata(params['red_dir'], 'pyDANDIA_metadata.fits')
-	params['filter_name'] = reduction_metadata.headers_summary[1]['FILTKEY'][0]
+	if 'filter_name' not in params:
+		params['filter_name'] = reduction_metadata.headers_summary[1]['FILTKEY'][0]
 
+	log.info('Configuration received: '+repr(params))
+	
 	lc_files = []
-
-	#filter_name = reduction_metadata.fetch_reduction_filter()
 
 	if log != None:
 		log.info('Searching for star at RA,Dec='+str(params['ra'])+', '+str(params['dec']))

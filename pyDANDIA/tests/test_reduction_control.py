@@ -180,7 +180,9 @@ def test_extract_target_lightcurve():
               'db_file_path': phot_db_path,
               'pipeline_config_dir': os.path.join(cwd, 'data', 'proc', 'config'),
               'software_dir': os.path.join(cwd, '..'),
-              'verbosity': 2}
+              'verbosity': 2,
+              'project_id': 'TEST_PROJECT',
+              'phot_error_threshold': 0.05}
 
     lc_dir = os.path.join(red_dir, 'lc')
 
@@ -189,7 +191,7 @@ def test_extract_target_lightcurve():
     log = logs.start_pipeline_log(test_setup.log_dir, 'test_reduction_control',
                                version=VERSION)
 
-    reduction_control.extract_target_lightcurve(test_setup, log)
+    reduction_control.extract_target_lightcurve(test_setup, test_params, log)
 
     logs.close_log(log)
 
@@ -238,5 +240,5 @@ if __name__ == '__main__':
     #test_lock_dataset()
     #test_unlock_dataset()
     #test_get_auto_config()
-    #test_extract_target_lightcurve()
-    test_check_for_assigned_ref_image()
+    test_extract_target_lightcurve()
+    #test_check_for_assigned_ref_image()
