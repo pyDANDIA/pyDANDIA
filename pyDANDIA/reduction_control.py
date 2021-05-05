@@ -400,10 +400,7 @@ def extract_target_lightcurve(setup, config, log):
 
     ref_header = image_handling.get_science_header(ref_path)
     filter_name = reduction_metadata.fetch_reduction_filter()
-    if 'project_id' in config.keys():
-        attribution = config['project_id']+'_'+config['instrument']+'_'+filter_name
-    else:
-        attribution = config['instrument']+'_'+filter_name
+    attribution = get_lightcurve_attribution(config, filter_name)
 
     lc_dir = path.join(setup.red_dir, 'lc')
     if path.isdir(lc_dir) == False:
@@ -431,6 +428,22 @@ def extract_target_lightcurve(setup, config, log):
             ' and output to '+lc_dir)
 
     return lc_files
+
+def get_lightcurve_attribution(config, filter_name):
+    instrument_classes = {'fa': 'sinistro', 'fl': 'sinistro'}
+
+    parse_instrument = False
+    instrument = config['instrument']
+    for key, inst_class in instrument_classes.items():
+        if key in config['instrument']:
+            instrument = inst_class
+
+    if 'project_id' in config.keys():
+        attribution = config['project_id']+'_'+instrument+'_'+filter_name
+    else:
+        attribution = instrument+'_'+filter_name
+
+    return attribution
 
 def upload_lightcurve_tom(setup, lc_files, log):
 
