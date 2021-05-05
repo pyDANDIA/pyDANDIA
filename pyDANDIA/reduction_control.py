@@ -31,6 +31,7 @@ from pyDANDIA import phot_db as db_phot
 from pyDANDIA import image_handling
 from pyDANDIA import lightcurves
 from pyDANDIA import aws_utils
+from pyDANDIA import upload_lc_to_tom
 
 def reduction_control():
     """Main driver function for the pyDANDIA pipelined reduction of an
@@ -318,6 +319,9 @@ def run_existing_reduction(setup, config, red_log):
     for lc_file in lc_files:
         aws_utils.upload_lightcurve_aws(config, lc_file, log=red_log)
 
+    if config['upload_mop']:
+        upload_lightcurve_tom(setup, lc_files, red_log)
+
     return status
 
 def run_new_reduction(setup, config, red_log):
@@ -351,6 +355,9 @@ def run_new_reduction(setup, config, red_log):
 
     for lc_file in lc_files:
         aws_utils.upload_lightcurve_aws(config, lc_file, log=red_log)
+
+    if config['upload_mop']:
+        upload_lightcurve_tom(setup, lc_files, red_log)
 
     return status
 
@@ -424,6 +431,13 @@ def extract_target_lightcurve(setup, config, log):
             ' and output to '+lc_dir)
 
     return lc_files
+
+def upload_lightcurve_tom(setup, lc_files, log):
+
+    for lc_file in lc_files:
+        if '.csv' in lc_file:
+            payload = {'file_path': lc_file}
+            upload_lc_to_tom.upload_lightcurve(setup, payload, log=log)
 
 def check_stage3_db_ingest(setup,log):
     """Function to verify whether the photometry for a dataset has been

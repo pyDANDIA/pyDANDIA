@@ -7,6 +7,7 @@ from pyDANDIA import config_utils
 from pyDANDIA import tom
 from pyDANDIA import logs
 from pyDANDIA import pipeline_setup
+from pyDANDIA import metadata
 
 def upload_lightcurve(setup, payload, log=None):
 
@@ -14,9 +15,13 @@ def upload_lightcurve(setup, payload, log=None):
     config = config_utils.build_config_from_json(config_file)
     login = (config['user_id'], config['password'])
 
+    reduction_metadata = metadata.MetaData()
+    reduction_metadata.load_all_metadata(setup.red_dir, 'pyDANDIA_metadata.fits')
+    payload['name'] = reduction_metadata.headers_summary[1]['OBJKEY'][0]
+
     close_log_file = False
     if log==None:
-        log = logs.start_stage_log( setup.red_dir, 'lightcurves' )
+        log = logs.start_stage_log( setup.red_dir, 'mop_upload' )
         close_log_file = True
 
     (target_pk, target_groups) = tom.get_target_id(config, login, payload, log=log)
@@ -34,14 +39,12 @@ def upload_lightcurve(setup, payload, log=None):
 def get_args():
     if len(argv) == 1:
         red_dir = input('Please enter the path to reduction directory: ')
-        target_name = input('Please enter the name of the target: ')
         file_path = input('Please enter the path to the data file: ')
     else:
         red_dir = argv[1]
-        target_name = argv[2]
-        file_path = argv[3]
+        file_path = argv[2]
 
-    payload = {'name': target_name, 'file_path': file_path}
+    payload = {'file_path': file_path}
     setup = pipeline_setup.pipeline_setup({'red_dir': red_dir})
 
     return setup, payload
