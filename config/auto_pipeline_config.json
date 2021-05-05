@@ -88,5 +88,17 @@
     "comment": "AWS bucket path",
     "format": "string",
     "unit": ""
+  },
+  "project_id": {
+    "value": "OMEGA",
+    "comment": "Name of the project for data attribution",
+    "format": "string",
+    "unit": ""
+  },
+  "upload_mop": {
+    "value": "False",
+    "comment": "Switch to control upload of data to MOP",
+    "format": "string",
+    "unit": ""
   }
 }

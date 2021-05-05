@@ -1144,8 +1144,8 @@ def store_stamp_photometry_to_array(setup, conn, params, reduction_metadata,
 
     # The index of the data from a given image corresponds to the index of that
     # image in the metadata
-    image_dataset_id = np.where(new_image == reduction_metadata.headers_summary[1]['IMAGES'].data)[0][0]
-    image_dataset_index = image_dataset_id - 1
+    image_dataset_index = np.where(new_image == reduction_metadata.headers_summary[1]['IMAGES'].data)[0][0]
+    #image_dataset_index = image_dataset_id - 1
 
     star_dataset_ids = np.array(phot_table['star_id'].data)
     star_dataset_ids = star_dataset_ids.astype('float')

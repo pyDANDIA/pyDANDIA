@@ -31,6 +31,7 @@ from pyDANDIA import phot_db as db_phot
 from pyDANDIA import image_handling
 from pyDANDIA import lightcurves
 from pyDANDIA import aws_utils
+from pyDANDIA import upload_lc_to_tom
 
 def reduction_control():
     """Main driver function for the pyDANDIA pipelined reduction of an
@@ -318,6 +319,9 @@ def run_existing_reduction(setup, config, red_log):
     for lc_file in lc_files:
         aws_utils.upload_lightcurve_aws(config, lc_file, log=red_log)
 
+    if config['upload_mop']:
+        upload_lightcurve_tom(setup, lc_files, red_log)
+
     return status
 
 def run_new_reduction(setup, config, red_log):
@@ -352,6 +356,9 @@ def run_new_reduction(setup, config, red_log):
     for lc_file in lc_files:
         aws_utils.upload_lightcurve_aws(config, lc_file, log=red_log)
 
+    if config['upload_mop']:
+        upload_lightcurve_tom(setup, lc_files, red_log)
+
     return status
 
 def check_for_assigned_ref_image(setup, log):
@@ -383,12 +390,17 @@ def extract_target_lightcurve(setup, config, log):
     reduction_metadata.load_a_layer_from_file( setup.red_dir,
                                               'pyDANDIA_metadata.fits',
                                               'data_architecture' )
+    reduction_metadata.load_a_layer_from_file( setup.red_dir,
+                                              'pyDANDIA_metadata.fits',
+                                              'reduction_parameters' )
 
     ref_path = str(reduction_metadata.data_architecture[1]['REF_PATH'][0]) +'/'+\
                 str(reduction_metadata.data_architecture[1]['REF_IMAGE'][0])
+    config['instrument'] = str(reduction_metadata.reduction_parameters[1]['INSTRID'][0])
 
     ref_header = image_handling.get_science_header(ref_path)
     filter_name = reduction_metadata.fetch_reduction_filter()
+    attribution = get_lightcurve_attribution(config, filter_name)
 
     lc_dir = path.join(setup.red_dir, 'lc')
     if path.isdir(lc_dir) == False:
@@ -404,11 +416,11 @@ def extract_target_lightcurve(setup, config, log):
     params = {'red_dir': setup.red_dir, 'db_file_path': setup.phot_db_path,
                 'ra': ra, 'dec': dec,
                 'radius': (2.0 / 3600.0), 'output_dir': lc_dir,
-                'filter_name': filter_name }
+                'filter_name': attribution }
 
     log.info('Searching phot DB '+setup.phot_db_path+' for '+ref_header['OBJECT'])
 
-    (message, lc_files) = lightcurves.extract_star_lightcurve_isolated_reduction(params, log=log, format='dat',
+    (message, lc_files) = lightcurves.extract_star_lightcurve_isolated_reduction(params, log=log, format='dat_csv',
                                                             phot_error_threshold=config['phot_error_threshold'])
 
     log.info('Extracted lightcurve(s) for '+ref_header['OBJECT']+' at RA,Dec='+\
@@ -416,6 +428,29 @@ def extract_target_lightcurve(setup, config, log):
             ' and output to '+lc_dir)
 
     return lc_files
+
+def get_lightcurve_attribution(config, filter_name):
+    instrument_classes = {'fa': 'sinistro', 'fl': 'sinistro'}
+
+    parse_instrument = False
+    instrument = config['instrument']
+    for key, inst_class in instrument_classes.items():
+        if key in config['instrument']:
+            instrument = inst_class
+
+    if 'project_id' in config.keys():
+        attribution = config['project_id']+'_'+instrument+'_'+filter_name
+    else:
+        attribution = instrument+'_'+filter_name
+
+    return attribution
+
+def upload_lightcurve_tom(setup, lc_files, log):
+
+    for lc_file in lc_files:
+        if '.csv' in lc_file:
+            payload = {'file_path': lc_file}
+            upload_lc_to_tom.upload_lightcurve(setup, payload, log=log)
 
 def check_stage3_db_ingest(setup,log):
     """Function to verify whether the photometry for a dataset has been

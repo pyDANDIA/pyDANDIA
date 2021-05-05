@@ -180,7 +180,9 @@ def test_extract_target_lightcurve():
               'db_file_path': phot_db_path,
               'pipeline_config_dir': os.path.join(cwd, 'data', 'proc', 'config'),
               'software_dir': os.path.join(cwd, '..'),
-              'verbosity': 2}
+              'verbosity': 2,
+              'project_id': 'TEST_PROJECT',
+              'phot_error_threshold': 0.05}
 
     lc_dir = os.path.join(red_dir, 'lc')
 
@@ -189,7 +191,7 @@ def test_extract_target_lightcurve():
     log = logs.start_pipeline_log(test_setup.log_dir, 'test_reduction_control',
                                version=VERSION)
 
-    reduction_control.extract_target_lightcurve(test_setup, log)
+    reduction_control.extract_target_lightcurve(test_setup, test_params, log)
 
     logs.close_log(log)
 
@@ -230,6 +232,21 @@ def test_check_for_assigned_ref_image():
 
     logs.close_log(log)
 
+def test_get_lightcurve_attribution():
+    test_project = 'OMEGA'
+    test_params = [{'project_id': test_project, 'instrument': 'fa06'},
+                    {'project_id': test_project, 'instrument': 'ep03'},
+                    {'project_id': test_project, 'instrument': 'fl16'},
+                    {'instrument': 'fa06'}]
+    filter_name = 'ip'
+    test_attributions = [test_project+'_sinistro_'+filter_name,
+                        test_project+'_ep03_'+filter_name,
+                        test_project+'_sinistro_'+filter_name,
+                        'sinistro_'+filter_name]
+    for i, config in enumerate(test_params):
+        attribution = reduction_control.get_lightcurve_attribution(config, filter_name)
+        assert attribution == test_attributions[i]
+
 if __name__ == '__main__':
 
     #test_trigger_stage_subprocess()
@@ -239,4 +256,5 @@ if __name__ == '__main__':
     #test_unlock_dataset()
     #test_get_auto_config()
     #test_extract_target_lightcurve()
-    test_check_for_assigned_ref_image()
+    #test_check_for_assigned_ref_image()
+    test_get_lightcurve_attribution()

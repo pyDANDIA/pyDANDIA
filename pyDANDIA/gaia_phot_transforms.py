@@ -64,31 +64,30 @@ def transform_gaia_phot_to_SDSS(Gmag, Gmerr, BPRPmag, BPRPerr):
     Evans, D.W. et al., 2018, A&A, 616, A4 to calculate the SDSS
     g, r and i magnitudes based on the Gaia photometry."""
 
-
-    G_g = 0.13518 + -0.46245*BPRPmag + -0.25171*BPRPmag*BPRPmag + \
-                    0.021349*BPRPmag*BPRPmag*BPRPmag
+    g_coeff = [0.13518, -0.46245, -0.25171, 0.021349]
     Gg_err = 0.16497
-
-    G_r = -0.12879 + 0.24662*BPRPmag + -0.027464*BPRPmag*BPRPmag + \
-                    -0.049465*BPRPmag*BPRPmag*BPRPmag
+    r_coeff = [-0.12879, 0.24662, -0.027464, -0.049465]
     Gr_err = 0.066739
-
-    G_i = -0.29676 + 0.64728*BPRPmag + -0.10141*BPRPmag*BPRPmag
+    i_coeff = [-0.29676, 0.64728, -0.10141]
     Gi_err = 0.098957
+
+    G_g = Gmag - (g_coeff[0] + g_coeff[1]*BPRPmag + g_coeff[2]*BPRPmag**2 + g_coeff[3]*BPRPmag**3)
+    g_err = np.sqrt( (Gmerr**2 + g_coeff[1]**2)*BPRPerr**2 + (4*g_coeff[2]**2*BPRPmag**2*BPRPerr**2) + (9*g_coeff[3]**2*BPRPmag**4*BPRPerr**2) + (Gg_err**2) )
+    G_r = Gmag - (r_coeff[0] + r_coeff[1]*BPRPmag + r_coeff[2]*BPRPmag**2 + r_coeff[3]*BPRPmag**3)
+    r_err = np.sqrt( (Gmerr**2 + r_coeff[1]**2)*BPRPerr**2 + (4*r_coeff[2]**2*BPRPmag**2*BPRPerr**2) + (9*r_coeff[3]**2*BPRPmag**4*BPRPerr**2) + (Gr_err**2) )
+    G_i = Gmag - (i_coeff[0] + i_coeff[1]*BPRPmag + i_coeff[2]*BPRPmag**2)
+    i_err = np.sqrt( (Gmerr**2 + i_coeff[1]**2)*BPRPerr**2 + (4*i_coeff[2]**2*BPRPmag**2*BPRPerr**2) + (Gi_err**2) )
 
     phot = {}
 
-    phot['g'] = Column(data=(Gmag - G_g), name='gmag')
-    phot['g_err'] = Column(data=(np.sqrt( (Gmerr*Gmerr) + (Gg_err*Gg_err) )),
-                            name='gmag_err')
+    phot['g'] = Column(data=G_g, name='gmag')
+    phot['g_err'] = Column(data=g_err, name='gmag_err')
 
-    phot['r'] = Column(data=(Gmag - G_r), name='rmag')
-    phot['r_err'] = Column(data=(np.sqrt( (Gmerr*Gmerr) + (Gr_err*Gr_err) )),
-                            name='rmag_err')
+    phot['r'] = Column(data=G_r, name='rmag')
+    phot['r_err'] = Column(data=r_err, name='rmag_err')
 
-    phot['i'] = Column(data=(Gmag - G_i), name='imag')
-    phot['i_err'] = Column(data=(np.sqrt( (Gmerr*Gmerr) + (Gi_err*Gi_err) )),
-                            name='imag_err')
+    phot['i'] = Column(data=G_i, name='imag')
+    phot['i_err'] = Column(data=i_err, name='imag_err')
 
     return phot
 

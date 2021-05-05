@@ -7,41 +7,66 @@ from pyDANDIA import config_utils
 from pyDANDIA import tom
 from pyDANDIA import logs
 from pyDANDIA import pipeline_setup
+from pyDANDIA import metadata
 
 def upload_lightcurve(setup, payload, log=None):
 
-    config_file = path.join(setup.pipeline_config_dir, 'tom_config.json')
-    config = config_utils.build_config_from_json(config_file)
-    login = (config['user_id'], config['password'])
+    decision_to_upload = decide_whether_to_upload(payload, log=log)
 
-    close_log_file = False
-    if log==None:
-        log = logs.start_stage_log( setup.red_dir, 'lightcurves' )
-        close_log_file = True
+    if decision_to_upload:
+        config_file = path.join(setup.pipeline_config_dir, 'tom_config.json')
+        config = config_utils.build_config_from_json(config_file)
+        login = (config['user_id'], config['password'])
 
-    (target_pk, target_groups) = tom.get_target_id(config, login, payload, log=log)
+        reduction_metadata = metadata.MetaData()
+        reduction_metadata.load_all_metadata(setup.red_dir, 'pyDANDIA_metadata.fits')
+        payload['name'] = reduction_metadata.headers_summary[1]['OBJKEY'][0]
 
-    if target_pk:
-        existing_datafiles = tom.list_dataproducts(config, login, payload, target_pk, log=log)
+        close_log_file = False
+        if log==None:
+            log = logs.start_stage_log( setup.red_dir, 'mop_upload' )
+            close_log_file = True
 
-        tom.delete_old_datafile_version(config, login, payload, existing_datafiles, log=log)
+        (target_pk, target_groups) = tom.get_target_id(config, login, payload, log=log)
 
-    tom.upload_datafile(config, login, payload, target_pk, target_groups, log=log)
+        if target_pk:
+            existing_datafiles = tom.list_dataproducts(config, login, payload, target_pk, log=log)
 
-    if close_log_file:
-        logs.close_log(log)
+            tom.delete_old_datafile_version(config, login, payload, existing_datafiles, log=log)
+
+        tom.upload_datafile(config, login, payload, target_pk, target_groups, log=log)
+
+        if close_log_file:
+            logs.close_log(log)
+
+def decide_whether_to_upload(payload, log=None):
+    upload = True
+
+    if not path.isfile(payload['file_path']):
+        upload = False
+        if log!=None:
+            log.info('-> Lightcurve upload to TOM aborted due to missing data file '+payload['file_path'])
+
+    file_lines = open(payload['file_path'],'r').readlines()
+    if len(file_lines) < 6:     # Allows for header line
+        upload = False
+        if log!=None:
+            log.info('-> Lightcurve has too few datapoints ('+str(len(file_lines))+') to upload to TOM ')
+
+    if upload and log!=None:
+        log.info('-> Lightcurve has passed sanity checks and will be uploaded to TOM')
+        
+    return upload
 
 def get_args():
     if len(argv) == 1:
         red_dir = input('Please enter the path to reduction directory: ')
-        target_name = input('Please enter the name of the target: ')
         file_path = input('Please enter the path to the data file: ')
     else:
         red_dir = argv[1]
-        target_name = argv[2]
-        file_path = argv[3]
+        file_path = argv[2]
 
-    payload = {'name': target_name, 'file_path': file_path}
+    payload = {'file_path': file_path}
     setup = pipeline_setup.pipeline_setup({'red_dir': red_dir})
 
     return setup, payload
