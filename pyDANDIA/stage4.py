@@ -730,7 +730,7 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
             shifted_catalog[mask_image.astype(bool)] = 0
             iteration = 0
             corr_ini = np.corrcoef(reference_image.ravel(), shifted.ravel())[0, 1]
-            #import pdb; pdb.set_trace()
+
             while iteration < 1:
 
                 data_sources, data_fwhm = extract_catalog(reduction_metadata, shifted_catalog, row_index, log)
@@ -741,7 +741,7 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
 
                         x_shift = 0
                         y_shift = 0
-                        original_matrix = model_final.params
+                        original_matrix = model_final
 
                     else:
                         original_matrix = np.identity(3)
@@ -753,20 +753,26 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
                     model_robust, inliers = ransac((pts_reference2[:5000, :2] , pts_data[:5000, :2] ), tf.AffineTransform,
                                                    min_samples=min(50, int(0.1 * len(pts_data[:5000]))),
                                                    residual_threshold=1, max_trials=1000)
+                    matrix = np.c_[[1]*len(pts_reference2[:5000,:2]),pts_reference2[:5000,:2],pts_reference2[:5000,0]**2,pts_reference2[:5000,0]*pts_reference2[:5000,1],pts_reference2[:5000,1]**2]
+                    A = np.linalg.lstsq(matrix,pts_data[:5000,0])
+                    B = np.linalg.lstsq(matrix,pts_data[:5000,1])
+                    
+                    C = tf.PolynomialTransform(np.r_[[A[0]],[B[0]]])
 
+                    
                     if len(pts_data[:5000][inliers])<10:
                         raise ValueError("Not enough matching stars! Switching to translation")
-                    model_final = np.dot(original_matrix, model_robust.params)
+                    #model_final = np.dot(original_matrix, model_robust.params)
+                    model_final = C
                     log.info(' -> Using Affine Transformation')
 
                 except:
 
-                    model_final = tf.SimilarityTransform(translation=(x_shift, y_shift)).params
+                    model_final = tf.SimilarityTransform(translation=(x_shift, y_shift))
                     log.info(' -> Using XY shifts')
                 try:
 
-
-
+                   
 
                     shifted = tf.warp(data_image/data_image.max(), inverse_map=model_final, output_shape=data_image.shape, order=3,mode='constant', cval=0, clip=True, preserve_range=True)*data_image.max()
 
@@ -778,7 +784,7 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
                 except:
                     shifted_mask = np.zeros(np.shape(data_image))
                     log.info(' -> Similarity Transform has failed to produce parameters')
-
+                shifted_catalog = np.copy(shifted)
                 iteration += 1
 
             mask = np.abs(shifted_mask) < 10 ** -5
@@ -793,7 +799,7 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
                 pass
 
             log.info(' -> Resampling image stamps')
-            #import pdb; pdb.set_trace()
+
 
             for stamp in list_of_stamps:
                 try:
@@ -834,7 +840,7 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
                     #model_stamp, inliers = ransac((pts_reference[:5000, :2] , pts_data[:5000, :2] ),
                     #                           tf.AffineTransform, min_samples=min(50, int(0.1 * len(pts_data[:5000]))),
                     #                           residual_threshold=1, max_trials=1000)
-                    model_stamp, inliers = ransac((pts_reference[:5000,:2] , pts_data[:5000,:2]),tf.AffineTransform, min_samples=min(50, int(0.1 * len(pts_data[:5000]))),residual_threshold=1, max_trials=1000)
+                    model_stamp, inliers = ransac((pts_reference[:5000,:2] , pts_data[:5000,:2]),tf.AffineTransform, min_samples=min(50, int(0.1 * len(pts_data[:5000]))),residual_threshold=0.5, max_trials=1000)
 
                     if len(pts_data[:5000][inliers])<10:
                         raise ValueError("Not enough matching stars in stamps! Switching to translation")
@@ -850,7 +856,7 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
 
 
             #save the warp matrices instead of images
-            np.save(os.path.join(resample_directory, 'warp_matrice_image.npy'), model_final)
+            np.save(os.path.join(resample_directory, 'warp_matrice_image.npy'), model_final.params)
             data_image_hdu.close()
 
             image_red_status[new_image] = 1
@@ -867,6 +873,7 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
 
 
 def warp_image(image_to_warp,warp_matrix):
+
 
     warp_image = tf.warp(image_to_warp/image_to_warp.max(), inverse_map=warp_matrix, output_shape=image_to_warp.shape, order=3,
                                   mode='constant', cval=0, clip=True, preserve_range=True)*image_to_warp.max()
