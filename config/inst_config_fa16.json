@@ -172,5 +172,23 @@
         "value": 1,
 	"format":"int",
 	"unit":""
+    },
+    "airkey": {
+        "comment": "filtkey - STRING - Header keyword recording the filter employed. The value of this keyword should be a STRING.",
+        "value": "AIRMASS",
+	"format":"S200",
+	"unit":""
+    },
+    "moondkey": {
+        "comment": "filtkey - STRING - Header keyword recording the filter employed. The value of this keyword should be a STRING.",
+        "value": "MOONDIST",
+	"format":"S200",
+	"unit":""
+    },
+    "moonfkey": {
+        "comment": "filtkey - STRING - Header keyword recording the filter employed. The value of this keyword should be a STRING.",
+        "value": "MOONDIST",
+	"format":"S200",
+	"unit":""
     }
 }
