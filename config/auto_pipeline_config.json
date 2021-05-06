@@ -78,7 +78,7 @@
       "unit": "mag"
   },
   "psfactor_threshold": {
-      "value": 0.002,
+      "value": 0.8,
       "comment": "Quality control threshold for pscale/exptime",
       "format": "float",
       "unit": ""

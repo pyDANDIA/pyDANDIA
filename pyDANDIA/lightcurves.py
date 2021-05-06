@@ -209,6 +209,8 @@ def get_setname(params):
 def calc_ps_qc_factor(reduction_metadata,photometry_data,log):
 	exptimes = reduction_metadata.headers_summary[1]['EXPKEY']
 	exptimes = np.array(exptimes, dtype='float')
+	reference_image_name = reduction_metadata.data_architecture[1]['REF_IMAGE'].data[0]
+	iref = np.where(reduction_metadata.headers_summary[1]['IMAGES'] == reference_image_name)
 
 	ps_data = photometry_data['pscale'].data
 
@@ -217,7 +219,7 @@ def calc_ps_qc_factor(reduction_metadata,photometry_data,log):
 	invalid = np.where(ps_data == 0.0)
 	mask[invalid] = True
 	ps_data = np.ma.masked_array(ps_data, mask=mask)
-	qc_ps = ps_data/exptimes
+	qc_ps = ps_data*exptimes[iref]/exptimes
 
 	#for i in range(0,len(qc_ps),1):
 	#	print(ps_data[i], exptimes[i], qc_ps[i])
