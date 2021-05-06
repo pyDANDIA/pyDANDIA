@@ -17,7 +17,7 @@ import csv
 
 def extract_star_lightcurve_star_id(params, log=None, format='dat',
 									valid_data_only=True,phot_error_threshold=10.0,
-									output_neighbours=False):
+									output_neighbours=False,psfactor_threshold=0.002):
     """Function to extract a lightcurve for a single star based on its star_id
 	in the star_catolog in the metadata for a single reduction."""
 
@@ -38,7 +38,7 @@ def extract_star_lightcurve_star_id(params, log=None, format='dat',
         photometry_data = lightcurves.fetch_photometry_for_isolated_dataset(params, params['star_id'], log)
 
         lc_files = lightcurves.output_lightcurve(params, reduction_metadata, photometry_data, params['star_id'], format,
-                                        valid_data_only, phot_error_threshold, log)
+                                        valid_data_only, phot_error_threshold, psfactor_threshold, log)
 
     message = 'OK'
     logs.close_log(log)

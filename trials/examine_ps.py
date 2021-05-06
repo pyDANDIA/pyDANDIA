@@ -27,7 +27,7 @@ def examine_ps_qc(params):
 
     frames_list = reduction_metadata.headers_summary[1]['IMAGES']
     image_index = np.arange(0,len(frames_list),1)
-    qc_ps = ps_data.mean(axis=0)
+    qc_ps = ps_data.mean(axis=0)/exptimes
 
     fig = plt.figure(1,(10,10))
     plt.plot(image_index, qc_ps, 'k.')

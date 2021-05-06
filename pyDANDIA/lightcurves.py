@@ -125,7 +125,7 @@ def extract_star_lightcurves_on_cone(params, log=None):
 
 def extract_star_lightcurve_isolated_reduction(params, log=None, format='dat',
 											valid_data_only=True,phot_error_threshold=10.0,
-											output_neighbours=False):
+											output_neighbours=False,psfactor_threshold=0.002):
 	"""Function to extract a lightcurve for a single star based on its RA, Dec
 	using the star_catolog in the metadata for a single reduction."""
 
@@ -144,6 +144,8 @@ def extract_star_lightcurve_isolated_reduction(params, log=None, format='dat',
 		log.info('Searching for star at RA,Dec='+str(params['ra'])+', '+str(params['dec']))
 		log.info('Configured threshold for valid photometric datapoints is phot uncertainty <= '+\
 					str(phot_error_threshold)+' mag')
+		log.info('Configured threshold for valid pscale/exptime >= '+\
+					str(psfactor_threshold)+' s^-1')
 
 	c = SkyCoord(params['ra'], params['dec'], frame='icrs', unit=(units.hourangle, units.deg))
 
@@ -180,7 +182,7 @@ def extract_star_lightcurve_isolated_reduction(params, log=None, format='dat',
 			photometry_data = fetch_photometry_for_isolated_dataset(params, star_dataset_id, log)
 
 			lc_files = output_lightcurve(params, reduction_metadata, photometry_data, star_dataset_id, format,
-								  			valid_data_only, phot_error_threshold, log)
+								  			valid_data_only, phot_error_threshold, psfactor_threshold, log)
 
 
 	message = 'OK'
@@ -204,8 +206,25 @@ def get_setname(params):
 
 	return setname
 
+def calc_ps_qc_factor(reduction_metadata,photometry_data,log):
+	exptimes = reduction_metadata.headers_summary[1]['EXPKEY']
+	exptimes = np.array(exptimes, dtype='float')
+
+	ps_data = photometry_data['pscale'].data
+
+	mask = np.empty(ps_data.shape)
+	mask.fill(False)
+	invalid = np.where(ps_data == 0.0)
+	mask[invalid] = True
+	ps_data = np.ma.masked_array(ps_data, mask=mask)
+	qc_ps = ps_data.mean()/exptimes
+
+	log.info('Calculated the pscale/exptime quality control metric')
+
+	return qc_ps
+
 def output_lightcurve(params, reduction_metadata, photometry_data, star_dataset_id, format,
-					  valid_data_only, phot_error_threshold, log):
+					  valid_data_only, phot_error_threshold, psfactor_threshold, log):
 
 	image_list = reduction_metadata.headers_summary[1]['IMAGES'].data
 	date_list = reduction_metadata.headers_summary[1]['DATEKEY'].data
@@ -214,6 +233,7 @@ def output_lightcurve(params, reduction_metadata, photometry_data, star_dataset_
 		image_ts.append( datetime.strptime(ts, "%Y-%m-%dT%H:%M:%S.%f") )
 	image_ts = np.array(image_ts)
 
+	qc_ps = calc_ps_qc_factor(reduction_metadata,photometry_data,log)
 	time_order = np.argsort(image_ts)
 	setname = get_setname(params)
 
@@ -228,7 +248,8 @@ def output_lightcurve(params, reduction_metadata, photometry_data, star_dataset_
 		for i in time_order:
 			if valid_data_only:
 				if photometry_data['instrumental_mag'][i] > 0.0 and \
-						photometry_data['instrumental_mag_err'][i] <= phot_error_threshold:
+						photometry_data['instrumental_mag_err'][i] <= phot_error_threshold and \
+						qc_ps[i] >= psfactor_threshold:
 					datafile.write(str(photometry_data['hjd'][i])+'  '+\
 					str(photometry_data['instrumental_mag'][i])+'  '+str(photometry_data['instrumental_mag_err'][i])+'  '+\
 					str(photometry_data['calibrated_mag'][i])+'  '+str(photometry_data['calibrated_mag_err'][i])+' '+\
@@ -251,7 +272,8 @@ def output_lightcurve(params, reduction_metadata, photometry_data, star_dataset_
 			for i in time_order:
 				if valid_data_only:
 					if photometry_data['instrumental_mag'][i] > 0.0 and \
-						photometry_data['instrumental_mag_err'][i] <= phot_error_threshold:
+						photometry_data['instrumental_mag_err'][i] <= phot_error_threshold and \
+						qc_ps[i] >= psfactor_threshold:
 						datafile.writerow([str(photometry_data['hjd'][i]), params['filter_name'],
 										str(photometry_data['instrumental_mag'][i]),
 										str(photometry_data['instrumental_mag_err'][i])])
@@ -418,6 +440,8 @@ def fetch_photometry_for_isolated_dataset(params, star_dataset_id, log):
 									 table.Column(name='instrumental_mag_err', data=dataset_photometry[star_dataset_index,:,12]),
 									  table.Column(name='calibrated_mag', data=dataset_photometry[star_dataset_index,:,13]),
 									  table.Column(name='calibrated_mag_err', data=dataset_photometry[star_dataset_index,:,14]),
+ 									  table.Column(name='pscale', data=dataset_photometry[star_dataset_index,:,19]),
+ 									  table.Column(name='pscale_err', data=dataset_photometry[star_dataset_index,:,20]),
 									  ] )
 
 	return photometry_data
@@ -469,7 +493,7 @@ if __name__ == '__main__':
     #print(message)
 
 	(message, lc_files) = extract_star_lightcurve_isolated_reduction(params, log=None, format='dat_csv',
-												valid_data_only=False)
+												valid_data_only=True)
 	print(message)
 	for f in lc_files:
 		print(f)
