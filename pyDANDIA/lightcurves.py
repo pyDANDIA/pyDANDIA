@@ -254,6 +254,10 @@ def output_lightcurve(params, reduction_metadata, photometry_data, star_dataset_
 					str(photometry_data['instrumental_mag'][i])+'  '+str(photometry_data['instrumental_mag_err'][i])+'  '+\
 					str(photometry_data['calibrated_mag'][i])+'  '+str(photometry_data['calibrated_mag_err'][i])+' '+\
 					str(image_list[i])+'\n')
+				else:
+					log.info('-> Datapoint '+str(i)+' filtered out in quality control: mag='+str(photometry_data['instrumental_mag'][i])+
+							' mag_error='+str(photometry_data['instrumental_mag_err'][i])+', cf phot_error_threshold='+str(phot_error_threshold)+\
+							', pscale/exptime='+str(qc_ps[i])+', cf psfactor_threshold='+str(psfactor_threshold))
 			else:
 				datafile.write(str(photometry_data['hjd'][i])+'  '+\
 				str(photometry_data['instrumental_mag'][i])+'  '+str(photometry_data['instrumental_mag_err'][i])+'  '+\
