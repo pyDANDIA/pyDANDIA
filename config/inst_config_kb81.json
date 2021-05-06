@@ -144,7 +144,7 @@
 	"unit":""
     },
     "moonfkey": {
-        "comment": "moonfkey - STRING - Header keyword recording the Lunar distance from target (deg).",
+        "comment": "moonfkey - STRING - Header keyword recording the Lunar fractional illumination.",
         "value": "MOONFRAC",
 	"format":"S200",
 	"unit":""
@@ -176,18 +176,6 @@
     "airkey": {
         "comment": "filtkey - STRING - Header keyword recording the filter employed. The value of this keyword should be a STRING.",
         "value": "AIRMASS",
-	"format":"S200",
-	"unit":""
-    },
-    "moondkey": {
-        "comment": "filtkey - STRING - Header keyword recording the filter employed. The value of this keyword should be a STRING.",
-        "value": "MOONDIST",
-	"format":"S200",
-	"unit":""
-    },
-    "moonfkey": {
-        "comment": "filtkey - STRING - Header keyword recording the filter employed. The value of this keyword should be a STRING.",
-        "value": "MOONDIST",
 	"format":"S200",
 	"unit":""
     }
