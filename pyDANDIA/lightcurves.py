@@ -219,6 +219,9 @@ def calc_ps_qc_factor(reduction_metadata,photometry_data,log):
 	ps_data = np.ma.masked_array(ps_data, mask=mask)
 	qc_ps = ps_data.mean()/exptimes
 
+	for i in range(0,len(qc_ps),1):
+		print(ps_data[i], exptimes[i])
+		
 	log.info('Calculated the pscale/exptime quality control metric')
 
 	return qc_ps
