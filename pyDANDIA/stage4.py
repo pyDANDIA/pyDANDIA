@@ -715,7 +715,10 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
         data_image_hdu = fits.open(image_path, memmap=True)
         data_image = np.copy(data_image_hdu[image_structure['sci']].data)
 
-        mask_image = np.array(data_image_hdu[image_structure['pyDANDIA_pixel_mask']].data, dtype=float)
+        if image_structure['pyDANDIA_pixel_mask'] != None:
+            mask_image = np.array(data_image_hdu[image_structure['pyDANDIA_pixel_mask']].data, dtype=float)
+        else:
+            mask_image = np.zeros(data_image.shape)
 
         mask_status = quality_control.verify_mask_statistics(reduction_metadata,new_image,mask_image, log)
 
@@ -756,10 +759,10 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
                     matrix = np.c_[[1]*len(pts_reference2[:5000,:2]),pts_reference2[:5000,:2],pts_reference2[:5000,0]**2,pts_reference2[:5000,0]*pts_reference2[:5000,1],pts_reference2[:5000,1]**2]
                     A = np.linalg.lstsq(matrix,pts_data[:5000,0])
                     B = np.linalg.lstsq(matrix,pts_data[:5000,1])
-                    
+
                     C = tf.PolynomialTransform(np.r_[[A[0]],[B[0]]])
 
-                    
+
                     if len(pts_data[:5000][inliers])<10:
                         raise ValueError("Not enough matching stars! Switching to translation")
                     #model_final = np.dot(original_matrix, model_robust.params)
@@ -772,7 +775,7 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
                     log.info(' -> Using XY shifts')
                 try:
 
-                   
+
 
                     shifted = tf.warp(data_image/data_image.max(), inverse_map=model_final, output_shape=data_image.shape, order=3,mode='constant', cval=0, clip=True, preserve_range=True)*data_image.max()
 
@@ -814,17 +817,17 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
                     shifts, errors, phasediff = register_translation(sub_ref,img)
                     #model_stamp = tf.SimilarityTransform(translation=(-shifts[1],-shifts[0]))
 
-                    
+
 
 
                     stamp_mask = (ref_sources['xcentroid']<xmax) & (ref_sources['xcentroid']>xmin ) &\
                                  (ref_sources['ycentroid']<ymax) & (ref_sources['ycentroid']>ymin )
-                    
+
                     ref_stamps = ref_sources[stamp_mask]
                     ref_stamps['xcentroid'] -= xmin
                     ref_stamps['ycentroid'] -= ymin
                     #ref_stamps = ref_stamps[ref_stamps['flux'].argsort()[::-1],]
-                    
+
                     data_stamps, stamps_fwhm = extract_catalog(reduction_metadata, img, row_index, log)
                     #data_stamps = data_stamps[data_stamps['flux'].argsort()[::-1],]
                     #data_stamps['xcentroid'] += xmin
@@ -916,8 +919,8 @@ def reformat_catalog2(ref_catalog, data_catalog, distance_threshold=1.5):
 
         minimum = np.min(distances)
         ind = np.argmin(distances)
-        
-        
+
+
         if (minimum < distance_threshold ** 2) & (ind not in matching_ref):
             pts1.append(values)
 
