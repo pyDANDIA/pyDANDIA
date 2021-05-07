@@ -215,7 +215,7 @@ def calc_ps_qc_factor(reduction_metadata,photometry_data,log):
 	print(reference_image_name, iref, exptimes[iref])
 
 	ps_data = photometry_data['pscale'].data
-
+	print(ps_data)
 	mask = np.empty(ps_data.shape)
 	mask.fill(False)
 	invalid = np.where(ps_data == 0.0)
