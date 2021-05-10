@@ -55,18 +55,24 @@ def decide_whether_to_upload(payload, log=None):
 
     if upload and log!=None:
         log.info('-> Lightcurve has passed sanity checks and will be uploaded to TOM')
-        
+
     return upload
 
 def get_args():
     if len(argv) == 1:
         red_dir = input('Please enter the path to reduction directory: ')
         file_path = input('Please enter the path to the data file: ')
+        suffix = input('Please enter the filename suffix, or press return for none: ')
     else:
         red_dir = argv[1]
         file_path = argv[2]
+        suffix = argv[3]
 
     payload = {'file_path': file_path}
+    search_string = path.basename(red_dir)
+    if len(suffix) > 0:
+        search_string = search_string+'_'+suffix
+    payload = {'file_path': lc_file, 'search_string': search_string}
     setup = pipeline_setup.pipeline_setup({'red_dir': red_dir})
 
     return setup, payload

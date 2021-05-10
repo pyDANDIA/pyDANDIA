@@ -94,7 +94,7 @@ def delete_old_datafile_version(config, login, payload, existing_datafiles, log=
     # Due to automatic suffixes added by the data ingest processor, the only
     # way to identify datasets from the same telescope is the first
     # section of the filename, which must be distinctively named.
-    filename = path.basename(payload['file_path']).split('.')[0]
+    #filename = path.basename(payload['file_path']).split('.')[0]
     file_pk = None
     dataupload_url = concat_urls(config['tom_url'], config['dataproducts_endpoint'])
 
@@ -102,7 +102,7 @@ def delete_old_datafile_version(config, login, payload, existing_datafiles, log=
         log.info('Searching TOM system for previous similar datafiles')
 
     for fname, id in existing_datafiles.items():
-        if filename in fname:
+        if payload['search_string'] in fname:
             file_pk = id
             delete_data_url = concat_urls(dataupload_url,str(file_pk))
             response = requests.delete(delete_data_url, auth=login)

@@ -230,6 +230,7 @@ def calc_ps_qc_factor(reduction_metadata,photometry_data,log):
 def output_lightcurve(params, reduction_metadata, photometry_data, star_dataset_id, format,
 					  valid_data_only, phot_error_threshold, psfactor_threshold, log):
 
+	print(params)
 	image_list = reduction_metadata.headers_summary[1]['IMAGES'].data
 	date_list = reduction_metadata.headers_summary[1]['DATEKEY'].data
 	image_ts = []
@@ -246,6 +247,8 @@ def output_lightcurve(params, reduction_metadata, photometry_data, star_dataset_
 	if 'dat' in format:
 
 		lc_file = path.join(params['output_dir'],'star_'+str(star_dataset_id)+'_'+setname+'.dat')
+		if 'suffix' in params.keys():
+			lc_file = lc_file.replace('.dat','_'+str(params['suffix'])+'.dat')
 		datafile = open(lc_file,'w')
 		datafile.write('# HJD    Instrumental mag, mag_error   Calibrated mag, mag_error\n')
 
@@ -274,6 +277,8 @@ def output_lightcurve(params, reduction_metadata, photometry_data, star_dataset_
 	if 'csv' in format:
 
 		lc_file = path.join(params['output_dir'],'star_'+str(star_dataset_id)+'_'+setname+'.csv')
+		if 'suffix' in params.keys():
+			lc_file = lc_file.replace('.csv','_'+str(params['suffix'])+'.csv')
 		with open(lc_file, 'w', newline='') as csvfile:
 			datafile = csv.writer(csvfile, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
 			datafile.writerow(['time', 'filter', 'magnitude', 'error'])
@@ -496,7 +501,7 @@ if __name__ == '__main__':
 
 	# Ensure units are decimal degrees
 	params['radius'] = float(params['radius'])/3600.0
-
+	params['suffix'] = 'cl'
 	#message = extract_star_lightcurves_on_position(params)
     #print(message)
 

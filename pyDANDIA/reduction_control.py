@@ -267,6 +267,7 @@ def run_automatic_reduction(setup,red_log,params):
     config = get_auto_config(setup,red_log)
     config['primary_flag'] = params['primary_flag']
     config['red_dir'] = setup.red_dir
+    config['mode'] = setup.red_mode
 
     locked = check_dataset_lock(setup,red_log)
 
@@ -320,7 +321,7 @@ def run_existing_reduction(setup, config, red_log):
         aws_utils.upload_lightcurve_aws(config, lc_file, log=red_log)
 
     if config['upload_mop']:
-        upload_lightcurve_tom(setup, lc_files, red_log)
+        upload_lightcurve_tom(setup, config, lc_files, red_log)
 
     return status
 
@@ -357,7 +358,7 @@ def run_new_reduction(setup, config, red_log):
         aws_utils.upload_lightcurve_aws(config, lc_file, log=red_log)
 
     if config['upload_mop']:
-        upload_lightcurve_tom(setup, lc_files, red_log)
+        upload_lightcurve_tom(setup, config, lc_files, red_log)
 
     return status
 
@@ -416,7 +417,8 @@ def extract_target_lightcurve(setup, config, log):
     params = {'red_dir': setup.red_dir, 'db_file_path': setup.phot_db_path,
                 'ra': ra, 'dec': dec,
                 'radius': (2.0 / 3600.0), 'output_dir': lc_dir,
-                'filter_name': attribution }
+                'filter_name': attribution,
+                'suffix': config['mode'] }
 
     log.info('Searching phot DB '+setup.phot_db_path+' for '+ref_header['OBJECT'])
 
@@ -446,11 +448,14 @@ def get_lightcurve_attribution(config, filter_name):
 
     return attribution
 
-def upload_lightcurve_tom(setup, lc_files, log):
+def upload_lightcurve_tom(setup, config, lc_files, log):
 
     for lc_file in lc_files:
         if '.csv' in lc_file:
-            payload = {'file_path': lc_file}
+            search_string = path.basename(setup.red_dir)
+            if 'suffix' in config.keys():
+                search_string = search_string+'_'+config['suffix']
+            payload = {'file_path': lc_file, 'search_string': search_string}
             upload_lc_to_tom.upload_lightcurve(setup, payload, log=log)
 
 def check_stage3_db_ingest(setup,log):
