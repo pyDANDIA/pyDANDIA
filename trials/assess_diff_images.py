@@ -10,7 +10,8 @@ def diff_images_qc(params):
 
     diff_dir = path.join(params['red_dir'],'diffim')
     diff_images = glob.glob(path.join(diff_dir, '*'))
-
+    diff_images.sort()
+    
     dimage_stats = []
     for dimage_path in diff_images:
         stats = calc_stamp_statistics(params,dimage_path)
