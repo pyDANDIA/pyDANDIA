@@ -30,7 +30,7 @@ def calc_stamp_statistics(params,dimage_path):
             statistics.append([i,np.median(image), image.std()])
     else:
         stamp = path.join(dimage_path,'diff_stamp_'+str(params['stamp_number'])+'.fits')
-        print(stsamp)
+        print(stamp)
         image = fits.getdata(stamp)
         statistics.append([params['stamp_number'],np.median(image), image.std()])
 
