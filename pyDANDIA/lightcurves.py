@@ -349,7 +349,7 @@ def fetch_photometry_for_isolated_dataset(params, star_dataset_id, log):
 		corr_merr = table.Column(name='corrected_mag_err', data=dataset_photometry[star_dataset_index,:,24])
 		qc_flag = table.Column(name='qc_flag', data=dataset_photometry[star_dataset_index,:,25])
 	else:
-		nimages = len(dataset_photometry[star_dataset_index,:,23])
+		nimages = len(dataset_photometry[star_dataset_index,:,22])
 		corr_mags = table.Column(name='corrected_mag', data=np.zeros(nimages))
 		corr_merr = table.Column(name='corrected_mag_err', data=np.zeros(nimages))
 		qc_flag = table.Column(name='qc_flag', data=np.zeros(nimages))
