@@ -30,7 +30,6 @@ def calc_stamp_statistics(params,dimage_path):
             statistics.append([i,np.median(image), image.std()])
     else:
         stamp = path.join(dimage_path,'diff_stamp_'+str(params['stamp_number'])+'.fits')
-        print(stamp)
         image = fits.getdata(stamp)
         statistics.append([params['stamp_number'],np.median(image), image.std()])
 
@@ -47,7 +46,7 @@ def plot_dimage_statistics(params,dimage_stats,diff_images):
         frames.append(path.basename(f))
 
     (fig, (ax0, ax1)) = plt.subplots(nrows=2, ncols=1)
-    fig.set_size_inches(20, 10)
+    fig.set_size_inches(40, 10)
 
     if params['stamp_number'] == -1:
         stamp_index = np.arange(0,dimage_stats.shape[1],1)
