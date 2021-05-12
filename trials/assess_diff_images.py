@@ -16,7 +16,9 @@ def diff_images_qc(params):
         stats = calc_stamp_statistics(dimage_path)
         dimage_stats.append(stats)
     dimage_stats = np.array(dimage_stats)
-
+    print(dimage_stats)
+    print(dimage_stats.shape)
+    
     plot_dimage_statistics(params, dimage_stats, diff_images)
 
 def calc_stamp_statistics(dimage_path):
