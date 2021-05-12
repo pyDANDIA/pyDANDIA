@@ -18,7 +18,7 @@ def diff_images_qc(params):
     dimage_stats = np.array(dimage_stats)
     print(dimage_stats)
     print(dimage_stats.shape)
-    
+
     plot_dimage_statistics(params, dimage_stats, diff_images)
 
 def calc_stamp_statistics(dimage_path):
@@ -44,12 +44,12 @@ def plot_dimage_statistics(params,dimage_stats,diff_images):
     (fig, (ax0, ax1)) = plt.subplots(nrows=1, ncols=2)
     fig.set_size_inches(20, 10)
     for stamp_idx in range(0,dimage_stats.shape[1],1):
-        ax0.plot(dimage_index, dimage_stats[stamp_idx,1], marker=markers[stamp_idx],
+        ax0.plot(dimage_index, dimage_stats[:,stamp_idx,1], marker=markers[stamp_idx],
                     markerfacecolor=mcolors.TABLEAU_COLORS[col_keys[stamp_idx]],
                     markeredgecolor=mcolors.TABLEAU_COLORS[col_keys[stamp_idx]])
         ax0.set(xlabel='Image', ylabel='Mean pixel value [ADU]')
 
-        ax1.plot(dimage_index, dimage_stats[stamp_idx,2], marker=markers[stamp_idx],
+        ax1.plot(dimage_index, dimage_stats[:,stamp_idx,2], marker=markers[stamp_idx],
                     markerfacecolor=mcolors.TABLEAU_COLORS[col_keys[stamp_idx]],
                     markeredgecolor=mcolors.TABLEAU_COLORS[col_keys[stamp_idx]])
         ax1.set(xlabel='Image', ylabel='Std. Dev [ADU]')
