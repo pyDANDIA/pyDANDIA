@@ -33,7 +33,7 @@ def calc_stamp_statistics(dimage_path):
 
 def plot_dimage_statistics(params,dimage_stats,diff_images):
 
-    markers = ['.', 'v', 's', 'p', '*', '+', 'X', 'd', '1', '3']
+    markers = ['.', 'v', 's', 'p', '*', '+', 'X', 'd', '1', '3', 'D', '^', 'P', '>', '<', '4']
     col_keys = list(mcolors.TABLEAU_COLORS.keys())
 
     dimage_index = np.arange(0,len(diff_images),1)
