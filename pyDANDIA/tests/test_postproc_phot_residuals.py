@@ -2,6 +2,10 @@ import numpy as np
 from pyDANDIA import logs
 from pyDANDIA import postproc_phot_residuals
 from pyDANDIA import plot_rms
+from pyDANDIA import metadata
+from astropy.table import Table, Column
+from astropy.io import fits
+import astropy.units as u
 
 def test_params():
     params = {'primary_ref': 'ROME-FIELD-01_lsc-doma-1m0-05-fa15_ip',
@@ -28,12 +32,75 @@ def test_photometry(log):
         photometry[j,:,12] = phot_scatter_model(photometry[j,:,11])
         photometry[j,:,13] = photometry[j,:,11] + 0.01
         photometry[j,:,14] = photometry[j,:,12] + 0.001
+        photometry[j,:,19] = np.random.normal(1.0, scale=0.5, size=nimages)
 
     photometry = np.ma.masked_array(photometry, mask=None)
 
     phot_stats = plot_rms.calc_mean_rms_mag(photometry,log,'calibrated')
 
     return photometry, phot_stats
+
+def test_headers_summary(meta):
+    names = np.array(['IMAGES', 'EXPKEY', 'OBJKEY', 'OBSKEY', 'DATEKEY', \
+                        'TIMEKEY', 'RAKEY', 'DECKEY', 'FILTKEY', \
+                        'MOONDKEY', 'MOONFKEY', 'AIRMASS', 'HJD'])
+    formats = np.array(['S200']*11 + ['float']*2)
+    data = np.array([['lsc1m005-fa15-20190610-0205-e91.fits', '300.0', 'ROME-FIELD-01',
+            'EXPOSE', '2019-06-13T02:36:47.449', '02:36:47.449', '17:51:22.5696',
+            '-30:03:37.550', 'ip', '60.7240446', '0.799005', '0.91', '2452103.2'],
+            ['lsc1m005-fa15-20190610-0183-e91.fits', '300.0', 'ROME-FIELD-01',
+            'EXPOSE', '2019-06-13T02:37:00.449', '02:36:47.449', '17:51:22.5696',
+            '-30:03:37.550', 'ip', '60.7240446', '0.799005', '0.92', '2452103.21'],
+            ['lsc1m005-fa15-20190612-0218-e91.fits', '300.0', 'ROME-FIELD-01',
+            'EXPOSE', '2019-06-13T02:38:00.449', '02:36:47.449', '17:51:22.5696',
+            '-30:03:37.550', 'ip', '60.7240446', '0.799005', '0.93', '2452103.22'],
+            ['lsc1m005-fa15-20190610-0183-e91.fits', '300.0', 'ROME-FIELD-01',
+            'EXPOSE', '2019-06-13T02:37:00.449', '02:36:47.449', '17:51:22.5696',
+            '-30:03:37.550', 'ip', '60.7240446', '0.799005', '0.92', '2452103.21'],
+            ['lsc1m005-fa15-20190612-0218-e91.fits', '300.0', 'ROME-FIELD-01',
+            'EXPOSE', '2019-06-13T02:38:00.449', '02:36:47.449', '17:51:22.5696',
+            '-30:03:37.550', 'ip', '60.7240446', '0.799005', '0.93', '2452103.22'],
+            ['lsc1m005-fl15-20180710-0088-e91.fits', '300.0', 'ROME-FIELD-01',
+            'EXPOSE', '2019-06-13T02:37:00.449', '02:36:47.449', '17:51:22.5696',
+            '-30:03:37.550', 'ip', '60.7240446', '0.799005', '0.92', '2452103.21'],
+            ['lsc1m005-fa15-20190612-0218-e91.fits', '300.0', 'ROME-FIELD-01',
+            'EXPOSE', '2019-06-13T02:38:00.449', '02:36:47.449', '17:51:22.5696',
+            '-30:03:37.550', 'ip', '60.7240446', '0.799005', '0.93', '2452103.22'],
+            ['lsc1m005-fa15-20190610-0183-e91.fits', '300.0', 'ROME-FIELD-01',
+            'EXPOSE', '2019-06-13T02:37:00.449', '02:36:47.449', '17:51:22.5696',
+            '-30:03:37.550', 'ip', '60.7240446', '0.799005', '0.92', '2452103.21'],
+            ['lsc1m005-fa15-20190612-0218-e91.fits', '300.0', 'ROME-FIELD-01',
+            'EXPOSE', '2019-06-13T02:38:00.449', '02:36:47.449', '17:51:22.5696',
+            '-30:03:37.550', 'ip', '60.7240446', '0.799005', '0.93', '2452103.22'],
+            ['lsc1m005-fa15-20190612-0218-e91.fits', '300.0', 'ROME-FIELD-01',
+            'EXPOSE', '2019-06-13T02:38:00.449', '02:36:47.449', '17:51:22.5696',
+            '-30:03:37.550', 'ip', '60.7240446', '0.799005', '0.93', '2452103.22']
+            ])
+    meta.create_headers_summary_layer(names, formats, units=None, data=data)
+
+    return meta
+
+def test_data_architecture(meta):
+
+    table_data = [
+                Column(name='METADATA_NAME', data=np.array(['pyDANDIA_metadata.fits']), unit=None, dtype='S100'),
+                Column(name='OUTPUT_DIRECTORY', data=np.array(['/Users/rstreet1/ROMEREA/test_data/ROME-FIELD-01_lsc-doma-1m0-05-fa15_ip/']), unit=None, dtype='S100'),
+                Column(name='IMAGES_PATH', data=np.array(['/Users/rstreet1/ROMEREA/test_data/ROME-FIELD-01_lsc-doma-1m0-05-fa15_ip/data']), unit=None, dtype='S100'),
+                Column(name='BPM_PATH', data=np.array(['/Users/rstreet1/ROMEREA/test_data/ROME-FIELD-01_lsc-doma-1m0-05-fa15_ip/data']), unit=None, dtype='S100'),
+                Column(name='REF_PATH', data=np.array(['/Users/rstreet1/ROMEREA/test_data/ROME-FIELD-01_lsc-doma-1m0-05-fa15_ip/ref']), unit=None, dtype='S100'),
+                Column(name='REF_IMAGE', data=np.array(['lsc1m005-fl15-20180710-0088-e91.fits']), unit=None, dtype='S100'),
+                Column(name='KERNEL_PATH', data=np.array(['/Users/rstreet1/ROMEREA/test_data/ROME-FIELD-01_lsc-doma-1m0-05-fa15_ip/kernel']), unit=None, dtype='S100'),
+                Column(name='DIFFIM_PATH', data=np.array(['/Users/rstreet1/ROMEREA/test_data/ROME-FIELD-01_lsc-doma-1m0-05-fa15_ip/diff_images']), unit=None, dtype='S100'),
+                ]
+
+    layer_header = fits.Header()
+    layer_header.update({'NAME': 'data_architecture'})
+    layer_table = Table(table_data)
+    layer = [layer_header, layer_table]
+
+    setattr(meta, 'data_architecture', layer)
+
+    return meta
 
 def phot_scatter_model(mags):
     return 0.01 + np.log10(mags)*0.1
@@ -238,7 +305,49 @@ def test_set_star_photometry_qc_flags():
     photometry = postproc_phot_residuals.set_star_photometry_qc_flags(photometry, phot_stats, log)
 
     assert((photometry[test_star,:,25] < 0).all())
-    
+
+    logs.close_log(log)
+
+def test_calc_ps_exptime():
+
+    params = test_params()
+    log = logs.start_stage_log( params['log_dir'], 'test_postproc_phot' )
+
+    (photometry, phot_stats) = test_photometry(log)
+
+    meta = metadata.MetaData()
+    meta = test_headers_summary(meta)
+    meta = test_data_architecture(meta)
+
+    ps_expt = postproc_phot_residuals.calc_ps_exptime(meta, photometry, log)
+
+    assert(type(ps_expt) == type(np.ma.masked_array(np.zeros(1),mask=np.zeros(1))))
+    assert(ps_expt.shape == (photometry.shape[0],photometry.shape[1]))
+    assert(abs(ps_expt).max() < 5.0)
+
+    logs.close_log(log)
+
+def test_mask_phot_with_bad_psexpt():
+    params = test_params()
+    log = logs.start_stage_log( params['log_dir'], 'test_postproc_phot' )
+
+    (photometry, phot_stats) = test_photometry(log)
+
+    meta = metadata.MetaData()
+    meta = test_headers_summary(meta)
+    meta = test_data_architecture(meta)
+
+    photometry = postproc_phot_residuals.mask_phot_with_bad_psexpt(meta, photometry, log)
+
+    ps_expt = postproc_phot_residuals.calc_ps_exptime(meta, photometry, log)
+
+    threshold = 0.7
+
+    idx = np.where(ps_expt < threshold)
+    mask = np.ma.getmask(photometry)
+
+    assert( (mask[idx] == True).all() )
+
     logs.close_log(log)
 
 if __name__ == '__main__':
@@ -251,4 +360,6 @@ if __name__ == '__main__':
     #test_mask_photometry_array()
     #test_mask_phot_from_bad_images()
     #test_set_photometry_qc_flags()
-    test_set_star_photometry_qc_flags()
+    #test_set_star_photometry_qc_flags()
+    #test_calc_ps_exptime()
+    test_mask_phot_with_bad_psexpt()

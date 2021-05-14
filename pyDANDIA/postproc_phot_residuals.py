@@ -19,6 +19,8 @@ def run_postproc(setup, **params):
     log = logs.start_stage_log( setup.red_dir, 'postproc_phot' )
     (setup, params) = sanity_check(setup, params)
 
+    # Read post-processing configuration file
+
     reduction_metadata = metadata.MetaData()
     reduction_metadata.load_all_metadata(setup.red_dir, 'pyDANDIA_metadata.fits')
     phot_file = path.join(setup.red_dir,'photometry.hdf5')
@@ -47,6 +49,9 @@ def run_postproc(setup, **params):
 
     # Mask photometry from images with excessive average photometric residuals
     photometry = mask_phot_from_bad_images(photometry, image_residuals, log)
+
+    # Mask photometry from datapoints which fail the ps/exptime criterion
+    photometry = mask_phot_with_bad_psexpt(reduction_metadata, photometry, log)
 
     # Mirror calibrated photometry to corrected columns ready for processing:
     photometry = mirror_mag_columns(photometry, 'calibrated', log)
@@ -350,7 +355,7 @@ def test_plot_lcs(setup, photometry, log):
         badidx = np.where(post_lc[:,3] == 1)
         if with_errors:
             plt.errorbar(post_lc[badidx,0]-2450000.0,post_lc[badidx,1],
-                    yerr=post_lc[:,2],
+                    yerr=post_lc[badidx,2],
                     color='m', fmt='none')
         else:
             plt.plot(post_lc[badidx,0]-2450000.0,post_lc[badidx,1],'m.')
@@ -415,6 +420,42 @@ def mask_phot_from_bad_images(photometry, image_residuals, log):
     log.info('Masked photometric data for images with excessive average residuals')
 
     return photometry
+
+def mask_phot_with_bad_psexpt(reduction_metadata, photometry, log):
+
+    ps_expt = calc_ps_exptime(reduction_metadata, photometry, log)
+
+    threshold = 0.7
+    idx = np.where(ps_expt < threshold)
+    mask = np.ma.getmask(photometry)
+    mask[idx] = True
+
+    photometry = np.ma.masked_array(photometry[:,:,:], mask=mask)
+
+    log.info('Masked photometric data for datapoints with ps/expt < '+str(threshold))
+
+    return photometry
+
+def calc_ps_exptime(reduction_metadata, photometry, log):
+
+    ps_data = photometry[:,:,19]
+    mask = np.empty(ps_data.shape)
+    mask.fill(False)
+
+    exptimes = reduction_metadata.headers_summary[1]['EXPKEY'].data
+    expt_data = np.zeros(ps_data.shape, dtype='float')
+    for i in range(0,expt_data.shape[1],1):
+        expt_data[:,i].fill(float(exptimes[i]))
+    reference_image_name = reduction_metadata.data_architecture[1]['REF_IMAGE'].data[0]
+    iref = np.where(reduction_metadata.headers_summary[1]['IMAGES'] == reference_image_name)
+    ref_expt = float(exptimes[iref])
+
+    ps_data = np.ma.masked_array(ps_data, mask=mask)
+    ps_expt = ps_data*ref_expt/expt_data
+
+    log.info('Calculated the pscale/exptime quality control metric')
+
+    return ps_expt
 
 def mirror_mag_columns(photometry, phot_columns, log):
 
