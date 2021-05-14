@@ -7,6 +7,7 @@ from pyDANDIA import logs
 from pyDANDIA import metadata
 from pyDANDIA import plot_rms
 from pyDANDIA import pipeline_setup
+from pyDANDIA import config_utils
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 from astropy import visualization
@@ -52,6 +53,11 @@ def run_postproc(setup, **params):
 
     # Mask photometry from datapoints which fail the ps/exptime criterion
     photometry = mask_phot_with_bad_psexpt(reduction_metadata, photometry, log)
+
+    # Mask photometry from images with unreliable resampling coefficients:
+    photometry = mask_phot_from_bad_warp_matrix(setup,photometry,log)
+
+    # Mask photometry from images with poor quality difference images
 
     # Mirror calibrated photometry to corrected columns ready for processing:
     photometry = mirror_mag_columns(photometry, 'calibrated', log)
@@ -456,6 +462,127 @@ def calc_ps_exptime(reduction_metadata, photometry, log):
     log.info('Calculated the pscale/exptime quality control metric')
 
     return ps_expt
+
+def load_resampled_data(setup,log):
+
+    frames = []
+    coefficients = np.zeros(1)
+
+    resampled_dir = path.join(setup.red_dir, 'resampled')
+    if not path.isdir(resampled_dir):
+        log.info('Cannot find the directory for resampled data at '+resampled_dir)
+        return frames, coefficients
+
+    frame_list = glob.glob(path.join(resampled_dir, '*.fits'))
+    if len(frame_list) == 0:
+        log.info('No stage 4 output per frame available')
+        return frames, coefficients
+
+    coefficients = np.zeros((9,len(frame_list)))
+    for i,frame in enumerate(frame_list):
+        f = path.join(resampled_dir, frame, 'warp_matrice_stamp_10.npy')
+        if not path.isfile(f):
+            f = path.join(resampled_dir, frame, 'warp_matrice_stamp_0.npy')
+
+        if path.isfile(f):
+            coefficients[:,i] = np.load(f).flatten()
+
+    frames = []
+    for f in frame_list:
+        frames.append(path.basename(f))
+
+    return frames, coefficients
+
+def mask_phot_from_bad_warp_matrix(setup,photometry,log):
+
+    threshold = 100.0
+
+    (frames, coefficients) = load_resampled_data(setup,log)
+
+    idx = np.where(coefficients > threshold)[0]
+
+    expand_mask = np.ma.getmask(photometry)
+    for i in idx:
+        mask = np.empty((photometry.shape[0],photometry.shape[2]), dtype='bool')
+        mask.fill(True)
+        expand_mask[:,i,:] = mask
+
+    photometry = np.ma.masked_array(photometry[:,:,:], mask=expand_mask)
+
+    log.info('Masked photometric data for difference images with excessive residuals')
+
+    return photometry
+
+def mask_phot_from_bad_diff_images():
+
+
+def diff_images_qc(setup):
+
+    diff_dir = path.join(setup.red_dir,'diffim')
+    diff_images = glob.glob(path.join(diff_dir, '*'))
+    diff_images.sort()
+
+    dimage_stats = []
+    for dimage_path in diff_images:
+        stats = calc_stamp_statistics(params,dimage_path)
+        dimage_stats.append(stats)
+    dimage_stats = np.array(dimage_stats)
+
+    plot_dimage_statistics(params, dimage_stats, diff_images)
+
+def calc_stamp_statistics(params,dimage_path):
+    statistics = []
+
+    if params['stamp_number'] == -1:
+        stamps = glob.glob(path.join(dimage_path,'diff_stamp_*.fits'))
+
+        for i,stamp in enumerate(stamps):
+            image = fits.getdata(stamp)
+            statistics.append([i,np.median(image), image.std()])
+    else:
+        stamp = path.join(dimage_path,'diff_stamp_'+str(params['stamp_number'])+'.fits')
+        image = fits.getdata(stamp)
+        statistics.append([params['stamp_number'],np.median(image), image.std()])
+
+    return statistics
+
+def plot_dimage_statistics(params,dimage_stats,diff_images):
+
+    markers = ['.', 'v', 's', 'p', '*', '+', 'X', 'd', '1', '3', 'D', '^', 'P', '>', '<', '4']
+    col_keys = list(mcolors.TABLEAU_COLORS.keys()) + list(mcolors.TABLEAU_COLORS.keys())
+
+    dimage_index = np.arange(0,len(diff_images),1)
+    frames = []
+    for f in diff_images:
+        frames.append(path.basename(f))
+
+    (fig, (ax0, ax1)) = plt.subplots(nrows=2, ncols=1)
+    fig.set_size_inches(40, 10)
+
+    if params['stamp_number'] == -1:
+        stamp_index = np.arange(0,dimage_stats.shape[1],1)
+    else:
+        stamp_index = np.array([params['stamp_number']])
+
+    for stamp_idx in range(0,dimage_stats.shape[1],1):
+        ax0.plot(dimage_index, dimage_stats[:,stamp_idx,1], marker=markers[stamp_idx],
+                    markerfacecolor=mcolors.TABLEAU_COLORS[col_keys[stamp_idx]],
+                    markeredgecolor=mcolors.TABLEAU_COLORS[col_keys[stamp_idx]])
+        ax0.set(xlabel='Image', ylabel='Mean pixel value [ADU]')
+
+        ax1.plot(dimage_index, dimage_stats[:,stamp_idx,2], marker=markers[stamp_idx],
+                    markerfacecolor=mcolors.TABLEAU_COLORS[col_keys[stamp_idx]],
+                    markeredgecolor=mcolors.TABLEAU_COLORS[col_keys[stamp_idx]])
+        ax1.set(xlabel='Image', ylabel='Std. Dev [ADU]')
+
+    for ax in [ax0, ax1]:
+        ax.grid()
+        ax.set_xticks(dimage_index)
+        ax.set_xticklabels(frames)
+        plt.setp(ax.get_xticklabels(), rotation=45, ha="right",rotation_mode="anchor")
+
+    plt.tight_layout()
+    plt.savefig(path.join(params['red_dir'], 'diff_image_statistics.png'), )
 
 def mirror_mag_columns(photometry, phot_columns, log):
 
