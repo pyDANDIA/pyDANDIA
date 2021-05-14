@@ -343,9 +343,18 @@ def test_plot_lcs(setup, photometry, log):
         if with_errors:
             plt.errorbar(post_lc[:,0]-2450000.0,post_lc[:,1],
                     yerr=post_lc[:,2],
+                    color='k', fmt='none')
+        else:
+            plt.plot(post_lc[:,0]-2450000.0,post_lc[:,1],'k.')
+
+        badidx = np.where(post_lc[:,3] == 1)
+        if with_errors:
+            plt.errorbar(post_lc[badidx,0]-2450000.0,post_lc[badidx,1],
+                    yerr=post_lc[:,2],
                     color='m', fmt='none')
         else:
-            plt.plot(post_lc[:,0]-2450000.0,post_lc[:,1],'m.')
+            plt.plot(post_lc[badidx,0]-2450000.0,post_lc[badidx,1],'m.')
+
         plt.xlabel('HJD-2450000.0')
         plt.ylabel('Mag')
         plt.title('Star '+str(star+1))
