@@ -72,7 +72,7 @@ def get_args():
     search_string = path.basename(red_dir)
     if len(suffix) > 0:
         search_string = search_string+'_'+suffix
-    payload = {'file_path': lc_file, 'search_string': search_string}
+    payload = {'file_path': file_path, 'search_string': search_string}
     setup = pipeline_setup.pipeline_setup({'red_dir': red_dir})
 
     return setup, payload
