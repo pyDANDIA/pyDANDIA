@@ -107,5 +107,6 @@ def delete_old_datafile_version(config, login, payload, existing_datafiles, log=
             file_pk = id
             delete_data_url = concat_urls(dataupload_url,str(file_pk))
             response = requests.delete(delete_data_url, auth=login)
+            print(response)
             if log!=None:
                 log.info('Attempted to remove old datafile from TOM with response: '+repr(response.text))
