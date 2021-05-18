@@ -74,9 +74,11 @@ def get_args():
         search_string = search_string+'_'+suffix
     payload = {'file_path': file_path, 'search_string': search_string}
     setup = pipeline_setup.pipeline_setup({'red_dir': red_dir})
+    log = logs.start_pipeline_log(red_dir, 'tom_upload')
 
-    return setup, payload
+    return setup, payload, log
 
 if __name__ == '__main__':
-    (setup, payload) = get_args()
-    upload_lightcurve(setup, payload)
+    (setup, payload, log) = get_args()
+    upload_lightcurve(setup, payload, log=log)
+    logs.close_log(log)
