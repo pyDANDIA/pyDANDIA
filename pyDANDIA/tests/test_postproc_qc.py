@@ -1,6 +1,6 @@
 import numpy as np
 from pyDANDIA import logs
-from pyDANDIA import postproc_phot_residuals
+from pyDANDIA import postproc_qc
 from pyDANDIA import plot_rms
 from pyDANDIA import metadata
 from astropy.table import Table, Column
@@ -13,7 +13,9 @@ def test_params():
                             'ROME-FIELD-01_lsc-doma-1m0-05-fa15_rp' : [ 'non_ref', '/Users/rstreet1/OMEGA/test_data/ROME-FIELD-01_lsc-doma-1m0-05-fa15_rp/', 'rp' ],
                             'ROME-FIELD-01_lsc-domb-1m0-09-fa15_gp' : [ 'non_ref', '/Users/rstreet1/OMEGA/test_data/ROME-FIELD-01_lsc-domb-1m0-09-fa15_gp/', 'gp' ]},
               'file_path': 'crossmatch_table.fits',
-              'log_dir': '.'}
+              'log_dir': '.',
+              'residuals_threshold': 0.05,
+              'psexpt_threshold': 0.7}
 
     return params
 
@@ -115,7 +117,7 @@ def test_grow_photometry_array():
     ncols = 23
     test_photometry = np.ones((nstars,nimages,ncols))
 
-    photometry = postproc_phot_residuals.grow_photometry_array(test_photometry,log)
+    photometry = postproc_qc.grow_photometry_array(test_photometry,log)
 
     assert(photometry.shape[2] == ncols+3)
     assert((photometry[0,0,ncols] == 0.0).all())
@@ -131,11 +133,17 @@ def test_mask_photometry_array():
 
     (photometry, phot_stats) = test_photometry(log)
 
-    photometry[0,0,13] = 0.0
+    itest = 0
+    jtest = 0
+    photometry[jtest,itest,13] = 0.0
 
-    photometry = postproc_phot_residuals.mask_photometry_array(photometry, log, use_calib_mag=True)
+    photometry = postproc_qc.mask_photometry_array(photometry, 1, log)
 
-    print(photometry)
+    data = np.ma.getdata(photometry)
+    mask = np.ma.getmask(photometry)
+    assert(data[jtest,itest,25] == 1.0)
+    assert( (mask[jtest,itest,:] == True).all() )
+
     logs.close_log(log)
 
 def test_calc_phot_residuals():
@@ -145,7 +153,7 @@ def test_calc_phot_residuals():
 
     (photometry, phot_stats) = test_photometry(log)
 
-    phot_residuals = postproc_phot_residuals.calc_phot_residuals(photometry, phot_stats, log)
+    phot_residuals = postproc_qc.calc_phot_residuals(photometry, phot_stats, log)
 
     assert(type(phot_residuals) == type(photometry))
     assert(phot_residuals.shape == (photometry.shape[0], photometry.shape[1],2))
@@ -184,7 +192,7 @@ def test_calc_image_residuals():
 
     phot_residuals = np.ma.masked_array(phot_residuals, mask=mask)
 
-    image_residuals = postproc_phot_residuals.calc_image_residuals(photometry, phot_residuals,log)
+    image_residuals = postproc_qc.calc_image_residuals(photometry, phot_residuals,log)
 
     assert(image_residuals.shape == (nimages,3))
     assert(image_residuals[include_images,0] == test_value).all()
@@ -203,7 +211,7 @@ def test_apply_image_mag_correction():
     image_residuals[:,1].fill(0.002)
     image_residuals[:,2] = np.linspace(2456655.0, 2456670.0, len(image_residuals))
 
-    photometry = postproc_phot_residuals.apply_image_mag_correction(image_residuals, photometry, log,
+    photometry = postproc_qc.apply_image_mag_correction(image_residuals, photometry, log,
                                                                         'calibrated')
 
     assert( (photometry[:,:,23]-image_residuals[:,0] == photometry[:,:,13]).all() )
@@ -219,9 +227,9 @@ def test_calc_image_rms():
 
     (photometry, phot_stats) = test_photometry(log)
 
-    phot_residuals = postproc_phot_residuals.calc_phot_residuals(photometry, phot_stats, log)
+    phot_residuals = postproc_qc.calc_phot_residuals(photometry, phot_stats, log)
 
-    rms = postproc_phot_residuals.calc_image_rms(phot_residuals, log)
+    rms = postproc_qc.calc_image_rms(phot_residuals, log)
 
     assert( type(rms) == type(np.zeros(1)) )
     assert( rms.shape == (photometry.shape[1],) )
@@ -239,7 +247,7 @@ def test_apply_image_merr_correction():
 
     image_rms = np.array([0.01]*photometry.shape[1])
 
-    photometry = postproc_phot_residuals.apply_image_merr_correction(photometry, image_rms, log, use_calib_mag=True)
+    photometry = postproc_qc.apply_image_merr_correction(photometry, image_rms, log, use_calib_mag=True)
 
     assert( (photometry[:,:,24] == np.sqrt(photometry[:,:,14]*photometry[:,:,14] + \
                                     image_rms*image_rms)).all() )
@@ -259,13 +267,18 @@ def test_mask_phot_from_bad_images():
     image_residuals[:,2] = np.linspace(2456655.0, 2456670.0, len(image_residuals))
 
     mask_image = 1
+    test_err_code = 2
     image_residuals[mask_image,0] = -0.4
 
-    photometry = postproc_phot_residuals.mask_phot_from_bad_images(photometry, image_residuals, log)
+    photometry = postproc_qc.mask_phot_from_bad_images(params, photometry, image_residuals, test_err_code, log)
 
     mask = np.ma.getmask(photometry)
+    data = np.ma.getdata(photometry)
 
+    # Test that affected data are masked, and that the error_code set for the
+    # affected datapoints is the error code applied to this error case
     assert( (mask[:,mask_image,:] == True).all() )
+    assert( (data[:,mask_image,25] == test_err_code).all() )
 
     logs.close_log(log)
 
@@ -286,7 +299,7 @@ def test_set_photometry_qc_flags():
     mask[bad_j,bad_i,14] = True
     photometry = np.ma.masked_array(photometry[:,:,:], mask=mask)
 
-    photometry = postproc_phot_residuals.set_photometry_qc_flags(photometry, log)
+    photometry = postproc_qc.set_photometry_qc_flags(photometry, log)
 
     assert( (photometry[bad_j, bad_i, 25] == -1).all() )
 
@@ -302,7 +315,7 @@ def test_set_star_photometry_qc_flags():
     test_star = 0
     photometry[test_star,:,24].fill(1.0)
 
-    photometry = postproc_phot_residuals.set_star_photometry_qc_flags(photometry, phot_stats, log)
+    photometry = postproc_qc.set_star_photometry_qc_flags(photometry, phot_stats, log)
 
     assert((photometry[test_star,:,25] < 0).all())
 
@@ -319,7 +332,7 @@ def test_calc_ps_exptime():
     meta = test_headers_summary(meta)
     meta = test_data_architecture(meta)
 
-    ps_expt = postproc_phot_residuals.calc_ps_exptime(meta, photometry, log)
+    ps_expt = postproc_qc.calc_ps_exptime(meta, photometry, log)
 
     assert(type(ps_expt) == type(np.ma.masked_array(np.zeros(1),mask=np.zeros(1))))
     assert(ps_expt.shape == (photometry.shape[0],photometry.shape[1]))
@@ -336,17 +349,20 @@ def test_mask_phot_with_bad_psexpt():
     meta = metadata.MetaData()
     meta = test_headers_summary(meta)
     meta = test_data_architecture(meta)
+    test_err_code = 4
 
-    photometry = postproc_phot_residuals.mask_phot_with_bad_psexpt(meta, photometry, log)
+    photometry = postproc_qc.mask_phot_with_bad_psexpt(params, meta, photometry, test_err_code, log)
 
-    ps_expt = postproc_phot_residuals.calc_ps_exptime(meta, photometry, log)
+    ps_expt = postproc_qc.calc_ps_exptime(meta, photometry, log)
 
     threshold = 0.7
 
     idx = np.where(ps_expt < threshold)
     mask = np.ma.getmask(photometry)
+    data = np.ma.getdata(photometry)
 
-    assert( (mask[idx] == True).all() )
+    assert( (mask[idx[0],idx[1],:] == True).all() )
+    assert( (data[idx[0],idx[1],25] == test_err_code).all() )
 
     logs.close_log(log)
 

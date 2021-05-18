@@ -28,7 +28,7 @@ def run_postproc(setup, **params):
 
     # Grow photometry array to allow additional columns for corrected mags
     photometry = grow_photometry_array(photometry,log)
-    photometry = mask_photometry_array(reduction_metadata, photometry, log)
+    photometry = mask_photometry_array(photometry, 1, log)
 
     # Calculate mean_mag, RMS for all stars
     phot_stats = plot_rms.calc_mean_rms_mag(photometry,log,'calibrated')
@@ -47,18 +47,16 @@ def run_postproc(setup, **params):
     plot_image_residuals(params, image_residuals, log)
 
     # Mask photometry from images with excessive average photometric residuals
-    photometry = mask_phot_from_bad_images(params, photometry, image_residuals, log)
+    photometry = mask_phot_from_bad_images(params, photometry, image_residuals, 2, log)
 
     # Mask photometry from datapoints which fail the ps/exptime criterion
-    photometry = mask_phot_with_bad_psexpt(params, reduction_metadata, photometry, log)
+    photometry = mask_phot_with_bad_psexpt(params, reduction_metadata, photometry, 4, log)
 
     # Mask photometry from images with unreliable resampling coefficients:
-    photometry = mask_phot_from_bad_warp_matrix(params, setup, photometry, log)
+    photometry = mask_phot_from_bad_warp_matrix(params, setup, photometry, 8, log)
 
     # Mask photometry from images with poor quality difference images
-    photometry = mask_phot_from_bad_diff_images(params,setup,photometry,log)
-
-    XXX Implement bitmask QC
+    photometry = mask_phot_from_bad_diff_images(params,setup,photometry,16,log)
 
     # Mirror calibrated photometry to corrected columns ready for processing:
     photometry = mirror_mag_columns(photometry, 'calibrated', log)
@@ -87,10 +85,12 @@ def run_postproc(setup, **params):
     phot_stats = plot_rms.calc_mean_rms_mag(photometry,log,'corrected')
 
     # Set quality control flags to indicate suspect data points in photometry array
-    photometry = set_image_photometry_qc_flags(photometry, log)
+    # Replaced with a bitmask
+    #photometry = set_image_photometry_qc_flags(photometry, log)
 
     # Set quality control flags to indicate datapoints with large uncertainties:
-    photometry = set_star_photometry_qc_flags(photometry, phot_stats, log)
+    # Replaced with bitmask, may review
+    #photometry = set_star_photometry_qc_flags(photometry, phot_stats, log)
 
     # Ouput updated photometry
     output_revised_photometry(setup, photometry, log)
@@ -163,17 +163,17 @@ def grow_photometry_array(photometry,log):
         photometry[:,:,25].fill(0.0)
         return photometry
 
-def mask_photometry_array(reduction_metadata, photometry, log):
+def mask_photometry_array(photometry, error_code, log):
 
     (mag_col, merr_col) = plot_rms.get_photometry_columns('calibrated')
 
     mask = np.invert(photometry[:,:,mag_col] > 0.0)
 
-    photometry[mask,25] = 1
-
     expand_mask = np.empty((mask.shape[0], mask.shape[1], photometry.shape[2]))
     for col in range(0,expand_mask.shape[2],1):
         expand_mask[:,:,col] = mask
+
+    photometry[mask,25] = error_code
 
     photometry = np.ma.masked_array(photometry, mask=expand_mask)
     log.info('Masked invalid measurements in photometry array')
@@ -420,39 +420,45 @@ def output_revised_photometry(setup, photometry, log):
     # Output file with additional columns:
     hd5_utils.write_phot_hd5(setup,photometry,log=log)
 
-def mask_all_datapoints_by_image_index(photometry, bad_data_index):
+def mask_all_datapoints_by_image_index(photometry, bad_data_index, error_code):
 
     expand_mask = np.ma.getmask(photometry)
+    expand_data = np.ma.getdata(photometry)
     for i in bad_data_index:
         mask = np.empty((photometry.shape[0],photometry.shape[2]), dtype='bool')
         mask.fill(True)
         expand_mask[:,i,:] = mask
+        expand_data[:,i,25] += error_code
 
-    photometry = np.ma.masked_array(photometry[:,:,:], mask=expand_mask)
+    photometry = np.ma.masked_array(expand_data, mask=expand_mask)
 
     return photometry
 
-def mask_phot_from_bad_images(params, photometry, image_residuals, log):
+def mask_phot_from_bad_images(params, photometry, image_residuals, error_code, log):
 
     idx = np.where(abs(image_residuals[:,0]) > params['residuals_threshold'])[0]
 
-    photometry = mask_all_datapoints_by_image_index(photometry, idx)
+    photometry = mask_all_datapoints_by_image_index(photometry, idx, error_code)
 
     log.info('Masked photometric data for images with excessive average residuals')
 
     return photometry
 
-def mask_phot_with_bad_psexpt(params, reduction_metadata, photometry, log):
+def mask_phot_with_bad_psexpt(params, reduction_metadata, photometry, error_code, log):
 
     ps_expt = calc_ps_exptime(reduction_metadata, photometry, log)
 
     idx = np.where(ps_expt < params['psexpt_threshold'])
+
     mask = np.ma.getmask(photometry)
-    mask[idx] = True
+    data = np.ma.getdata(photometry)
+    for col in range(0,mask.shape[2],1):
+        mask[idx[0],idx[1],col] = True
+    data[idx[0],idx[1],25] += error_code
 
-    photometry = np.ma.masked_array(photometry[:,:,:], mask=mask)
+    photometry = np.ma.masked_array(data, mask=mask)
 
-    log.info('Masked photometric data for datapoints with ps/expt < '+str(threshold))
+    log.info('Masked photometric data for datapoints with ps/expt < '+str(params['psexpt_threshold']))
 
     return photometry
 
@@ -507,19 +513,19 @@ def load_resampled_data(setup,log):
 
     return frames, coefficients
 
-def mask_phot_from_bad_warp_matrix(params,setup,photometry,log):
+def mask_phot_from_bad_warp_matrix(params,setup,photometry,error_code,log):
 
     (frames, coefficients) = load_resampled_data(setup,log)
 
     idx = np.where(coefficients > params['warp_matrix_threshold'])[0]
 
-    photometry = mask_all_datapoints_by_image_index(photometry, idx)
+    photometry = mask_all_datapoints_by_image_index(photometry, idx, error_code)
 
     log.info('Masked photometric data for difference images with excessive residuals')
 
     return photometry
 
-def mask_phot_from_bad_diff_images(params,setup,photometry,log):
+def mask_phot_from_bad_diff_images(params,setup,photometry,error_code,log):
 
     diff_dir = path.join(setup.red_dir,'diffim')
     diff_images = glob.glob(path.join(diff_dir, '*'))
@@ -535,7 +541,7 @@ def mask_phot_from_bad_diff_images(params,setup,photometry,log):
 
     idx = np.where(dimage_stats[:,2] > params['diff_std_threshold'])
 
-    photometry = mask_all_datapoints_by_image_index(photometry, idx)
+    photometry = mask_all_datapoints_by_image_index(photometry, idx, error_code)
 
     log.info('Masked datapoints from poor quality difference images')
 
