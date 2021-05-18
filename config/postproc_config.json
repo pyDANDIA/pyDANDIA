@@ -1,0 +1,32 @@
+{
+  "residuals_threshold": {
+    "value": 0.15,
+    "comment": "Maximum acceptable photometry residuals",
+    "format": "float",
+    "unit": ""
+  },
+  "psexpt_threshold": {
+    "value": 0.7,
+    "comment": "Maximum acceptable value of pscale/exptime metric",
+    "format": "float",
+    "unit": ""
+  },
+  "warp_matrix_threshold": {
+    "value": 100,
+    "comment": "Maximum acceptable value of warp matrix coefficients",
+    "format": "float",
+    "unit": ""
+  },
+  "diff_std_threshold": {
+    "value": 1500,
+    "comment": "Maximum acceptable value of difference image standard deviation",
+    "format": "float",
+    "unit": ""
+  },
+  "stamp_number": {
+    "value": 10,
+    "comment": "Stamp number to analysis",
+    "format": "int",
+    "unit": ""
+  }
+}
