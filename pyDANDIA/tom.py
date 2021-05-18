@@ -102,6 +102,7 @@ def delete_old_datafile_version(config, login, payload, existing_datafiles, log=
         log.info('Searching TOM system for previous similar datafiles')
 
     for fname, id in existing_datafiles.items():
+        print(fname, id, payload['search_string'],(payload['search_string'] in fname))
         if payload['search_string'] in fname:
             file_pk = id
             delete_data_url = concat_urls(dataupload_url,str(file_pk))
