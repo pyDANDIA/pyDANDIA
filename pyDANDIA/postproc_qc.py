@@ -18,7 +18,7 @@ def run_postproc(setup, **params):
     """
 
     log = logs.start_stage_log( setup.red_dir, 'postproc_phot' )
-    (setup, params) = sanity_check(setup, params)
+    (setup, params) = sanity_check(setup, params,log)
 
     reduction_metadata = metadata.MetaData()
     reduction_metadata.load_all_metadata(setup.red_dir, 'pyDANDIA_metadata.fits')
@@ -135,7 +135,7 @@ def get_args():
 
     return setup, params
 
-def sanity_check(setup, params):
+def sanity_check(setup, params, log):
 
     for key in ['red_dir', 'log_dir']:
         if key not in params.keys():
@@ -143,6 +143,10 @@ def sanity_check(setup, params):
 
     if 'diagnostic_plots' not in params.keys():
         params['diagnostic_plots'] = False
+
+    log.info('Configuration parameters:')
+    for key, value im params.items():
+        log.info(key+': '+str(value))
 
     return setup, params
 
