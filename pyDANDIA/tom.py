@@ -66,15 +66,14 @@ def list_dataproducts(config, login, payload, target_pk, log=None):
 
     dataupload_url = concat_urls(config['tom_url'],config['dataproducts_endpoint'])
 
-    ur = {'target': target_pk, 'data_product_type': 'photometry'}
+    ur = {'target': target_pk, 'data_product_type': 'photometry', 'page_size': 99999}
 
     # List endpoint does not currently support queries specific to target ID
     #response = requests.get(dataupload_url, params=ur, auth=login).json()
-    response = requests.get(dataupload_url, auth=login).json()
+    response = requests.get(dataupload_url, params=ur, auth=login).json()
 
     existing_datafiles = {}
     for entry in response['results']:
-        print(path.basename(entry['data']),entry['target'],target_pk)
         if entry['target'] == target_pk:
             existing_datafiles[path.basename(entry['data'])] = entry['id']
 
