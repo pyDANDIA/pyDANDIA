@@ -146,7 +146,7 @@ def sanity_check(setup, params, log):
         params['diagnostic_plots'] = False
 
     log.info('Configuration parameters:')
-    for key, value im params.items():
+    for key, value in params.items():
         log.info(key+': '+str(value))
 
     return setup, params
