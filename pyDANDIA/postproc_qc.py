@@ -338,7 +338,7 @@ def test_plot_lcs(setup, photometry, log):
     post_lcs = []
     for star in test_star_idxs:
         init_lcs.append( phot_data[star,:,[9,13,14]].T )
-        post_lcs = phot_data[star,:,[9,23,24,25]].T
+        post_lcs.append( phot_data[star,:,[9,23,24,25]].T )
         #idx = np.where(lc[:,3] == 0)[0]
         #post_lcs.append( lc[idx,:] )
 
