@@ -28,5 +28,11 @@
     "comment": "Stamp number to analysis",
     "format": "int",
     "unit": ""
+  },
+  "diagnostic_plots": {
+    "value": "False",
+    "comment": "Switch to generate diagnostic plots or not",
+    "format": "int",
+    "unit": ""
   }
 }

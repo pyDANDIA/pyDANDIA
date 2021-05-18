@@ -113,18 +113,8 @@ def get_args():
     params = {}
     if len(argv) == 1:
         params['red_dir'] = input('Please enter the path to the datasets reduction directory: ')
-        opt = input('Generate diagnostic plots?  Y or N: ')
     else:
         params['red_dir'] = argv[1]
-        if len(argv) == 3:
-            opt = argv[2]
-        else:
-            opt = 'N'
-
-    if 'y' in str(opt).lower():
-        params['diagnostic_plots'] = True
-    else:
-        params['diagnostic_plots'] = False
 
     params['log_dir'] = params['red_dir']
     setup = pipeline_setup.pipeline_setup(params)
@@ -134,7 +124,13 @@ def get_args():
     config = config_utils.build_config_from_json(config_file)
 
     for key, value in config.items():
-        params[key] = value
+        if key == 'diagnostic_plots':
+            if 'true' in str(value).lower():
+                params[key] = True
+            else:
+                params[key] = False
+        else:
+            params[key] = value
 
     return setup, params
 
@@ -161,7 +157,7 @@ def grow_photometry_array(photometry,log):
         new_photometry = np.zeros((photometry.shape[0], photometry.shape[1], photometry.shape[2]+3))
         new_photometry[:,:,0:photometry.shape[2]] = photometry
         log.info('Added three columns to the photometry array')
-        print((new_photometry[:,:,25]==0).all())
+
         return new_photometry
     else:
         log.info('Photometry array already has all 26 columns, zeroing columns 23,24,25')
@@ -334,7 +330,7 @@ def apply_image_mag_correction(params, image_residuals, photometry, log, phot_co
 
 def test_plot_lcs(setup, photometry, log):
 
-    test_star_idxs = [30001, 78283, 109708, 120495, 166501, 205177]
+    test_star_idxs = [30001, 78283, 109708, 120495, 166501]
 
     init_lcs = []
     post_lcs = []
@@ -375,13 +371,14 @@ def test_plot_lcs(setup, photometry, log):
         else:
             plt.plot(post_lc[:,0]-2450000.0,post_lc[:,1],'k.')
 
-        badidx = np.where(post_lc[:,3] == 1)
-        if with_errors:
-            plt.errorbar(post_lc[badidx,0]-2450000.0,post_lc[badidx,1],
-                    yerr=post_lc[badidx,2],
-                    color='m', fmt='none')
-        else:
-            plt.plot(post_lc[badidx,0]-2450000.0,post_lc[badidx,1],'m.')
+        badidx = np.where(post_lc[:,3] == 1)[0]
+
+        if len(badidx) > 0:
+            if with_errors:
+                plt.errorbar(post_lc[badidx,0]-2450000.0,post_lc[badidx,1],
+                        yerr=post_lc[badidx,2],color='m', fmt='none')
+            else:
+                plt.plot(post_lc[badidx,0]-2450000.0,post_lc[badidx,1],'m.')
 
         plt.xlabel('HJD-2450000.0')
         plt.ylabel('Mag')
@@ -546,7 +543,9 @@ def mask_phot_from_bad_diff_images(params,setup,photometry,error_code,log):
 
     plot_dimage_statistics(params, dimage_stats, diff_images)
 
-    idx = np.where(dimage_stats[:,2] > params['diff_std_threshold'])
+    # Use only first dimension of this array, which is images,stamps
+    # rather than stars, images
+    idx = np.where(dimage_stats[:,:,2] > params['diff_std_threshold'])[0]
 
     photometry = mask_all_datapoints_by_image_index(photometry, idx, error_code)
 
