@@ -332,13 +332,15 @@ def test_plot_lcs(setup, photometry, log):
 
     test_star_idxs = [30001, 78283, 109708, 120495, 166501]
 
+    phot_data = np.ma.getdata(photometry)
+
     init_lcs = []
     post_lcs = []
     for star in test_star_idxs:
-        init_lcs.append( photometry[star,:,[9,13,14]].T )
-        lc = photometry[star,:,[9,23,24,25]].T
-        idx = np.where(lc[:,3] == 0)[0]
-        post_lcs.append( lc[idx,:] )
+        init_lcs.append( phot_data[star,:,[9,13,14]].T )
+        post_lcs = phot_data[star,:,[9,23,24,25]].T
+        #idx = np.where(lc[:,3] == 0)[0]
+        #post_lcs.append( lc[idx,:] )
 
     for j, star in enumerate(test_star_idxs):
         init_lc = init_lcs[j]
