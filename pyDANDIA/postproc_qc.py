@@ -11,6 +11,7 @@ from pyDANDIA import config_utils
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 from astropy import visualization
+import glob
 
 def run_postproc(setup, **params):
     """Driver function for post-processing:
