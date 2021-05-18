@@ -20,8 +20,6 @@ def run_postproc(setup, **params):
     log = logs.start_stage_log( setup.red_dir, 'postproc_phot' )
     (setup, params) = sanity_check(setup, params)
 
-    # Read post-processing configuration file
-
     reduction_metadata = metadata.MetaData()
     reduction_metadata.load_all_metadata(setup.red_dir, 'pyDANDIA_metadata.fits')
     phot_file = path.join(setup.red_dir,'photometry.hdf5')
@@ -49,15 +47,18 @@ def run_postproc(setup, **params):
     plot_image_residuals(params, image_residuals, log)
 
     # Mask photometry from images with excessive average photometric residuals
-    photometry = mask_phot_from_bad_images(photometry, image_residuals, log)
+    photometry = mask_phot_from_bad_images(params, photometry, image_residuals, log)
 
     # Mask photometry from datapoints which fail the ps/exptime criterion
-    photometry = mask_phot_with_bad_psexpt(reduction_metadata, photometry, log)
+    photometry = mask_phot_with_bad_psexpt(params, reduction_metadata, photometry, log)
 
     # Mask photometry from images with unreliable resampling coefficients:
-    photometry = mask_phot_from_bad_warp_matrix(setup,photometry,log)
+    photometry = mask_phot_from_bad_warp_matrix(params, setup, photometry, log)
 
     # Mask photometry from images with poor quality difference images
+    photometry = mask_phot_from_bad_diff_images(params,setup,photometry,log)
+
+    XXX Implement bitmask QC
 
     # Mirror calibrated photometry to corrected columns ready for processing:
     photometry = mirror_mag_columns(photometry, 'calibrated', log)
@@ -125,6 +126,13 @@ def get_args():
     params['log_dir'] = params['red_dir']
     setup = pipeline_setup.pipeline_setup(params)
 
+    config_file = path.join(setup.pipeline_config_dir, 'postproc_config.json')
+
+    config = config_utils.build_config_from_json(config_file)
+
+    for key, value in config.items():
+        params[key] = value
+
     return setup, params
 
 def sanity_check(setup, params):
@@ -160,6 +168,8 @@ def mask_photometry_array(reduction_metadata, photometry, log):
     (mag_col, merr_col) = plot_rms.get_photometry_columns('calibrated')
 
     mask = np.invert(photometry[:,:,mag_col] > 0.0)
+
+    photometry[mask,25] = 1
 
     expand_mask = np.empty((mask.shape[0], mask.shape[1], photometry.shape[2]))
     for col in range(0,expand_mask.shape[2],1):
@@ -410,29 +420,33 @@ def output_revised_photometry(setup, photometry, log):
     # Output file with additional columns:
     hd5_utils.write_phot_hd5(setup,photometry,log=log)
 
-def mask_phot_from_bad_images(photometry, image_residuals, log):
-
-    residuals_threshold = 0.15
-    idx = np.where(abs(image_residuals[:,0]) > residuals_threshold)[0]
+def mask_all_datapoints_by_image_index(photometry, bad_data_index):
 
     expand_mask = np.ma.getmask(photometry)
-    for i in idx:
+    for i in bad_data_index:
         mask = np.empty((photometry.shape[0],photometry.shape[2]), dtype='bool')
         mask.fill(True)
         expand_mask[:,i,:] = mask
 
     photometry = np.ma.masked_array(photometry[:,:,:], mask=expand_mask)
 
+    return photometry
+
+def mask_phot_from_bad_images(params, photometry, image_residuals, log):
+
+    idx = np.where(abs(image_residuals[:,0]) > params['residuals_threshold'])[0]
+
+    photometry = mask_all_datapoints_by_image_index(photometry, idx)
+
     log.info('Masked photometric data for images with excessive average residuals')
 
     return photometry
 
-def mask_phot_with_bad_psexpt(reduction_metadata, photometry, log):
+def mask_phot_with_bad_psexpt(params, reduction_metadata, photometry, log):
 
     ps_expt = calc_ps_exptime(reduction_metadata, photometry, log)
 
-    threshold = 0.7
-    idx = np.where(ps_expt < threshold)
+    idx = np.where(ps_expt < params['psexpt_threshold'])
     mask = np.ma.getmask(photometry)
     mask[idx] = True
 
@@ -493,30 +507,19 @@ def load_resampled_data(setup,log):
 
     return frames, coefficients
 
-def mask_phot_from_bad_warp_matrix(setup,photometry,log):
-
-    threshold = 100.0
+def mask_phot_from_bad_warp_matrix(params,setup,photometry,log):
 
     (frames, coefficients) = load_resampled_data(setup,log)
 
-    idx = np.where(coefficients > threshold)[0]
+    idx = np.where(coefficients > params['warp_matrix_threshold'])[0]
 
-    expand_mask = np.ma.getmask(photometry)
-    for i in idx:
-        mask = np.empty((photometry.shape[0],photometry.shape[2]), dtype='bool')
-        mask.fill(True)
-        expand_mask[:,i,:] = mask
-
-    photometry = np.ma.masked_array(photometry[:,:,:], mask=expand_mask)
+    photometry = mask_all_datapoints_by_image_index(photometry, idx)
 
     log.info('Masked photometric data for difference images with excessive residuals')
 
     return photometry
 
-def mask_phot_from_bad_diff_images():
-
-
-def diff_images_qc(setup):
+def mask_phot_from_bad_diff_images(params,setup,photometry,log):
 
     diff_dir = path.join(setup.red_dir,'diffim')
     diff_images = glob.glob(path.join(diff_dir, '*'))
@@ -524,13 +527,21 @@ def diff_images_qc(setup):
 
     dimage_stats = []
     for dimage_path in diff_images:
-        stats = calc_stamp_statistics(params,dimage_path)
+        stats = calc_stamp_statistics(params,dimage_path,log)
         dimage_stats.append(stats)
     dimage_stats = np.array(dimage_stats)
 
     plot_dimage_statistics(params, dimage_stats, diff_images)
 
-def calc_stamp_statistics(params,dimage_path):
+    idx = np.where(dimage_stats[:,2] > params['diff_std_threshold'])
+
+    photometry = mask_all_datapoints_by_image_index(photometry, idx)
+
+    log.info('Masked datapoints from poor quality difference images')
+
+    return photometry
+
+def calc_stamp_statistics(params,dimage_path,log):
     statistics = []
 
     if params['stamp_number'] == -1:
@@ -543,6 +554,8 @@ def calc_stamp_statistics(params,dimage_path):
         stamp = path.join(dimage_path,'diff_stamp_'+str(params['stamp_number'])+'.fits')
         image = fits.getdata(stamp)
         statistics.append([params['stamp_number'],np.median(image), image.std()])
+
+    log.info('Calculated statistics on difference images')
 
     return statistics
 
