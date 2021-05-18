@@ -9,6 +9,7 @@ from pyDANDIA import plot_rms
 from pyDANDIA import pipeline_setup
 from pyDANDIA import config_utils
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
 import matplotlib.cm as cm
 from astropy import visualization
 from astropy.io import fits
