@@ -34,7 +34,7 @@ def upload_lightcurve(setup, payload, log=None):
 
             tom.delete_old_datafile_version(config, login, payload, existing_datafiles, log=log)
 
-        #tom.upload_datafile(config, login, payload, target_pk, target_groups, log=log)
+        tom.upload_datafile(config, login, payload, target_pk, target_groups, log=log)
 
         if close_log_file:
             logs.close_log(log)
