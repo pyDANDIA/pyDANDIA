@@ -74,6 +74,7 @@ def list_dataproducts(config, login, payload, target_pk, log=None):
 
     existing_datafiles = {}
     for entry in response['results']:
+        print(path.basename(entry['data']),entry['target'],target_pk)
         if entry['target'] == target_pk:
             existing_datafiles[path.basename(entry['data'])] = entry['id']
 
