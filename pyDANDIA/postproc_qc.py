@@ -372,7 +372,7 @@ def test_plot_lcs(setup, photometry, log):
             plt.plot(post_lc[:,0]-2450000.0,post_lc[:,1],'k.')
 
         badidx = np.where(post_lc[:,3] != 0)[0]
-
+        print(star+1, badidx)
         if len(badidx) > 0:
             if with_errors:
                 plt.errorbar(post_lc[badidx,0]-2450000.0,post_lc[badidx,1],
