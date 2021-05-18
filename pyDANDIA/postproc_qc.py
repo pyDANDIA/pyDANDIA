@@ -11,6 +11,7 @@ from pyDANDIA import config_utils
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 from astropy import visualization
+from astropy.io import fits
 import glob
 
 def run_postproc(setup, **params):
