@@ -339,7 +339,6 @@ def test_plot_lcs(setup, photometry, log):
     for star in test_star_idxs:
         idx = np.where(phot_data[star,:,9] > 0)[0]
         star_valid_data = phot_data[star,idx,:]
-        import pdb; pdb.set_trace()
         init_lcs.append( star_valid_data[:,[9,13,14]].T )
         post_lcs.append( star_valid_data[:,[9,23,24,25]].T )
         #idx = np.where(lc[:,3] == 0)[0]
