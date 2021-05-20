@@ -339,8 +339,8 @@ def test_plot_lcs(setup, photometry, log):
     for star in test_star_idxs:
         idx = np.where(phot_data[star,:,9] > 0)[0]
         star_valid_data = phot_data[star,idx,:]
-        init_lcs.append( star_valid_data[:,[9,13,14]].T )
-        post_lcs.append( star_valid_data[:,[9,23,24,25]].T )
+        init_lcs.append( star_valid_data[:,[9,13,14]] )
+        post_lcs.append( star_valid_data[:,[9,23,24,25]] )
         #idx = np.where(lc[:,3] == 0)[0]
         #post_lcs.append( lc[idx,:] )
 
@@ -348,8 +348,6 @@ def test_plot_lcs(setup, photometry, log):
         init_lc = init_lcs[j]
         post_lc = post_lcs[j]
 
-        print('INIT: ',init_lc[:,0].min(), init_lc[:,0].max())
-        print('POST: ',post_lc[:,0].min(), post_lc[:,0].max())
         fig = plt.figure(1,(10,10))
         mean_mag = init_lc[:,1].mean()
         ymin2 = mean_mag + 1.0
