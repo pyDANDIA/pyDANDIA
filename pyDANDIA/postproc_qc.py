@@ -349,7 +349,8 @@ def test_plot_lcs(setup, photometry, log):
         post_lc = post_lcs[j]
 
         fig = plt.figure(1,(10,10))
-        mean_mag = init_lc[:,1].mean()
+        idx = np.where(init_lc[:,1] > 0.0)
+        mean_mag = init_lc[idx,1].mean()
         ymin2 = mean_mag + 1.0
         ymax2 = mean_mag - 1.0
         with_errors = True
