@@ -330,7 +330,7 @@ def apply_image_mag_correction(params, image_residuals, photometry, log, phot_co
 
 def test_plot_lcs(setup, photometry, log):
 
-    test_star_idxs = [30001, 78283, 109708, 120495, 166501]
+    test_star_idxs = [30001, 78283, 79529, 109708, 120495, 166501]
 
     phot_data = np.ma.getdata(photometry)
 
@@ -349,49 +349,48 @@ def test_plot_lcs(setup, photometry, log):
         post_lc = post_lcs[j]
 
         fig = plt.figure(1,(10,10))
-        idx = np.where(init_lc[:,1] > 0.0)
-        mean_mag = init_lc[idx,1].mean()
-        ymin2 = mean_mag + 1.0
-        ymax2 = mean_mag - 1.0
-        with_errors = True
-        if with_errors:
-            plt.errorbar(init_lc[:,0]-2450000.0,init_lc[:,1],
-                    yerr=init_lc[:,2],
-                    color='k', fmt='none')
-        else:
-            plt.plot(init_lc[:,0]-2450000.0,init_lc[:,1],'k.')
-        plt.xlabel('HJD-2450000.0')
-        plt.ylabel('Mag')
-        plt.title('Star '+str(star+1))
-        (xmin,xmax,ymin1,ymax1) = plt.axis()
-        plt.axis([xmin,xmax,ymin2,ymax2])
-        plt.savefig(path.join(setup.red_dir,'test_lightcurve_init_'+str(star+1)+'.png'))
-        plt.close(1)
-
-        fig = plt.figure(2,(10,10))
-        if with_errors:
-            plt.errorbar(post_lc[:,0]-2450000.0,post_lc[:,1],
-                    yerr=post_lc[:,2],
-                    color='k', fmt='none')
-        else:
-            plt.plot(post_lc[:,0]-2450000.0,post_lc[:,1],'k.')
-
-        badidx = np.where(post_lc[:,3] != 0)[0]
-
-        if len(badidx) > 0:
+        idx = np.where(init_lc[:,1] > 0.0)[0]
+        if len(idx) > 0:
+            mean_mag = init_lc[idx,1].mean()
+            ymin2 = mean_mag + 1.0
+            ymax2 = mean_mag - 1.0
+            with_errors = True
             if with_errors:
-                plt.errorbar(post_lc[badidx,0]-2450000.0,post_lc[badidx,1],
-                        yerr=post_lc[badidx,2],color='m', fmt='none')
+                plt.errorbar(init_lc[:,0]-2450000.0,init_lc[:,1],
+                        yerr=init_lc[:,2],
+                        color='k', fmt='none')
             else:
-                plt.plot(post_lc[badidx,0]-2450000.0,post_lc[badidx,1],'m.')
+                plt.plot(init_lc[:,0]-2450000.0,init_lc[:,1],'k.')
+            plt.xlabel('HJD-2450000.0')
+            plt.ylabel('Mag')
+            plt.title('Star '+str(star+1))
+            (xmin,xmax,ymin1,ymax1) = plt.axis()
+            plt.axis([xmin,xmax,ymin2,ymax2])
+            plt.savefig(path.join(setup.red_dir,'test_lightcurve_init_'+str(star+1)+'.png'))
+            plt.close(1)
 
-        plt.xlabel('HJD-2450000.0')
-        plt.ylabel('Mag')
-        plt.title('Star '+str(star+1))
-        (xmin,xmax,ymin1,ymax1) = plt.axis()
-        plt.axis([xmin,xmax,ymin2,ymax2])
-        plt.savefig(path.join(setup.red_dir,'test_lightcurve_post_'+str(star+1)+'.png'))
-        plt.close(2)
+            fig = plt.figure(2,(10,10))
+            if with_errors:
+                plt.errorbar(post_lc[:,0]-2450000.0,post_lc[:,1],
+                        yerr=post_lc[:,2],
+                        color='k', fmt='none')
+            else:
+                plt.plot(post_lc[:,0]-2450000.0,post_lc[:,1],'k.')
+            badidx = np.where(post_lc[:,3] != 0)[0]
+
+            if len(badidx) > 0:
+                if with_errors:
+                    plt.errorbar(post_lc[badidx,0]-2450000.0,post_lc[badidx,1],
+                            yerr=post_lc[badidx,2],color='r', fmt='none')
+                plt.plot(post_lc[badidx,0]-2450000.0,post_lc[badidx,1],'r.')
+
+            plt.xlabel('HJD-2450000.0')
+            plt.ylabel('Mag')
+            plt.title('Star '+str(star+1))
+            (xmin,xmax,ymin1,ymax1) = plt.axis()
+            plt.axis([xmin,xmax,ymin2,ymax2])
+            plt.savefig(path.join(setup.red_dir,'test_lightcurve_post_'+str(star+1)+'.png'))
+            plt.close(2)
 
     log.info('Plotted test star lightcurves')
 

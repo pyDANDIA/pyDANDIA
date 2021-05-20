@@ -135,6 +135,9 @@ def test_dataset_timeseries_photometry(meta, xmatch):
                     star['cal_ref_mag'] + np.random.standard_normal()*0.001,\
                     star['cal_ref_mag_error'] + np.random.standard_normal()*0.00001, \
                     0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+            data.append(data[13])
+            data.append(data[14])
+            data.append(0.0)
             image_data.append(data)
         photometry.append(image_data)
 
@@ -267,7 +270,7 @@ def test_init_field_data_table():
 
     photometry = field_photometry.init_field_data_table(xmatch, log)
 
-    assert(type(photometry) == type([]))
+    assert(type(photometry) == type(np.array([])))
     logs.close_log(log)
 
 def test_populate_images_table():
@@ -352,9 +355,9 @@ def test_populate_stars_table():
     mag_error_column = 'cal_'+filter_name+'_magerr_'+dataset_id
 
     assert(field_array_idx == dataset_array_idx).all()
-    for j in range(0,nstars,1):
-        assert(xmatch.stars[mag_column][j] == star_catalog[j,9])
-        assert(xmatch.stars[mag_error_column][j] == star_catalog[j,10])
+    for j in range(0,len(xmatch.stars),1):
+        assert(xmatch.stars[mag_column][j] == meta.star_catalog[1]['cal_ref_mag'][j])
+        assert(xmatch.stars[mag_error_column][j] == meta.star_catalog[1]['cal_ref_mag_error'][j])
 
     logs.close_log(log)
 
@@ -375,6 +378,7 @@ def test_populate_photometry_array():
     meta = test_stamps_table(meta)
     meta = test_data_architecture(meta)
     meta = test_images_stats(meta)
+    meta = test_reduction_status(meta)
 
     # Image table must be populated before the timeseries can be generated
     (xmatch, dataset_image_idx) = field_photometry.populate_images_table(xmatch.datasets[0], meta, xmatch, log)
@@ -503,10 +507,10 @@ def test_populate_stamps_table():
     logs.close_log(log)
 
 if __name__ == '__main__':
-    #test_init_field_data_table()
+    test_init_field_data_table()
     test_populate_images_table()
-    #test_populate_stars_table()
-    #test_populate_photometry_array()
-    #test_build_array_index_3D()
-    #test_update_array_col_index()
-    #test_populate_stamps_table()
+    test_populate_stars_table()
+    test_populate_photometry_array()
+    test_build_array_index_3D()
+    test_update_array_col_index()
+    test_populate_stamps_table()

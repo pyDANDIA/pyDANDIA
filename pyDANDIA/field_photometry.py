@@ -163,7 +163,9 @@ def populate_photometry_array(field_star_index, dataset_star_index,
 
     # Update the array indices to refer to the photometry columns, and
     # transfer those data as well
-    column_index = [(1,11),(2,12),(3,13),(4,14),(7,19),(8,20),(10,21),(11,22),(12,7),(13,8)]
+    # inst_mag, inst_mag_err, cal_mag, cal_mag_err, corr_mag, corr_mag_err,
+    # ps, ps_err, bkgd, bkgd_err, res_x, res_y, qc_flag
+    column_index = [(1,11),(2,12),(3,13),(4,14),(5,23),(6,24),(7,19),(8,20),(10,21),(11,22),(12,7),(13,8),(14,25)]
     for column in column_index:
         phot_index = update_array_col_index(phot_index, column[0])
         data_index = update_array_col_index(data_index, column[1])
