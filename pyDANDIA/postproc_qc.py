@@ -70,11 +70,6 @@ def run_postproc(setup, **params):
     # Re-calculate mean_mag, RMS for all stars, using corrected magnitudes
     phot_stats = plot_rms.calc_mean_rms_mag(photometry,log,'corrected')
     phot_stats = mask_photometry_stats(phot_stats, log)
-    plot_rms.plot_rms(phot_stats, params, log,
-                    plot_file=path.join(setup.red_dir,'postproc_rms_mag.png'))
-    plot_rms.output_phot_statistics(phot_stats,
-                path.join(setup.red_dir,'postproc_rms_mag.txt'),
-                log)
 
     # Re-calculate photometric residuals
     phot_residuals = calc_phot_residuals(photometry, phot_stats, log, 'corrected')
@@ -86,6 +81,11 @@ def run_postproc(setup, **params):
     # Factor photometric scatter into photometric residuals
     photometry = apply_image_merr_correction(photometry, image_residuals, log, 'corrected')
     phot_stats = plot_rms.calc_mean_rms_mag(photometry,log,'corrected')
+    plot_rms.plot_rms(phot_stats, params, log,
+                    plot_file=path.join(setup.red_dir,'postproc_rms_mag.png'))
+    plot_rms.output_phot_statistics(phot_stats,
+                path.join(setup.red_dir,'postproc_rms_mag.txt'),
+                log)
 
     # Set quality control flags to indicate suspect data points in photometry array
     # Replaced with a bitmask
@@ -612,6 +612,7 @@ def plot_dimage_statistics(params,dimage_stats,diff_images):
 
     plt.tight_layout()
     plt.savefig(path.join(params['red_dir'], 'diff_image_statistics.png'), )
+    plt.close()
 
 def mirror_mag_columns(photometry, phot_columns, log):
 
