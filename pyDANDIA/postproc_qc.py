@@ -365,8 +365,6 @@ def test_plot_lcs(setup, photometry, log):
         plt.title('Star '+str(star+1))
         (xmin,xmax,ymin1,ymax1) = plt.axis()
         plt.axis([xmin,xmax,ymin2,ymax2])
-
-        import pdb; pdb.set_trace()
         plt.savefig(path.join(setup.red_dir,'test_lightcurve_init_'+str(star+1)+'.png'))
         plt.close(1)
 
