@@ -98,7 +98,7 @@ def run_postproc(setup, **params):
     # Ouput updated photometry
     output_revised_photometry(setup, photometry, log)
 
-    test_plot_lcs(setup, photometry, log)
+    #test_plot_lcs(setup, photometry, log)
 
     log.info('Post-processing: complete')
 
