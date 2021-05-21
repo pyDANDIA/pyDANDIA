@@ -178,9 +178,7 @@ def starfind(setup, path_to_image, reduction_metadata, plot_it=False,
     # Write steps to a log file
     if log != None:
         log.info("Identifying sources on image %s ...\n" % path_to_image.split('/')[-1])
-        log.info("Found %s sources.\n" % str(len(sources)))
-
-        if len(sources) == 0:
+        if  (sources is None)  :
 
             status = 'ERROR'
             report = 'Insufficient number of sources found. Stopping execution.'
@@ -194,6 +192,8 @@ def starfind(setup, path_to_image, reduction_metadata, plot_it=False,
             log.info('WARNING: Too few sources detected on image.')
 
         else:
+
+            log.info("Found %s sources.\n" % str(len(sources)))
 
             log.info('Using best sources to determine FWHM (up to 30).')
 

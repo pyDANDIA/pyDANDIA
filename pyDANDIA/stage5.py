@@ -743,8 +743,7 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
         if warp_matrix.shape != (3,3):
             warp_matrix = tf.PolynomialTransform(warp_matrix)
         resample_image = stage4.warp_image(data_image,warp_matrix)
-
-
+        
         try:
 
 
@@ -798,16 +797,19 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
 #                #                                              bal_mask_extended, kernel_size, max_adu,
 #                #                                              xshift=x_shift, yshift=y_shift, sigma_smooth=smoothing,
 #                #                                              central_crop=maxshift)
+                
                 #import pdb; pdb.set_trace()
-                warp_matrix =  np.load(os.path.join(stamps_directory, 'warp_matrice_stamp_'+str(stamp)+'.npy'))
-                if warp_matrix.shape != (3,3):
-                    warp_matrix = tf.PolynomialTransform(warp_matrix)
+                warp_matrix2 =  np.load(os.path.join(stamps_directory, 'warp_matrice_stamp_'+str(stamp)+'.npy'))
+                if warp_matrix2.shape != (3,3):
+                    warp_matrix2 = tf.PolynomialTransform(warp_matrix2)
 
-                img = stage4.warp_image(img,warp_matrix)
+                img = stage4.warp_image(img,warp_matrix2)
 
-
-
-                data_image, data_image_unmasked = mask_the_image(img,max_adu,bal_mask_extended,kernel_size)
+                #tot_warp = np.dot(warp_matrix2,warp_matrix)
+                #resample_image = stage4.warp_image(data_image,tot_warp)
+                #img_new = resample_image[ymin:ymax, xmin:xmax]
+               
+                data_image, data_image_unmasked,bkg_image = mask_the_image(img,max_adu,bal_mask_extended,kernel_size)
     
 
 
@@ -858,7 +860,11 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
                 except:
                     pass
                 difference_image_hdu.writeto(os.path.join(diffim_directory, 'diff_stamp_' + str(stamp) + '.fits'), overwrite=True)
-
+                
+                bkg_image_hdu = fits.PrimaryHDU(bkg_image)
+                bkg_image_hdu.writeto(os.path.join(diffim_directory, 'diff_back_stamp_' + str(stamp) + '.fits'), overwrite=True)
+                
+                
                 pscales.append(pscale)
                 pscales_err.append(pscale_err)
                 medians_sky.append(median_sky)

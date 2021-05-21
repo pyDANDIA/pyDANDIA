@@ -285,7 +285,7 @@ def run_reference_astrometry(setup, **kwargs):
                     idx2 = int(matched_stars_gaia.cat2_index[j])
 
                     log.info('Detected source '+str(idx1)+' '+str(detected_sources['ra'][idx1])+' '+str(detected_sources['dec'][idx1])+\
-                        ' matched to Gaia source '+str(idx2)+' '+gaia_sources['source_id'][idx2]+' '+str(gaia_sources['ra'][idx2])+' '+str(gaia_sources['dec'][idx2]))
+                        ' matched to Gaia source '+str(idx2)+' '+str(gaia_sources['source_id'][idx2])+' '+str(gaia_sources['ra'][idx2])+' '+str(gaia_sources['dec'][idx2]))
 
 
         ref_source_catalog = wcs.build_ref_source_catalog(detected_sources,\
