@@ -235,7 +235,6 @@ def calc_ps_qc_factor(reduction_metadata,photometry_data,log):
 def output_lightcurve(params, reduction_metadata, photometry_data, star_dataset_id, format,
 					  valid_data_only, phot_error_threshold, psfactor_threshold, log):
 
-	print(params)
 	image_list = reduction_metadata.headers_summary[1]['IMAGES'].data
 	date_list = reduction_metadata.headers_summary[1]['DATEKEY'].data
 	image_ts = []
