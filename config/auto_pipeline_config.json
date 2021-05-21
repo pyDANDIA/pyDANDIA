@@ -77,6 +77,12 @@
       "format": "float",
       "unit": "mag"
   },
+  "psfactor_threshold": {
+      "value": 0.8,
+      "comment": "Quality control threshold for pscale/exptime",
+      "format": "float",
+      "unit": ""
+  },
   "awsid": {
     "value": "roboarchiver",
     "comment": "Default UID for upload to AWS",

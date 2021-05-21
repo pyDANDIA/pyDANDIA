@@ -66,11 +66,12 @@ def list_dataproducts(config, login, payload, target_pk, log=None):
 
     dataupload_url = concat_urls(config['tom_url'],config['dataproducts_endpoint'])
 
-    ur = {'target': target_pk, 'data_product_type': 'photometry'}
+    #ur = {'target': target_pk, 'data_product_type': 'photometry', 'page_size': 99999}
+    ur = {'data_product_type': 'photometry', 'limit': 99999}
 
     # List endpoint does not currently support queries specific to target ID
     #response = requests.get(dataupload_url, params=ur, auth=login).json()
-    response = requests.get(dataupload_url, auth=login).json()
+    response = requests.get(dataupload_url, params=ur, auth=login).json()
 
     existing_datafiles = {}
     for entry in response['results']:
@@ -94,7 +95,7 @@ def delete_old_datafile_version(config, login, payload, existing_datafiles, log=
     # Due to automatic suffixes added by the data ingest processor, the only
     # way to identify datasets from the same telescope is the first
     # section of the filename, which must be distinctively named.
-    filename = path.basename(payload['file_path']).split('.')[0]
+    #filename = path.basename(payload['file_path']).split('.')[0]
     file_pk = None
     dataupload_url = concat_urls(config['tom_url'], config['dataproducts_endpoint'])
 
@@ -102,7 +103,7 @@ def delete_old_datafile_version(config, login, payload, existing_datafiles, log=
         log.info('Searching TOM system for previous similar datafiles')
 
     for fname, id in existing_datafiles.items():
-        if filename in fname:
+        if payload['search_string'] in fname:
             file_pk = id
             delete_data_url = concat_urls(dataupload_url,str(file_pk))
             response = requests.delete(delete_data_url, auth=login)

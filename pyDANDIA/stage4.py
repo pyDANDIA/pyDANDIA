@@ -755,7 +755,13 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
 
         data_image_hdu = fits.open(image_path, memmap=True)
         data_image = np.copy(data_image_hdu[image_structure['sci']].data)
-        mask_image = np.array(data_image_hdu[image_structure['pyDANDIA_pixel_mask']].data, dtype=float)
+
+
+        if image_structure['pyDANDIA_pixel_mask'] != None:
+            mask_image = np.array(data_image_hdu[image_structure['pyDANDIA_pixel_mask']].data, dtype=float)
+        else:
+            mask_image = np.zeros(data_image.shape)
+
 
         mask_status = quality_control.verify_mask_statistics(reduction_metadata,new_image,mask_image, log)
        
@@ -797,13 +803,14 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
 
                     model_robust, inliers = ransac((pts_reference2[:5000, :2] , pts_data[:5000, :2] ), tf.AffineTransform,
                                                    min_samples=min(50, int(0.1 * len(pts_data[:5000]))),
-                                                   residual_threshold=0.1, max_trials=1000)
+                                                   residual_threshold=1, max_trials=1000)
 
                     A = polyfit2d(pts_reference2[:,0][:5000][inliers], pts_reference2[:,1][:5000][inliers], pts_data[:,0][:5000][inliers], order=3,errors=e_pos_ref[:5000][inliers]/2**0.5)
                     B = polyfit2d(pts_reference2[:,0][:5000][inliers], pts_reference2[:,1][:5000][inliers], pts_data[:,1][:5000][inliers], order=3,errors=e_pos_ref[:5000][inliers]/2**0.5)
                     C = tf.PolynomialTransform(np.r_[[A],[B]])
 
-                    
+
+
                     if len(pts_data[:5000][inliers])<10:
                         raise ValueError("Not enough matching stars! Switching to translation")
            
@@ -816,7 +823,7 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
                     log.info(' -> Using XY shifts')
                 try:
 
-                   
+
 
                     shifted = tf.warp(data_image/data_image.max(), inverse_map=model_final, output_shape=data_image.shape, order=3,mode='constant', cval=0, clip=True, preserve_range=True)*data_image.max()
 
@@ -861,17 +868,16 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
                     shifts, errors, phasedifff = phase_cross_correlation(sub_ref,img,upsample_factor=10)
 
 
-                    
+
 
 
                     stamp_mask = (ref_sources['xcentroid']<xmax) & (ref_sources['xcentroid']>xmin ) &\
                                  (ref_sources['ycentroid']<ymax) & (ref_sources['ycentroid']>ymin )
-                    
+
                     ref_stamps = ref_sources[stamp_mask]
                     ref_stamps['xcentroid'] -= xmin
                     ref_stamps['ycentroid'] -= ymin
 
-                    
                     data_stamps, stamps_fwhm = extract_catalog(reduction_metadata, img, row_index, log)
                    
                     init_transform =rot_scale_translate(sub_ref,img)
@@ -973,10 +979,10 @@ def reformat_catalog2(ref_catalog, data_catalog, distance_threshold=1.5):
         
             if (ind not in matching_ref):
                 pts1.append(values)
-
                 pts2.append(ref_catalog[ind])
                 matching.append([ind, idx])
                 matching_ref.append(ind)
+                
     pts1 = np.array(pts1)
     pts2 = np.array(pts2)
     matching = np.array(matching)

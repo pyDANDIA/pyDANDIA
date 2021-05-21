@@ -708,9 +708,7 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
                     flux_tot = ref_flux*ref_exposure_time - flux
                     flux_err_tot = (error_ref_flux ** 2*ref_exposure_time + flux_err**2/phot_scale_factor**2+
                                     (flux*error_phot_scale_factor/phot_scale_factor**2)**2) ** 0.5
-                    #if j==1689:
-                        #import pdb; pdb.set_trace()
-
+                
                     if per_star_logging:
                         log.info(' -> Star ' + str(j) + ' at position (' + \
                                    str(xstar) + ', ' + str(ystar) + ') flux='+str(flux)+', flux_err='+str(flux_err)+\
