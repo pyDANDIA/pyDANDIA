@@ -123,12 +123,21 @@ def get_args():
             params[key] = None
 
     params['set_phot_calib'] = False
-    params['a0'] = 0.0
-    params['a1'] = 0.0
+    params['a0'] = None
+    params['a1'] = None
     params['use_gaia_phot'] = False
     for a in sys.argv:
         if '-use-gaia-phot' in a or '-use_gaia_phot' in a:
             params['use_gaia_phot'] = True
+        if '-set-phot-calib' in a or '-set_phot_calib' in a:
+            params['set_phot_calib'] = True
+        if '-a0' in a:
+            params['a0'] = float(str(a).split('=')[-1])
+        if '-a1' in a:
+            params['a1'] = float(str(a).split('=')[-1])
+
+    if params['set_phot_calib'] and (params['a0'] == None or params['a1'] == None):
+        raise ValueError('Set photometric calibration flag set to True but no coefficients provided')
 
     return params
 

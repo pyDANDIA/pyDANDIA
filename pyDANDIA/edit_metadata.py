@@ -3,6 +3,8 @@ import sys
 from pyDANDIA import metadata
 from astropy.io import fits
 import numpy as np
+import copy
+import shutil
 
 def modify_red_status_table(red_dir):
 
@@ -65,8 +67,8 @@ def edit_image_reduction_status(red_dir):
     reduction_metadata.load_all_metadata(red_dir, 'pyDANDIA_metadata.fits')
 
     if len(sys.argv) > 2:
-        image_name = sys.argv[2]
-        status = sys.argv[3]
+        image_name = sys.argv[3]
+        status = sys.argv[4]
     else:
         image_name = input('Please enter the name of the image whose status you want to edit: ')
         status = input('Please enter, in list format, the updated status of this image in all stages (e.g. [0,0,0,0,0,0,0,0]): ')
@@ -84,14 +86,95 @@ def edit_image_reduction_status(red_dir):
 
     reduction_metadata.save_updated_metadata(red_dir,'pyDANDIA_metadata.fits')
 
+def update_software_table(red_dir):
+
+    reduction_metadata = metadata.MetaData()
+    reduction_metadata.load_all_metadata(red_dir, 'pyDANDIA_metadata.fits')
+
+    reduction_metadata.update_a_cell_to_layer('software', 0, 'stage3_version', 'pyDANDIA_stage3_v1.0.0')
+    reduction_metadata.update_a_cell_to_layer('software', 0, 'stage6_version', 'pyDANDIA_stage6_v1.0.0')
+
+    reduction_metadata.save_updated_metadata(red_dir,'pyDANDIA_metadata.fits')
+
+def remove_table(red_dir):
+
+    table_names = input('Please enter the name of the table extension to remove (comma-separated, no spaces): ')
+
+    table_names = table_names.split(',')
+
+    reduction_metadata = metadata.MetaData()
+    reduction_metadata.load_all_metadata(red_dir, 'pyDANDIA_metadata.fits')
+
+    meta2 = copy.deepcopy(reduction_metadata)
+    shutil.move(os.path.join(red_dir, 'pyDANDIA_metadata.fits'),os.path.join(red_dir, 'pyDANDIA_metadata.fits.old'))
+
+    for table in table_names:
+        meta2.remove_metadata_layer(table, red_dir, 'pyDANDIA_metadata.fits')
+
+    # This re-writes the file because the metadata's built-in function
+    # does not remove a table - it can only update the contents of an existing
+    # table
+    hdulist = [fits.PrimaryHDU()]
+    all_layers = meta2.__dict__.keys()
+    for key_layer in all_layers:
+        layer = getattr(meta2, key_layer)
+        if layer != [None, None]:
+            update_layer = fits.BinTableHDU(layer[1], header=layer[0])
+            update_layer.name = update_layer.header['name']
+            hdulist.append(update_layer)
+
+    hdulist = fits.HDUList(hdulist)
+    hdulist.writeto(os.path.join(red_dir, 'pyDANDIA_metadata.fits'),
+                     overwrite=True)
+
+    print('Output revised metadata')
+
+def change_reduction_dir(red_dir):
+
+    new_red_dir = input('Please enter the new reduction directory path: ')
+
+    reduction_metadata = metadata.MetaData()
+    reduction_metadata.load_all_metadata(red_dir, 'pyDANDIA_metadata.fits')
+
+    reduction_metadata.update_a_cell_to_layer('data_architecture', 0, 'OUTPUT_DIRECTORY', new_red_dir)
+    reduction_metadata.update_a_cell_to_layer('data_architecture', 0, 'IMAGES_PATH', os.path.join(new_red_dir,'data'))
+    reduction_metadata.update_a_cell_to_layer('data_architecture', 0, 'REF_PATH', os.path.join(new_red_dir,'ref'))
+    reduction_metadata.update_a_cell_to_layer('data_architecture', 0, 'KERNEL_PATH', os.path.join(new_red_dir,'kernel'))
+    reduction_metadata.update_a_cell_to_layer('data_architecture', 0, 'DIFFIM_PATH', os.path.join(new_red_dir,'diffim'))
+
+    reduction_metadata.save_updated_metadata(red_dir,'pyDANDIA_metadata.fits')
+
 if __name__ == '__main__':
     if len(sys.argv) == 1:
         red_dir = input('Please enter the path to the reduction directory: ')
+        print("""Main menu:
+                Modify reduction status table        1
+                Modify reduction parameters          2
+                Modify headers summary               3
+                Restore PSF dimensions table         4
+                Edit image reduction status          5
+                Update software table                6
+                Remove a table                       7
+                Change a reduction directory         8
+                Cancel                               Any other key""")
+        opt = input('Please select an option: ')
     else:
         red_dir = sys.argv[1]
+        opt = sys.argv[2]
 
-    #modify_red_status_table(red_dir)
-    #modify_reduction_parameters(red_dir)
-    #modify_headers_summary(red_dir)
-    #restore_psf_dimensions_table(red_dir)
-    edit_image_reduction_status(red_dir)
+    if opt == '1':
+        modify_red_status_table(red_dir)
+    elif opt == '2':
+        modify_reduction_parameters(red_dir)
+    elif opt == '3':
+        modify_headers_summary(red_dir)
+    elif opt == '4':
+        restore_psf_dimensions_table(red_dir)
+    elif opt == '5':
+        edit_image_reduction_status(red_dir)
+    elif opt == '6':
+        update_software_table(red_dir)
+    elif opt == '7':
+        remove_table(red_dir)
+    elif opt == '8':
+        change_reduction_dir(red_dir)

@@ -39,6 +39,7 @@ from pyDANDIA import stage3_db_ingest
 from pyDANDIA import hd5_utils
 from pyDANDIA import image_handling
 from pyDANDIA import match_utils
+from pyDANDIA import plot_rms
 
 def run_stage6(setup, **kwargs):
     """Main driver function to run stage 6: image substraction and photometry.
@@ -50,7 +51,7 @@ def run_stage6(setup, **kwargs):
 
     """
 
-    stage6_version = 'stage6 v0.10.0'
+    stage6_version = 'pyDANDIA_stage6_v1.3.0'
 
     log = logs.start_stage_log(setup.red_dir, 'stage6', version=stage6_version)
     log.info('Setup:\n' + setup.summary() + '\n')
@@ -60,6 +61,7 @@ def run_stage6(setup, **kwargs):
     # find the metadata
     reduction_metadata = metadata.MetaData()
     reduction_metadata.load_all_metadata(setup.red_dir, 'pyDANDIA_metadata.fits')
+    reduction_metadata.expand_headers_summary_layer()
 
     dataset_params = harvest_stage6_parameters(setup,kwargs,reduction_metadata,stage6_version)
 
@@ -221,6 +223,8 @@ def run_stage6(setup, **kwargs):
             image_params['version'] = stage6_version
             image_params['facility'] = dataset_params['facility']
             image_params['filter'] = dataset_params['filter']
+            reduction_metadata.headers_summary[1]['HJD'][index_image] = image_params['hjd']
+            reduction_metadata.headers_summary[1]['AIRMASS'][index_image] = image_params['airmass']
 
             if kwargs['build_phot_db']:
                 db_phot.check_before_commit(conn, image_params, 'facilities', facility_keys, 'facility_code')
@@ -312,6 +316,9 @@ def run_stage6(setup, **kwargs):
             log=log)
 
     hd5_utils.write_phot_hd5(setup,photometry_data,log=log)
+
+    phot_statistics = plot_rms.calc_mean_rms_mag(photometry_data,log)
+    plot_rms.plot_rms(phot_statistics, {'red_dir': setup.red_dir}, log)
 
     if conn != None:
         conn.close()
@@ -1145,7 +1152,6 @@ def store_stamp_photometry_to_array(setup, conn, params, reduction_metadata,
     # The index of the data from a given image corresponds to the index of that
     # image in the metadata
     image_dataset_index = np.where(new_image == reduction_metadata.headers_summary[1]['IMAGES'].data)[0][0]
-    #image_dataset_index = image_dataset_id - 1
 
     star_dataset_ids = np.array(phot_table['star_id'].data)
     star_dataset_ids = star_dataset_ids.astype('float')
@@ -1158,6 +1164,8 @@ def store_stamp_photometry_to_array(setup, conn, params, reduction_metadata,
             f.write(str(s)+'\n')
         f.close()
 
+    # At this stage, the matched_stars index contains star ID numbers corresponding
+    # to the dataset stage_catalog IDs
     log.info('Starting match index search for '+str(len(star_dataset_ids))+' stars')
     (star_dataset_ids, star_field_ids) = matched_stars.find_starlist_match_ids('cat2_index', star_dataset_ids, log,
                                                                                 verbose=True)

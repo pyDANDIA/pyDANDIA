@@ -230,7 +230,6 @@ def calc_ps_qc_factor(reduction_metadata,photometry_data,log):
 def output_lightcurve(params, reduction_metadata, photometry_data, star_dataset_id, format,
 					  valid_data_only, phot_error_threshold, psfactor_threshold, log):
 
-	print(params)
 	image_list = reduction_metadata.headers_summary[1]['IMAGES'].data
 	date_list = reduction_metadata.headers_summary[1]['DATEKEY'].data
 	image_ts = []
@@ -250,7 +249,7 @@ def output_lightcurve(params, reduction_metadata, photometry_data, star_dataset_
 		if 'suffix' in params.keys():
 			lc_file = lc_file.replace('.dat','_'+str(params['suffix'])+'.dat')
 		datafile = open(lc_file,'w')
-		datafile.write('# HJD    Instrumental mag, mag_error   Calibrated mag, mag_error\n')
+		datafile.write('# HJD    Instrumental mag, mag_error   Calibrated mag, mag_error    Corrected mag, mag_error  QC Flag\n')
 
 		for i in time_order:
 			if valid_data_only:
@@ -260,7 +259,8 @@ def output_lightcurve(params, reduction_metadata, photometry_data, star_dataset_
 					datafile.write(str(photometry_data['hjd'][i])+'  '+\
 					str(photometry_data['instrumental_mag'][i])+'  '+str(photometry_data['instrumental_mag_err'][i])+'  '+\
 					str(photometry_data['calibrated_mag'][i])+'  '+str(photometry_data['calibrated_mag_err'][i])+' '+\
-					str(image_list[i])+'\n')
+						str(photometry_data['corrected_mag'][i])+'  '+str(photometry_data['corrected_mag_err'][i])+' '+\
+						str(photometry_data['qc_flag'][i])+'\n')
 				else:
 					log.info('-> Datapoint '+str(i)+' filtered out in quality control: mag='+str(photometry_data['instrumental_mag'][i])+
 							' mag_error='+str(photometry_data['instrumental_mag_err'][i])+', cf phot_error_threshold='+str(phot_error_threshold)+\
@@ -269,7 +269,8 @@ def output_lightcurve(params, reduction_metadata, photometry_data, star_dataset_
 				datafile.write(str(photometry_data['hjd'][i])+'  '+\
 				str(photometry_data['instrumental_mag'][i])+'  '+str(photometry_data['instrumental_mag_err'][i])+'  '+\
 				str(photometry_data['calibrated_mag'][i])+'  '+str(photometry_data['calibrated_mag_err'][i])+' '+\
-				str(image_list[i])+'\n')
+				str(photometry_data['corrected_mag'][i])+'  '+str(photometry_data['corrected_mag_err'][i])+' '+\
+				str(photometry_data['qc_flag'][i])+'\n')
 
 		datafile.close()
 		lc_file_list.append(lc_file)
@@ -446,7 +447,16 @@ def fetch_photometry_for_isolated_dataset(params, star_dataset_id, log):
 	star_dataset_index = star_dataset_id - 1
 
 	log.info('Star array index: '+str(star_dataset_index))
-	photometry_data = dataset_photometry[star_dataset_index,:,:]
+
+	if dataset_photometry.shape[2] == 26:
+		corr_mags = table.Column(name='corrected_mag', data=dataset_photometry[star_dataset_index,:,23])
+		corr_merr = table.Column(name='corrected_mag_err', data=dataset_photometry[star_dataset_index,:,24])
+		qc_flag = table.Column(name='qc_flag', data=dataset_photometry[star_dataset_index,:,25])
+	else:
+		nimages = len(dataset_photometry[star_dataset_index,:,23])
+		corr_mags = table.Column(name='corrected_mag', data=np.zeros(nimages))
+		corr_merr = table.Column(name='corrected_mag_err', data=np.zeros(nimages))
+		qc_flag = table.Column(name='qc_flag', data=np.zeros(nimages))
 
 	photometry_data = table.Table( [ table.Column(name='hjd', data=dataset_photometry[star_dataset_index,:,9]),
 									 table.Column(name='instrumental_mag', data=dataset_photometry[star_dataset_index,:,11]),
@@ -455,7 +465,7 @@ def fetch_photometry_for_isolated_dataset(params, star_dataset_id, log):
 									  table.Column(name='calibrated_mag_err', data=dataset_photometry[star_dataset_index,:,14]),
  									  table.Column(name='pscale', data=dataset_photometry[star_dataset_index,:,19]),
  									  table.Column(name='pscale_err', data=dataset_photometry[star_dataset_index,:,20]),
-									  ] )
+									  corr_mags, corr_merr, qc_flag] )
 
 	return photometry_data
 

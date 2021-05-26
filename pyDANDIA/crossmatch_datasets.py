@@ -16,59 +16,63 @@ def build_crossmatch_table(params):
     log = logs.start_stage_log( params['log_dir'], 'crossmatch' )
 
     xmatch = crossmatch.CrossMatchTable()
-    test_xmatch = crossmatch.CrossMatchTable()
+    xmatch.gaia_dr = params['gaia_dr']
 
-    # Load an existing crossmatch table, or create one if none exists.
-    # This initializes empty matched_stars tables for each dataset
-    if path.isfile(params['file_path']):
-        xmatch.load(params['file_path'])
-        log.info('Loaded existing crossmatch table from '+params['file_path'])
-    else:
-        xmatch.create(params)
-        log.info('Initialized new crossmatch table')
+    params = parse_dataset_list(params,log)
+
+    xmatch.create(params)
+    log.info('Initialized new crossmatch table')
 
     # Load the star catalog from the primary dataset's metadata:
     primary_metadata = metadata.MetaData()
-    primary_metadata.load_all_metadata(xmatch.datasets['primary_ref_dir'][0], 'pyDANDIA_metadata.fits')
-    log.info('Loaded primary reference metadata from '+xmatch.datasets['primary_ref_dir'][0])
+    primary_metadata.load_all_metadata(xmatch.primary_ref_dir, 'pyDANDIA_metadata.fits')
 
-    for i, red_dir in enumerate(params['red_dir_list']):
-        log.info('Performing cross-match with primary reference for dataset '+red_dir)
+    filter_id = find_dataset_filter(primary_metadata)
+    did = np.where(xmatch.datasets['dataset_code'] == xmatch.primary_ref_code)[0][0]
+    xmatch.datasets[did]['dataset_filter'] = filter_id
+    log.info('Loaded primary reference metadata from '+xmatch.primary_ref_dir)
 
-        setup = pipeline_setup.PipelineSetup()
-        setup.red_dir = red_dir
+    # Initialize the field index with the primary reference catalogue
+    xmatch.init_field_index(primary_metadata, filter_id)
+    log.info('Initialized new field index from the primary reference catalogue')
 
-        # Fetch the index of the current dataset in the table, or create an
-        # empty table for a new dataset being added to an existing table
-        dataset_idx = xmatch.dataset_index(red_dir)
-        if dataset_idx == -1:
-            dataset_idx = xmatch.add_dataset(red_dir, params['red_dataset_filters'][i])
-            log.info('Added '+path.basename(red_dir)+' to the crossmatch table')
-        log.info('Index of dataset in crossmatch table: '+str(dataset_idx))
+    # Loop over all other datasets
+    # Format: dataset_id: [reference status, red_dir path, filter]
+    for dataset_code, dataset_info in params['datasets'].items():
+        if dataset_code != xmatch.primary_ref_code:
+            log.info('Performing cross-match with primary reference for dataset '+dataset_code)
 
-        dataset_metadata = metadata.MetaData()
-        dataset_metadata.load_all_metadata(red_dir, 'pyDANDIA_metadata.fits')
-        log.info('Loaded dataset metadata')
+            setup = pipeline_setup.PipelineSetup()
+            setup.red_dir = dataset_info[1]
 
-        matched_stars = match_dataset_with_primary_reference(primary_metadata, dataset_metadata,
-                                                log,verbose=True)
+            dataset_metadata = metadata.MetaData()
+            dataset_metadata.load_all_metadata(setup.red_dir, 'pyDANDIA_metadata.fits')
+            log.info('Loaded dataset metadata')
 
-        (transform_xy,transform_sky) = calc_transform_to_primary_ref(setup,matched_stars,log)
+            filter_id = find_dataset_filter(dataset_metadata)
+            did = np.where(xmatch.datasets['dataset_code'] == dataset_code)[0][0]
+            xmatch.datasets[did]['dataset_filter'] = filter_id
 
-        # Output the matched_stars table to the dataset's own metadata:
-        dataset_metadata.create_matched_stars_layer(matched_stars)
-        dataset_metadata.create_transform_layer(transform_xy)
-        dataset_metadata.save_a_layer_to_file(red_dir,
-                                              'pyDANDIA_metadata.fits',
-                                              'matched_stars', log)
-        dataset_metadata.save_a_layer_to_file(red_dir,
-                                            'pyDANDIA_metadata.fits',
-                                            'transformation', log)
+            (matched_stars,orphans) = xmatch.match_dataset_with_field_index(dataset_metadata,
+                                                                      params, log)
 
-        # Update the appropriate matched_stars table in the crossmatch table:
-        xmatch.matched_stars[dataset_idx] = matched_stars
+            # Output the matched_stars table to the dataset's own metadata:
+            dataset_metadata.create_matched_stars_layer(matched_stars)
+            dataset_metadata.save_a_layer_to_file(setup.red_dir,
+                                                'pyDANDIA_metadata.fits',
+                                                'matched_stars', log)
 
-        log.info('Finished crossmatch for '+path.basename(red_dir))
+            # Update the field index with the matched stars data and the orphans
+            xmatch.update_field_index(dataset_code, matched_stars, orphans,
+                                      dataset_metadata, log)
+
+            # Populate the stamps table:
+            xmatch.record_dataset_stamps(dataset_code, dataset_metadata, log)
+
+            log.info('Finished crossmatch for '+dataset_code)
+
+    xmatch.assign_stars_to_quadrants()
+    xmatch.init_stars_table()
 
     # Output the full crossmatch table:
     xmatch.save(params['file_path'])
@@ -103,7 +107,7 @@ def match_dataset_with_primary_reference(primary_metadata, dataset_metadata,
             field_star = SkyCoord( star['ra'], star['dec'],
                                     frame='icrs', unit=(units.deg, units.deg) )
 
-            separation = dataset_star.separation(field_star)
+            separation = dataset_star.separation(repr(field_star))
 
             jj = jdx[kdx[0]][0]
 
@@ -154,22 +158,55 @@ def calc_transform_to_primary_ref(setup,matched_stars,log):
 def get_args():
     params = {}
 
-    if len(argv) < 5:
-        params['primary_ref_dir'] = input('Please enter the path to the primary reference dataset: ')
-        params['primary_ref_filter'] = input('Please enter the filter name used for the primary reference dataset: ')
-        params['red_dir_list'] = [input('Please enter the path to the dataset to cross-match: ')]
-        params['red_dataset_filters'] = [input('Please enter filter name used for the dataset: ')]
+    if len(argv) < 4:
+        params['datasets_file'] = input('Please enter the path to the dataset list: ')
+        params['separation_threshold'] = float(input('Please enter the maximum allowed separation in arcsec: '))
         params['file_path'] = input('Please enter the path to the crossmatch table: ')
+        params['gaia_dr'] = input('Please enter Gaia data release used for dataset astrometry: ')
     else:
-        params['primary_ref_dir'] = argv[1]
-        params['primary_ref_filter'] = argv[2]
-        params['red_dir_list'] = [argv[3]]
-        params['red_dataset_filters'] = [argv[4]]
-        params['file_path'] = argv[5]
+        params['datasets_file'] = argv[1]
+        params['separation_threshold'] = float(argv[2])
+        params['file_path'] = argv[3]
+        params['gaia_dr'] = argv[4]
 
     params['log_dir'] = path.dirname(params['file_path'])
 
+    # Convert to decimal degrees
+    params['separation_threshold'] = params['separation_threshold']/3600.0 * units.deg
+
     return params
+
+def parse_dataset_list(params,log):
+
+    if path.isfile(params['datasets_file']):
+
+        log.info('Found a file of datasets to process, '+params['datasets_file'])
+
+        file_lines = open(params['datasets_file']).readlines()
+
+        # Format: dataset_id: [reference status, red_dir path, filter]
+        params['datasets'] = {}
+        for line in file_lines:
+            if len(line.replace('\n','')) > 0:
+                (dataset_path, ref_status) = line.replace('\n','').split()
+                if '/' in dataset_path[-1:]:
+                    dataset_path = dataset_path[:-1]
+                dataset_code = path.basename(dataset_path)
+                params['datasets'][dataset_code] = [ref_status, dataset_path, None]
+                if ref_status in ['primary_ref', 'primary-ref']:
+                    params['primary_ref'] = dataset_code
+                log.info(dataset_code)
+
+        if 'primary_ref' not in params.keys():
+            raise IOError('No primary reference dataset identified in datasets file')
+
+    else:
+        raise IOError('Cannot find input list of datasets')
+
+    return params
+
+def find_dataset_filter(reduction_metadata):
+    return reduction_metadata.headers_summary[1]['FILTKEY'][0]
 
 
 if __name__ == '__main__':

@@ -24,19 +24,12 @@ class StarMatchIndex:
         self.separation = []
         self.n_match = 0
 
-    def add_match(self,params, log=None, verbose=False):
+    def add_match(self,params, log=None, verbose=False, replace_worse_matches=True):
 
         add_star = True
 
-        duplicates = self.check_for_duplicates(params,log=log)
-
-        for idx in duplicates:
-            if params['separation'] < self.separation[idx]:
-                self.remove_match(idx,log=log)
-            else:
-                add_star = False
-                if log!=None:
-                    log.info('Star proposed for match index duplicates a closer-matching star already in the index.  Match rejected.')
+        if replace_worse_matches:
+            add_star = self.remove_worse_matches(params,log=log)
 
         if add_star:
             for key, value in params.items():
@@ -52,23 +45,65 @@ class StarMatchIndex:
             if log!=None:
                 log.info('Star '+str(params['cat1_index'])+'='+str(params['cat2_index'])+' added to matched stars index')
 
+        return add_star
+
     def check_for_duplicates(self,params, log=None):
 
-        duplicates = []
+        duplicates = {'cat1_index': [], 'cat2_index': []}
 
         if params['cat1_index'] in self.cat1_index:
             idx = self.cat1_index.index(params['cat1_index'])
-            duplicates.append(idx)
+            duplicates['cat1_index'].append(idx)
 
         if params['cat2_index'] in self.cat2_index:
             idx = self.cat2_index.index(params['cat2_index'])
-            duplicates.append(idx)
+            duplicates['cat2_index'].append(idx)
 
         if log!=None:
-            log.info('Found '+str(len(duplicates))+' duplicates with the input star already in the match index at array entries: ')
-            log.info(repr(duplicates))
+            log.info('Found '+str(len(duplicates['cat1_index']))+' duplicates in the cat1_index with the input star already in the match index at array entries: ')
+            log.info(repr(duplicates['cat1_index']))
+            log.info('Found '+str(len(duplicates['cat2_index']))+' duplicates in the cat2_index with the input star already in the match index at array entries: ')
+            log.info(repr(duplicates['cat2_index']))
+
+        if len(duplicates['cat1_index']) > 2:
+            raise IOError('Several duplicate entries in matched_stars cat1_index: '+repr(duplicates))
+        if len(duplicates['cat2_index']) > 2:
+            raise IOError('Several duplicate entries in matched_stars cat2_index: '+repr(duplicates))
 
         return duplicates
+
+    def remove_worse_matches(self, params, log=None):
+        """Method to review the current matched_stars index to check that
+        no closer matches for the current stars have already been identified.
+        If worse matches are in the index, they are removed, and this method
+        returns add_star=True.  If better existing
+        matches are found, this method returns add_star = False"""
+
+        add_star = True
+        if params['cat1_index'] in self.cat1_index:
+            idx = self.cat1_index.index(params['cat1_index'])
+
+            if params['separation'] < self.separation[idx]:
+                self.remove_match(idx,log=log)
+
+            else:
+                add_star = False
+                if log!=None:
+                    log.info('Star proposed for match index duplicates a closer-matching star already in the index.  Match rejected.')
+
+        if add_star:
+            if params['cat2_index'] in self.cat2_index:
+                idx = self.cat2_index.index(params['cat2_index'])
+
+                if params['separation'] < self.separation[idx]:
+                    self.remove_match(idx,log=log)
+
+                else:
+                    add_star = False
+                    if log!=None:
+                        log.info('Star proposed for match index duplicates a closer-matching star already in the index.  Match rejected.')
+
+        return add_star
 
     def remove_match(self,entry_index, log=None):
 

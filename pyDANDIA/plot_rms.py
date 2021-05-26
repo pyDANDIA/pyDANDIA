@@ -22,7 +22,7 @@ def calc_rms():
 
     photometry_data = fetch_dataset_photometry(params,log)
 
-    phot_statistics = calc_mean_rms_mag(photometry_data,log)
+    phot_statistics = calc_mean_rms_mag(photometry_data,log,'calibrated')
 
     plot_rms(phot_statistics, params, log)
 
@@ -38,17 +38,39 @@ def fetch_dataset_photometry(params,log):
 
     return photometry_data
 
-def calc_mean_rms_mag(photometry_data,log):
+def get_photometry_columns(phot_columns='instrumental'):
+    """Function to return the column indices of the magnitude and magnitude uncertainties
+    in the photometry array for a single dataset.  Options are:
+    instrumental
+    calibrated
+    corrected
+    """
 
-    phot_statistics = np.zeros( (len(photometry_data),3) )
+    if phot_columns == 'instrumental':
+        mag_col = 11
+        merr_col = 12
+    elif phot_columns == 'calibrated':
+        mag_col = 13
+        merr_col = 14
+    elif phot_columns == 'corrected':
+        mag_col = 23
+        merr_col = 24
 
-    (phot_statistics[:,0], _) = calc_weighted_mean_2D(photometry_data, 11, 12)
+    return mag_col, merr_col
+
+def calc_mean_rms_mag(photometry_data,log,phot_columns):
+
+    (mag_col, merr_col) = get_photometry_columns(phot_columns)
+
+    phot_statistics = np.zeros( (len(photometry_data),4) )
+
+    (phot_statistics[:,0], phot_statistics[:,3]) = calc_weighted_mean_2D(photometry_data, mag_col, merr_col)
     log.info('Calculated stellar mean magnitudes weighted by the photometric uncertainties')
 
-    phot_statistics[:,1] = calc_weighted_rms(photometry_data, phot_statistics[:,0], 11, 12)
+    phot_statistics[:,1] = calc_weighted_rms(photometry_data, phot_statistics[:,0], mag_col, merr_col)
     log.info('Calculated RMS per star weighted by the photometric uncertainties')
 
-    phot_statistics[:,2] = calc_percentile_rms(photometry_data, phot_statistics[:,0], 11, 12)
+    phot_statistics[:,2] = calc_percentile_rms(photometry_data, phot_statistics[:,0], mag_col, merr_col)
     log.info('Calculated RMS per star using percentile method')
 
     return phot_statistics
@@ -59,9 +81,10 @@ def calc_weighted_mean_2D(data, col, errcol):
     mags = np.ma.array(data[:,:,col], mask=mask)
     errs = np.ma.array(data[:,:,errcol], mask=mask)
 
+    idx = np.where(mags > 0.0)
     err_squared_inv = 1.0 / (errs*errs)
     wmean =  (mags * err_squared_inv).sum(axis=1) / (err_squared_inv.sum(axis=1))
-    werror = 1.0 / (err_squared_inv.sum(axis=1))
+    werror = np.sqrt( 1.0 / (err_squared_inv.sum(axis=1)) )
 
     return wmean, werror
 
@@ -86,7 +109,7 @@ def calc_percentile_rms(data, mean_mag, magcol, errcol):
 
     return rms_per
 
-def plot_rms(phot_statistics, params, log):
+def plot_rms(phot_statistics, params, log, plot_file=None):
 
     fig = plt.figure(1,(10,10))
     plt.rcParams.update({'font.size': 18})
@@ -110,10 +133,22 @@ def plot_rms(phot_statistics, params, log):
     [xmin,xmax,ymin,ymax] = plt.axis()
     plt.axis([xmin,xmax,1e-3,5.0])
 
-    plot_file = path.join(params['red_dir'],'rms.png')
+    if plot_file == None:
+        plot_file = path.join(params['red_dir'],'rms.png')
     plt.savefig(plot_file)
 
     log.info('Output RMS plot to '+plot_file)
+    plt.close(1)
+
+def output_phot_statistics(phot_statistics, file_path, log):
+
+    f = open(file_path, 'w')
+    f.write('# Star_index  weighted_mean_mag  weighted_rms percentile_rms weighted_mean_mag_error')
+    for j in range(0,len(phot_statistics),1):
+        f.write(str(j)+' '+str(phot_statistics[j,0])+' '+str(phot_statistics[j,1])+' '+\
+                str(phot_statistics[j,2])+' '+str(phot_statistics[j,3])+'\n')
+    f.close()
+    log.info('Output photometric statistics to '+file_path)
 
 def get_args():
 

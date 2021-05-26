@@ -29,23 +29,39 @@ def search_vizier_for_sources(ra, dec, radius, catalog, row_limit=-1,
                                     'Hmag':'Hmag', 'e_Hmag':'e_Hmag','Kmag':'Kmag', 'e_Kmag':'e_Kmag'},
                                     {'Jmag':'<20'}],
                            'VPHAS+': ['II/341',
-                                      {'sourceID':'sourceID', '_RAJ2000':'_RAJ2000', '_DEJ2000':'_DEJ2000',
+                                      {'sourceID':'sourceID', 'RAJ2000':'_RAJ2000', 'DEJ2000':'_DEJ2000',
                                       'gmag':'gmag', 'e_gmag':'e_gmag', 'rmag':'rmag', 'e_rmag':'e_rmag',
                                       'imag':'imag', 'e_imag':'e_imag', 'clean':'clean'},
                                     {}],
                             'Gaia-DR2': ['I/345/gaia2',
-                                      {'RAJ2000':'ra', 'DEJ2000':'dec', 'Source':'source_id',
-                                      'e_RAJ2000':'ra_error', 'e_DEJ2000':'dec_error',
+                                      {'RA_ICRS':'ra', 'DE_ICRS':'dec', 'Source':'source_id',
+                                      'e_RA_ICRS':'ra_error', 'e_DE_ICRS':'dec_error',
                                       'FG':'phot_g_mean_flux', 'e_FG':'phot_g_mean_flux_error',
                                       'FBP':'phot_bp_mean_flux', 'e_FBP':'phot_bp_mean_flux_error',
                                       'FRP':'phot_rp_mean_flux', 'e_FRP':'phot_rp_mean_flux_error' },
+                                    {}],
+                            'Gaia-EDR3': ['I/350/gaiaedr3',
+                                    {'RA_ICRS':'ra', 'DE_ICRS':'dec', 'Source':'source_id',
+                                    'e_RA_ICRS':'ra_error', 'e_DE_ICRS':'dec_error',
+                                    'FG':'phot_g_mean_flux', 'e_FG':'phot_g_mean_flux_error',
+                                    'FBP':'phot_bp_mean_flux', 'e_FBP':'phot_bp_mean_flux_error',
+                                    'FRP':'phot_rp_mean_flux', 'e_FRP':'phot_rp_mean_flux_error',
+                                    'PM':'pm', 'pmRA':'pm_ra', 'e_pmRA':'pm_ra_error',
+                                    'pmDE':'pm_dec', 'e_pmDE':'pm_dec_error',
+                                    'Plx':'parallax', 'e_Plx': 'parallax_error'},
+                                    #'parallax':'parallax', 'parallax_error': 'parallax_error'},
                                     {}]
                            }
 
     (cat_id,cat_col_dict,cat_filters) = supported_catalogs[catalog]
 
-    v = Vizier(columns=list(cat_col_dict.keys()),\
+    if catalog=='Gaia-EDR3':
+        v = Vizier(column_filters=cat_filters)
+    else:
+        v = Vizier(columns=list(cat_col_dict.keys()),\
                 column_filters=cat_filters)
+
+    v = Vizier(column_filters=cat_filters)
 
     v.ROW_LIMIT = row_limit
 
@@ -185,7 +201,7 @@ if __name__ == '__main__':
         ra = input('Please enter search centroid RA in sexigesimal format: ')
         dec = input('Please enter search centroid Dec in sexigesimal format: ')
         radius = input('Please enter search radius in arcmin: ')
-        catalog = input('Please enter the ID of the catalog to search [2MASS, VPHAS+, Gaia-DR2]: ')
+        catalog = input('Please enter the ID of the catalog to search [2MASS, VPHAS+, Gaia-DR2, Gaia-EDR3]: ')
 
     else:
 

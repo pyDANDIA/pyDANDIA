@@ -385,7 +385,8 @@ def setup_test_phot_db(log):
 
     image_path = os.path.join(setup.red_dir, 'data', 'lsc1m005-fl15-20170610-0096-e91_cropped.fits')
 
-    params = stage3_db_ingest.harvest_image_params(meta,image_path,ref_image_path)
+    kwargs = {'build_phot_db': False}
+    params = stage3_db_ingest.harvest_image_params(meta,image_path,ref_image_path, **kwargs)
 
     params['filename'] = ref_image_name
     params['ref_filename'] = ref_image_name
@@ -413,7 +414,7 @@ def setup_test_phot_db(log):
     stage3_db_ingest.commit_reference_image(conn, params, log)
     stage3_db_ingest.commit_reference_component(conn, params, log)
 
-    star_ids = stage3_db_ingest.commit_stars(conn, params, meta, log)
+    #star_ids = stage3_db_ingest.commit_stars(conn, params, meta, log)
 
 
     params['filename'] = os.path.basename(image_path)

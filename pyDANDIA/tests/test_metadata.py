@@ -346,6 +346,20 @@ def test_fetch_reduction_filter():
 
     assert filter_name == 'ip'
 
+def test_expand_headers_summary():
+
+    red_dir = path.join(cwd, 'data/proc/ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip')
+    metad = metadata.MetaData()
+    metad.load_all_metadata(red_dir, 'pyDANDIA_metadata.fits')
+
+    metad.expand_headers_summary_layer()
+
+    assert( 'HJD' in metad.headers_summary[1].colnames )
+    assert( 'AIRMASS' in metad.headers_summary[1].colnames )
+
+    metad.save_updated_metadata(red_dir, 'pyDANDIA_metadata.fits')
+    
+
 if __name__ == '__main__':
     #test_create_matched_stars_layer()
     #test_load_matched_stars()
@@ -353,5 +367,5 @@ if __name__ == '__main__':
     #test_load_field_dataset_transform()
     #test_create_psf_dimensions_layer()
     #test_cone_search_on_position()
-    test_fetch_reduction_filter()
-    
+    #test_fetch_reduction_filter()
+    test_expand_headers_summary()

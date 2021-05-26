@@ -259,6 +259,17 @@ class MetaData:
                           units]
         self.create_a_new_layer(layer_name, data_structure, data)
 
+    def expand_headers_summary_layer(self):
+        """Function to append additional information to the headers summary,
+        both data harvested from the images headers directly, and calculated
+        from that data"""
+
+        nimages = len(self.headers_summary[1])
+        self.add_column_to_layer('headers_summary', 'HJD', np.zeros(nimages), new_column_format='float',
+                                new_column_unit='days')
+        self.add_column_to_layer('headers_summary', 'AIRMASS', np.zeros(nimages), new_column_format='float',
+                                new_column_unit='')
+
     def create_reduction_status_layer(self):
         '''
         Create the reduction_status layer, which summarizes the status of the reduction
@@ -711,7 +722,7 @@ class MetaData:
 
             new_column = Column(new_column_data, name=new_column_name.upper(),
                             dtype=new_column_format, unit=new_column_unit)
-        layer[1].add_column(new_column)
+            layer[1].add_column(new_column)
 
     def update_row_to_layer(self, key_layer, row_index, new_row):
         '''

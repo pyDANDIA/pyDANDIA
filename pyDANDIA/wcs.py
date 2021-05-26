@@ -122,6 +122,8 @@ def fetch_catalog_sources_for_field(setup,field,header,image_wcs,log,
     catalog_file = path.join(setup.pipeline_config_dir,
                              str(field).replace(' ','-').replace('/','-')+'_'+catalog_name+'_catalog.fits')
 
+    log.info('Looking for catalogue file '+catalog_file)
+
     catalog_sources = catalog_utils.read_vizier_catalog(catalog_file,catalog_name)
 
     if catalog_sources != None:

@@ -46,7 +46,7 @@ def get_args():
         params['base_dir'] = input('Please enter the path to the base directory: ')
         params['phot_db_path'] = input('Please enter the path to the database file [or None to switch off DB]: ')
         print('''Please enter the required reduction mode out of:
-        {data_preparation, added_data_preparation, reference_analysis, image_analysis, stage3_db_ingest, stage6, stage3}''')
+        {data_preparation, added_data_preparation, reference_analysis, image_analysis, stage3_db_ingest, stage6, stage3, post_processing}''')
         params['red_mode'] = input('Reduction mode: ')
 
     else:
@@ -114,7 +114,7 @@ def run_reductions(setup,log,datasets,kwargs):
         datasets    list                    Dataset red_dir names
     """
 
-    if setup.red_mode in ['stage3_db_ingest', 'stage6']:
+    if kwargs['build_phot_db'] and setup.red_mode in ['stage3_db_ingest', 'stage6']:
 
         log.info('Starting sequential reductions')
 
@@ -187,6 +187,16 @@ def trigger_parallel_reduction(setup,dataset_dir,data_status,kwargs,debug=False)
             args += ['-no-phot-db']
 
     elif setup.red_mode in ['stage3']:
+
+        command = path.join(setup.software_dir,'run_stage.py')
+        args = ['python', command, setup.red_mode, dataset_dir, setup.phot_db_path]
+
+    elif setup.red_mode in ['stage6'] and kwargs['build_phot_db'] == False:
+
+        command = path.join(setup.software_dir,'run_stage.py')
+        args = ['python', command, setup.red_mode, dataset_dir, setup.phot_db_path]
+
+    elif setup.red_mode == 'post_processing':
 
         command = path.join(setup.software_dir,'run_stage.py')
         args = ['python', command, setup.red_mode, dataset_dir, setup.phot_db_path]

@@ -144,7 +144,11 @@
 	"unit":""
     },
     "moonfkey": {
+<<<<<<< HEAD
         "comment": "moonfkey - STRING - Header keyword recording the Lunar fractional illumination.",
+=======
+        "comment": "moonfkey - STRING - Header keyword recording the Lunar distance from target (deg).",
+>>>>>>> ROME_DR1
         "value": "MOONFRAC",
 	"format":"S200",
 	"unit":""
@@ -172,11 +176,14 @@
         "value": 1,
 	"format":"int",
 	"unit":""
+<<<<<<< HEAD
     },
     "airkey": {
         "comment": "filtkey - STRING - Header keyword recording the filter employed. The value of this keyword should be a STRING.",
         "value": "AIRMASS",
 	"format":"S200",
 	"unit":""
+=======
+>>>>>>> ROME_DR1
     }
 }
