@@ -38,7 +38,13 @@ def add_reduction_parameters(red_dir):
 
     key = input('Enter keyword value to add: ')
     value = input('Enter a value for this keyword: ')
+    type = input('Enter value type {string, float, integer}: ')
 
+    if 'float' in type:
+        value = float(value)
+    elif 'integer' in type:
+        value = int(value)
+        
     reduction_metadata.reduction_parameters[1][str(key).upper()] = value
 
     reduction_metadata.save_updated_metadata(red_dir,'pyDANDIA_metadata.fits')
