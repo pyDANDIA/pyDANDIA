@@ -31,6 +31,18 @@ def modify_reduction_parameters(red_dir):
 
     reduction_metadata.save_updated_metadata(red_dir,'pyDANDIA_metadata.fits')
 
+def add_reduction_parameters(red_dir):
+
+    reduction_metadata = metadata.MetaData()
+    reduction_metadata.load_all_metadata(red_dir, 'pyDANDIA_metadata.fits')
+
+    key = input('Enter keyword value to add: ')
+    value = input('Enter a value for this keyword: ')
+
+    reduction_metadata.reduction_parameters[1][str(key).upper()] = value
+
+    reduction_metadata.save_updated_metadata(red_dir,'pyDANDIA_metadata.fits')
+
 def modify_headers_summary(red_dir):
 
     reduction_metadata = metadata.MetaData()
@@ -156,6 +168,7 @@ if __name__ == '__main__':
                 Update software table                6
                 Remove a table                       7
                 Change a reduction directory         8
+                Add reduction parameter              9
                 Cancel                               Any other key""")
         opt = input('Please select an option: ')
     else:
@@ -178,3 +191,5 @@ if __name__ == '__main__':
         remove_table(red_dir)
     elif opt == '8':
         change_reduction_dir(red_dir)
+    elif opt == '9':
+        add_reduction_parameters(red_dir)
