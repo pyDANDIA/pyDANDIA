@@ -317,7 +317,7 @@ def run_stage6(setup, **kwargs):
 
     hd5_utils.write_phot_hd5(setup,photometry_data,log=log)
 
-    phot_statistics = plot_rms.calc_mean_rms_mag(photometry_data,log)
+    phot_statistics = plot_rms.calc_mean_rms_mag(photometry_data,log,'calibrated')
     plot_rms.plot_rms(phot_statistics, {'red_dir': setup.red_dir}, log)
 
     if conn != None:
