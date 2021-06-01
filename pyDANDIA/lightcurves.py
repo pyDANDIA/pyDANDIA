@@ -440,7 +440,7 @@ def fetch_photometry_for_isolated_dataset(params, star_dataset_id, log):
 
 	setup = pipeline_setup.pipeline_setup({'red_dir': params['red_dir']})
 
-	dataset_photometry = hd5_utils.read_phot_hd5(setup)
+	dataset_photometry = hd5_utils.read_phot_hd5(setup, log=log)
 
 	log.info('Star dataset ID = '+str(star_dataset_id))
 
