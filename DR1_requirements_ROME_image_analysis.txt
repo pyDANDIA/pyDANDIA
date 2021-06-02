@@ -71,7 +71,7 @@ toolz==0.10.0
 tqdm==4.41.1
 traitlets==4.3.3
 uncertainties==3.1.2
-urllib3==1.25.7
+urllib3==1.26.5
 wcwidth==0.1.8
 webencodings==0.5.1
 zipp==1.0.0
