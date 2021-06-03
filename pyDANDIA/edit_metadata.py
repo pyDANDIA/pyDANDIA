@@ -59,7 +59,7 @@ def batch_add_reduction_parameters(base_dir):
                 'log_dir': os.path.join(base_dir, 'logs'),
                 'pipeline_config_dir': os.path.join(base_dir, 'config')}
     setup = pipeline_setup.pipeline_setup(params)
-    log = logs.start_pipeline_log(base_dir, 'logs', 'added_reduction_parameters')
+    log = logs.start_pipeline_log(os.path.join(base_dir, 'logs'), 'added_reduction_parameters')
 
     datasets = pipeline_control.get_datasets_for_reduction(setup,log)
 
