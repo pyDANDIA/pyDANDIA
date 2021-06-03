@@ -1,6 +1,9 @@
 import os
 import sys
 from pyDANDIA import metadata
+from pyDANDIA import pipeline_setup
+from pyDANDIA import pipeline_control
+from pyDANDIA import logs
 from astropy.io import fits
 import numpy as np
 import copy
@@ -44,10 +47,39 @@ def add_reduction_parameters(red_dir):
         value = float(value)
     elif 'integer' in type:
         value = int(value)
-        
+
     reduction_metadata.reduction_parameters[1][str(key).upper()] = value
 
     reduction_metadata.save_updated_metadata(red_dir,'pyDANDIA_metadata.fits')
+
+def batch_add_reduction_parameters(base_dir):
+
+    params = {'base_dir': base_dir,
+                'red_dir': base_dir,
+                'log_dir': os.path.join(base_dir, 'logs'),
+                'pipeline_config_dir': os.path.join(base_dir, 'config')}
+    setup = pipeline_setup.pipeline_setup(params)
+    log = logs.start_pipeline_log(base_dir, 'logs', 'added_reduction_parameters')
+
+    datasets = pipeline_control.get_datasets_for_reduction(setup,log)
+
+    key = input('Enter keyword value to add: ')
+    value = input('Enter a value for this keyword: ')
+    type = input('Enter value type {string, float, integer}: ')
+
+    if 'float' in type:
+        value = float(value)
+    elif 'integer' in type:
+        value = int(value)
+
+    for red_dir in datasets.keys():
+        reduction_metadata = metadata.MetaData()
+        reduction_metadata.load_all_metadata(red_dir, 'pyDANDIA_metadata.fits')
+        reduction_metadata.reduction_parameters[1][str(key).upper()] = value
+        reduction_metadata.save_updated_metadata(red_dir,'pyDANDIA_metadata.fits')
+        log.info('Added parameter '+str(key).upper()+'='+str(value)+' to metadata '+os.path.basename(red_dir))
+
+    logs.close_log(log)
 
 def modify_headers_summary(red_dir):
 
@@ -175,6 +207,7 @@ if __name__ == '__main__':
                 Remove a table                       7
                 Change a reduction directory         8
                 Add reduction parameter              9
+                Add reduction parameter all datasets 10
                 Cancel                               Any other key""")
         opt = input('Please select an option: ')
     else:
@@ -199,3 +232,5 @@ if __name__ == '__main__':
         change_reduction_dir(red_dir)
     elif opt == '9':
         add_reduction_parameters(red_dir)
+    elif opt == '10':
+        batch_add_reduction_parameters(red_dir)
