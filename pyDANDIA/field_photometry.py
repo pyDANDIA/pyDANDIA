@@ -260,7 +260,7 @@ def populate_images_table(dataset, dataset_metadata, xmatch, log):
         row = [iimage+i, image['IMAGES'], dataset['dataset_code'], image['FILTKEY'], 0.0, \
                                 image['DATEKEY'], image['EXPKEY'], image['RAKEY'], image['DECKEY'], \
                                 image['MOONDKEY'], image['MOONFKEY'], image['AIRMASS'] ] + \
-                                [0.0]*6 + [0] +[0.0]*2 + [0,0] + [0.0]*17 + [0]
+                                [0.0]*6 + [0] +[0.0]*2 + [0,0] + [0.0]*24 + [0]
         xmatch.images.add_row(row)
         image_index.append(iimage+i)
     log.info('-> Populated images table with data from FITS image headers')
