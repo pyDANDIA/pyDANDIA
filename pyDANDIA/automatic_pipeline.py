@@ -11,8 +11,9 @@ import psutil
 from pyDANDIA import pipeline_setup
 from pyDANDIA import config_utils
 from pyDANDIA import logs
-from datetime import datetime
+from datetime import datetime, timedelta
 import numpy as np
+from astropy.io import fits
 
 class DataGroup:
 
@@ -313,7 +314,55 @@ def parse_configured_datasets(config,log):
         # reductions is capped:
         np.random.shuffle(datasets)
 
+    elif str(config['reduce_datasets']).upper() == 'RECENT':
+
+        datasets = identify_recent_data(config, log)
+
+        log.info('Found '+str(len(datasets))+' datasets to be reduced in '+config['data_red_dir']+':')
+        [log.info(path.basename(x)) for x in datasets]
+        
     return datasets
+
+def identify_recent_data(config, log):
+    """Function to review the image data acquired for all datasets and create
+    a list of datasets with data acquired within the lookback period defined
+    in the auto pipeline configuration.  """
+
+    time_now = datetime.utcnow()
+    lookback_time = timedelta(days = float(config['lookback_time']))
+    date_threshold = time_now - lookback_time
+    log.info('Identifying datasets with recent data for reduction')
+    log.info('Configured look-back time is '+str(config['lookback_time'])+\
+             'days; more recent than '+date_threshold.strftime("%Y-%m-%d"))
+
+    datasets = []
+
+    entries = glob.glob(path.join(config['data_red_dir'],'*'))
+
+    for dataset_path in entries:
+        if path.isdir(dataset_path) and path.isdir(path.join(dataset_path,'data')):
+
+            recent_data = check_dataset_for_recent_data(date_threshold,dataset_path,log)
+            if recent_data:
+                datasets.append( dataset_path )
+
+    return datasets
+
+def check_dataset_for_recent_data(date_threshold,dataset_path,log):
+
+    images = glob.glob(path.join(dataset_path,'data','*fits'))
+
+    i = 0
+    recent_data = False
+
+    while i<len(images) and not recent_data:
+        hdr = fits.getheader(images[i])
+        dateobs = datetime.strptime(hdr['DATE-OBS'],'%Y-%m-%dT%H:%M:%S.%f')
+        if dateobs > date_threshold:
+            recent_data = True
+        i+=1
+
+    return recent_data
 
 def sanity_check_data_before_reduction(datasets,log):
     """This function reviews the lock status of each dataset and performs basic sanity checks,

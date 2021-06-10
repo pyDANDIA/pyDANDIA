@@ -59,6 +59,12 @@
       "format": "string",
       "unit": ""
   },
+  "lookback_time": {
+      "value": "30.0",
+      "comment": "Time period from present defining recent data to be reduced",
+      "format": "float",
+      "unit": "days"
+  },
   "build_phot_db": {
       "value": "False",
       "comment": "Switch to construct a photometric database for the reduction",

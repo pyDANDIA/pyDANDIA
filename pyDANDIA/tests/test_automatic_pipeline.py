@@ -7,6 +7,7 @@ from pyDANDIA import automatic_pipeline
 from pyDANDIA import logs
 from pyDANDIA import config_utils
 import psutil
+from datetime import datetime, timedelta
 
 cwd = getcwd()
 TEST_DATA = path.join(cwd,'data')
@@ -113,5 +114,32 @@ def test_check_process_status():
 
     assert type(running_processes) == type({})
     assert len(running_processes) == len(pids)
+
+    logs.close_log(log)
+
+def test_check_dataset_for_recent_data():
+
+    log = logs.start_stage_log( cwd, 'test_auto' )
+    dt = timedelta(days=30.0)
+
+    date_threshold = datetime.strptime("2017-06-30","%Y-%m-%d") - dt
+    recent_data = automatic_pipeline.check_dataset_for_recent_data(date_threshold,TEST_DIR,log)
+    assert(recent_data == True)
+
+    date_threshold = datetime.utcnow() - dt
+    recent_data = automatic_pipeline.check_dataset_for_recent_data(date_threshold,TEST_DIR,log)
+    assert(recent_data == False)
+
+    logs.close_log(log)
+
+def test_identify_recent_data():
+
+    log = logs.start_stage_log( cwd, 'test_auto' )
+
+    config = {'data_red_dir': TEST_DIR, 'lookback_time': 30.0}
+    datasets = automatic_pipeline.identify_recent_data(config, log)
+
+    assert len(datasets) == 0
+    assert type(datasets) == type(['foo'])
 
     logs.close_log(log)
