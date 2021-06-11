@@ -10,7 +10,7 @@ import numpy as np
 from astropy.stats import SigmaClip
 from photutils import StdBackgroundRMS
 from photutils import aperture_photometry
-from photutils import CircularAperture
+from photutils import CircularAperture,RectangularAperture
 from photutils.utils import calc_total_error
 from photutils import Background2D, MedianBackground
 
@@ -488,7 +488,7 @@ def quick_polyfit(params,data,weight,psf_fit):
 
 
 def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_star_catalog, sky_model,
-                                           difference_image, psf_model, kernel, kernel_error, ref_exposure_time,image_id,
+                                           difference_image, psf_model, kernel, kernel_error, background_difference_image,ref_exposure_time,image_id,
                                            per_star_logging=False):
     """Function to perform PSF fitting photometry on all stars for a single difference image.
 
@@ -601,8 +601,9 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
 
         mask = difference_image == 0
         radius = psf_diameter/2.0
+        
         apertures = CircularAperture(positions, r=radius)
-
+        #apertures = RectangularAperture(positions, w=radius*2,h=radius*2)
 
         sigma_clip = SigmaClip(sigma=3.)
         bkg_estimator = MedianBackground()
@@ -613,8 +614,10 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
             bkg = Background2D(difference_image, (50, 50),  filter_size=(3, 3), sigma_clip=sigma_clip, bkg_estimator=bkg_estimator)
         bkg.background[mask] = 0
         bkg.background_rms[mask] = 0
-
-        error = calc_total_error(difference_image, bkg.background_rms, gain)
+        
+        #total bkg error budget
+        background_of_image = background_difference_image
+        error = calc_total_error(difference_image, (bkg.background_rms**2)**0.5, gain)
         error = (error**2+ron**2/gain**2)**0.5
 
         #import pdb ; pdb.set_trace()
@@ -635,8 +638,8 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
 
             list_star_id.append(ref_star_catalog[j, 0])
 
-            xstar = ref_star_catalog[j, 1]
-            ystar = ref_star_catalog[j, 2]
+            xstar = float(ref_star_catalog[j, 1])
+            ystar = float(ref_star_catalog[j, 2])
             ref_flux = float(ref_star_catalog[j, 5])
             error_ref_flux = float(ref_star_catalog[j, 6])
             cal_ref_flux = float(ref_star_catalog[j, 11])
@@ -646,6 +649,7 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
                 good_fit = False
 
             use_psf_photometry = False
+
             if use_psf_photometry and good_fit:
 
                 X_grid = X_data + (int(np.round(xstar)) - half_psf)
@@ -659,8 +663,7 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
 
                 psf_image = psf_model.psf_model(X_grid, Y_grid, psf_parameters)
 
-
-                #psf_convolve = sndi.filters.convolve(psf_image, kernel,mode='constant')
+                psf_convolve = sndi.filters.convolve(psf_image, kernel,mode='constant')
 
                 try:
 
@@ -705,7 +708,7 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
                     flux_tot = ref_flux*ref_exposure_time - flux
                     flux_err_tot = (error_ref_flux ** 2*ref_exposure_time + flux_err**2/phot_scale_factor**2+
                                     (flux*error_phot_scale_factor/phot_scale_factor**2)**2) ** 0.5
-
+                
                     if per_star_logging:
                         log.info(' -> Star ' + str(j) + ' at position (' + \
                                    str(xstar) + ', ' + str(ystar) + ') flux='+str(flux)+', flux_err='+str(flux_err)+\
@@ -749,7 +752,8 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
                         #list_align_x.append(xstar)
                         #list_align_y.append(ystar)
 
-                        back = bkg.background[int(positions[j][1]),int(positions[j][0])]
+                        #back = bkg.background[int(positions[j][1]),int(positions[j][0])]
+                        back = background_of_image[int(positions[j][1]),int(positions[j][0])]
                         back_err = bkg.background_rms[int(positions[j][1]),int(positions[j][0])]
 
                         list_background.append(back)
@@ -845,7 +849,7 @@ def convert_flux_to_mag(flux, flux_err, exp_time=None):
 
     :param float flux: Total star flux
     :param float flux_err: Uncertainty in star flux
-
+run
     Returns:
 
     :param float mag: Measured star magnitude
