@@ -33,14 +33,13 @@ def run_phot_normalization(setup, **params):
     for quad in range(1,2,1):
         phot_file = path.join(setup.red_dir,params['field_name']+'_quad'+str(quad)+'_photometry.hdf5')
         phot_data = hd5_utils.read_phot_from_hd5_file(phot_file, return_type='array')
-        print(phot_data.shape)
 
         # Loop over all filters
         for filter in filter_list:
 
             # Extract lightcurves for all stars in quadrant for a given filter,
             # combining data from multiple cameras.
-            image_index = np.where(xmatch.images['filter'] == filter)
+            image_index = np.where(xmatch.images['filter'] == filter)[0]
             print(image_index)
             phot_data_filter = phot_data[:,image_index,:]
             print(phot_data_filter.shape)
