@@ -25,8 +25,8 @@ def background_fit(image1, master_mask = []):
 
     from pyDANDIA import psf
     y, x = np.indices(image1.shape)
-    fit = psf.fit_background(image1, y, x, ~master_mask, background_model='Gradient')
-    background_model = psf.GradientBackground()
+    fit = psf.fit_background(image1, y, x, ~master_mask, background_model='Quadratic')
+    background_model = psf.QuadraticBackground()
     background = background_model.background_model(y, x, fit[0])
 
 
@@ -40,7 +40,8 @@ def background_mesh_perc(image1,perc=30,box_guess=300, master_mask = []):
     if master_mask != []:
         image[master_mask] = np.median(image1)
     #generate slices, iterate over centers
-    mask_shape_y,mask_shape_x = np.where(master_mask==0)
+    mask_shape_y,mask_shape_x = np.where(image1)
+    #import pdb; pdb.set_trace()
     if box_guess > int((max(mask_shape_x)-min(mask_shape_x))/10) and box_guess > int((max(mask_shape_y)-min(mask_shape_y))/10):
         box = min(int((max(mask_shape_x)-min(mask_shape_x))/10), int((max(mask_shape_y)-min(mask_shape_y))/10))
     else:
@@ -57,24 +58,28 @@ def background_mesh_perc(image1,perc=30,box_guess=300, master_mask = []):
     idx = 0
     jdx = 0
     perc5 = np.percentile(image[~master_mask],5)
+
     for xcen in xcen_range:
         idx = 0
         for ycen in ycen_range:
             try:
-                positive = image[ycen - halfbox:ycen + halfbox+1,xcen - halfbox:xcen+halfbox+1] > perc5
+                sub_mask = master_mask[ycen - halfbox:ycen + halfbox+1,xcen - halfbox:xcen+halfbox+1]
+                #positive = image[ycen - halfbox:ycen + halfbox+1,xcen - halfbox:xcen+halfbox+1] > perc5
                 #val =  np.percentile(image[ycen - halfbox:ycen + halfbox+1,xcen - halfbox:xcen+halfbox+1][positive],perc)
-                val = np.median(image[ycen - halfbox:ycen + halfbox+1,xcen - halfbox:xcen+halfbox+1])
+                val = np.median(image[ycen - halfbox:ycen + halfbox+1,xcen - halfbox:xcen+halfbox+1][~sub_mask])
                 percentile_bkg[jdx,idx] = val
             except:
+
                 percentile_bkg[jdx, idx] = 0
             idx += 1
         jdx += 1
 
-    result = resize(percentile_bkg,(int(max(mask_shape_y)-min(mask_shape_y))+1,int(max(mask_shape_x)-min(mask_shape_x))+1) ,mode= 'symmetric')
-    image[min(mask_shape_y):max(mask_shape_y)+1,min(mask_shape_x):max(mask_shape_x)+1] =result
+    result = resize(percentile_bkg.T,(int(max(mask_shape_y)-min(mask_shape_y))+1,int(max(mask_shape_x)-min(mask_shape_x))+1) ,mode= 'symmetric')
+    #image[min(mask_shape_y):max(mask_shape_y)+1,min(mask_shape_x):max(mask_shape_x)+1] =result
     #result[zero_mask] =0.
 
     background = result
+    #import pdb; pdb.set_trace()
     return background
 
 def background_mesh(image):
@@ -183,23 +188,30 @@ def open_data_image(setup, data_image_directory, data_image_name, reference_mask
 
 def mask_the_image(data_image,max_adu,reference_mask,kernel_size):
     #import pdb; pdb.set_trace()
-    #reference_mask = sn.morphology.binary_dilation(reference_mask, iterations=kernel_size)
+
     data_image,data_mask = cosmicray_lacosmic(data_image,sigclip=7, objlim = 7., satlevel = max_adu)
 
-    bkg_image = background_fit(data_image, master_mask = reference_mask[kernel_size:-kernel_size,kernel_size:-kernel_size])
+    #bkg_image = background_fit(data_image, master_mask = reference_mask[kernel_size:-kernel_size,kernel_size:-kernel_size])
+    bkg_image = background_mesh_perc(data_image, master_mask = reference_mask[kernel_size:-kernel_size,kernel_size:-kernel_size])
     #bkg_image = np.percentile(data_image,10)
     data_image = data_image-bkg_image #- background_mesh_perc(data_image[data_extension].data,master_mask = reference_mask[kernel_size:-kernel_size,kernel_size:-kernel_size])
-
+    #import pdb; pdb.set_trace()
     data_image[reference_mask[kernel_size:-kernel_size, kernel_size:-kernel_size]] = 0
+   
+    mask_extended = reference_mask
+    #mask_extended = sn.morphology.binary_dilation(mask_extended, iterations=1*kernel_size)
+    
+    data_extended = np.zeros((np.shape(data_image)[0] + 2 * kernel_size, np.shape(data_image)[1] + 2 * kernel_size))
+    data_extended[kernel_size:-kernel_size, kernel_size:-kernel_size] = np.array(data_image, float)
+    data_extended[mask_extended] = 0.
+    
 
     data_image_unmasked = np.copy(data_image)
 
     # extend image size for convolution and kernel solution
-    data_extended = np.zeros((np.shape(data_image)[0] + 2 * kernel_size, np.shape(data_image)[1] + 2 * kernel_size))
-    data_extended[kernel_size:-kernel_size, kernel_size:-
-                 kernel_size] = np.array(data_image, float)
+   
 
-    return data_extended, data_image_unmasked
+    return data_extended, data_image_unmasked, bkg_image
 
 def open_reference(setup, ref_image_directory, ref_image_name, kernel_size, max_adu, ref_extension = 0, log = None, central_crop = None, subset = None, ref_image1 = None, min_adu = None, master_mask = [], external_weight = None):
     '''
@@ -230,8 +242,8 @@ def open_reference(setup, ref_image_directory, ref_image_name, kernel_size, max_
 
     #bkg_image = background_mesh_perc(ref_image,master_mask = master_mask)
     #bkg_image = np.median(ref_image[~master_mask])
-    bkg_image = background_fit(ref_image, master_mask=master_mask)
-
+   # bkg_image = background_fit(ref_image, master_mask=master_mask)
+    bkg_image = background_mesh_perc(ref_image, master_mask=master_mask)
     #bkg_image = np.percentile(ref_image,10)
     if external_weight is not None:
         try:
@@ -255,7 +267,8 @@ def open_reference(setup, ref_image_directory, ref_image_name, kernel_size, max_
     mask_extended = np.ones((np.shape(ref_image)[0] + 2 * kernel_size,
                              np.shape(ref_image)[1] + 2 * kernel_size)).astype(bool)
     mask_extended[kernel_size:-kernel_size, kernel_size:-kernel_size] = master_mask
-    mask_extended = sn.morphology.binary_dilation(mask_extended, iterations=kernel_size)
+    
+    #mask_extended = sn.morphology.binary_dilation(mask_extended, iterations=5*kernel_size)
     #import pdb; pdb.set_trace()
     ref_extended = np.zeros((np.shape(ref_image)[0] + 2 * kernel_size,
                              np.shape(ref_image)[1] + 2 * kernel_size))
@@ -271,6 +284,7 @@ def open_reference(setup, ref_image_directory, ref_image_name, kernel_size, max_
 
     ref_extended[mask_extended] = 0.
 
+    #noise_extended = np.ones(ref_extended.shape)
     noise_extended[mask_extended] = 0.
 
     

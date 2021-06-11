@@ -136,6 +136,11 @@ def extract_star_lightcurve_isolated_reduction(params, log=None, format='dat',
 	if 'filter_name' not in params:
 		params['filter_name'] = reduction_metadata.headers_summary[1]['FILTKEY'][0]
 
+	if 'phot_error_threshold' in params.keys():
+		phot_error_threshold = params['phot_error_threshold']
+	if 'psfactor_threshold' in params.keys():
+		psfactor_threshold = params['psfactor_threshold']
+
 	log.info('Configuration received: '+repr(params))
 
 	lc_files = []
@@ -511,6 +516,11 @@ if __name__ == '__main__':
 		params['dec'] = argv[3]
 		params['radius'] = argv[4]
 		params['output_dir'] = argv[5]
+
+	if len(argv) >= 6:
+		for a in argv[6:]:
+			entries = str(a).split('=')
+			params[entries[0]] = float(entries[1])
 
 	# Ensure units are decimal degrees
 	params['radius'] = float(params['radius'])/3600.0

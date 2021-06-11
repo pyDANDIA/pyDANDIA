@@ -271,12 +271,13 @@ def run_stage6(setup, **kwargs):
                     log.info('Built sky model')
                     stamp_directory = os.path.join(diffim_directory,new_image)
                     difference_image = open_an_image(setup, stamp_directory,'diff_stamp_'+str(stamp)+'.fits' , log, 0)[0]
-
+                    background_difference_image = open_an_image(setup, stamp_directory,'diff_back_stamp_'+str(stamp)+'.fits' , log, 0)[0]
+                    
                     if len(difference_image) > 1:
 
                         diff_table, control_zone, phot_table = photometry_on_the_difference_image_stamp(setup, reduction_metadata, log,
                                                                                   stamp_star_catalog, difference_image, psf_model,
-                                                                                  sky_model, kernel_image, kernel_error,
+                                                                                  sky_model, kernel_image, kernel_error,background_difference_image,
                                                                                   ref_exposure_time,index_image,
                                                                                   per_star_logging=kwargs['per_star_logging'])
                         psf_model.update_psf_parameters(psf_parameters)
@@ -584,7 +585,7 @@ def find_the_associated_kernel_stamp(setup, kernels_directory, image_name, stamp
         return None, None, None
 
 def photometry_on_the_difference_image(setup, reduction_metadata, log, star_catalog, difference_image, psf_model,
-                                       sky_model, kernel, kernel_error, ref_exposure_time,image_id):
+                                       sky_model, kernel, kernel_error, background_difference_image,ref_exposure_time,image_id):
     '''
     Find the appropriate kernel associated to an image
     :param object reduction_metadata: the metadata object
@@ -599,7 +600,7 @@ def photometry_on_the_difference_image(setup, reduction_metadata, log, star_cata
     (differential_photometry, control_zone) = photometry.run_psf_photometry_on_difference_image(setup, reduction_metadata, log,
                                                                                 star_catalog, sky_model,
                                                                                 difference_image, psf_model, kernel,
-                                                                                kernel_error, ref_exposure_time,image_id)
+                                                                                kernel_error, background_difference_image,ref_exposure_time,image_id)
 
     table_data = [ Column(name='star_id', data=differential_photometry[0]),
                    Column(name='diff_flux', data=differential_photometry[1]),
@@ -627,7 +628,7 @@ def photometry_on_the_difference_image(setup, reduction_metadata, log, star_cata
 
 
 def photometry_on_the_difference_image_stamp(setup, reduction_metadata, log, star_catalog, difference_image, psf_model,
-                                            sky_model, kernel, kernel_error, ref_exposure_time, image_id,
+                                            sky_model, kernel, kernel_error, background_difference_image,ref_exposure_time, image_id,
                                             per_star_logging=False):
     '''
     Find the appropriate kernel associated to an image
@@ -645,7 +646,7 @@ def photometry_on_the_difference_image_stamp(setup, reduction_metadata, log, sta
                                                                                                 star_catalog, sky_model,
                                                                                                 difference_image,
                                                                                                 psf_model, kernel,
-                                                                                                kernel_error,
+                                                                                                kernel_error,background_difference_image,
                                                                                                 ref_exposure_time,
                                                                                                 image_id,
                                                                                                 per_star_logging=per_star_logging)
