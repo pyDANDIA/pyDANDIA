@@ -25,6 +25,7 @@ def run_phot_normalization(setup, **params):
     # Using corrected_mag columns:
     mag_col = 5
     merr_col = 6
+    qcflag_col = 14
 
     # Extract list of filters from xmatch.images['filter'] column
     filter_list = np.unique(xmatch.images['filter'].data)
@@ -40,19 +41,21 @@ def run_phot_normalization(setup, **params):
             # Extract lightcurves for all stars in quadrant for a given filter,
             # combining data from multiple cameras.
             image_index = np.where(xmatch.images['filter'] == filter)[0]
-            print(image_index)
             phot_data_filter = phot_data[:,image_index,:]
-            print(phot_data_filter.shape)
+            mask = np.empty((phot_data_filter.shape[0],phot_data_filter.shape[1]))
+            mask.fill(False)
+            idx = np.where(phot_data[:,:,qcflag_col] > 0.0)
+            mask[idx] = True
+            print(mask)
 
             # Plot a multi-site initial RMS diagram for reference
             phot_statistics = np.zeros( (len(phot_data_filter),4) )
-            (wmean,werror) = plot_rms.calc_weighted_mean_2D(phot_data_filter, mag_col, merr_col)
-
-            tmp = plot_rms.calc_weighted_rms(phot_data_filter, phot_statistics[:,0], mag_col, merr_col)
-
+            (phot_statistics[:,0], phot_statistics[:,3]) = plot_rms.calc_weighted_mean_2D(phot_data_filter, mag_col, merr_col, mask=mask)
+            phot_statistics[:,1] = plot_rms.calc_weighted_rms(phot_data_filter, phot_statistics[:,0], mag_col, merr_col, mask=mask)
+            phot_statistics[:,2] = plot_rms.calc_percentile_rms(phot_data_filter, phot_statistics[:,0], mag_col, merr_col, mask=mask)
             plot_rms.plot_rms(phot_statistics, params, log)
             rename(path.join(params['red_dir'],'rms.png'),
-                   path.join(params['red_dir'],'rms_prenorm'+str(filter)+'.png'))
+                   path.join(params['red_dir'],'rms_prenorm_'+str(filter)+'.png'))
 
             # Extract the lightcurves for the primary-ref dataset for this filter
 

@@ -75,9 +75,10 @@ def calc_mean_rms_mag(photometry_data,log,phot_columns):
 
     return phot_statistics
 
-def calc_weighted_mean_2D(data, col, errcol):
+def calc_weighted_mean_2D(data, col, errcol, mask=None):
 
-    mask = np.invert(np.logical_and(data[:,:,col] > 0.0, data[:,:,errcol] > 0.0))
+    if mask is None:
+        mask = np.invert(np.logical_and(data[:,:,col] > 0.0, data[:,:,errcol] > 0.0))
     mags = np.ma.array(data[:,:,col], mask=mask)
     errs = np.ma.array(data[:,:,errcol], mask=mask)
 
@@ -88,9 +89,10 @@ def calc_weighted_mean_2D(data, col, errcol):
 
     return wmean, werror
 
-def calc_weighted_rms(data, mean_mag, magcol, errcol):
+def calc_weighted_rms(data, mean_mag, magcol, errcol, mask=None):
 
-    mask = np.invert(np.logical_and(data[:,:,magcol] > 0.0, data[:,:,errcol] > 0.0))
+    if mask is None:
+        mask = np.invert(np.logical_and(data[:,:,magcol] > 0.0, data[:,:,errcol] > 0.0))
     mags = np.ma.array(data[:,:,magcol], mask=mask)
     errs = np.ma.array(data[:,:,errcol], mask=mask)
 
@@ -100,9 +102,10 @@ def calc_weighted_rms(data, mean_mag, magcol, errcol):
 
     return rms
 
-def calc_percentile_rms(data, mean_mag, magcol, errcol):
+def calc_percentile_rms(data, mean_mag, magcol, errcol, mask=None):
 
-    mask = np.invert(np.logical_and(data[:,:,magcol] > 0.0, data[:,:,errcol] > 0.0))
+    if mask is None:
+        mask = np.invert(np.logical_and(data[:,:,magcol] > 0.0, data[:,:,errcol] > 0.0))
     mags = np.ma.array(data[:,:,magcol], mask=mask)
 
     rms_per = (np.percentile(mags,84, axis=1)-np.percentile(mags,16, axis=1))/2
