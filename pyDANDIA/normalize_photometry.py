@@ -42,7 +42,7 @@ def run_phot_normalization(setup, **params):
             # combining data from multiple cameras.
             image_index = np.where(xmatch.images['filter'] == filter)[0]
             phot_data_filter = phot_data[:,image_index,:]
-            mask = np.empty((phot_data_filter.shape[0],phot_data_filter.shape[1]))
+            mask = np.empty(phot_data_filter.shape)
             mask.fill(False)
             idx = np.where(phot_data[:,:,qcflag_col] > 0.0)
             mask[idx] = True
