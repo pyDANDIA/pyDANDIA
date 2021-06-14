@@ -442,7 +442,7 @@ def extract_catalog(reduction_metadata, data_image, row_index, log):
     #daofind2 = DAOStarFinder(fwhm=data_fwhm,
     #                         ratio=min(data_sigma_x, data_sigma_y) / max(data_sigma_x, data_sigma_y),
     #                         threshold=3. * std_data, exclude_border=True)
-                             
+
     daofind2 = DAOStarFinder(fwhm=data_fwhm, threshold=3. * std_data, exclude_border=True)
 
     # Error handling for cases where DAOfind crashes.  This seems to happen for
@@ -472,10 +472,10 @@ def crossmatch_catalogs(ref_sources, data_sources, x_shift = 0 ,y_shift = 0):
     pts1, pts2, matching = reformat_catalog2(np.c_[ref_sources['xcentroid'], ref_sources['ycentroid'],ref_sources['flux']], np.c_[
         data_sources['xcentroid'] - x_shift, data_sources['ycentroid'] - y_shift,data_sources['flux']],
                                              distance_threshold=8)
-    
+
 
     pts1 = np.c_[data_sources_x + x_shift, data_sources_y + y_shift][matching[:, 1]]
-  
+
     #order = ref_sources['flux'][matching[:, 0]].argsort()[::-1]
 
     #pts1 = pts1[order][:]
@@ -496,24 +496,24 @@ def crossmatch_catalogs2(ref_sources, data_sources, transform = None):
         data_sources['ycentroid'].data)
 
     ref = np.c_[ref_sources['xcentroid'], ref_sources['ycentroid'],ref_sources['flux']]
-    
+
     if transform:
-   
+
         data_points = np.c_[data_sources['xcentroid'], data_sources['ycentroid'],[1]*len(data_sources)]
         data_points = np.dot( np.linalg.pinv(transform.params),data_points.T)
-        
+
         data = np.c_[data_points[0], data_points[1],data_sources['flux']]
-   
+
     else:
-        
-        data = np.c_[data_sources['xcentroid'], data_sources['ycentroid'],data_sources['flux']] 
-        
+
+        data = np.c_[data_sources['xcentroid'], data_sources['ycentroid'],data_sources['flux']]
+
     pts1, pts2, matching = reformat_catalog2(ref,data ,distance_threshold=10)
-    
+
     #import pdb; pdb.set_trace()
     pts1 = np.c_[data_sources_x, data_sources_y][matching[:, 1]]
-  
-  
+
+
     pts1 = np.c_[pts1, [1] * len(pts1)]
     pts2 = np.c_[pts2, [1] * len(pts2)]
 
@@ -764,7 +764,7 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
 
 
         mask_status = quality_control.verify_mask_statistics(reduction_metadata,new_image,mask_image, log)
-       
+
         if not mask_status:
             log.info('WARNING: Mask statistics indicate a problem with this image, skipping')
             image_red_status[new_image] = -1
@@ -813,7 +813,7 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
 
                     if len(pts_data[:5000][inliers])<10:
                         raise ValueError("Not enough matching stars! Switching to translation")
-           
+
                     model_final = C
                     log.info(' -> Using Affine Transformation')
 
@@ -860,29 +860,29 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
                     ymax = reduction_metadata.stamps[1][stamp_row]['Y_MAX'].astype(int)
 
                     img = shifted[ymin:ymax, xmin:xmax]
+                    log.info('-> Taking section from '+str(stamp)+': '+str(xmin)+':'+str(xmax)+', '+str(ymin)+':'+str(ymax))
 
                     bkg = read_images_stage5.background_mesh_perc(img, master_mask =  shifted_mask[ymin:ymax, xmin:xmax].astype(bool))
                     img = img-bkg
                     sub_ref = reference_image[ymin:ymax,xmin:xmax].astype(float)
 
                     shifts, errors, phasedifff = phase_cross_correlation(sub_ref,img,upsample_factor=10)
-
-
-
-
+                    log.info('-> Calculated shifts: '+repr(shifts))
 
                     stamp_mask = (ref_sources['xcentroid']<xmax) & (ref_sources['xcentroid']>xmin ) &\
                                  (ref_sources['ycentroid']<ymax) & (ref_sources['ycentroid']>ymin )
+                    log.info('-> Derived stamp mask')
 
                     ref_stamps = ref_sources[stamp_mask]
                     ref_stamps['xcentroid'] -= xmin
                     ref_stamps['ycentroid'] -= ymin
 
                     data_stamps, stamps_fwhm = extract_catalog(reduction_metadata, img, row_index, log)
-                   
+                    log.info('-> Extracted catalog')
+
                     init_transform =rot_scale_translate(sub_ref,img)
                     pts_data, pts_reference, e_pos_data,e_pos_ref = crossmatch_catalogs2(ref_stamps, data_stamps,init_transform)
-
+                    log.info('-> Crossmatch against catalog')
 
                     #pts_reference = np.c_[ref_stamps['xcentroid'].data,  ref_stamps['ycentroid'].data][:len(data_stamps)]
                     #pts_data = np.c_[data_stamps['xcentroid'].data,  data_stamps['ycentroid'].data]
@@ -892,6 +892,7 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
                     #                           tf.AffineTransform, min_samples=min(50, int(0.1 * len(pts_data[:5000]))),
                     #                           residual_threshold=1, max_trials=1000)
                     model_stamp, inliers = ransac((pts_reference[:5000,:2] , pts_data[:5000,:2]),tf.AffineTransform, min_samples=min(50, int(0.1 * len(pts_data[:5000]))),residual_threshold=1, max_trials=1000)
+                    log.info('-> Completed ransac calculation of inliers')
 
                     if len(pts_data[:5000][inliers])<10:
                         raise ValueError("Not enough matching stars in stamps! Switching to translation")
@@ -969,20 +970,20 @@ def reformat_catalog2(ref_catalog, data_catalog, distance_threshold=1.5):
         distances = (ref_catalog[:, 0] - values[0]) ** 2 + (ref_catalog[:, 1] - values[1]) ** 2
 
         mask = distances<distance_threshold ** 2
-        
+
         if len(distances[mask]):
-          
+
             thematch = np.argmax(ref_catalog[mask,2])
-        
+
             ind = indexes[mask][thematch]
-        
-        
+
+
             if (ind not in matching_ref):
                 pts1.append(values)
                 pts2.append(ref_catalog[ind])
                 matching.append([ind, idx])
                 matching_ref.append(ind)
-                
+
     pts1 = np.array(pts1)
     pts2 = np.array(pts2)
     matching = np.array(matching)
@@ -1033,8 +1034,8 @@ def manual_transformation(matrix, center, data_image):
     # plt.show()
 
     return model
-    
-    
+
+
 def rot_scale_translate(ref_image,data_image):
     from skimage.transform import warp_polar
     from skimage.filters import window, difference_of_gaussians
@@ -1042,8 +1043,8 @@ def rot_scale_translate(ref_image,data_image):
 
     image =  difference_of_gaussians(data_image, 5, 20)
     rts_image = difference_of_gaussians(ref_image, 5, 20)
-    
-    
+
+
     # window images
     wimage = image * window('hann', image.shape)
     rts_wimage = rts_image * window('hann', image.shape)
@@ -1065,7 +1066,7 @@ def rot_scale_translate(ref_image,data_image):
     shifts, error, phasediff = phase_cross_correlation(warped_image_fs,
                                                        warped_rts_fs,
                                                        upsample_factor=10)
-    
+
     # Use translation parameters to calculate rotation and scaling parameters
     shiftr, shiftc = shifts[:2]
     recovered_angle = (360 / shape[0]) * shiftr
@@ -1078,7 +1079,7 @@ def rot_scale_translate(ref_image,data_image):
 
 
     translation,error, phasediff = phase_cross_correlation(ref_image.astype(float),shifted,upsample_factor=10)
-    
+
     final_transform = tf.SimilarityTransform(rotation = recovered_angle/180*np.pi,scale =  shift_scale,translation=(-translation[1],-translation[0]))
-    
+
     return final_transform
