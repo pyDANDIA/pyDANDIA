@@ -852,58 +852,58 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
             log.info(' -> Resampling image stamps')
 
             for stamp in list_of_stamps:
-                try:
-                    stamp_row = np.where(reduction_metadata.stamps[1]['PIXEL_INDEX'] == stamp)[0][0]
-                    xmin = reduction_metadata.stamps[1][stamp_row]['X_MIN'].astype(int)
-                    xmax = reduction_metadata.stamps[1][stamp_row]['X_MAX'].astype(int)
-                    ymin = reduction_metadata.stamps[1][stamp_row]['Y_MIN'].astype(int)
-                    ymax = reduction_metadata.stamps[1][stamp_row]['Y_MAX'].astype(int)
+                #try:
+                stamp_row = np.where(reduction_metadata.stamps[1]['PIXEL_INDEX'] == stamp)[0][0]
+                xmin = reduction_metadata.stamps[1][stamp_row]['X_MIN'].astype(int)
+                xmax = reduction_metadata.stamps[1][stamp_row]['X_MAX'].astype(int)
+                ymin = reduction_metadata.stamps[1][stamp_row]['Y_MIN'].astype(int)
+                ymax = reduction_metadata.stamps[1][stamp_row]['Y_MAX'].astype(int)
 
-                    img = shifted[ymin:ymax, xmin:xmax]
-                    log.info('-> Taking section from '+str(stamp)+': '+str(xmin)+':'+str(xmax)+', '+str(ymin)+':'+str(ymax))
+                img = shifted[ymin:ymax, xmin:xmax]
+                log.info('-> Taking section from '+str(stamp)+': '+str(xmin)+':'+str(xmax)+', '+str(ymin)+':'+str(ymax))
 
-                    bkg = read_images_stage5.background_mesh_perc(img, master_mask =  shifted_mask[ymin:ymax, xmin:xmax].astype(bool))
-                    img = img-bkg
-                    sub_ref = reference_image[ymin:ymax,xmin:xmax].astype(float)
+                bkg = read_images_stage5.background_mesh_perc(img, master_mask =  shifted_mask[ymin:ymax, xmin:xmax].astype(bool))
+                img = img-bkg
+                sub_ref = reference_image[ymin:ymax,xmin:xmax].astype(float)
 
-                    shifts, errors, phasedifff = phase_cross_correlation(sub_ref,img,upsample_factor=10)
-                    log.info('-> Calculated shifts: '+repr(shifts))
+                shifts, errors, phasedifff = phase_cross_correlation(sub_ref,img,upsample_factor=10)
+                log.info('-> Calculated shifts: '+repr(shifts))
 
-                    stamp_mask = (ref_sources['xcentroid']<xmax) & (ref_sources['xcentroid']>xmin ) &\
-                                 (ref_sources['ycentroid']<ymax) & (ref_sources['ycentroid']>ymin )
-                    log.info('-> Derived stamp mask')
+                stamp_mask = (ref_sources['xcentroid']<xmax) & (ref_sources['xcentroid']>xmin ) &\
+                             (ref_sources['ycentroid']<ymax) & (ref_sources['ycentroid']>ymin )
+                log.info('-> Derived stamp mask')
 
-                    ref_stamps = ref_sources[stamp_mask]
-                    ref_stamps['xcentroid'] -= xmin
-                    ref_stamps['ycentroid'] -= ymin
+                ref_stamps = ref_sources[stamp_mask]
+                ref_stamps['xcentroid'] -= xmin
+                ref_stamps['ycentroid'] -= ymin
 
-                    data_stamps, stamps_fwhm = extract_catalog(reduction_metadata, img, row_index, log)
-                    log.info('-> Extracted catalog')
+                data_stamps, stamps_fwhm = extract_catalog(reduction_metadata, img, row_index, log)
+                log.info('-> Extracted catalog')
 
-                    init_transform =rot_scale_translate(sub_ref,img)
-                    pts_data, pts_reference, e_pos_data,e_pos_ref = crossmatch_catalogs2(ref_stamps, data_stamps,init_transform)
-                    log.info('-> Crossmatch against catalog')
+                init_transform =rot_scale_translate(sub_ref,img)
+                pts_data, pts_reference, e_pos_data,e_pos_ref = crossmatch_catalogs2(ref_stamps, data_stamps,init_transform)
+                log.info('-> Crossmatch against catalog')
 
-                    #pts_reference = np.c_[ref_stamps['xcentroid'].data,  ref_stamps['ycentroid'].data][:len(data_stamps)]
-                    #pts_data = np.c_[data_stamps['xcentroid'].data,  data_stamps['ycentroid'].data]
+                #pts_reference = np.c_[ref_stamps['xcentroid'].data,  ref_stamps['ycentroid'].data][:len(data_stamps)]
+                #pts_data = np.c_[data_stamps['xcentroid'].data,  data_stamps['ycentroid'].data]
 
 
-                    #model_stamp, inliers = ransac((pts_reference[:5000, :2] , pts_data[:5000, :2] ),
-                    #                           tf.AffineTransform, min_samples=min(50, int(0.1 * len(pts_data[:5000]))),
-                    #                           residual_threshold=1, max_trials=1000)
-                    model_stamp, inliers = ransac((pts_reference[:5000,:2] , pts_data[:5000,:2]),tf.AffineTransform, min_samples=min(50, int(0.1 * len(pts_data[:5000]))),residual_threshold=1, max_trials=1000)
-                    log.info('-> Completed ransac calculation of inliers')
+                #model_stamp, inliers = ransac((pts_reference[:5000, :2] , pts_data[:5000, :2] ),
+                #                           tf.AffineTransform, min_samples=min(50, int(0.1 * len(pts_data[:5000]))),
+                #                           residual_threshold=1, max_trials=1000)
+                model_stamp, inliers = ransac((pts_reference[:5000,:2] , pts_data[:5000,:2]),tf.AffineTransform, min_samples=min(50, int(0.1 * len(pts_data[:5000]))),residual_threshold=1, max_trials=1000)
+                log.info('-> Completed ransac calculation of inliers')
 
-                    if len(pts_data[:5000][inliers])<10:
-                        raise ValueError("Not enough matching stars in stamps! Switching to translation")
+                if len(pts_data[:5000][inliers])<10:
+                    raise ValueError("Not enough matching stars in stamps! Switching to translation")
 ##                    #save the warp matrices instead of images
-                    #model_stamp = rot_scale_translate(sub_ref,img)
-                    np.save(os.path.join(resample_directory, 'warp_matrice_stamp_' + str(stamp) + '.npy'), model_stamp.params)
+                #model_stamp = rot_scale_translate(sub_ref,img)
+                np.save(os.path.join(resample_directory, 'warp_matrice_stamp_' + str(stamp) + '.npy'), model_stamp.params)
 
-                except:
+#                except:
 
-                   model_stamp = tf.SimilarityTransform(translation=(-shifts[1],-shifts[0]))
-                   np.save(os.path.join(resample_directory, 'warp_matrice_stamp_' + str(stamp) + '.npy'), model_stamp.params)
+#                   model_stamp = tf.SimilarityTransform(translation=(-shifts[1],-shifts[0]))
+#                   np.save(os.path.join(resample_directory, 'warp_matrice_stamp_' + str(stamp) + '.npy'), model_stamp.params)
 
 
 
