@@ -74,7 +74,7 @@ def run_stage_stand_alone():
 
     elif params['stage'] == 'calibrate_photometry':
 
-        (status, report) = calibrate_photometry.calibrate_photometry_catalog(setup)
+        (status, report) = calibrate_photometry.calibrate_photometry_catalog(setup, **params)
 
     elif params['stage'] == 'stage3_db_ingest':
 
@@ -223,6 +223,7 @@ def get_args():
     params['sky_value'] = None
     params['a0'] = None
     params['a1'] = None
+    params['phot_calib_file'] = None
     for a in argv:
         if '-dx' in a:
             params['dx'] = float(str(a).split('=')[-1])
@@ -236,14 +237,21 @@ def get_args():
             params['a0'] = float(str(a).split('=')[-1])
         if '-a1' in a:
             params['a1'] = float(str(a).split('=')[-1])
+        if '-phot_calib_file' in a:
+            params['phot_calib_file'] = str(a).split('=')[-1]
 
     if 'None' in str(params['db_file_path']):
         params['build_phot_db'] = False
     elif str(params['db_file_path']).split('.')[-1] != 'db':
         raise ValueError(params['db_file_path']+' does not end in .db.  Is this a database file path?')
 
-    if params['set_phot_calib'] and (params['a0'] == None or params['a1'] == None):
-        raise ValueError('Set photometric calibration flag set to True but no coefficients provided')
+    if params['set_phot_calib'] and params['phot_calib_file'] == None:
+        raise ValueError('Set photometric calibration flag set to True but no photometric calibration file provided')
+
+    if params['phot_calib_file'] != None:
+        phot_calib = calibrate_photometry.parse_phot_calibration_file(params['phot_calib_file'])
+        for key, value in phot_calib.items():
+            params[key] = value
 
     return params
 
