@@ -14,6 +14,7 @@ import os
 from astropy.io import fits
 import astropy.units as u
 import sys
+import json
 
 from pyDANDIA import config_utils
 from astropy.nddata import Cutout2D
@@ -90,7 +91,9 @@ def run_stage0(setup):
     reduction_metadata.update_reduction_metadata_reduction_status(new_images, stage_number=0, status=0, log=log)
 
     # construct the stamps if needed
-    central_pixel = bool(reduction_metadata.reduction_parameters[1]['CENTRAL_PIXEL'])
+    #central_pixel = bool(reduction_metadata.reduction_parameters[1]['CENTRAL_PIXEL'][0])
+    central_pixel =json.loads(reduction_metadata.reduction_parameters[1]['CENTRAL_PIXEL'][0].lower())
+
 
     if reduction_metadata.stamps[1]:
         pass

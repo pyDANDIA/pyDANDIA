@@ -36,28 +36,22 @@ def background_fit(image1, master_mask = []):
 def background_mesh_perc(image1,perc=30,box_guess=300, master_mask = []):
 
     image = np.copy(image1)
-    #zero_mask = (image == 0.)
-    if master_mask != []:
-        image[master_mask] = np.median(image1)
-    #generate slices, iterate over centers
-    mask_shape_y,mask_shape_x = np.where(image1)
-    #import pdb; pdb.set_trace()
-    if box_guess > int((max(mask_shape_x)-min(mask_shape_x))/10) and box_guess > int((max(mask_shape_y)-min(mask_shape_y))/10):
-        box = min(int((max(mask_shape_x)-min(mask_shape_x))/10), int((max(mask_shape_y)-min(mask_shape_y))/10))
+    
+    if (box_guess>image1.shape[0]/10) | (box_guess>image1.shape[1]/10):
+    
+        box = int(np.min(image1.shape)/10)
     else:
-        box = box_guess
+        box = box_guess    
+    xcen_range = (np.arange(0,image1.shape[1],box)+box/2).astype(int)
+    ycen_range = (np.arange(0,image1.shape[0],box)+box/2).astype(int)
 
-    centerx = int(box/2)+min(mask_shape_x)
-    centery = int(box/2)+min(mask_shape_y)
+    
     halfbox = int(box/2)
 
-
-    xcen_range = range(centerx,max(mask_shape_x)+1,box)
-    ycen_range = range(centery,max(mask_shape_y)+1,box)
     percentile_bkg = np.zeros((len(xcen_range),len(ycen_range)))
     idx = 0
     jdx = 0
-    perc5 = np.percentile(image[~master_mask],5)
+    
 
     for xcen in xcen_range:
         idx = 0
@@ -66,7 +60,7 @@ def background_mesh_perc(image1,perc=30,box_guess=300, master_mask = []):
                 sub_mask = master_mask[ycen - halfbox:ycen + halfbox+1,xcen - halfbox:xcen+halfbox+1]
                 #positive = image[ycen - halfbox:ycen + halfbox+1,xcen - halfbox:xcen+halfbox+1] > perc5
                 #val =  np.percentile(image[ycen - halfbox:ycen + halfbox+1,xcen - halfbox:xcen+halfbox+1][positive],perc)
-                val = np.median(image[ycen - halfbox:ycen + halfbox+1,xcen - halfbox:xcen+halfbox+1][~sub_mask])
+                val = np.percentile(image[ycen - halfbox:ycen + halfbox+1,xcen - halfbox:xcen+halfbox+1][~sub_mask],perc)
                 percentile_bkg[jdx,idx] = val
             except:
 
@@ -74,7 +68,8 @@ def background_mesh_perc(image1,perc=30,box_guess=300, master_mask = []):
             idx += 1
         jdx += 1
 
-    result = resize(percentile_bkg.T,(int(max(mask_shape_y)-min(mask_shape_y))+1,int(max(mask_shape_x)-min(mask_shape_x))+1) ,mode= 'symmetric')
+    #result = resize(percentile_bkg.T,(int(max(mask_shape_y)-min(mask_shape_y))+1,int(max(mask_shape_x)-min(mask_shape_x))+1) ,mode= 'symmetric')
+    result = resize(percentile_bkg.T,image1.shape ,mode= 'symmetric')
     #image[min(mask_shape_y):max(mask_shape_y)+1,min(mask_shape_x):max(mask_shape_x)+1] =result
     #result[zero_mask] =0.
 
