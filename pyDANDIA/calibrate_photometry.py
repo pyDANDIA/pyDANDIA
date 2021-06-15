@@ -25,6 +25,7 @@ from scipy.odr import *
 import matplotlib as mpl
 mpl.use('Agg')
 import matplotlib.pyplot as plt
+import json
 
 VERSION = 'calibrate_photometry_0.4'
 
@@ -72,12 +73,13 @@ def calibrate_photometry(setup, reduction_metadata, log, **kwargs):
             output_to_metadata(setup, params, fit, star_catalog, reduction_metadata, log)
 
     else:
-        log.info('Using provided photometric transformation parameters: a0='+\
-                    str(params['a0'])+' a1='+str(params['a1']))
-
         fit = [params['a0'], params['a1']]
+        covar_fit = np.array([ [params['c0'],params['c1']],[params['c2'],params['c3']] ])
 
-        star_catalog = apply_phot_calib(star_catalog,fit,log)
+        log.info('Using provided photometric transformation parameters: a0='+\
+                        str(params['a0'])+' a1='+str(params['a1'])+' and covarience matrix='+repr(covar_fit))
+                        
+        star_catalog = apply_phot_calib(star_catalog,fit,covar_fit,log)
 
         output_to_metadata(setup, params, fit, star_catalog, reduction_metadata, log)
 
@@ -125,6 +127,7 @@ def get_args():
     params['set_phot_calib'] = False
     params['a0'] = None
     params['a1'] = None
+    params['phot_calib_file'] = None
     params['use_gaia_phot'] = False
     for a in sys.argv:
         if '-use-gaia-phot' in a or '-use_gaia_phot' in a:
@@ -135,11 +138,39 @@ def get_args():
             params['a0'] = float(str(a).split('=')[-1])
         if '-a1' in a:
             params['a1'] = float(str(a).split('=')[-1])
+        if '-phot_calib_file' in a or '-phot-calib-file' in a:
+            params['phot_calib_file'] = str(a).split('=')[-1]
 
-    if params['set_phot_calib'] and (params['a0'] == None or params['a1'] == None):
-        raise ValueError('Set photometric calibration flag set to True but no coefficients provided')
+    if params['set_phot_calib'] and params['phot_calib_file'] == None:
+        raise ValueError('Set photometric calibration flag set to True but no photometric calibration file provided')
+
+    if params['phot_calib_file'] != None:
+        phot_calib = parse_phot_calibration_file(params['phot_calib_file'])
+        for key, value in phot_calib.items():
+            params[key] = value
 
     return params
+
+def parse_phot_calibration_file(file_path):
+    """Function to read in the parameters of the photometric calibration from
+    a file"""
+
+    if not os.path.isfile(file_path):
+        raise IOError('Cannot find photometric calibration file '+file_path)
+
+    config_file = open(file_path,'r')
+    config_dict = json.load(config_file)
+    config_file.close()
+
+    str_keys = ['filter']
+    phot_calib = {}
+    for key, value in config_dict.items():
+        if key in str_keys:
+            phot_calib[key] = value
+        else:
+            phot_calib[key] = float(value)
+
+    return phot_calib
 
 def assign_parameters(setup,cl_params,log):
     """Function to build a dictionary of the parameters required for the
