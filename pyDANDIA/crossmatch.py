@@ -640,3 +640,19 @@ class CrossMatchTable():
                 log.info(self.field_index['field_id'][idx], self.field_index['ra'][idx], self.field_index['dec'][idx], separations[idx])
 
         return results
+
+    def find_matching_images(self, search_critera, log=None):
+        """Function to extract photometry from the field photometry array for all
+        stars in images matching the search criteria given.  These criteria will be
+        applied to the xmatch.images table columns of the same names.
+
+        search_critera = { column_name: criterion }
+        """
+
+        image_index = np.arange(0,len(self.images),1)
+
+        for col, criterion in search_critera.items():
+            idx = np.where(self.images[col] == criterion)[0]
+            image_index = np.intersect1d(image_index, idx)
+
+        return image_index

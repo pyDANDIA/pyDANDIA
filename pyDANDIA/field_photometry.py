@@ -218,6 +218,22 @@ def get_dataset_image_index(dataset, xmatch):
 
     return dataset_image_idx
 
+def extract_photometry_by_search_criteria(xmatch, photometry_data, search_criteria, log=None):
+
+    image_index = xmatch.find_matching_images(search_criteria, log=log)
+
+    return photometry_data[:,image_index,:]
+
+def mask_phot_array_by_qcflag(phot_data):
+    qcflag_col = 14
+
+    mask = np.empty(phot_data.shape)
+    mask.fill(False)
+    idx = np.where(phot_data[:,:,qcflag_col] > 0.0)
+    mask[idx] = True
+
+    return np.ma.array(phot_data, mask=mask)
+
 def check_for_reference_dataset(dataset_code):
     dataset_id = '_'.join(dataset_code.split('_')[1].split('-')[0:2])
     if dataset_id in ['lsc_doma', 'cpt_doma', 'coj_doma']:

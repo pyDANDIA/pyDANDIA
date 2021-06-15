@@ -6,6 +6,7 @@ from pyDANDIA import hd5_utils
 from pyDANDIA import logs
 from pyDANDIA import pipeline_setup
 from pyDANDIA import plot_rms
+from pyDANDIA import field_photometry
 
 def run_phot_normalization(setup, **params):
     """Function to normalize the photometry between different datasets taken
@@ -34,19 +35,15 @@ def run_phot_normalization(setup, **params):
     for quad in range(1,2,1):
         phot_file = path.join(setup.red_dir,params['field_name']+'_quad'+str(quad)+'_photometry.hdf5')
         phot_data = hd5_utils.read_phot_from_hd5_file(phot_file, return_type='array')
+        phot_data = field_photometry.mask_phot_array_by_qcflag(phot_data)
 
         # Loop over all filters
         for filter in filter_list:
 
             # Extract lightcurves for all stars in quadrant for a given filter,
             # combining data from multiple cameras.
-            image_index = np.where(xmatch.images['filter'] == filter)[0]
-            phot_data_filter = phot_data[:,image_index,:]
-            mask = np.empty(phot_data_filter.shape)
-            mask.fill(False)
-            idx = np.where(phot_data[:,:,qcflag_col] > 0.0)
-            mask[idx] = True
-            print(mask)
+            search_criteria = {'filter': filter}
+            phot_data_filter = field_photometry.extract_photometry_by_search_criteria(xmatch, photometry_data, search_criteria, log=log)
 
             # Plot a multi-site initial RMS diagram for reference
             phot_statistics = np.zeros( (len(phot_data_filter),4) )
