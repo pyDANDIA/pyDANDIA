@@ -73,12 +73,12 @@ def calibrate_photometry(setup, reduction_metadata, log, **kwargs):
             output_to_metadata(setup, params, fit, star_catalog, reduction_metadata, log)
 
     else:
-        log.info('Using provided photometric transformation parameters: a0='+\
-                    str(params['a0'])+' a1='+str(params['a1']))
-
         fit = [params['a0'], params['a1']]
         covar_fit = np.array([ [params['c0'],params['c1']],[params['c2'],params['c3']] ])
-        
+
+        log.info('Using provided photometric transformation parameters: a0='+\
+                        str(params['a0'])+' a1='+str(params['a1'])+' and covarience matrix='+repr(covar_fit))
+                        
         star_catalog = apply_phot_calib(star_catalog,fit,covar_fit,log)
 
         output_to_metadata(setup, params, fit, star_catalog, reduction_metadata, log)
@@ -138,7 +138,7 @@ def get_args():
             params['a0'] = float(str(a).split('=')[-1])
         if '-a1' in a:
             params['a1'] = float(str(a).split('=')[-1])
-        if '-phot_calib_file' in a:
+        if '-phot_calib_file' in a or '-phot-calib-file' in a:
             params['phot_calib_file'] = str(a).split('=')[-1]
 
     if params['set_phot_calib'] and params['phot_calib_file'] == None:
