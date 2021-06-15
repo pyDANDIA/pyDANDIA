@@ -218,7 +218,7 @@ def get_dataset_image_index(dataset, xmatch):
 
     return dataset_image_idx
 
-def extract_photometry_by_search_criteria(xmatch, photometry_data, search_criteria, log=None):
+def extract_photometry_by_image_search(xmatch, photometry_data, search_criteria, log=None):
 
     image_index = xmatch.find_matching_images(search_criteria, log=log)
 

@@ -43,13 +43,13 @@ def run_phot_normalization(setup, **params):
             # Extract lightcurves for all stars in quadrant for a given filter,
             # combining data from multiple cameras.
             search_criteria = {'filter': filter}
-            phot_data_filter = field_photometry.extract_photometry_by_search_criteria(xmatch, photometry_data, search_criteria, log=log)
+            phot_data_filter = field_photometry.extract_photometry_by_image_search(xmatch, phot_data, search_criteria, log=log)
 
             # Plot a multi-site initial RMS diagram for reference
             phot_statistics = np.zeros( (len(phot_data_filter),4) )
-            (phot_statistics[:,0], phot_statistics[:,3]) = plot_rms.calc_weighted_mean_2D(phot_data_filter, mag_col, merr_col, mask=mask)
-            phot_statistics[:,1] = plot_rms.calc_weighted_rms(phot_data_filter, phot_statistics[:,0], mag_col, merr_col, mask=mask)
-            phot_statistics[:,2] = plot_rms.calc_percentile_rms(phot_data_filter, phot_statistics[:,0], mag_col, merr_col, mask=mask)
+            (phot_statistics[:,0], phot_statistics[:,3]) = plot_rms.calc_weighted_mean_2D(phot_data_filter, mag_col, merr_col)
+            phot_statistics[:,1] = plot_rms.calc_weighted_rms(phot_data_filter, phot_statistics[:,0], mag_col, merr_col)
+            phot_statistics[:,2] = plot_rms.calc_percentile_rms(phot_data_filter, phot_statistics[:,0], mag_col, merr_col)
             plot_rms.plot_rms(phot_statistics, params, log)
             rename(path.join(params['red_dir'],'rms.png'),
                    path.join(params['red_dir'],'rms_prenorm_'+str(filter)+'.png'))

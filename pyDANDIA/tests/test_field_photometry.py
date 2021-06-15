@@ -572,7 +572,7 @@ def test_mask_phot_array_by_qcflag():
     mask = np.ma.getmask(masked_data)
     assert( (mask[bad_data_idx] == True).all() )
 
-def test_extract_photometry_by_search_criteria():
+def test_extract_photometry_by_image_search():
 
     params = test_params()
 
@@ -597,7 +597,7 @@ def test_extract_photometry_by_search_criteria():
             test_idx.append(i)
     test_idx = np.array(test_idx)
 
-    selected_phot = field_photometry.extract_photometry_by_search_criteria(xmatch, phot_data, search_criteria)
+    selected_phot = field_photometry.extract_photometry_by_image_search(xmatch, phot_data, search_criteria)
 
     assert( selected_phot.shape[1] == len(test_idx) )
     for k,i in enumerate(test_idx):
