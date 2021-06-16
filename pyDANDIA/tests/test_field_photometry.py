@@ -15,7 +15,9 @@ def test_params():
                             'ROME-FIELD-01_lsc-doma-1m0-05-fa15_rp' : [ 'non_ref', '/Users/rstreet1/OMEGA/test_data/ROME-FIELD-01_lsc-doma-1m0-05-fa15_rp/', 'rp' ],
                             'ROME-FIELD-01_lsc-domb-1m0-09-fa15_gp' : [ 'non_ref', '/Users/rstreet1/OMEGA/test_data/ROME-FIELD-01_lsc-domb-1m0-09-fa15_gp/', 'gp' ]},
               'file_path': 'crossmatch_table.fits',
-              'log_dir': '.'}
+              'log_dir': '.',
+              'red_dir': './data/proc/'
+              }
 
     return params
 
