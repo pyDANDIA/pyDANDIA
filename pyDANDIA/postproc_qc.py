@@ -34,17 +34,8 @@ def run_postproc(setup, **params):
     photometry = grow_photometry_array(photometry,log)
     photometry = mask_photometry_array(photometry, 1, log)
 
-    test_star_idx = 148465
-    test_file = open(path.join(setup.red_dir,'lc','test_star_'+str(test_star_idx+1)+'.txt'),'w')
-    for i in range(0,photometry.shape[1],1):
-        test_file.write(str(i)+' '+str(photometry[test_star_idx,i,11])+' '+str(photometry[test_star_idx,i,12])+\
-                ' '+str(photometry[test_star_idx,i,13])+' '+str(photometry[test_star_idx,i,14])+'\n')
-    test_file.close()
-
     # Calculate mean_mag, RMS for all stars
     phot_stats = plot_rms.calc_mean_rms_mag(photometry,log,'calibrated')
-    test_star = 148465
-    print('PHOT_STATS: ',phot_stats[test_star,:])
     plot_rms.plot_rms(phot_stats, params, log,
                     plot_file=path.join(setup.red_dir,'init_rms_mag.png'))
     plot_rms.output_phot_statistics(phot_stats,
