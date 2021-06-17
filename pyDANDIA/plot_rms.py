@@ -147,7 +147,7 @@ def plot_rms(phot_statistics, params, log, plot_file=None):
 def output_phot_statistics(phot_statistics, file_path, log):
 
     f = open(file_path, 'w')
-    f.write('# Star_index  weighted_mean_mag  weighted_rms percentile_rms weighted_mean_mag_error')
+    f.write('# Star_index  weighted_mean_mag  weighted_rms percentile_rms weighted_mean_mag_error\n')
     for j in range(0,len(phot_statistics),1):
         f.write(str(j)+' '+str(phot_statistics[j,0])+' '+str(phot_statistics[j,1])+' '+\
                 str(phot_statistics[j,2])+' '+str(phot_statistics[j,3])+'\n')
