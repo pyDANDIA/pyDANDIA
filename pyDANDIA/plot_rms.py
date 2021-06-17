@@ -81,7 +81,7 @@ def calc_weighted_mean_2D(data, col, errcol):
     mags = np.ma.array(data[:,:,col], mask=mask)
     errs = np.ma.array(data[:,:,errcol], mask=mask)
 
-    test_star = 148465
+    test_star = 148464
     print('MAGS: ',mags[test_star,:])
     print('ERRS: ',errs[test_star,:])
     idx = np.where(mags > 0.0)
