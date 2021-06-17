@@ -17,7 +17,7 @@ import csv
 
 def extract_star_lightcurve_star_id(params, log=None, format='dat',
 									valid_data_only=True,phot_error_threshold=10.0,
-									output_neighbours=False,psfactor_threshold=0.002):
+									output_neighbours=False,psfactor_threshold=0.8):
     """Function to extract a lightcurve for a single star based on its star_id
 	in the star_catolog in the metadata for a single reduction."""
 
