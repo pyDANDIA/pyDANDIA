@@ -34,7 +34,7 @@ def run_postproc(setup, **params):
     photometry = grow_photometry_array(photometry,log)
     photometry = mask_photometry_array(photometry, 1, log)
 
-    test_star_idx = 148464
+    test_star_idx = 148465
     test_file = open(path.join(setup.red_dir,'lc','test_star_'+str(test_star_idx+1)+'.txt'),'w')
     for i in range(0,photometry.shape[1],1):
         test_file.write(str(i)+' '+str(photometry[test_star_idx,i,11])+' '+str(photometry[test_star_idx,i,12])+\
