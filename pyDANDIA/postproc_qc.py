@@ -23,7 +23,7 @@ def run_postproc(setup, **params):
     log = logs.start_stage_log( setup.red_dir, 'postproc_phot' )
     (setup, params) = load_config(setup, params)
     (setup, params) = sanity_check(setup, params,log)
-    
+
     reduction_metadata = metadata.MetaData()
     reduction_metadata.load_all_metadata(setup.red_dir, 'pyDANDIA_metadata.fits')
     phot_file = path.join(setup.red_dir,'photometry.hdf5')
