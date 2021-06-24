@@ -731,9 +731,12 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
 
         raise ValueError('No images available to resample, halting.')
 
-    bkg = read_images_stage5.background_mesh_perc(reference_image,perc=30,box_guess=300, master_mask = mask_reference.astype(bool))
 
-    ref_sources, ref_fwhm = extract_catalog(reduction_metadata, reference_image-bkg, ref_row_index, log)
+    masked_ref = np.copy(reference_image)
+    masked_ref[mask_reference.astype(bool)] = 0
+    bkg = read_images_stage5.background_mesh_perc(masked_ref,perc=30,box_guess=300, master_mask = mask_reference.astype(bool))
+
+    ref_sources, ref_fwhm = extract_catalog(reduction_metadata, masked_ref-bkg, ref_row_index, log)
 
     log.info('Starting image resampling')
     # Is there a mask already?
@@ -776,13 +779,13 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
             shifted_catalog[mask_image.astype(bool)] = 0
             #bkg = read_images_stage5.background_fit(shifted_catalog, master_mask = mask_image.astype(bool))
             bkg = read_images_stage5.background_mesh_perc(data_image,perc=30,box_guess=300, master_mask = mask_image.astype(bool))
-            shifted_catalog -= bkg
+
             iteration = 0
             corr_ini = np.corrcoef(reference_image.ravel(), shifted.ravel())[0, 1]
 
             while iteration < 1:
 
-                data_sources, data_fwhm = extract_catalog(reduction_metadata, shifted_catalog, row_index, log)
+                data_sources, data_fwhm = extract_catalog(reduction_metadata, shifted_catalog-bkg, row_index, log)
 
                 try:
 
@@ -805,15 +808,17 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
                                                    min_samples=min(50, int(0.1 * len(pts_data[:5000]))),
                                                    residual_threshold=1, max_trials=1000)
 
-                    A = polyfit2d(pts_reference2[:,0][:5000][inliers], pts_reference2[:,1][:5000][inliers], pts_data[:,0][:5000][inliers], order=3,errors=e_pos_ref[:5000][inliers]/2**0.5)
-                    B = polyfit2d(pts_reference2[:,0][:5000][inliers], pts_reference2[:,1][:5000][inliers], pts_data[:,1][:5000][inliers], order=3,errors=e_pos_ref[:5000][inliers]/2**0.5)
+                    A = polyfit2d(pts_reference2[:,0][:5000][inliers], pts_reference2[:,1][:5000][inliers], pts_data[:,0][:5000][inliers], order=2)#,errors=e_pos_ref[:5000][inliers]/2**0.5)
+                    B = polyfit2d(pts_reference2[:,0][:5000][inliers], pts_reference2[:,1][:5000][inliers], pts_data[:,1][:5000][inliers], order=2)#,errors=e_pos_ref[:5000][inliers]/2**0.5)
                     C = tf.PolynomialTransform(np.r_[[A],[B]])
 
 
-
+#                    if new_image == 'coj1m003-fa19-20200914-0094-e91.fits':
+#                        import pdb; pdb.set_trace()
                     if len(pts_data[:5000][inliers])<10:
                         raise ValueError("Not enough matching stars! Switching to translation")
 
+                    #C = model_robust
                     model_final = C
                     log.info(' -> Using Affine Transformation')
 
@@ -880,7 +885,8 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
                     data_stamps, stamps_fwhm = extract_catalog(reduction_metadata, img, row_index, log)
                     log.info('-> Extracted catalog')
 
-                    init_transform =rot_scale_translate(sub_ref,img)
+                    #init_transform =rot_scale_translate(sub_ref,img)
+                    init_transform = tf.SimilarityTransform(translation=(-shifts[1],-shifts[0]))
                     pts_data, pts_reference, e_pos_data,e_pos_ref = crossmatch_catalogs2(ref_stamps, data_stamps,init_transform)
                     log.info('-> Crossmatch against catalog')
 

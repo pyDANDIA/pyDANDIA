@@ -16,7 +16,7 @@ from astropy.io import fits
 from scipy.signal import convolve2d
 from scipy.stats import skew, kurtosis
 from scipy.ndimage.filters import gaussian_filter
-from pyDANDIA.read_images_stage5 import open_reference, open_images, open_data_image,mask_the_image
+from pyDANDIA.read_images_stage5 import open_reference, open_images, open_data_image,mask_the_image,mask_the_reference
 from pyDANDIA.stage0 import open_an_image
 from pyDANDIA.subtract_subimages import subtract_images, subtract_subimage
 from multiprocessing import Pool
@@ -631,9 +631,14 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
 
         except:
             master_mask = []
-
+            
+        ref_file_path = os.path.join(reference_image_directory,reference_image_name)
+        ref_structure = image_handling.determine_image_struture(ref_file_path, log=log)  
+        reference_image = fits.open( ref_file_path)[ref_structure['sci']].data
+        
         kernel_size_max = max(kernel_size_array)
         reference_images = []
+
         ref_structure = image_handling.determine_image_struture(os.path.join(reference_image_directory, reference_image_name),log=log)
 
         try:
@@ -654,13 +659,17 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
                         ymin = reduction_metadata.stamps[1]['PIXEL_INDEX'][stamp_row]['Y_MIN'][0]
                         ymax = reduction_metadata.stamps[1]['PIXEL_INDEX'][stamp_row]['Y_MAX'][0]
                         
-                        reference_image, bright_reference_mask, reference_image_unmasked, noise_image = open_reference(setup, reference_image_directory, reference_image_name, kernel_size_array[idx], max_adu,
-                               ref_extension=ref_structure['sci'], log=log, central_crop=maxshift, master_mask=master_mask,
-                               external_weight=None,subset=[ymin,ymax, xmin,xmax])
-                               
+                        #reference_image, bright_reference_mask, reference_image_unmasked, noise_image = open_reference(setup, reference_image_directory, reference_image_name, kernel_size_array[idx], max_adu,
+                        #       ref_extension=ref_structure['sci'], log=log, central_crop=maxshift, master_mask=master_mask,
+                        #       external_weight=None,subset=[ymin,ymax, xmin,xmax])
+                        
+                        ref,ref_unmasked,ref_mask,bkg_ref,noise =  mask_the_reference(reference_image[ymin:ymax, xmin:xmax],master_mask[ymin:ymax, xmin:xmax],kernel_size_array[idx],max_adu)    
+                        
+                        
+                        #reference_images.append([ref,ref_unmasked,ref_mask,bkg_ref,noise])
                         umatrices.append(
-                            umatrix_constant(reference_image, kernel_size_array[idx],
-                                             noise_image))
+                            umatrix_constant(ref, kernel_size_array[idx],
+                                             noise))
                     umatrices_grid.append(umatrices)
 
                 np.save(os.path.join(kernel_directory_path, 'unweighted_u_matrix.npy'),
@@ -684,12 +693,17 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
                     
                     
 
-                    reference_image, bright_reference_mask, reference_image_unmasked, noise_image = open_reference(setup, reference_image_directory, reference_image_name, kernel_size_array[idx], max_adu,
-                               ref_extension=ref_structure['sci'], log=log, central_crop=maxshift, master_mask=master_mask,
-                               external_weight=None,subset=[ymin,ymax, xmin,xmax])
+                   # reference_image, bright_reference_mask, reference_image_unmasked, noise_image = open_reference(setup, reference_image_directory, reference_image_name, kernel_size_array[idx], max_adu,
+                   #            ref_extension=ref_structure['sci'], log=log, central_crop=maxshift, master_mask=master_mask,
+                   #            external_weight=None,subset=[ymin,ymax, xmin,xmax])
+                    ref,ref_unmasked,ref_mask,bkg_ref,noise =  mask_the_reference(reference_image[ymin:ymax, xmin:xmax],master_mask[ymin:ymax, xmin:xmax],kernel_size_array[idx],max_adu)    
+                        
+                  
+                   # reference_images.append([ref,ref_unmasked,ref_mask,bkg_ref,noise])
                     umatrices.append(
-                        umatrix_constant(reference_image, kernel_size_array[idx],
-                                             noise_image))
+                        umatrix_constant(ref, kernel_size_array[idx],
+                                         noise))                    
+                                         
                     log.info(' -> Completed u-matrix calculation on stamp '+str(stamp))
                 umatrices_grid.append(umatrices)
 
@@ -699,6 +713,7 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
 
     log.info('Performing image subtraction')
     quality_metrics = []
+    #import pdb; pdb.set_trace()
     for new_image in new_images:
 
         kernel_directory = os.path.join(kernel_directory_path, new_image)
@@ -735,14 +750,15 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
         image_directory = reduction_metadata.data_architecture[1]['IMAGES_PATH'][0]
         image_file_path = os.path.join(image_directory, new_image)
         image_structure = image_handling.determine_image_struture(image_file_path, log=log)
-        data_image = fits.open(image_file_path)[image_structure['sci']].data
+        theimage = fits.open(image_file_path)[image_structure['sci']].data
 
         stamps_directory = os.path.join(data_image_directory, new_image)
         #import pdb; pdb.set_trace()
         warp_matrix =  np.load(os.path.join(stamps_directory, 'warp_matrice_image.npy'))
         if warp_matrix.shape != (3,3):
             warp_matrix = tf.PolynomialTransform(warp_matrix)
-        resample_image = stage4.warp_image(data_image,warp_matrix)
+            
+        resample_image = stage4.warp_image(theimage,warp_matrix)
         
         try:
 
@@ -767,14 +783,16 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
                 ymax = int(reduction_metadata.stamps[1][stamp_row]['Y_MAX'])
 
 
-                ref_extended, bal_mask_extended, ref_unmasked, noise = open_reference(setup, reference_image_directory, reference_image_name, kernel_size_array[umatrix_index], max_adu,
-                               ref_extension=ref_structure['sci'], log=log, central_crop=maxshift, master_mask=master_mask,
-                               external_weight=None,subset=[ymin,ymax, xmin,xmax])
+                #ref_extended, bal_mask_extended, ref_unmasked, noise = open_reference(setup, reference_image_directory, reference_image_name, kernel_size_array[umatrix_index], max_adu,
+                 #              ref_extension=ref_structure['sci'], log=log, central_crop=maxshift, master_mask=master_mask,
+                 #              external_weight=None,subset=[ymin,ymax, xmin,xmax])
 #                ref = reference_image[kernel_size:-kernel_size, kernel_size:-kernel_size][ymin:ymax, xmin:xmax]
 
 #                ref_unmasked = reference_image_unmasked[ymin:ymax, xmin:xmax]
 
-
+                #ref,ref_unmasked,ref_mask,bkg_ref,noise = reference_images[stamp_row]
+                ref,ref_unmasked,ref_mask,bkg_ref,noise =  mask_the_reference(reference_image[ymin:ymax, xmin:xmax],master_mask[ymin:ymax, xmin:xmax],kernel_size,max_adu)
+               
                 img = resample_image[ymin:ymax, xmin:xmax]
 
 
@@ -809,12 +827,12 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
                 #resample_image = stage4.warp_image(data_image,tot_warp)
                 #img_new = resample_image[ymin:ymax, xmin:xmax]
                
-                data_image, data_image_unmasked,bkg_image = mask_the_image(img,max_adu,bal_mask_extended,kernel_size)
-    
+                data_image, data_image_unmasked,bkg_image = mask_the_image(img,max_adu,ref_mask,kernel_size)
+              
 
 
                 umatrix = umatrix_grid[stamp_row]
-                b_vector = bvector_constant(ref_extended,data_image, kernel_size, noise)
+                b_vector = bvector_constant(ref,data_image, kernel_size, noise)
 
                 kernel_matrix, bkg_kernel, kernel_uncertainty = kernel_solution(umatrix, b_vector, kernel_size,
                                                                             circular=False)
@@ -837,8 +855,8 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
 
                 # unmasked subtraction (for quality stats)
                 mean_sky, median_sky, std_sky = sigma_clipped_stats(ref_unmasked, sigma=5.0)
-                difference_image_um = subtract_images(data_image, ref_extended, kernel_matrix, kernel_size, bkg_kernel)
-                mask = ref_extended != 0
+                difference_image_um = subtract_images(data_image, ref, kernel_matrix, kernel_size, bkg_kernel)
+                mask = ref != 0
                 ngood = len(difference_image_um[mask])
                 kurtosis_quality = kurtosis(difference_image_um[mask])
                 skew_quality = skew(difference_image_um[mask])

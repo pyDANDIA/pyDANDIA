@@ -527,7 +527,7 @@ def construct_the_pixel_mask(setup, reduction_metadata,
 
         if type(banzai_bpm) == type(fits.hdu.image.ImageHDU()):
 
-            bpm.load_banzai_mask(banzai_bpm, log=log)
+            bpm.load_banzai_mask(banzai_bpm.data,integers_to_flag=[1,2,3,4], log=log)
 
         # variables_pixel_mask = construct_the_variables_star_mask(open_image, variable_star_pixels=10)
 
