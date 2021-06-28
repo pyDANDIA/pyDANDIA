@@ -272,7 +272,7 @@ def run_stage6(setup, **kwargs):
                     stamp_directory = os.path.join(diffim_directory,new_image)
                     difference_image = open_an_image(setup, stamp_directory,'diff_stamp_'+str(stamp)+'.fits' , log, 0)[0]
                     background_difference_image = open_an_image(setup, stamp_directory,'diff_back_stamp_'+str(stamp)+'.fits' , log, 0)[0]
-                    
+
                     if len(difference_image) > 1:
 
                         diff_table, control_zone, phot_table = photometry_on_the_difference_image_stamp(setup, reduction_metadata, log,
@@ -1143,7 +1143,7 @@ def store_stamp_photometry_to_array(setup, conn, params, reduction_metadata,
     photometry array"""
 
     log.info('Starting to store photometry for image '+new_image)
-
+    debug=True
     if debug:
         matched_stars.output_match_list(os.path.join(setup.red_dir,'matched_stars.txt'))
 
@@ -1153,6 +1153,7 @@ def store_stamp_photometry_to_array(setup, conn, params, reduction_metadata,
     # The index of the data from a given image corresponds to the index of that
     # image in the metadata
     image_dataset_index = np.where(new_image == reduction_metadata.headers_summary[1]['IMAGES'].data)[0][0]
+    print('IMAGE_DATASET_INDEX: ',image_dataset_index)
 
     star_dataset_ids = np.array(phot_table['star_id'].data)
     star_dataset_ids = star_dataset_ids.astype('float')
@@ -1170,6 +1171,8 @@ def store_stamp_photometry_to_array(setup, conn, params, reduction_metadata,
     log.info('Starting match index search for '+str(len(star_dataset_ids))+' stars')
     (star_dataset_ids, star_field_ids) = matched_stars.find_starlist_match_ids('cat2_index', star_dataset_ids, log,
                                                                                 verbose=True)
+    print('STAR_DATASET_IDS: ',star_dataset_ids)
+    print('STAR_FIELD_IDS: ',star_field_ids)
 
     log.info('Starting to array data transfer')
     photometry_data[star_dataset_index,image_dataset_index,0] = star_field_ids
