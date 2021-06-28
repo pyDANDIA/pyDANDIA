@@ -1144,6 +1144,7 @@ def store_stamp_photometry_to_array(setup, conn, params, reduction_metadata,
 
     log.info('Starting to store photometry for image '+new_image)
     debug=True
+    print('ARRAY SHAPE: ',photometry_data.shape)
     if debug:
         matched_stars.output_match_list(os.path.join(setup.red_dir,'matched_stars.txt'))
 
