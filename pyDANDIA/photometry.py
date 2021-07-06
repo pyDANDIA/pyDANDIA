@@ -601,7 +601,7 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
 
         mask = difference_image == 0
         radius = psf_diameter/2.0
-        
+
         apertures = CircularAperture(positions, r=radius)
         #apertures = RectangularAperture(positions, w=radius*2,h=radius*2)
 
@@ -614,7 +614,7 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
             bkg = Background2D(difference_image, (50, 50),  filter_size=(3, 3), sigma_clip=sigma_clip, bkg_estimator=bkg_estimator)
         bkg.background[mask] = 0
         bkg.background_rms[mask] = 0
-        
+
         #total bkg error budget
         background_of_image = background_difference_image
         error = calc_total_error(difference_image, (bkg.background_rms**2)**0.5, gain)
@@ -708,7 +708,7 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
                     flux_tot = ref_flux*ref_exposure_time - flux
                     flux_err_tot = (error_ref_flux ** 2*ref_exposure_time + flux_err**2/phot_scale_factor**2+
                                     (flux*error_phot_scale_factor/phot_scale_factor**2)**2) ** 0.5
-                
+
                     if per_star_logging:
                         log.info(' -> Star ' + str(j) + ' at position (' + \
                                    str(xstar) + ', ' + str(ystar) + ') flux='+str(flux)+', flux_err='+str(flux_err)+\
