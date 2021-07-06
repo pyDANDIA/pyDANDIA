@@ -582,11 +582,11 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
     fit_params = [reduction_metadata.phot_calib[1]['a0'][0],
                   reduction_metadata.phot_calib[1]['a1'][0]]
     covar_fit = np.array( [ [reduction_metadata.phot_calib[1]['c0'][0],reduction_metadata.phot_calib[1]['c1'][0]],
-                            [reduction_metadata.phot_calib[1]['c1'][0],reduction_metadata.phot_calib[1]['c2'][0]]
+                            [reduction_metadata.phot_calib[1]['c2'][0],reduction_metadata.phot_calib[1]['c3'][0]]
                             ] )
     log.info('Calculating calibrated photometry using fit parameters: '+repr(fit_params))
     log.info('and covarience matrix: '+repr(covar_fit))
-    
+
     list_star_id = []
 
     list_radius = []
