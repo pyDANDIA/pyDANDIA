@@ -542,6 +542,30 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
     def null_background(x,axis=None):
         return 0
 
+    def calc_calib_mags(fit_params, covar_fit, mag, mag_err):
+        """This function is the parallel of the calculation used in
+        calibrate_photometry.  These functions should be combined for
+        consistency in v2.0"""
+
+        if mag < 7.0:
+            ccalib = np.eye(3)
+            ccalib[:2,:2] = covar_fit
+            ccalib[2,2] = fit_params[0]**2
+            jac = np.c_[mag, [1], mag_err]
+            cal_ref_mag = phot_func(fit_params,mag)
+            errors = []
+            for i in range(len(jac)):
+                vect = []
+                for j in range(len(ccalib)):
+                    vect.append(np.sum(ccalib[j]*jac[i]))
+                errors.append(np.sum(vect*jac[i])**0.5)
+            cal_ref_mag_err = errors
+        else:
+            cal_ref_mag = 0.0
+            cal_ref_mag_err = 0.0
+
+        return cal_ref_mag, cal_ref_mag_err
+
     #psf_diameter = reduction_metadata.psf_dimensions[1]['psf_radius'][0]*2.0
     psf_diameter = reduction_metadata.get_psf_radius()*2.0
     half_psf = int(psf_diameter/2)
@@ -557,7 +581,12 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
 
     fit_params = [reduction_metadata.phot_calib[1]['a0'][0],
                   reduction_metadata.phot_calib[1]['a1'][0]]
-
+    covar_fit = np.array( [ [reduction_metadata.phot_calib[1]['c0'][0],reduction_metadata.phot_calib[1]['c1'][0]],
+                            [reduction_metadata.phot_calib[1]['c1'][0],reduction_metadata.phot_calib[1]['c2'][0]]
+                            ] )
+    log.info('Calculating calibrated photometry using fit parameters: '+repr(fit_params))
+    log.info('and covarience matrix: '+repr(covar_fit))
+    
     list_star_id = []
 
     list_radius = []
@@ -727,8 +756,9 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
                         (mag, mag_err, flux_tot, flux_err_tot) = convert_flux_to_mag(flux_tot, flux_err_tot, ref_exposure_time)
                         #(mag, mag_err, flux_tot, flux_err_tot) = convert_flux_to_mag(flux_tot2, flux_err_tot2, ref_exposure_time)
 
-                        cal_mag = calibrate_photometry.phot_func(fit_params,mag)
-                        cal_mag_err = mag_err
+                        #cal_mag = calibrate_photometry.phot_func(fit_params,mag)
+                        #cal_mag_err = mag_err
+                        (cal_mag, cal_mag_err) = calc_calib_mags(fit_params, covar_fit, mag, mag_err)
 
                         (cal_flux, cal_flux_err) = convert_mag_to_flux(cal_mag, cal_mag_err)
 
