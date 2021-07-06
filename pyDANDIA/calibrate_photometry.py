@@ -66,11 +66,12 @@ def calibrate_photometry(setup, reduction_metadata, log, **kwargs):
 
             star_catalog = apply_phot_calib(star_catalog,fit,covar_fit,log)
 
-            output_to_metadata(setup, params, fit, star_catalog, reduction_metadata, log)
+            output_to_metadata(setup, params, fit, covar_fit, star_catalog, reduction_metadata, log)
         else:
 
             fit = [0,1]
-            output_to_metadata(setup, params, fit, star_catalog, reduction_metadata, log)
+            covar_fit = np.array([[0.0,0.0],[0.0,0.0]])
+            output_to_metadata(setup, params, fit, covar_fit, star_catalog, reduction_metadata, log)
 
     else:
         fit = [params['a0'], params['a1']]
@@ -78,10 +79,10 @@ def calibrate_photometry(setup, reduction_metadata, log, **kwargs):
 
         log.info('Using provided photometric transformation parameters: a0='+\
                         str(params['a0'])+' a1='+str(params['a1'])+' and covarience matrix='+repr(covar_fit))
-                        
+
         star_catalog = apply_phot_calib(star_catalog,fit,covar_fit,log)
 
-        output_to_metadata(setup, params, fit, star_catalog, reduction_metadata, log)
+        output_to_metadata(setup, params, fit, covar_fit, star_catalog, reduction_metadata, log)
 
     return reduction_metadata
 
@@ -995,7 +996,7 @@ def apply_phot_calib(star_catalog,fit_params,covar_fit,log):
 
     return star_catalog
 
-def output_to_metadata(setup, params, phot_fit, star_catalog, reduction_metadata, log):
+def output_to_metadata(setup, params, phot_fit, covar_fit, star_catalog, reduction_metadata, log):
     """Function to output the star catalog to the reduction metadata.
     Creates a phot_catalog extension if none exists, or overwrites an
     existing one"""
@@ -1014,7 +1015,7 @@ def output_to_metadata(setup, params, phot_fit, star_catalog, reduction_metadata
                                             params['metadata'],
                                             'star_catalog', log=log)
 
-    reduction_metadata.create_phot_calibration_layer(phot_fit)
+    reduction_metadata.create_phot_calibration_layer(phot_fit, covar_fit)
 
     reduction_metadata.save_a_layer_to_file(setup.red_dir,
                                             params['metadata'],

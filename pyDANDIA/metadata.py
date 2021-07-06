@@ -449,7 +449,7 @@ class MetaData:
 
             log.info('Output software version table to reduction metadata')
 
-    def create_phot_calibration_layer(self,data):
+    def create_phot_calibration_layer(self,data,covar):
         """Function to create the layer in the reduction metadata file
         containing the star catalogue of objects detected within the reference
         image.
@@ -463,7 +463,11 @@ class MetaData:
         layer_header.update({'NAME': 'phot_calib'})
 
         table_data = [ Column(name='a0', data=np.array([data[0]]), unit=u.mag, dtype='float'),
-                       Column(name='a1', data=np.array([data[1]]), unit=None, dtype='float') ]
+                       Column(name='a1', data=np.array([data[1]]), unit=None, dtype='float'),
+                       Column(name='c0', data=np.array([covar[0,0]]), unit=None, dtype='float'),
+                       Column(name='c1', data=np.array([covar[0,1]]), unit=None, dtype='float'),
+                       Column(name='c2', data=np.array([covar[1,0]]), unit=None, dtype='float'),
+                       Column(name='c3', data=np.array([covar[1,1]]), unit=None, dtype='float') ]
 
         layer_table = Table(table_data)
 
@@ -852,7 +856,7 @@ class MetaData:
                         else:
                             logs.ifverbose(log, setup,
                                        name + ' is a recently-added image not yet ready for processing by stage number: ' + str(stage_number))
-                                       
+
         except:
             if log != None:
                 log.info('Error in scanning for new images to reduce')

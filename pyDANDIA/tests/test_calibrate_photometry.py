@@ -31,7 +31,7 @@ def test_calc_transform():
 
     p = [ -1.0, -10.0 ]
 
-    fit = calibrate_photometry.calc_transform(p, x, y)
+    (fit,covar_fit) = calibrate_photometry.calc_transform(p, x, y)
 
     assert fit.all() == np.array(a).all()
 
@@ -92,7 +92,7 @@ def test_parse_phot_calibration_file():
     key_list = ['a0', 'a1', 'c0', 'c1', 'c2', 'c3']
 
     phot_calib = calibrate_photometry.parse_phot_calibration_file(test_file_path)
-    
+
     assert(type(phot_calib) == type({}))
     for key in key_list:
         assert(key in phot_calib.keys())
