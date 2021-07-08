@@ -62,25 +62,27 @@ def calibrate_photometry(setup, reduction_metadata, log, **kwargs):
         match_index = extract_matched_stars_index(star_catalog,params,log)
 
         if len(match_index) > 0:
-            (fit,covar_fit) = calc_phot_calib(params,star_catalog,match_index,log)
+            (fit,covar_fit, sigma_fit) = calc_phot_calib(params,star_catalog,match_index,log)
 
-            star_catalog = apply_phot_calib(star_catalog,fit,covar_fit,log)
+            star_catalog = apply_phot_calib(star_catalog,fit,covar_fit,sigma_fit,log)
 
             output_to_metadata(setup, params, fit, covar_fit, star_catalog, reduction_metadata, log)
         else:
 
             fit = [0,1]
             covar_fit = np.array([[0.0,0.0],[0.0,0.0]])
+            sigma_fit = 0.0
             output_to_metadata(setup, params, fit, covar_fit, star_catalog, reduction_metadata, log)
 
     else:
         fit = [params['a0'], params['a1']]
         covar_fit = np.array([ [params['c0'],params['c1']],[params['c2'],params['c3']] ])
+        sigma_fit = params['sigma_fit']
 
         log.info('Using provided photometric transformation parameters: a0='+\
                         str(params['a0'])+' a1='+str(params['a1'])+' and covarience matrix='+repr(covar_fit))
 
-        star_catalog = apply_phot_calib(star_catalog,fit,covar_fit,log)
+        star_catalog = apply_phot_calib(star_catalog,fit,covar_fit,sigma_fit,log)
 
         output_to_metadata(setup, params, fit, covar_fit, star_catalog, reduction_metadata, log)
 
@@ -542,7 +544,7 @@ def calc_phot_calib(params,star_catalog,match_index,log):
 
     fit = [0.0, 0.0]
 
-    (fit,covar_fit) = model_phot_transform2(params,star_catalog,
+    (fit,covar_fit,sigma_fit) = model_phot_transform2(params,star_catalog,
                                    match_index,fit,log)
 
     if fit[0] > -9999.0:
@@ -559,7 +561,7 @@ def calc_phot_calib(params,star_catalog,match_index,log):
 
         log.info('Final fitted photometric calibration: '+repr(fit))
 
-    return fit, covar_fit
+    return fit, covar_fit, sigma_fit
 
 def model_phot_transform(params,star_catalog,vphas_cat,match_index,fit,
                          log, diagnostics=True):
@@ -765,6 +767,7 @@ def model_phot_transform2(params,star_catalog,match_index,fit,
     cerr = params['cat_err_col']
     fit = np.array([-9999.9999, -9999.9999])
     covar_fit = np.zeros((3,3))
+    sigma_fit = -9999.9999
 
     if cmag not in star_catalog.colnames or cerr not in star_catalog.colnames:
         log.info('WARNING: No catalog photometry available to automatically calibrate instrumental data in '+params['filter'])
@@ -823,6 +826,7 @@ def model_phot_transform2(params,star_catalog,match_index,fit,
             return fit, covar_fit
 
         (fit,covar_fit) = calc_transform(fit, xbins, ybins)
+        sigma_fit = calc_transform_uncertainty(fit, xbins, ybins)
 
         if diagnostics:
 
@@ -874,7 +878,7 @@ def model_phot_transform2(params,star_catalog,match_index,fit,
 
         log.info('Fitted parameters: '+repr(fit))
 
-        return fit, covar_fit
+        return fit, covar_fit, sigma_fit
 
 def phot_weighted_mean(data,sigma):
     """Function to calculate the mean of a set of magnitude measurements,
@@ -914,6 +918,18 @@ def calc_transform(pinit, x, y):
 
     return pfit, covar_fit
 
+def calc_transform_uncertainty(pfit, x, y):
+    """Function to calculate the uncertainty on the calibrated magnitudes,
+    based on the scatter of datapoints around the fitted model
+    See: http://123.physics.ucdavis.edu/week_0_files/taylor_181-199.pdf
+    """
+
+    y2 = phot_func(pfit,x)
+    delta = (y - y2)**2
+    sigma_y2 = np.sqrt(delta.sum()/float(len(delta)-2))
+
+    return sigma_y2
+
 def exclude_outliers(star_catalog,params,match_index,fit,log):
 
     cmag = params['cat_mag_col']
@@ -946,33 +962,37 @@ def calc_MAD(x):
 
     return median, MAD
 
-def calc_calibrated_mags(fit_params, covar_fit, star_catalog, log):
+def calc_calibrated_mags(fit_params, covar_fit, sigma_fit, star_catalog, log,
+                        use_covar=False):
 
     log.info('-> Calculating calibrated mag uncertainties from covarience matrix')
 
-    ccalib = np.eye(3)
-    ccalib[:2,:2] = covar_fit
-    ccalib[2,2] = fit_params[0]**2
-    log.info(repr(ccalib))
-    jac = np.c_[star_catalog['mag'], [1]*len(star_catalog), star_catalog['mag_err']]
-    star_catalog['cal_ref_mag'] = phot_func(fit_params,star_catalog['mag'])
-    #res = jac@np.dot(ccalib,jac.T)
-    #res = np.dot(jac,np.dot(ccalib,jac.T))
-    #star_catalog['cal_ref_mag_err'] = res.diagonal()**0.5
-    errors = []
-    for i in range(len(jac)):
-        vect = []
-        for j in range(len(ccalib)):
-            vect.append(np.sum(ccalib[j]*jac[i]))
-        errors.append(np.sum(vect*jac[i])**0.5)
-    star_catalog['cal_ref_mag_err'] = errors
-    idx = np.where(star_catalog['mag'] < 7.0)
-    star_catalog['cal_ref_mag'][idx] = 0.0
-    star_catalog['cal_ref_mag_err'][idx] = 0.0
-
+    if use_covar:
+        ccalib = np.eye(3)
+        ccalib[:2,:2] = covar_fit
+        ccalib[2,2] = fit_params[0]**2
+        log.info(repr(ccalib))
+        jac = np.c_[star_catalog['mag'], [1]*len(star_catalog), star_catalog['mag_err']]
+        star_catalog['cal_ref_mag'] = phot_func(fit_params,star_catalog['mag'])
+        #res = jac@np.dot(ccalib,jac.T)
+        #res = np.dot(jac,np.dot(ccalib,jac.T))
+        #star_catalog['cal_ref_mag_err'] = res.diagonal()**0.5
+        errors = []
+        for i in range(len(jac)):
+            vect = []
+            for j in range(len(ccalib)):
+                vect.append(np.sum(ccalib[j]*jac[i]))
+            errors.append(np.sum(vect*jac[i])**0.5)
+        star_catalog['cal_ref_mag_err'] = errors
+        idx = np.where(star_catalog['mag'] < 7.0)
+        star_catalog['cal_ref_mag'][idx] = 0.0
+        star_catalog['cal_ref_mag_err'][idx] = 0.0
+    else:
+        star_catalog['cal_ref_mag'] = phot_func(fit_params,star_catalog['mag'])
+        
     return star_catalog
 
-def apply_phot_calib(star_catalog,fit_params,covar_fit,log):
+def apply_phot_calib(star_catalog,fit_params,covar_fit,sigma_fit,log):
     """Function to apply the computed photometric calibration to calculate
     calibrated magnitudes for all detected stars"""
 
@@ -981,7 +1001,7 @@ def apply_phot_calib(star_catalog,fit_params,covar_fit,log):
     mags = star_catalog['mag']
 
     if fit_params[0] > -9999.0 and fit_params[1] > -9999.0:
-        star_catalog = calc_calibrated_mags(fit_params, covar_fit, star_catalog, log)
+        star_catalog = calc_calibrated_mags(fit_params, covar_fit, sigma_fit, star_catalog, log)
 
         (cal_flux, cal_flux_error) = photometry.convert_mag_to_flux(star_catalog['cal_ref_mag'],
                                                                     star_catalog['cal_ref_mag_err'])

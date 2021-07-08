@@ -98,9 +98,28 @@ def test_parse_phot_calibration_file():
         assert(key in phot_calib.keys())
         assert(type(phot_calib[key]) == type(1.0))
 
+def test_calc_transform_uncertainty():
+
+    A = [1.0, 0.0]
+    x = np.linspace(0.0, 100.0, 100)
+    y = A[0]*x + A[1]
+
+    sigma_y2 = calibrate_photometry.calc_transform_uncertainty(A, x, y)
+
+    assert(sigma_y2 == 0.0)
+
+    test_sigma = 0.01
+    randoms = np.random.normal(loc=0.0, scale=test_sigma, size=len(y))
+    y2 = y + randoms
+
+    sigma_y2 = calibrate_photometry.calc_transform_uncertainty(A, x, y2)
+
+    np.testing.assert_almost_equal(sigma_y2, test_sigma, 2)
+
 if __name__ == '__main__':
 
     #test_calc_transform()
     #test_fetch_catalog_sources_within_image()
     #test_fetch_catalog_sources_from_metadata()
-    test_parse_phot_calibration_file()
+    #test_parse_phot_calibration_file()
+    test_calc_transform_uncertainty()

@@ -485,7 +485,32 @@ def quick_polyfit(params,data,weight,psf_fit):
     return ((data-model)/weight).ravel()
 
 
+def calc_calib_mags(fit_params, covar_fit, mag, mag_err):
+    """This function is the parallel of the calculation used in
+    calibrate_photometry, and is designed to calculate for pairs of scalars
+    rather than arrays.  These functions should be combined for
+    consistency in v2.0"""
 
+    if mag >= 7.0:
+        ccalib = np.eye(3)
+        ccalib[:2,:2] = covar_fit
+        ccalib[2,2] = fit_params[0]**2
+        print(ccalib, len(ccalib))
+        jac = np.c_[mag, [1], mag_err]
+        print(jac)
+        cal_ref_mag = calibrate_photometry.phot_func(fit_params,mag)
+        errors = []
+        for i in range(len(jac)):
+            vect = []
+            for j in range(len(ccalib)):
+                vect.append(np.sum(ccalib[j]*jac[i]))
+            errors.append(np.sum(vect*jac[i])**0.5)
+        cal_ref_mag_err = errors[0]
+    else:
+        cal_ref_mag = 0.0
+        cal_ref_mag_err = 0.0
+
+    return cal_ref_mag, cal_ref_mag_err
 
 def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_star_catalog, sky_model,
                                            difference_image, psf_model, kernel, kernel_error, background_difference_image,ref_exposure_time,image_id,
@@ -542,29 +567,6 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
     def null_background(x,axis=None):
         return 0
 
-    def calc_calib_mags(fit_params, covar_fit, mag, mag_err):
-        """This function is the parallel of the calculation used in
-        calibrate_photometry.  These functions should be combined for
-        consistency in v2.0"""
-
-        if mag < 7.0:
-            ccalib = np.eye(3)
-            ccalib[:2,:2] = covar_fit
-            ccalib[2,2] = fit_params[0]**2
-            jac = np.c_[mag, [1], mag_err]
-            cal_ref_mag = phot_func(fit_params,mag)
-            errors = []
-            for i in range(len(jac)):
-                vect = []
-                for j in range(len(ccalib)):
-                    vect.append(np.sum(ccalib[j]*jac[i]))
-                errors.append(np.sum(vect*jac[i])**0.5)
-            cal_ref_mag_err = errors
-        else:
-            cal_ref_mag = 0.0
-            cal_ref_mag_err = 0.0
-
-        return cal_ref_mag, cal_ref_mag_err
 
     #psf_diameter = reduction_metadata.psf_dimensions[1]['psf_radius'][0]*2.0
     psf_diameter = reduction_metadata.get_psf_radius()*2.0
