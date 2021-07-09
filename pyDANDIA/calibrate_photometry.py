@@ -965,6 +965,39 @@ def calc_MAD(x):
 def calc_calibrated_mags(fit_params, covar_fit, sigma_fit, star_catalog, log,
                         use_covar=False):
 
+    ''' In this function, we propagate uncertainties of the mag calibration. The formula is:
+        
+        cal_mag = a*mag+b
+        
+        Therefore, the covariance matrix and Jacobian are:
+        
+        C = |sig_a**2 sig_ab 0|
+            |sig_ab sig_b**2 0|
+            |0       0 e_mag**2| 
+        
+        J = [mag,1,a]
+        
+        and then 
+        
+        e_cal_mag = J.T C J
+
+
+        HOWEVER
+        
+        for computing reason, we implemented a modified version with ientical result:
+        
+        C' = |sig_a**2 sig_ab 0|
+             |sig_ab sig_b**2 0|
+             |0       0 a**2| 
+        
+        J' = [mag,1,e_mag]
+        
+        and 
+        
+        e_cal_mag = J'.T C' J'
+
+    '''
+    
     log.info('-> Calculating calibrated mag uncertainties from covarience matrix')
 
     if use_covar:
