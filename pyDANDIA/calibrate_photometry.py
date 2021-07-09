@@ -959,8 +959,7 @@ def calc_MAD(x):
 
     return median, MAD
 
-def calc_calibrated_mags(fit_params, covar_fit, star_catalog, log,
-                        use_covar=False):
+def calc_calibrated_mags(fit_params, covar_fit, star_catalog, log):
 
     ''' In this function, we propagate uncertainties of the mag calibration. The formula is:
 
@@ -997,28 +996,25 @@ def calc_calibrated_mags(fit_params, covar_fit, star_catalog, log,
 
     log.info('-> Calculating calibrated mag uncertainties from covarience matrix')
 
-    if use_covar:
-        ccalib = np.eye(3)
-        ccalib[:2,:2] = covar_fit
-        ccalib[2,2] = fit_params[0]**2
-        log.info(repr(ccalib))
-        jac = np.c_[star_catalog['mag'], [1]*len(star_catalog), star_catalog['mag_err']]
-        star_catalog['cal_ref_mag'] = phot_func(fit_params,star_catalog['mag'])
-        #res = jac@np.dot(ccalib,jac.T)
-        #res = np.dot(jac,np.dot(ccalib,jac.T))
-        #star_catalog['cal_ref_mag_err'] = res.diagonal()**0.5
-        errors = []
-        for i in range(len(jac)):
-            vect = []
-            for j in range(len(ccalib)):
-                vect.append(np.sum(ccalib[j]*jac[i]))
-            errors.append(np.sum(vect*jac[i])**0.5)
-        star_catalog['cal_ref_mag_err'] = errors
-        idx = np.where(star_catalog['mag'] < 7.0)
-        star_catalog['cal_ref_mag'][idx] = 0.0
-        star_catalog['cal_ref_mag_err'][idx] = 0.0
-    else:
-        star_catalog['cal_ref_mag'] = phot_func(fit_params,star_catalog['mag'])
+    ccalib = np.eye(3)
+    ccalib[:2,:2] = covar_fit
+    ccalib[2,2] = fit_params[0]**2
+    log.info(repr(ccalib))
+    jac = np.c_[star_catalog['mag'], [1]*len(star_catalog), star_catalog['mag_err']]
+    star_catalog['cal_ref_mag'] = phot_func(fit_params,star_catalog['mag'])
+    #res = jac@np.dot(ccalib,jac.T)
+    #res = np.dot(jac,np.dot(ccalib,jac.T))
+    #star_catalog['cal_ref_mag_err'] = res.diagonal()**0.5
+    errors = []
+    for i in range(len(jac)):
+        vect = []
+        for j in range(len(ccalib)):
+            vect.append(np.sum(ccalib[j]*jac[i]))
+        errors.append(np.sum(vect*jac[i])**0.5)
+    star_catalog['cal_ref_mag_err'] = errors
+    idx = np.where(star_catalog['mag'] < 7.0)
+    star_catalog['cal_ref_mag'][idx] = 0.0
+    star_catalog['cal_ref_mag_err'][idx] = 0.0
 
     return star_catalog
 

@@ -495,9 +495,7 @@ def calc_calib_mags(fit_params, covar_fit, mag, mag_err):
         ccalib = np.eye(3)
         ccalib[:2,:2] = covar_fit
         ccalib[2,2] = fit_params[0]**2
-        print(ccalib, len(ccalib))
         jac = np.c_[mag, [1], mag_err]
-        print('JAC: ',jac)
         cal_ref_mag = calibrate_photometry.phot_func(fit_params,mag)
         errors = []
         for i in range(len(jac)):

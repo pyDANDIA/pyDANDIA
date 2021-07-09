@@ -400,8 +400,8 @@ def test_convert_flux_to_mag():
 
     (m,merr,f_scaled,ferr_scaled) = photometry.convert_flux_to_mag(f,ferr,exp_time=expt)
 
-    assert nearly_equal(m, 21.1, sig_fig=1)
-    assert nearly_equal(merr, 0.034, sig_fig=3)
+    np.testing.assert_almost_equal(m, 21.1, 1)
+    np.testing.assert_almost_equal(merr, 0.034, 3)
 
 def test_calc_calib_mags():
 
@@ -409,10 +409,13 @@ def test_calc_calib_mags():
     covar_fit = np.array([ [0.00030368, -0.00560597], [-0.00560597, 0.10369162] ])
     mag = 19.016
     mag_err = 0.00592
+    test_cal_mag = 16.221
+    test_cal_mag_err = 0.018
 
     (cal_mag, cal_mag_err) = photometry.calc_calib_mags(fit_params, covar_fit, mag, mag_err)
 
-    print(cal_mag, cal_mag_err)
+    np.testing.assert_almost_equal(cal_mag, test_cal_mag, 3)
+    np.testing.assert_almost_equal(cal_mag_err, test_cal_mag_err, 3)
 
 if __name__ == '__main__':
 

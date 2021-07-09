@@ -16,6 +16,7 @@ import logs
 import catalog_utils
 import metadata
 import pipeline_setup
+from astropy.table import Table, Column
 
 cwd = getcwd()
 TEST_DATA = path.join(cwd,'data')
@@ -116,10 +117,36 @@ def test_calc_transform_uncertainty():
 
     np.testing.assert_almost_equal(sigma_y2, test_sigma, 2)
 
+def test_calc_calibrated_mags():
+
+    log = logs.start_stage_log( cwd, 'test_calibrate' )
+    fit_params = np.array([1.047361046162702, -3.695617826430103])
+    covar_fit = np.array([ [0.00030368, -0.00560597], [-0.00560597, 0.10369162] ])
+    mag = 19.016
+    mag_err = 0.00592
+    test_cal_mag = 16.221
+    test_cal_mag_err = 0.018
+
+    star_catalog = Table([
+                        Column(name='mag', data=np.array([mag])),
+                        Column(name='mag_err', data=np.array([mag_err])),
+                        Column(name='cal_ref_mag', data=np.array([0.0])),
+                        Column(name='cal_ref_mag_err', data=np.array([0.0])),
+                        ])
+
+    star_catalog = calibrate_photometry.calc_calibrated_mags(fit_params, covar_fit, star_catalog, log)
+
+    np.testing.assert_almost_equal(star_catalog['cal_ref_mag'], test_cal_mag, 3)
+    np.testing.assert_almost_equal(star_catalog['cal_ref_mag_err'], test_cal_mag_err, 3)
+
+    logs.close_log(log)
+
+
 if __name__ == '__main__':
 
     #test_calc_transform()
     #test_fetch_catalog_sources_within_image()
     #test_fetch_catalog_sources_from_metadata()
     #test_parse_phot_calibration_file()
-    test_calc_transform_uncertainty()
+    #test_calc_transform_uncertainty()
+    test_calc_calibrated_mags()
