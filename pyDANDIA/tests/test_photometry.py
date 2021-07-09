@@ -406,7 +406,7 @@ def test_convert_flux_to_mag():
 def test_calc_calib_mags():
 
     fit_params = np.array([1.047361046162702, -3.695617826430103])
-    covar_fit = np.array([ [0.0030368, -0.00560597], [-0.00560597, 0.10369162] ])
+    covar_fit = np.array([ [0.00030368, -0.00560597], [-0.00560597, 0.10369162] ])
     mag = 19.016
     mag_err = 0.00592
 
