@@ -413,6 +413,7 @@ def quick_model(params, psf_model, X_grid, Y_grid, min_x, max_x, min_y, max_y, k
     #psf_convolve /= np.sum(psf_convolve)
 
     return psf_convolve[min_y:max_y, min_x:max_x]
+    
 def iterate_on_background(data,psf_fit):
 
     weight1 = (0.5 + np.abs(data + 0.25) ** 0.5)
@@ -438,6 +439,7 @@ def iterate_on_background(data,psf_fit):
         flux_err = ((np.abs(flux) / SNR) ** 2 + np.sum(np.abs(residus)[mask])) ** 0.5
 
     return flux, flux_err, back, back_err
+
 def sigma_clip_the_flux(data,psf_fit):
 
     outliers = 1
