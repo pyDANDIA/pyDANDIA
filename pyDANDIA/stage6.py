@@ -983,7 +983,7 @@ def build_photometry_array(setup,nimages,nstars,log):
 
     if len(existing_phot) > 0 and existing_phot.shape[2] != ncolumns:
         message = 'Existing matched photometry array has '+\
-                        str(matched_existing_phot.shape[2])+
+                        str(matched_existing_phot.shape[2])+\
                         ' which is incompatible with the expected '+\
                         str(ncolumns)+' columns'
         log.info('ERROR: '+message)
