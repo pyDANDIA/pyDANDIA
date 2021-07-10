@@ -977,15 +977,18 @@ def build_photometry_array(setup,nimages,nstars,log):
     """
 
     # Number of columns of measurements per star in the photometry table
-    ncolumns = 23
+    ncolumns = 27
 
     existing_phot = hd5_utils.read_phot_hd5(setup,log=log)
 
     if len(existing_phot) > 0 and existing_phot.shape[2] != ncolumns:
-        raise IOError('Existing matched photometry array has '+\
+        message = 'Existing matched photometry array has '+\
                         str(matched_existing_phot.shape[2])+
                         ' which is incompatible with the expected '+\
-                        str(ncolumns)+' columns')
+                        str(ncolumns)+' columns'
+        log.info('ERROR: '+message)
+
+        raise IOError(message)
 
     photometry_data = np.zeros((nstars,nimages,ncolumns))
 
@@ -1170,7 +1173,7 @@ def store_stamp_photometry_to_array(setup, conn, params, reduction_metadata,
     log.info('Starting match index search for '+str(len(star_dataset_ids))+' stars')
     (star_dataset_ids, star_field_ids) = matched_stars.find_starlist_match_ids('cat2_index', star_dataset_ids, log,
                                                                                 verbose=True)
-    
+
     log.info('Starting to array data transfer')
     photometry_data[star_dataset_index,image_dataset_index,0] = star_field_ids
     photometry_data[star_dataset_index,image_dataset_index,1] = db_pk['refimage']
