@@ -456,7 +456,7 @@ def fetch_photometry_for_isolated_dataset(params, star_dataset_id, log):
 
 	log.info('Star array index: '+str(star_dataset_index))
 
-	if dataset_photometry.shape[2] == 26:
+	if dataset_photometry.shape[2] > 25:
 		corr_mags = table.Column(name='corrected_mag', data=dataset_photometry[star_dataset_index,:,23])
 		corr_merr = table.Column(name='corrected_mag_err', data=dataset_photometry[star_dataset_index,:,24])
 		qc_flag = table.Column(name='qc_flag', data=dataset_photometry[star_dataset_index,:,25])
