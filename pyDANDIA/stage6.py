@@ -977,7 +977,7 @@ def build_photometry_array(setup,nimages,nstars,log):
     """
 
     # Number of columns of measurements per star in the photometry table
-    ncolumns = 27
+    ncolumns = 28
 
     existing_phot = hd5_utils.read_phot_hd5(setup,log=log)
 
