@@ -439,6 +439,8 @@ def extract_catalog(reduction_metadata, data_image, row_index, log):
     data_fwhm = reduction_metadata.images_stats[1][row_index]['FWHM']
     data_sigma_x = reduction_metadata.images_stats[1][row_index]['SIGMA_X']
     data_sigma_y = reduction_metadata.images_stats[1][row_index]['SIGMA_Y']
+    log.info(' -> Catalog extraction measured median_data='+str(median_data)+' std_data='+str(std_data)+' FWHM='+str(data_fwhm))
+
     #daofind2 = DAOStarFinder(fwhm=data_fwhm,
     #                         ratio=min(data_sigma_x, data_sigma_y) / max(data_sigma_x, data_sigma_y),
     #                         threshold=3. * std_data, exclude_border=True)
