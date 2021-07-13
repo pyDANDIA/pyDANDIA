@@ -22,7 +22,7 @@ from astropy.coordinates import SkyCoord
 from astropy.coordinates import match_coordinates_sky
 from astropy.stats import sigma_clipped_stats
 # from ccdproc import cosmicray_lacosmic
-from astropy.table import Table
+from astropy.table import Table, Column
 from photutils import datasets
 from photutils import DAOStarFinder
 from skimage import transform as tf
@@ -453,8 +453,21 @@ def extract_catalog(reduction_metadata, data_image, row_index, log):
         data_sources = daofind2.find_stars(data_image - median_data)
     except MemoryError:
         if log!=None:
-            log.info(' -> ERROR: DAOfind produced a MemoryError when attempting to extract this image catalog')
-        data_sources = None
+            log.info(' -> ERROR: DAOfind produced a MemoryError when attempting to extract this image catalog; returning empty data_sources table')
+        data_sources = Table([
+                            Column(name='id', data=np.array([])),
+                            Column(name='xcentroid', data=np.array([])),
+                            Column(name='ycentroid', data=np.array([])),
+                            Column(name='sharpness', data=np.array([])),
+                            Column(name='roundness1', data=np.array([])),
+                            Column(name='roundness2', data=np.array([])),
+                            Column(name='npix', data=np.array([])),
+                            Column(name='sky', data=np.array([])),
+                            Column(name='peak', data=np.array([])),
+                            Column(name='flux', data=np.array([])),
+                            Column(name='mag', data=np.array([]))
+                            ])
+
     data_sources = data_sources[data_sources['flux'].argsort()[::-1]]
     return data_sources, data_fwhm
 
