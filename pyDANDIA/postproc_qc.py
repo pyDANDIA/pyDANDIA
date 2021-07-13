@@ -158,14 +158,14 @@ def grow_photometry_array(photometry,log):
 
     (mag_col, merr_col) = plot_rms.get_photometry_columns('calibrated')
 
-    if photometry.shape[2] < 26:
-        new_photometry = np.zeros((photometry.shape[0], photometry.shape[1], photometry.shape[2]+3))
+    if photometry.shape[2] != 28:
+        new_photometry = np.zeros((photometry.shape[0], photometry.shape[1], photometry.shape[2]+5))
         new_photometry[:,:,0:photometry.shape[2]] = photometry
         log.info('Added three columns to the photometry array')
 
         return new_photometry
     else:
-        log.info('Photometry array already has all 26 columns, zeroing columns 23,24,25')
+        log.info('Photometry array already has all 28 columns, zeroing columns 23,24,25')
         photometry[:,:,23].fill(0.0)
         photometry[:,:,24].fill(0.0)
         photometry[:,:,25].fill(0.0)
