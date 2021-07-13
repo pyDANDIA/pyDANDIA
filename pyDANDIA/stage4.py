@@ -453,6 +453,7 @@ def extract_catalog(reduction_metadata, data_image, row_index, log):
 
     try:
         data_sources = daofind2.find_stars(data_image - median_data)
+        log.info(' -> DAOfind identifed '+str(len(data_sources))+' sources')
     except MemoryError:
         if log!=None:
             log.info(' -> ERROR: DAOfind produced a MemoryError when attempting to extract this image catalog; returning empty data_sources table')
