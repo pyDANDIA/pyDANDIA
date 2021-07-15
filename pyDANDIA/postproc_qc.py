@@ -601,6 +601,8 @@ def mask_phot_from_bad_diff_images(params,setup,reduction_metadata,photometry,er
 def calc_stamp_statistics(params,dimage_path,dimage_idx,log):
     statistics = []
 
+    log.info('Calculating statistics on difference image '+path.basename(dimage_path))
+
     if params['stamp_number'] == -1:
         stamps = glob.glob(path.join(dimage_path,'diff_stamp_*.fits'))
 
@@ -612,7 +614,7 @@ def calc_stamp_statistics(params,dimage_path,dimage_idx,log):
         image = fits.getdata(stamp)
         statistics.append([dimage_idx, params['stamp_number'], np.median(image), image.std()])
 
-    log.info('Calculated statistics on difference images')
+    log.info(repr(statistics[-1]))
 
     return statistics
 
