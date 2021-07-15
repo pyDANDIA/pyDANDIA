@@ -582,14 +582,14 @@ def mask_phot_from_bad_diff_images(params,setup,reduction_metadata,photometry,er
         dimage_stats.append(stats)
     dimage_stats = np.array(dimage_stats)
     print(dimage_stats)
-    
+
     plot_dimage_statistics(params, dimage_stats, diff_images)
 
     # Use only first dimension of this array, which is images,stamps
     # rather than stars, images
     idx = np.where(dimage_stats[:,:,3] > params['diff_std_threshold'])[0]
 
-    photometry = mask_datapoints_by_image_stamp(photometry, idx, error_code)
+    photometry = mask_datapoints_by_image_stamp(photometry, reduction_metadata, idx, error_code)
 
     log.info('Masked datapoints from poor quality difference images')
 
