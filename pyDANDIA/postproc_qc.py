@@ -453,7 +453,9 @@ def mask_datapoints_by_image_stamp(photometry, reduction_metadata, bad_data_inde
     expand_mask = np.ma.getmask(photometry)
     expand_data = np.ma.getdata(photometry)
 
-    stamps = np.unique(bad_data_index[:,:,1])
+    print(bad_data_index)
+
+    stamps = np.unique(bad_data_index)
     for s in stamps:
         stamp_dims = reduction_metadata.stamps[1][s]
         affected_stars = (reduction_metadata.star_catalog[1]['x'] >= stamp_dims['xmin']) & \
