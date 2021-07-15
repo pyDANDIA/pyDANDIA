@@ -60,7 +60,7 @@ def run_postproc(setup, **params):
     photometry = mask_phot_from_bad_warp_matrix(params, setup, photometry, 8, log)
 
     # Mask photometry from images with poor quality difference images
-    photometry = mask_phot_from_bad_diff_images(params,setup,photometry,16,log)
+    photometry = mask_phot_from_bad_diff_images(params,setup,reduction_metadata,photometry,16,log)
 
     # Mirror calibrated photometry to corrected columns ready for processing:
     photometry = mirror_mag_columns(photometry, 'calibrated', log)
@@ -447,6 +447,37 @@ def mask_all_datapoints_by_image_index(photometry, bad_data_index, error_code):
 
     return photometry
 
+def mask_datapoints_by_image_stamp(photometry, reduction_metadata, bad_data_index, error_code):
+    """Accepts an index of the images,stamps to be flagged as bad data"""
+
+    expand_mask = np.ma.getmask(photometry)
+    expand_data = np.ma.getdata(photometry)
+
+    stamps = np.unique(bad_data_index[:,:,1])
+    for s in stamps:
+        stamp_dims = reduction_metadata.stamps[1][s]
+        affected_stars = (reduction_metadata.star_catalog[1]['x'] >= stamp_dims['xmin']) & \
+                        (reduction_metadata.star_catalog[1]['x'] < stamp_dims['xmax']) & \
+                        (reduction_metadata.star_catalog[1]['y'] >= stamp_dims['ymin']) & \
+                        (reduction_metadata.star_catalog[1]['y'] >= stamp_dims['ymax'])
+
+        print(affected_stars)
+
+        # This is a more robust way to identify which images are affected, since
+        # not all images produce photometry
+        affected_images = np.where(bad_data_index[:,:,1] == s)
+        print(affected_images)
+
+        mask = np.empty((photometry.shape[0],photometry.shape[2]), dtype='bool')
+        mask.fill(True)
+        expand_mask[affected_stars,affected_images,:] = mask
+        expand_data[affected_stars,affected_images,25] += error_code
+        print(expand_data[affected_stars,affected_images,25])
+
+    photometry = np.ma.masked_array(expand_data, mask=expand_mask)
+
+    return photometry
+
 def mask_phot_from_bad_images(params, photometry, image_residuals, error_code, log):
 
     idx = np.where(abs(image_residuals[:,0]) > params['residuals_threshold'])[0]
@@ -538,7 +569,7 @@ def mask_phot_from_bad_warp_matrix(params,setup,photometry,error_code,log):
 
     return photometry
 
-def mask_phot_from_bad_diff_images(params,setup,photometry,error_code,log):
+def mask_phot_from_bad_diff_images(params,setup,reduction_metadata,photometry,error_code,log):
 
     diff_dir = path.join(setup.red_dir,'diffim')
     diff_images = glob.glob(path.join(diff_dir, '*'))
@@ -546,23 +577,25 @@ def mask_phot_from_bad_diff_images(params,setup,photometry,error_code,log):
 
     dimage_stats = []
     for dimage_path in diff_images:
-        stats = calc_stamp_statistics(params,dimage_path,log)
+        dimage_idx = np.where(path.basename(dimage_path) == reduction_metadata.headers_summary[1]['IMAGES'].data)[0][0]
+        stats = calc_stamp_statistics(params,dimage_path,dimage_idx,log)
         dimage_stats.append(stats)
     dimage_stats = np.array(dimage_stats)
-
+    print(dimage_stats)
+    
     plot_dimage_statistics(params, dimage_stats, diff_images)
 
     # Use only first dimension of this array, which is images,stamps
     # rather than stars, images
-    idx = np.where(dimage_stats[:,:,2] > params['diff_std_threshold'])[0]
+    idx = np.where(dimage_stats[:,:,3] > params['diff_std_threshold'])[0]
 
-    photometry = mask_all_datapoints_by_image_index(photometry, idx, error_code)
+    photometry = mask_datapoints_by_image_stamp(photometry, idx, error_code)
 
     log.info('Masked datapoints from poor quality difference images')
 
     return photometry
 
-def calc_stamp_statistics(params,dimage_path,log):
+def calc_stamp_statistics(params,dimage_path,dimage_idx,log):
     statistics = []
 
     if params['stamp_number'] == -1:
@@ -570,11 +603,11 @@ def calc_stamp_statistics(params,dimage_path,log):
 
         for i,stamp in enumerate(stamps):
             image = fits.getdata(stamp)
-            statistics.append([i,np.median(image), image.std()])
+            statistics.append([dimage_idx, i, np.median(image), image.std()])
     else:
         stamp = path.join(dimage_path,'diff_stamp_'+str(params['stamp_number'])+'.fits')
         image = fits.getdata(stamp)
-        statistics.append([params['stamp_number'],np.median(image), image.std()])
+        statistics.append([dimage_idx, params['stamp_number'], np.median(image), image.std()])
 
     log.info('Calculated statistics on difference images')
 
@@ -599,12 +632,12 @@ def plot_dimage_statistics(params,dimage_stats,diff_images):
         stamp_index = np.array([params['stamp_number']])
 
     for stamp_idx in range(0,dimage_stats.shape[1],1):
-        ax0.plot(dimage_index, dimage_stats[:,stamp_idx,1], marker=markers[stamp_idx],
+        ax0.plot(dimage_index, dimage_stats[:,stamp_idx,2], marker=markers[stamp_idx],
                     markerfacecolor=mcolors.TABLEAU_COLORS[col_keys[stamp_idx]],
                     markeredgecolor=mcolors.TABLEAU_COLORS[col_keys[stamp_idx]])
         ax0.set(xlabel='Image', ylabel='Mean pixel value [ADU]')
 
-        ax1.plot(dimage_index, dimage_stats[:,stamp_idx,2], marker=markers[stamp_idx],
+        ax1.plot(dimage_index, dimage_stats[:,stamp_idx,3], marker=markers[stamp_idx],
                     markerfacecolor=mcolors.TABLEAU_COLORS[col_keys[stamp_idx]],
                     markeredgecolor=mcolors.TABLEAU_COLORS[col_keys[stamp_idx]])
         ax1.set(xlabel='Image', ylabel='Std. Dev [ADU]')

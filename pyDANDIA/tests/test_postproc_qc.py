@@ -3,6 +3,7 @@ from pyDANDIA import logs
 from pyDANDIA import postproc_qc
 from pyDANDIA import plot_rms
 from pyDANDIA import metadata
+from pyDANDIA import pipeline_setup
 from astropy.table import Table, Column
 from astropy.io import fits
 import astropy.units as u
@@ -378,4 +379,4 @@ if __name__ == '__main__':
     #test_set_photometry_qc_flags()
     #test_set_star_photometry_qc_flags()
     #test_calc_ps_exptime()
-    test_mask_phot_with_bad_psexpt()
+    #test_mask_phot_with_bad_psexpt()
