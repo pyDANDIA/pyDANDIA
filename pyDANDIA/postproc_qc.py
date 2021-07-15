@@ -593,7 +593,8 @@ def mask_phot_from_bad_diff_images(params,setup,reduction_metadata,photometry,er
 
     photometry = mask_datapoints_by_image_stamp(photometry, reduction_metadata, idx, error_code)
 
-    log.info('Masked datapoints from poor quality difference images')
+    log.info('Masked '+str(len(idx))+' datapoints from difference images with std dev > '+\
+                str(params['diff_std_threshold']))
 
     return photometry
 
