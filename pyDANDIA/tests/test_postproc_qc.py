@@ -105,6 +105,83 @@ def test_data_architecture(meta):
 
     return meta
 
+def test_star_catalog(meta):
+    nstars = 100
+    xmax = 4000.0
+    ymax = 4000.0
+
+    table_data = [
+                Column(name='index', data=np.arange(0,nstars,1), unit=None, dtype='int'),
+                Column(name='x', data=np.linspace(1,xmax,nstars), unit=None, dtype='float'),
+                Column(name='y', data=np.linspace(1,xmax,nstars), unit=None, dtype='float'),
+                Column(name='ra', data=np.linspace(268.0,270.0,nstars), unit=None, dtype='float'),
+                Column(name='dec', data=np.linspace(-30.0,-28.0,nstars), unit=None, dtype='float'),
+                Column(name='ref_flux', data=np.zeros((nstars)), unit=None, dtype='float'),
+                Column(name='ref_flux_error', data=np.zeros((nstars)), unit=None, dtype='float'),
+                Column(name='ref_mag', data=np.zeros((nstars)), unit=None, dtype='float'),
+                Column(name='ref_mag_error', data=np.zeros((nstars)), unit=None, dtype='float'),
+                Column(name='cal_ref_mag', data=np.zeros((nstars)), unit=None, dtype='float'),
+                Column(name='cal_ref_mag_error', data=np.zeros((nstars)), unit=None, dtype='float'),
+                Column(name='cal_ref_flux', data=np.zeros((nstars)), unit=None, dtype='float'),
+                Column(name='cal_ref_flux_error', data=np.zeros((nstars)), unit=None, dtype='float'),
+                Column(name='sky_background', data=np.zeros((nstars)), unit=None, dtype='float'),
+                Column(name='sky_background_error', data=np.zeros((nstars)), unit=None, dtype='float'),
+                Column(name='gaia_source_id', data=np.zeros((nstars)), unit=None, dtype='int'),
+                Column(name='gaia_ra', data=np.zeros((nstars)), unit=None, dtype='float'),
+                Column(name='gaia_ra_error', data=np.zeros((nstars)), unit=None, dtype='float'),
+                Column(name='gaia_dec', data=np.zeros((nstars)), unit=None, dtype='float'),
+                Column(name='gaia_dec_error', data=np.zeros((nstars)), unit=None, dtype='float'),
+                Column(name='phot_g_mean_flux', data=np.zeros((nstars)), unit=None, dtype='float'),
+                Column(name='phot_g_mean_flux_error', data=np.zeros((nstars)), unit=None, dtype='float'),
+                Column(name='phot_bp_mean_flux', data=np.zeros((nstars)), unit=None, dtype='float'),
+                Column(name='phot_bp_mean_flux_error', data=np.zeros((nstars)), unit=None, dtype='float'),
+                Column(name='phot_rp_mean_flux', data=np.zeros((nstars)), unit=None, dtype='float'),
+                Column(name='phot_rp_mean_flux_error', data=np.zeros((nstars)), unit=None, dtype='float'),
+                Column(name='vphas_source_id', data=np.zeros((nstars)), unit=None, dtype='int'),
+                Column(name='vphas_ra', data=np.zeros((nstars)), unit=None, dtype='float'),
+                Column(name='vphas_dec', data=np.zeros((nstars)), unit=None, dtype='float'),
+                Column(name='gmag', data=np.zeros((nstars)), unit=None, dtype='float'),
+                Column(name='gmag_error', data=np.zeros((nstars)), unit=None, dtype='float'),
+                Column(name='rmag', data=np.zeros((nstars)), unit=None, dtype='float'),
+                Column(name='rmag_error', data=np.zeros((nstars)), unit=None, dtype='float'),
+                Column(name='imag', data=np.zeros((nstars)), unit=None, dtype='float'),
+                Column(name='imag_error', data=np.zeros((nstars)), unit=None, dtype='float'),
+                Column(name='clean', data=np.zeros((nstars)), unit=None, dtype='int'),
+                Column(name='psf_star', data=np.zeros((nstars)), unit=None, dtype='float'),
+                ]
+
+    layer_header = fits.Header()
+    layer_header.update({'NAME': 'star_catalog'})
+    layer_table = Table(table_data)
+    layer = [layer_header, layer_table]
+
+    setattr(meta, 'star_catalog', layer)
+
+    return meta
+
+def test_stamps_table(meta):
+
+    table_data = [
+                Column(name='PIXEL_INDEX', data=np.arange(0,16,1), unit=None, dtype='int'),
+                Column(name='YMIN', data=np.array([0,0,0,0,990,990,990,990,1990,1990,1990,1990,2990,2990,2990,2990]),
+                                unit=None, dtype='float'),
+                Column(name='YMAX', data=np.array([1010,1010,1010,1010,2010,2010,2010,2010,3010,3010,3010,3010,4000,4000,4000,4000]),
+                                unit=None, dtype='float'),
+                Column(name='XMIN', data=np.array([0,990,1990,2990,0,990,1990,2990,0,990,1990,2990,0,990,1990,2990]),
+                                unit=None, dtype='float'),
+                Column(name='XMAX', data=np.array([1010,2010,3010,4000,1010,2010,3010,4000,1010,2010,3010,4000,1010,2010,3010,4000]),
+                                unit=None, dtype='float'),
+                ]
+
+    layer_header = fits.Header()
+    layer_header.update({'NAME': 'stamps'})
+    layer_table = Table(table_data)
+    layer = [layer_header, layer_table]
+
+    setattr(meta, 'stamps', layer)
+
+    return meta
+
 def phot_scatter_model(mags):
     return 0.01 + np.log10(mags)*0.1
 
@@ -367,6 +444,36 @@ def test_mask_phot_with_bad_psexpt():
 
     logs.close_log(log)
 
+def test_mask_datapoints_by_image_stamp():
+
+    params = test_params()
+
+    log = logs.start_stage_log( params['log_dir'], 'test_postproc_phot' )
+
+    (photometry, phot_stats) = test_photometry(log)
+
+    meta = metadata.MetaData()
+    meta = test_headers_summary(meta)
+    meta = test_star_catalog(meta)
+    meta = test_stamps_table(meta)
+    test_err_code = 16
+    nimages = len(meta.star_catalog[1])
+    nstamps = len(meta.stamps[1])
+    bad_images = [0,1]
+    bad_stamps = [2]
+
+    bad_index0 = []
+    bad_index1 = []
+    for i in bad_images:
+        for j in bad_stamps:
+            bad_index0.append(i)
+            bad_index1.append(j)
+    bad_data_index = (np.array(bad_index0), np.array(bad_index1))
+
+    photometry = postproc_qc.mask_datapoints_by_image_stamp(photometry, meta, bad_data_index, test_err_code)
+
+    logs.close_log(log)
+
 if __name__ == '__main__':
     #test_grow_photometry_array()
     #test_calc_phot_residuals()
@@ -380,3 +487,4 @@ if __name__ == '__main__':
     #test_set_star_photometry_qc_flags()
     #test_calc_ps_exptime()
     #test_mask_phot_with_bad_psexpt()
+    test_mask_datapoints_by_image_stamp()

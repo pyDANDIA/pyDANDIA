@@ -455,15 +455,15 @@ def mask_datapoints_by_image_stamp(photometry, reduction_metadata, bad_data_inde
 
     print(bad_data_index)
 
-    stamps = np.unique(bad_data_index)
+    stamps = np.unique(bad_data_index[1])
     for s in stamps:
         stamp_dims = reduction_metadata.stamps[1][s]
-        affected_stars = (reduction_metadata.star_catalog[1]['x'] >= stamp_dims['xmin']) & \
-                        (reduction_metadata.star_catalog[1]['x'] < stamp_dims['xmax']) & \
-                        (reduction_metadata.star_catalog[1]['y'] >= stamp_dims['ymin']) & \
-                        (reduction_metadata.star_catalog[1]['y'] >= stamp_dims['ymax'])
+        affected_stars = (reduction_metadata.star_catalog[1]['x'] >= stamp_dims['XMIN']) & \
+                        (reduction_metadata.star_catalog[1]['x'] < stamp_dims['XMAX']) & \
+                        (reduction_metadata.star_catalog[1]['y'] >= stamp_dims['YMIN']) & \
+                        (reduction_metadata.star_catalog[1]['y'] >= stamp_dims['YMAX'])
 
-        print(affected_stars)
+        print('AFFECTED STARS: ',affected_stars)
 
         # This is a more robust way to identify which images are affected, since
         # not all images produce photometry
@@ -589,7 +589,7 @@ def mask_phot_from_bad_diff_images(params,setup,reduction_metadata,photometry,er
 
     # Use only first dimension of this array, which is images,stamps
     # rather than stars, images
-    idx = np.where(dimage_stats[:,:,3] > params['diff_std_threshold'])[0]
+    idx = np.where(dimage_stats[:,:,3] > params['diff_std_threshold'])
 
     photometry = mask_datapoints_by_image_stamp(photometry, reduction_metadata, idx, error_code)
 
