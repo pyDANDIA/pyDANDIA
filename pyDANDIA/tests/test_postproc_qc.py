@@ -24,7 +24,7 @@ def test_photometry(log):
 
     nstars = 100
     nimages = 10
-    ncols = 26
+    ncols = 28
     photometry = np.zeros((nstars,nimages,ncols))
 
     phot_stats = np.zeros((nstars,3))
@@ -112,10 +112,10 @@ def test_star_catalog(meta):
 
     table_data = [
                 Column(name='index', data=np.arange(0,nstars,1), unit=None, dtype='int'),
-                Column(name='x', data=np.linspace(1,xmax,nstars), unit=None, dtype='float'),
-                Column(name='y', data=np.linspace(1,xmax,nstars), unit=None, dtype='float'),
-                Column(name='ra', data=np.linspace(268.0,270.0,nstars), unit=None, dtype='float'),
-                Column(name='dec', data=np.linspace(-30.0,-28.0,nstars), unit=None, dtype='float'),
+                Column(name='x', data=np.random.uniform(low=1.0,high=xmax,size=nstars), unit=None, dtype='float'),
+                Column(name='y', data=np.random.uniform(low=1.0,high=ymax,size=nstars), unit=None, dtype='float'),
+                Column(name='ra', data=np.random.uniform(low=268.0,high=270.0,size=nstars), unit=None, dtype='float'),
+                Column(name='dec', data=np.random.uniform(low=-30.0,high=-27.0,size=nstars), unit=None, dtype='float'),
                 Column(name='ref_flux', data=np.zeros((nstars)), unit=None, dtype='float'),
                 Column(name='ref_flux_error', data=np.zeros((nstars)), unit=None, dtype='float'),
                 Column(name='ref_mag', data=np.zeros((nstars)), unit=None, dtype='float'),
@@ -469,8 +469,26 @@ def test_mask_datapoints_by_image_stamp():
             bad_index0.append(i)
             bad_index1.append(j)
     bad_data_index = (np.array(bad_index0), np.array(bad_index1))
+    print(bad_data_index)
 
     photometry = postproc_qc.mask_datapoints_by_image_stamp(photometry, meta, bad_data_index, test_err_code)
+    phot_mask = np.ma.getmask(photometry)
+    phot_data = np.ma.getdata(photometry)
+
+    for k in range(0,len(bad_data_index[0]),1):
+        i = bad_data_index[0][k]
+        s = bad_data_index[1][k]
+        stamp_dims = meta.stamps[1][s]
+        affected_stars = np.where( (meta.star_catalog[1]['x'] >= stamp_dims['XMIN']) & \
+                        (meta.star_catalog[1]['x'] < stamp_dims['XMAX']) & \
+                        (meta.star_catalog[1]['y'] >= stamp_dims['YMIN']) & \
+                        (meta.star_catalog[1]['y'] < stamp_dims['YMAX']) )[0]
+        print(i,s, meta.star_catalog[1][affected_stars])
+
+        print(phot_data[affected_stars,i,25])
+        print(phot_mask[affected_stars,i,s])
+        assert( (phot_data[affected_stars,i,25] >= test_err_code).all() )
+        assert( (phot_mask[affected_stars,i,s] == True).all() )
 
     logs.close_log(log)
 

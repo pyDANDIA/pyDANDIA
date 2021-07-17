@@ -447,34 +447,79 @@ def mask_all_datapoints_by_image_index(photometry, bad_data_index, error_code):
 
     return photometry
 
+def repeat_array_entries(a, nrepeat, order, verbose=False):
+    """Function to repeat each entry of an input array a given number of times,
+    and flatten the result into a vector.  The order parameter determines whether
+    row-major (order='C') or column-major (order='F') flattening is used.
+    I.e. a = [1,2,3] nrepeat = 4 order = 'C'
+    -> returned: [1,1,1,1,2,2,2,2,3,3,3,3]
+    I.e. a = [1,2,3] nrepeat = 4 order = 'F'
+    -> returned: [1,2,3,1,2,3,1,2,3,1,2,3,1,2,3]
+    """
+
+    if verbose: print('Length a=',len(a),' nrepeat=',nrepeat)
+
+    # Add a second dimension to the array.  The original vector elements are
+    # now rows in a matrix, where only the first column is populated
+    a = a[:, np.newaxis]
+    if verbose: print('A: ',a)
+
+    # Expand the array into the second dimension, copying the entries in the
+    # first row nrepeat times to populate all other columns.
+    b = np.repeat(a, nrepeat, axis=1)
+
+    # Lastly flatten the array in column-major order to return a vector
+    b = b.flatten(order=order)
+    if verbose: print('B: ',b)
+
+    return b
+
 def mask_datapoints_by_image_stamp(photometry, reduction_metadata, bad_data_index, error_code):
     """Accepts an index of the images,stamps to be flagged as bad data"""
 
     expand_mask = np.ma.getmask(photometry)
     expand_data = np.ma.getdata(photometry)
 
-    print(bad_data_index)
-
     stamps = np.unique(bad_data_index[1])
     for s in stamps:
         stamp_dims = reduction_metadata.stamps[1][s]
-        affected_stars = (reduction_metadata.star_catalog[1]['x'] >= stamp_dims['XMIN']) & \
+        #print('Stamp: ',stamp_dims)
+        affected_stars = np.where( (reduction_metadata.star_catalog[1]['x'] >= stamp_dims['XMIN']) & \
                         (reduction_metadata.star_catalog[1]['x'] < stamp_dims['XMAX']) & \
                         (reduction_metadata.star_catalog[1]['y'] >= stamp_dims['YMIN']) & \
-                        (reduction_metadata.star_catalog[1]['y'] >= stamp_dims['YMAX'])
+                        (reduction_metadata.star_catalog[1]['y'] < stamp_dims['YMAX']) )[0]
 
-        print('AFFECTED STARS: ',affected_stars)
+        #print('AFFECTED STARS: ',reduction_metadata.star_catalog[1][affected_stars])
 
         # This is a more robust way to identify which images are affected, since
         # not all images produce photometry
-        affected_images = np.where(bad_data_index[:,:,1] == s)
-        print(affected_images)
+        idx = np.where(bad_data_index[1] == s)[0]
+        affected_images = bad_data_index[0][idx]
+        #print('AFFECTED IMAGES: ',affected_images)
 
-        mask = np.empty((photometry.shape[0],photometry.shape[2]), dtype='bool')
+        mask = np.empty((len(affected_stars)*len(affected_images)*photometry.shape[2]), dtype='bool')
         mask.fill(True)
-        expand_mask[affected_stars,affected_images,:] = mask
-        expand_data[affected_stars,affected_images,25] += error_code
-        print(expand_data[affected_stars,affected_images,25])
+
+        dim2 = repeat_array_entries( np.arange(0,photometry.shape[2],1),
+                                    (len(affected_images)*len(affected_stars)),
+                                    order='F')
+        dim1 = repeat_array_entries(affected_images, photometry.shape[2], 'C')
+        dim1 = repeat_array_entries(dim1, len(affected_stars), 'F')
+        dim0 = repeat_array_entries(affected_stars, len(affected_images)*photometry.shape[2], 'C')
+        array_loc = (dim0, dim1, dim2)
+
+        #print('Masking data at ',array_loc)
+        expand_mask[array_loc] = mask
+
+        dim2 = np.zeros(len(affected_stars)*len(affected_images), dtype='int')
+        dim2.fill(25)
+        dim1 = repeat_array_entries(affected_images, len(affected_stars), 'F')
+        dim0 = repeat_array_entries(affected_stars, len(affected_images), 'C')
+        array_loc = (dim0, dim1, dim2)
+
+        #print('Flagging data at ',array_loc)
+        expand_data[array_loc] += error_code
+        #print(expand_data[array_loc])
 
     photometry = np.ma.masked_array(expand_data, mask=expand_mask)
 
@@ -590,7 +635,8 @@ def mask_phot_from_bad_diff_images(params,setup,reduction_metadata,photometry,er
     # Use only first dimension of this array, which is images,stamps
     # rather than stars, images
     idx = np.where(dimage_stats[:,:,3] > params['diff_std_threshold'])
-
+    print(idx)
+    
     photometry = mask_datapoints_by_image_stamp(photometry, reduction_metadata, idx, error_code)
 
     log.info('Masked '+str(len(idx))+' datapoints from difference images with std dev > '+\
