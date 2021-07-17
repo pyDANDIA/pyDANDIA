@@ -628,15 +628,18 @@ def mask_phot_from_bad_diff_images(params,setup,reduction_metadata,photometry,er
         stats = calc_stamp_statistics(params,dimage_path,dimage_idx,log)
         dimage_stats.append(stats)
     dimage_stats = np.array(dimage_stats)
-    print(dimage_stats)
 
     plot_dimage_statistics(params, dimage_stats, diff_images)
 
     # Use only first dimension of this array, which is images,stamps
     # rather than stars, images
     idx = np.where(dimage_stats[:,:,3] > params['diff_std_threshold'])
-    print(idx)
-    
+    log.info('Identified '+str(len(idx[0]))+\
+             ' image/stamps with std dev above the threshold '+\
+             str(params['diff_std_threshold']))
+    if len(idx[0]) > 0:
+        log.info(repr(idx))
+        
     photometry = mask_datapoints_by_image_stamp(photometry, reduction_metadata, idx, error_code)
 
     log.info('Masked '+str(len(idx))+' datapoints from difference images with std dev > '+\
