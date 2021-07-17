@@ -79,8 +79,8 @@ def run_postproc(setup, **params):
     # Calculate photometric scatter per image
     image_rms = calc_image_rms(phot_residuals, log)
 
-    # Factor photometric scatter into photometric residuals
-    photometry = apply_image_merr_correction(photometry, image_residuals, log, 'corrected')
+    # Factor photometric scatter into photometric residuals - DEACTIVATED, masking only
+    #photometry = apply_image_merr_correction(photometry, image_residuals, log, 'corrected')
     phot_stats = plot_rms.calc_mean_rms_mag(photometry,log,'corrected')
     plot_rms.plot_rms(phot_stats, params, log,
                     plot_file=path.join(setup.red_dir,'postproc_rms_mag.png'))
@@ -639,7 +639,7 @@ def mask_phot_from_bad_diff_images(params,setup,reduction_metadata,photometry,er
              str(params['diff_std_threshold']))
     if len(idx[0]) > 0:
         log.info(repr(idx))
-        
+
     photometry = mask_datapoints_by_image_stamp(photometry, reduction_metadata, idx, error_code)
 
     log.info('Masked '+str(len(idx))+' datapoints from difference images with std dev > '+\
