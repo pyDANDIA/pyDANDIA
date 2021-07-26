@@ -145,6 +145,7 @@ def populate_photometry_array(field_star_index, dataset_star_index,
 
     # Columns: hjd, instrumental_mag, instrumental_mag_err,
     # calibrated_mag, calibrated_mag_err, corrected_mag, corrected_mag_err,
+    # normalized_mag, normalized_mag_err,
     # phot_scale_factor, phot_scale_factor_err, stamp_index,
     # sub_image_sky_bkgd, sub_image_sky_bkgd_err,
     # residual_x, residual_y
@@ -157,15 +158,20 @@ def populate_photometry_array(field_star_index, dataset_star_index,
     ndata = len(dataset_photometry[0,:,0])
     log.info('N datapoints in image data: '+str(ndata)+', len dataset_image_index: '+str(len(dataset_image_index)))
     log.info('Len field_star_index: '+str(len(field_star_index))+' len dataset_star_index: '+str(len(dataset_star_index)))
+
+    # Transfering the HJD information for all images in this dataset to the
+    # combined photometry array:
     phot_index = build_array_index([field_star_index, dataset_image_index,[0]])
     data_index = build_array_index([dataset_star_index, np.arange(0,ndata,1), [9]])
     photometry[phot_index] = dataset_photometry[data_index]
 
     # Update the array indices to refer to the photometry columns, and
-    # transfer those data as well
+    # transfer those data as well.  Tuples listed below give the array indices
+    # of the following columns in the (main, dataset) photometry arrays.
     # inst_mag, inst_mag_err, cal_mag, cal_mag_err, corr_mag, corr_mag_err,
-    # ps, ps_err, bkgd, bkgd_err, res_x, res_y, qc_flag
-    column_index = [(1,11),(2,12),(3,13),(4,14),(5,23),(6,24),(7,19),(8,20),(10,21),(11,22),(12,7),(13,8),(14,25)]
+    # norm_mag, norm_mag_err, ps, ps_err, bkgd, bkgd_err, res_x, res_y, qc_flag
+    column_index = [(1,11),(2,12),(3,13),(4,14),(5,23),(6,24),(7,26),(8,27),\
+                    (9,19),(10,20),(12,21),(13,22),(14,7),(15,8),(16,25)]
     for column in column_index:
         phot_index = update_array_col_index(phot_index, column[0])
         data_index = update_array_col_index(data_index, column[1])
@@ -192,7 +198,7 @@ def populate_photometry_array(field_star_index, dataset_star_index,
                 field_stamp_star_idx.append(field_star_index[idx[0]])
 
         phot_index = build_array_index([field_stamp_star_idx, dataset_image_index,[0]])
-        phot_index = update_array_col_index(phot_index, 9)
+        phot_index = update_array_col_index(phot_index, 11)
 
         photometry[phot_index] = stamp
 
@@ -333,13 +339,14 @@ def init_field_data_table(xmatch,log):
     # [Nimages, Nstars, Ncolumns]
     # Columns: hjd, instrumental_mag, instrumental_mag_err,
     # calibrated_mag, calibrated_mag_err, corrected_mag, corrected_mag_err,
+    # normalized_mag, normalized_mag_err,
     # phot_scale_factor, phot_scale_factor_err, stamp_index,
     # sub_image_sky_bkgd, sub_image_sky_bkgd_err,
     # residual_x, residual_y
     # qc_flag
     # Note: corrected_mag columns included to allow for likely future expansion;
     # not yet populated
-    photometry = np.zeros( (len(xmatch.stars), len(xmatch.images), 15) )
+    photometry = np.zeros( (len(xmatch.stars), len(xmatch.images), 17) )
     log.info('Initialized timeseries photometry array')
 
     return photometry

@@ -138,6 +138,8 @@ def test_dataset_timeseries_photometry(meta, xmatch):
             data.append(data[13])
             data.append(data[14])
             data.append(0.0)
+            data.append(0.0)
+            data.append(0.0)
             image_data.append(data)
         photometry.append(image_data)
 
@@ -271,6 +273,7 @@ def test_init_field_data_table():
     photometry = field_photometry.init_field_data_table(xmatch, log)
 
     assert(type(photometry) == type(np.array([])))
+    assert(photometry.shape[2] == 17)
     logs.close_log(log)
 
 def test_populate_images_table():
@@ -426,8 +429,8 @@ def test_populate_photometry_array():
             assert( photometry[j,iimage,3] == dataset_photometry[dataset_array_idx[j],i,13])
             assert( photometry[j,iimage,4] == dataset_photometry[dataset_array_idx[j],i,14])
 
-            print(photometry[j,iimage,9], stamp_id)
-            assert( photometry[j,iimage,9] == float(stamp_id) )
+            print(photometry[j,iimage,11], stamp_id)
+            assert( photometry[j,iimage,11] == float(stamp_id) )
 
     logs.close_log(log)
 
