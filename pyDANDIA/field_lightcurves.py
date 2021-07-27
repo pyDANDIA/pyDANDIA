@@ -53,13 +53,14 @@ def extract_field_star_lightcurves(params, log=None, format='dat'):
 
 			if format == 'dat':
 				datafile = open(lc_file,'w')
-				datafile.write('# HJD    Instrumental mag, mag_error   Calibrated mag, mag_error   Corrected mag, mag_error   QC_Flag\n')
+				datafile.write('# HJD    Instrumental mag, mag_error   Calibrated mag, mag_error   Corrected mag, mag_error   Normalized mag, mag_error  QC_Flag\n')
 
 				for i in time_order:
 					datafile.write(str(phot_data['hjd'][i])+'  '+\
 							str(phot_data['instrumental_mag'][i])+'  '+str(phot_data['instrumental_mag_err'][i])+'  '+\
 							str(phot_data['calibrated_mag'][i])+'  '+str(phot_data['calibrated_mag_err'][i])+'  '+\
 							str(phot_data['corrected_mag'][i])+'  '+str(phot_data['corrected_mag_err'][i])+'  '+\
+							str(phot_data['normalized_mag'][i])+'  '+str(phot_data['normalized_mag_err'][i])+'  '+\
 							str(phot_data['qc_flag'][i])+'\n')
 
 				datafile.close()
@@ -106,7 +107,9 @@ def fetch_field_photometry_for_star(params, star, xmatch, log):
 								Column(name='calibrated_mag_err', data=quad_phot[star['quadrant_id']-1,idx,4], dtype='float'),
 								Column(name='corrected_mag', data=quad_phot[star['quadrant_id']-1,idx,5], dtype='float'),
 								Column(name='corrected_mag_err', data=quad_phot[star['quadrant_id']-1,idx,6], dtype='float'),
-								Column(name='qc_flag', data=quad_phot[star['quadrant_id']-1,idx,14], dtype='float'),
+								Column(name='normalized_mag', data=quad_phot[star['quadrant_id']-1,idx,7], dtype='float'),
+								Column(name='normalized_mag_err', data=quad_phot[star['quadrant_id']-1,idx,8], dtype='float'),
+								Column(name='qc_flag', data=quad_phot[star['quadrant_id']-1,idx,16], dtype='float'),
 								])
 
 		log.info('-> Extract timeseries photometry for star '+str(star['field_id'])+' from dataset '+dataset['dataset_code'])

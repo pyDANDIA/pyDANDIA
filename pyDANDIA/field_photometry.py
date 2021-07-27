@@ -336,7 +336,7 @@ def populate_stamps_table(xmatch, dataset_code, dataset_metadata, log):
 def init_field_data_table(xmatch,log):
     # Photometry data array is initialized as a list because this is a
     # faster way to add rows.  Structure is:
-    # [Nimages, Nstars, Ncolumns]
+    # [Nstars, Nimages, Ncolumns]
     # Columns: hjd, instrumental_mag, instrumental_mag_err,
     # calibrated_mag, calibrated_mag_err, corrected_mag, corrected_mag_err,
     # normalized_mag, normalized_mag_err,
