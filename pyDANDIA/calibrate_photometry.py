@@ -272,11 +272,11 @@ def extract_params_from_metadata(reduction_metadata, params, log):
     (Gmag, Gmerr) = gaia_phot_transforms.gaia_flux_to_mag(reduction_metadata.star_catalog[1]['phot_g_mean_flux'],
                                                           reduction_metadata.star_catalog[1]['phot_g_mean_flux_error'],
                                                           passband="G")
-    (BPmag, BPmerr) = gaia_phot_transforms.gaia_flux_to_mag(reduction_metadata.star_catalog[1]['phot_g_mean_flux'],
-                                                        reduction_metadata.star_catalog[1]['phot_g_mean_flux_error'],
+    (BPmag, BPmerr) = gaia_phot_transforms.gaia_flux_to_mag(reduction_metadata.star_catalog[1]['phot_bp_mean_flux'],
+                                                        reduction_metadata.star_catalog[1]['phot_bp_mean_flux_error'],
                                                         passband="G_BP")
-    (RPmag, RPmerr) = gaia_phot_transforms.gaia_flux_to_mag(reduction_metadata.star_catalog[1]['phot_g_mean_flux'],
-                                                        reduction_metadata.star_catalog[1]['phot_g_mean_flux_error'],
+    (RPmag, RPmerr) = gaia_phot_transforms.gaia_flux_to_mag(reduction_metadata.star_catalog[1]['phot_rp_mean_flux'],
+                                                        reduction_metadata.star_catalog[1]['phot_rp_mean_flux_error'],
                                                         passband="G_RP")
 
     star_catalog['gaia_source_id'] = reduction_metadata.star_catalog[1]['gaia_source_id']
