@@ -484,10 +484,10 @@ def mask_datapoints_by_image_stamp(photometry, reduction_metadata, bad_data_inde
     for s in stamps:
         stamp_dims = reduction_metadata.stamps[1][s]
         #print('Stamp: ',stamp_dims)
-        affected_stars = np.where( (reduction_metadata.star_catalog[1]['x'] >= stamp_dims['XMIN']) & \
-                        (reduction_metadata.star_catalog[1]['x'] < stamp_dims['XMAX']) & \
-                        (reduction_metadata.star_catalog[1]['y'] >= stamp_dims['YMIN']) & \
-                        (reduction_metadata.star_catalog[1]['y'] < stamp_dims['YMAX']) )[0]
+        affected_stars = np.where( (reduction_metadata.star_catalog[1]['x'] >= stamp_dims['X_MIN']) & \
+                        (reduction_metadata.star_catalog[1]['x'] < stamp_dims['X_MAX']) & \
+                        (reduction_metadata.star_catalog[1]['y'] >= stamp_dims['Y_MIN']) & \
+                        (reduction_metadata.star_catalog[1]['y'] < stamp_dims['Y_MAX']) )[0]
 
         #print('AFFECTED STARS: ',reduction_metadata.star_catalog[1][affected_stars])
 
