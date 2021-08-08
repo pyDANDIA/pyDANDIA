@@ -199,6 +199,7 @@ def run_reference_astrometry(setup, **kwargs):
         cc = bright_central_gaia_stars[matched_stars.cat2_index]['x']
         dd = bright_central_gaia_stars[matched_stars.cat2_index]['y']
 
+        log.info('Sampling: '+repr(np.min([len(aa),20]))+' '+str(len(aa)))
         transform_robust, inliers = ransac((np.c_[cc,dd],np.c_[aa,bb]),tf.AffineTransform,residual_threshold = 0.5,min_samples=np.min([len(aa),20]))
 
 
