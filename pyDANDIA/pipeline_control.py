@@ -101,7 +101,7 @@ def get_datasets_for_reduction(setup,log):
 
     else:
 
-        raise IOError('Cannot find input list of datasets')
+        raise IOError('Cannot find input list of datasets.  Looking for '+datasets_file)
 
     return datasets
 
