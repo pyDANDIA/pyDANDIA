@@ -116,7 +116,8 @@ def run_reference_astrometry(setup, **kwargs):
             selection_radius = kwargs['selection_radius']
         else:
             selection_radius = 0.05 #degrees
-            
+        log.info('Using a radius of '+str(selection_radius)+'deg to identify stars in the frame center')
+        
         (bright_central_detected_stars, bright_central_gaia_stars, selection_radius) = \
              wcs.extract_bright_central_stars(setup,detected_sources, gaia_sources,
                                             image_wcs, log, radius=selection_radius)
