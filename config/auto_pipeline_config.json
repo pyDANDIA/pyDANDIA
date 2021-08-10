@@ -112,5 +112,11 @@
     "comment": "Switch to control upload of data to MOP",
     "format": "string",
     "unit": ""
+  },
+  "selection_radius": {
+    "value": 0.1,
+    "comment": "Radius around the FOV center from which to select stars for reference frame astrometric fit",
+    "format": "float",
+    "unit": "deg"
   }
 }
