@@ -191,7 +191,7 @@ def extract_bright_central_stars(setup, detected_sources, catalog_sources,
 
     idx = np.argsort(central_detected_stars['ref_flux'])
 
-    imin = int(len(central_detected_stars)*0.75)
+    imin = int(len(central_detected_stars)*0.66)
     imax = int(len(central_detected_stars)*0.98)
 
     bright_central_detected_stars = central_detected_stars[idx][imin:imax]
@@ -207,7 +207,7 @@ def extract_bright_central_stars(setup, detected_sources, catalog_sources,
 
     idx = np.argsort(central_catalog_stars['phot_rp_mean_flux'][jdx])
 
-    imin = int(len(central_catalog_stars[jdx])*0.75)
+    imin = int(len(central_catalog_stars[jdx])*0.660)
     imax = int(len(central_catalog_stars[jdx])*0.98)
 
     bright_central_catalog_stars = central_catalog_stars[jdx][idx[imin:imax]]

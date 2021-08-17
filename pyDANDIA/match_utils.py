@@ -287,6 +287,24 @@ class StarMatchIndex:
 
         return star_ids, result_star_index
 
+
+    def reject_outliers(self,inliers, log=None):
+        
+        self.cat1_index = np.array(self.cat1_index)[inliers].tolist()
+        self.cat1_ra = np.array(self.cat1_ra)[inliers].tolist()
+        self.cat1_dec = np.array(self.cat1_dec)[inliers].tolist()
+        self.cat1_x = np.array(self.cat1_x)[inliers].tolist()
+        self.cat1_y = np.array(self.cat1_y)[inliers].tolist()
+        
+        self.cat2_index = np.array(self.cat2_index)[inliers].tolist()
+        self.cat2_ra = np.array(self.cat2_ra)[inliers].tolist()
+        self.cat2_dec = np.array(self.cat2_dec)[inliers].tolist()
+        self.cat2_x = np.array(self.cat2_x)[inliers].tolist()
+        self.cat2_y = np.array(self.cat2_y)[inliers].tolist()
+
+        #self.separation = np.array(self.separation)[inliers].tolist()
+        self.n_match = len(self.cat2_x)
+        
 def transfer_main_catalog_indices(matched_stars, sub_detected_sources, sub_catalog_sources,
                                 full_detected_sources, full_catalog_sources, log):
 
