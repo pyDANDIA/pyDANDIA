@@ -164,12 +164,12 @@ def run_reductions(setup,log,datasets,kwargs):
 
             dataset_dir = path.join(setup.base_dir,data_dir)
 
-            pid = trigger_parallel_reduction(setup,dataset_dir,data_status,kwargs,debug=False)
+            pid = trigger_parallel_reduction(setup,dataset_dir,data_status,kwargs,log,debug=False)
 
             log.info(' -> Dataset '+path.basename(dataset_dir)+\
                     ' reduction PID '+str(pid))
 
-def trigger_parallel_reduction(setup,dataset_dir,data_status,kwargs,debug=False):
+def trigger_parallel_reduction(setup,dataset_dir,data_status,kwargs,log,debug=False):
     """Function to spawn a child process to run the reduction of a
     single dataset.
 
@@ -183,7 +183,7 @@ def trigger_parallel_reduction(setup,dataset_dir,data_status,kwargs,debug=False)
     else:
         pythonpath = 'python'
     log.info('Using pythonpath: '+pythonpath)
-    
+
     if 'tests' in setup.software_dir:
 
             command = path.join(setup.software_dir,'counter.py')
