@@ -55,9 +55,9 @@ def get_args():
         params['red_mode'] = argv[3]
 
         for a in argv:
-            if 'software' in a:
+            if 'software=' in a:
                 params['software_dir'] = str(a).split('=')[-1]
-            if 'python' in a:
+            if 'python=' in a:
                 kwargs['python'] = str(a).split('=')[-1]
 
     params['log_dir'] = path.join(params['base_dir'],'logs')
