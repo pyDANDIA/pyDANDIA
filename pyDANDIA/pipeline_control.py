@@ -57,6 +57,8 @@ def get_args():
         for a in argv:
             if 'software' in a:
                 params['software_dir'] = str(a).split('=')[-1]
+            if 'python' in a:
+                kwargs['python'] = str(a).split('=')[-1]
 
     params['log_dir'] = path.join(params['base_dir'],'logs')
     params['pipeline_config_dir'] = path.join(params['base_dir'],'config')
@@ -176,16 +178,21 @@ def trigger_parallel_reduction(setup,dataset_dir,data_status,kwargs,debug=False)
         dataset_dir   str    Path to dataset red_dir
     """
 
+    if 'python' in kwargs.keys():
+        pythonpath = kwargs['python']
+    else:
+        pythonpath = 'python'
+
     if 'tests' in setup.software_dir:
 
             command = path.join(setup.software_dir,'counter.py')
-            args = args = ['python', command, dataset_dir, setup.phot_db_path, setup.red_mode]
+            args = args = [pythonpath, command, dataset_dir, setup.phot_db_path, setup.red_mode]
 
     elif setup.red_mode in ['data_preparation', 'added_data_preparation',
                             'reference_analysis', 'image_analysis']:
 
         command = path.join(setup.software_dir,'reduction_control.py')
-        args = ['python', command, dataset_dir, setup.phot_db_path, setup.red_mode, data_status]
+        args = [pythonpath, command, dataset_dir, setup.phot_db_path, setup.red_mode, data_status]
 
         if 'build_phot_db' in kwargs.keys() and kwargs['build_phot_db']==False:
             args += ['-no-phot-db']
@@ -193,17 +200,17 @@ def trigger_parallel_reduction(setup,dataset_dir,data_status,kwargs,debug=False)
     elif setup.red_mode in ['stage3']:
 
         command = path.join(setup.software_dir,'run_stage.py')
-        args = ['python', command, setup.red_mode, dataset_dir, setup.phot_db_path]
+        args = [pythonpath, command, setup.red_mode, dataset_dir, setup.phot_db_path]
 
     elif setup.red_mode in ['stage6'] and kwargs['build_phot_db'] == False:
 
         command = path.join(setup.software_dir,'run_stage.py')
-        args = ['python', command, setup.red_mode, dataset_dir, setup.phot_db_path]
+        args = [pythonpath, command, setup.red_mode, dataset_dir, setup.phot_db_path]
 
     elif setup.red_mode == 'post_processing':
 
         command = path.join(setup.software_dir,'run_stage.py')
-        args = ['python', command, setup.red_mode, dataset_dir, setup.phot_db_path]
+        args = [pythonpath, command, setup.red_mode, dataset_dir, setup.phot_db_path]
 
     else:
         raise ValueError('Reduction mode '+str(setup.red_mode)+' not yet supported in parallel mode')
