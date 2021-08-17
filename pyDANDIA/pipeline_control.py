@@ -182,7 +182,8 @@ def trigger_parallel_reduction(setup,dataset_dir,data_status,kwargs,debug=False)
         pythonpath = kwargs['python']
     else:
         pythonpath = 'python'
-
+    log.info('Using pythonpath: '+pythonpath)
+    
     if 'tests' in setup.software_dir:
 
             command = path.join(setup.software_dir,'counter.py')
