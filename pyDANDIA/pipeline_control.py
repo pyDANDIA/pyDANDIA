@@ -42,7 +42,7 @@ def get_args():
     params = {}
     kwargs = {}
 
-    if len(argv) != 4:
+    if len(argv) == 1:
         params['base_dir'] = input('Please enter the path to the base directory: ')
         params['phot_db_path'] = input('Please enter the path to the database file [or None to switch off DB]: ')
         print('''Please enter the required reduction mode out of:
@@ -53,6 +53,10 @@ def get_args():
         params['base_dir'] = argv[1]
         params['phot_db_path'] = argv[2]
         params['red_mode'] = argv[3]
+
+        for a in argv:
+            if 'software' in a:
+                params['software_dir'] = str(a).split('=')[-1]
 
     params['log_dir'] = path.join(params['base_dir'],'logs')
     params['pipeline_config_dir'] = path.join(params['base_dir'],'config')
