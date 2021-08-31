@@ -764,15 +764,17 @@ def model_phot_transform2(params,star_catalog,match_index,fit,
 
     cmag = params['cat_mag_col']
     cerr = params['cat_err_col']
-    fit = np.array([-9999.9999, -9999.9999])
-    covar_fit = np.zeros((3,3))
-
+    
     if cmag not in star_catalog.colnames or cerr not in star_catalog.colnames:
         log.info('WARNING: No catalog photometry available to automatically calibrate instrumental data in '+params['filter'])
+        fit = np.array([-9999.9999, -9999.9999])
+        covar_fit = np.zeros((3,3))
 
         return fit, covar_fit
 
     else:
+        fit = np.array([1,0])
+        covar_fit = np.zeros((3,3))
         log.info('Using catalog photometry columns: '+cmag+', '+cerr)
 
         cat_mags = star_catalog[cmag][match_index[:,1]]
@@ -782,7 +784,7 @@ def model_phot_transform2(params,star_catalog,match_index,fit,
 
         config = set_calibration_limits(params,log)
 
-        k = np.where(cat_merrs <= config['cat_merr_max'])[0]
+        k = np.where((cat_merrs <= config['cat_merr_max']) & (np.abs(cat_mags-15)<10))[0]
         cat_mags = cat_mags[k]
         cat_merrs = cat_merrs[k]
         det_mags = det_mags[k]
@@ -798,8 +800,9 @@ def model_phot_transform2(params,star_catalog,match_index,fit,
         ybins = []
 
         (hist_data,xedges,yedges) = np.histogram2d(det_mags,cat_mags,bins=24)
-        hist_data.T
-
+        #hist_data = hist_data.T
+        #import pdb; pdb.set_trace()
+    
         idx = np.where(hist_data < (hist_data.max()*0.05))
         hist_data[idx] = 0
 
