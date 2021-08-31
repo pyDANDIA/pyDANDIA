@@ -321,6 +321,11 @@ def parse_configured_datasets(config,log):
         log.info('Found '+str(len(datasets))+' datasets to be reduced in '+config['data_red_dir']+':')
         [log.info(path.basename(x)) for x in datasets]
         
+        # Shuffle dataset list to avoid the pipeline reprocessing the
+        # the same set of datasets each time when the maximum number of
+        # reductions is capped:
+        np.random.shuffle(datasets)
+
     return datasets
 
 def identify_recent_data(config, log):
