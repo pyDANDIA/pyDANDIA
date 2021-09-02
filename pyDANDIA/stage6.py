@@ -51,7 +51,7 @@ def run_stage6(setup, **kwargs):
 
     """
 
-    stage6_version = 'pyDANDIA_stage6_v1.3.1'
+    stage6_version = 'pyDANDIA_stage6_v1.3.2'
 
     log = logs.start_stage_log(setup.red_dir, 'stage6', version=stage6_version)
     log.info('Setup:\n' + setup.summary() + '\n')
