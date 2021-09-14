@@ -137,12 +137,12 @@ def sort_image_to_dataset(image,ds,data_dir,log=None):
 
     red_dir = path.join(data_dir,ds.id_code)
     dest_dir = path.join(red_dir,'data')
-    locked = automatic_pipeline.check_dataset_dir_unlocked(red_dir,log)
+    unlocked = automatic_pipeline.check_dataset_dir_unlocked(red_dir,log)
 
     if not path.isdir(dest_dir):
         makedirs(dest_dir)
 
-    if not locked:
+    if unlocked:
         move(image,path.join(dest_dir,path.basename(image)))
         message = path.basename(image)+' --> '+dest_dir
         log_message(message,log)
