@@ -12,6 +12,7 @@ from astropy.io import fits
 from sys import argv
 import glob
 from shutil import move
+from pyDANDIA import automatic_pipeline
 
 def sort_data(data_dir,option,log=None):
     """Function to sort a directory of FITS frames into per-target, per-filter
@@ -134,17 +135,27 @@ def sort_image_to_dataset(image,ds,data_dir,log=None):
     """Function to move the given image to a sub-directory determined by
     its dataset ID code"""
 
-    dest_dir = path.join(data_dir,ds.id_code,'data')
+    red_dir = path.join(data_dir,ds.id_code)
+    dest_dir = path.join(red_dir,'data')
+    locked = automatic_pipeline.check_dataset_dir_unlocked(red_dir,log)
 
     if not path.isdir(dest_dir):
         makedirs(dest_dir)
 
-    move(image,path.join(dest_dir,path.basename(image)))
+    if not locked:
+        move(image,path.join(dest_dir,path.basename(image)))
+        message = path.basename(image)+' --> '+dest_dir
+        log_message(message,log)
 
-    if log == None:
-        print(path.basename(image)+' --> '+dest_dir)
     else:
-        log.info(path.basename(image)+' --> '+dest_dir)
+        message = 'Reduction directory '+red_dir+' is locked.  Data will remain in incoming directory'
+        log_message(message,log)
+
+def log_message(message,log=None):
+    if log == None:
+        print(message)
+    else:
+        log.info(message)
 
 if __name__ == '__main__':
 
