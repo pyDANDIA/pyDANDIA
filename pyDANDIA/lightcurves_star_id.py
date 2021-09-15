@@ -28,7 +28,7 @@ def extract_star_lightcurve_star_id(params, log=None, format='dat',
 	if 'filter_name' not in params.keys():
 		params['filter_name'] = reduction_metadata.headers_summary[1]['FILTKEY'][0]
 
-    lc_files = []
+	lc_files = []
 
     if log != None:
         log.info('Searching for star ID='+str(params['star_id']))
