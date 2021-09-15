@@ -18,13 +18,12 @@ import csv
 def extract_star_lightcurve_star_id(params, log=None, format='dat',
 									valid_data_only=True,phot_error_threshold=10.0,
 									output_neighbours=False,psfactor_threshold=0.8):
-    """Function to extract a lightcurve for a single star based on its star_id
+	"""Function to extract a lightcurve for a single star based on its star_id
 	in the star_catolog in the metadata for a single reduction."""
 
-    log = logs.start_stage_log( params['red_dir'], 'lightcurves' )
-
-    reduction_metadata = metadata.MetaData()
-    reduction_metadata.load_all_metadata(params['red_dir'], 'pyDANDIA_metadata.fits')
+	log = logs.start_stage_log( params['red_dir'], 'lightcurves' )
+	reduction_metadata = metadata.MetaData()
+	reduction_metadata.load_all_metadata(params['red_dir'], 'pyDANDIA_metadata.fits')
 	if 'filter_name' not in params.keys():
 		params['filter_name'] = reduction_metadata.headers_summary[1]['FILTKEY'][0]
 
