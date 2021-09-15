@@ -60,7 +60,7 @@ if __name__ == '__main__':
 
     params['star_id'] = int(params['star_id'])
 
-    (message, lc_files) = extract_star_lightcurve_star_id(params, log=None, format='dat',
+    (message, lc_files) = extract_star_lightcurve_star_id(params, log=None, format='datcsv',
 												valid_data_only=False)
 
     print(message)
