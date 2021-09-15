@@ -29,22 +29,22 @@ def extract_star_lightcurve_star_id(params, log=None, format='dat',
 
 	lc_files = []
 
-    if log != None:
-        log.info('Searching for star ID='+str(params['star_id']))
-        log.info('Configured threshold for valid photometric datapoints is phot uncertainty <= '+\
-                    str(phot_error_threshold)+' mag')
+	if log != None:
+		log.info('Searching for star ID='+str(params['star_id']))
+		log.info('Configured threshold for valid photometric datapoints is phot uncertainty <= '+\
+					str(phot_error_threshold)+' mag')
 
-    if len(reduction_metadata.star_catalog[1]) >= params['star_id']:
+	if len(reduction_metadata.star_catalog[1]) >= params['star_id']:
 
-        photometry_data = lightcurves.fetch_photometry_for_isolated_dataset(params, params['star_id'], log)
+		photometry_data = lightcurves.fetch_photometry_for_isolated_dataset(params, params['star_id'], log)
 
-        lc_files = lightcurves.output_lightcurve(params, reduction_metadata, photometry_data, params['star_id'], format,
-                                        valid_data_only, phot_error_threshold, psfactor_threshold, log)
+		lc_files = lightcurves.output_lightcurve(params, reduction_metadata, photometry_data, params['star_id'], format,
+						valid_data_only, phot_error_threshold, psfactor_threshold, log)
 
-    message = 'OK'
-    logs.close_log(log)
+	message = 'OK'
+	logs.close_log(log)
 
-    return message, lc_files
+	return message, lc_files
 
 if __name__ == '__main__':
     params = {}
