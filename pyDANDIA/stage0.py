@@ -535,7 +535,8 @@ def parse_the_image_header(reduction_metadata, open_image):
             header_infos.append(info)
 
         except:
-            pass
+
+            header_infos.append(0.0)
 
     return np.array(header_infos)
 
@@ -572,7 +573,7 @@ def update_reduction_metadata_headers_summary_with_new_images(setup,
 
         log.info(str(values))
         log.info(str(len(values)))
-        
+
         if layer:
 
             reduction_metadata.add_row_to_layer('headers_summary',  values.astype(str))
