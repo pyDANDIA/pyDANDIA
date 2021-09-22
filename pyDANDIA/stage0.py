@@ -535,6 +535,8 @@ def parse_the_image_header(reduction_metadata, open_image):
 
         except KeyError:
             info = [key, 0.0, np.float]
+        except ValueError:
+            info = [key, 0.0, np.float]
 
         header_infos.append(info)
 
