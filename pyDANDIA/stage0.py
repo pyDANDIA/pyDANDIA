@@ -563,10 +563,16 @@ def update_reduction_metadata_headers_summary_with_new_images(setup,
 
         header_infos = parse_the_image_header(reduction_metadata, open_image)
 
+        log.info('HEADER INFO: '+repr(header_infos))
+        log.info(str(len(header_infos)))
+
         names = np.append('IMAGES', header_infos[:, 0])
         values = np.append(image_name, header_infos[:, 1])
         formats = np.append('S200', header_infos[:, 2])
 
+        log.info(str(values))
+        log.info(str(len(values)))
+        
         if layer:
 
             reduction_metadata.add_row_to_layer('headers_summary',  values.astype(str))
