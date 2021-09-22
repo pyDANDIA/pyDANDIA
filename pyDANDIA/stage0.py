@@ -529,18 +529,19 @@ def parse_the_image_header(reduction_metadata, open_image):
 
     header_infos = []
 
-    for key,entry in header_summary_parameters.items():
-        print(key, entry)
+    for key, col_data in header_summary_parameters.items():
+        print(key, col_data[0])
 
-        try:
-            info = [key, image_header[entry[0]], entry.dtype]
+        if key != 'IMAGES':
+            try:
+                info = [key, image_header[col_data[0]], col_data.dtype]
 
-        except KeyError:
-            info = [key, 0.0, entry.dtype]
-        except ValueError:
-            info = [key, 0.0, entry.dtype]
+            except KeyError:
+                info = [key, 0.0, col_data.dtype]
+            except ValueError:
+                info = [key, 0.0, col_data.dtype]
 
-        header_infos.append(info)
+            header_infos.append(info)
 
     return np.array(header_infos)
 
