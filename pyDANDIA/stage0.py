@@ -520,18 +520,20 @@ def parse_the_image_header(reduction_metadata, open_image):
     :rtype array_like
     '''
 
-    layer_reduction_parameters = reduction_metadata.reduction_parameters[1]
-    reduction_parameter_keys = layer_reduction_parameters.keys() + ['HJD']
+    #layer_reduction_parameters = reduction_metadata.reduction_parameters[1]
+    header_summary_parameters = reduction_metadata.headers_summary[1]
+    #reduction_parameter_keys = layer_reduction_parameters.keys() + ['HJD']
+    header_keys = header_summary_parameters.keys()
 
     image_header = open_image.header
 
     header_infos = []
 
-    for key in reduction_parameter_keys:
+    for key in header_keys:
 
         try:
-            info = [key, image_header[layer_reduction_parameters[key][0]],
-                    layer_reduction_parameters[key].dtype]
+            info = [key, image_header[header_summary_parameters[key][0]],
+                    header_summary_parameters[key].dtype]
 
         except KeyError:
             info = [key, 0.0, np.float]
