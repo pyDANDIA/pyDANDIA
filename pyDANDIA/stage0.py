@@ -529,14 +529,14 @@ def parse_the_image_header(reduction_metadata, open_image):
 
     for key in reduction_parameter_keys:
 
-        try:
-            info = [key, image_header[layer_reduction_parameters[key][0]],
+        #try:
+        info = [key, image_header[layer_reduction_parameters[key][0]],
                     layer_reduction_parameters[key].dtype]
-            header_infos.append(info)
+        header_infos.append(info)
 
-        except:
+        #except:
 
-            header_infos.append(0.0)
+        #    header_infos.append(0.0)
 
     return np.array(header_infos)
 
