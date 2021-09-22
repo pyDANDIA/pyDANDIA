@@ -37,7 +37,7 @@ def run_stage0(setup):
     Output: prepares the metadata file
     """
 
-    stage0_version = 'stage0 v0.1'
+    stage0_version = 'stage0 v0.1.1'
 
     log = logs.start_stage_log(setup.red_dir, 'stage0', version=stage0_version)
     log.info('Setup:\n' + setup.summary() + '\n')
@@ -521,11 +521,13 @@ def parse_the_image_header(reduction_metadata, open_image):
     '''
 
     layer_reduction_parameters = reduction_metadata.reduction_parameters[1]
+    reduction_parameter_keys = layer_reduction_parameters.keys() + ['HJD']
+
     image_header = open_image.header
 
     header_infos = []
 
-    for key in layer_reduction_parameters.keys():
+    for key in reduction_parameter_keys:
 
         try:
             info = [key, image_header[layer_reduction_parameters[key][0]],
