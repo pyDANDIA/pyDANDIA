@@ -548,19 +548,14 @@ def parse_the_image_header(reduction_metadata, open_image):
     # has to be added to this list.
     except AttributeError:
         reduction_parameter_keys = reduction_parameters_table.keys()
-        print(reduction_parameter_keys)
 
         for key in reduction_parameter_keys:
             image_header_key = reduction_parameters_table[key][0]
-            print(image_header_key)
 
             if image_header_key in image_header.keys():
                 info = [key, image_header[image_header_key],
                         reduction_parameters_table[key].dtype]
                 header_infos.append(info)
-
-            #except:
-            #    pass
 
         for key in ['HJD']:
             info = [key, 0.0, np.float]
