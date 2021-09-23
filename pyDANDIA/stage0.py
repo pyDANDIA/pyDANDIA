@@ -520,28 +520,41 @@ def parse_the_image_header(reduction_metadata, open_image):
     :rtype array_like
     '''
 
-    layer_reduction_parameters = reduction_metadata.reduction_parameters[1]
-    header_summary_parameters = reduction_metadata.headers_summary[1]
-    #reduction_parameter_keys = layer_reduction_parameters.keys() + ['HJD']
-    header_keys = header_summary_parameters.keys()
-
-    image_header = open_image.header
-
     header_infos = []
+    image_header = open_image.header
+    reduction_parameters_table = reduction_metadata.reduction_parameters[1]
 
-    for col_name, col_data in header_summary_parameters.items():
-        key = layer_reduction_parameters[col_name]
+    # If the reduction_metadata has a headers_summary table already, use it
+    # to get the list of header keywords to extract.  From a previously-existing
+    # reduction, this will include HJD, which is calculated later on.  This
+    # parameter is not in the reduction_parameters as it is computed.
+    try:
+        headers_summary_table = reduction_metadata.headers_summary[1]
 
-        if key != 'IMAGES':
+        for key, col in headers_summary_table.items():
+            if 'IMAGES' not in key:
+                image_header_key = reduction_parameters_table[key][0]
+
+                info = [key, image_header[image_header_key], col.dtype]
+                header_infos.append(info)
+
+    # New reductions will not yet have a headers_summary table, so instead we
+    # extract the parameters from the reduction_parameters table and include
+    # all of the parameters for which entries exist in the image header.  HJD
+    # has to be added to this list.
+    except AttributeError:
+        reduction_parameter_keys = reduction_parameters_table.keys() + ['HJD']
+
+        for key in reduction_parameter_keys:
+            image_header_key = reduction_parameters_table[key][0]
+
             try:
-                info = [col_name, image_header[key[0]], col_data.dtype]
+                info = [key, image_header[image_header_key[0]],
+                        reduction_parameters_table[key].dtype]
+                header_infos.append(info)
 
-            except KeyError:
-                info = [col_name, 0.0, col_data.dtype]
-            except ValueError:
-                info = [col_name, 0.0, col_data.dtype]
-
-            header_infos.append(info)
+            except:
+                pass
 
     return np.array(header_infos)
 
@@ -576,10 +589,8 @@ def update_reduction_metadata_headers_summary_with_new_images(setup,
         values = np.append(image_name, header_infos[:, 1])
         formats = np.append('S200', header_infos[:, 2])
 
-        log.info('VALUES: '+str(values))
+        log.info(str(values))
         log.info(str(len(values)))
-        log.info('NAMES: '+str(names))
-        log.info('FORMATS: '+str(formats))
 
         if layer:
 
