@@ -555,7 +555,7 @@ def parse_the_image_header(reduction_metadata, open_image):
             print(image_header_key)
 
             if image_header_key in image_header.keys():
-                info = [key, image_header[image_header_key][0],
+                info = [key, image_header[image_header_key],
                         reduction_parameters_table[key].dtype]
                 header_infos.append(info)
 
