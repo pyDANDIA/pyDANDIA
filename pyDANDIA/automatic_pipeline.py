@@ -320,7 +320,7 @@ def parse_configured_datasets(config,log):
 
         log.info('Found '+str(len(datasets))+' datasets to be reduced in '+config['data_red_dir']+':')
         [log.info(path.basename(x)) for x in datasets]
-        
+
         # Shuffle dataset list to avoid the pipeline reprocessing the
         # the same set of datasets each time when the maximum number of
         # reductions is capped:
@@ -403,7 +403,8 @@ def check_dataset_dir_unlocked(dataset_path,log):
     a reduction.  Returns True if unlocked."""
 
     lockfile = path.join(dataset_path,'dataset.lock')
-
+    log.info('Searching for lockfile at '+lockfile)
+    
     if path.isfile(lockfile) == True:
         log.info(' -> '+path.basename(dataset_path)+' is locked')
         status = False
