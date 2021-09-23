@@ -533,9 +533,13 @@ def parse_the_image_header(reduction_metadata, open_image):
 
         for key, col in headers_summary_table.items():
             if 'IMAGES' not in key:
-                image_header_key = reduction_parameters_table[key][0]
+                if key in reduction_parameters_table.keys():
+                    image_header_key = reduction_parameters_table[key][0]
 
-                info = [key, image_header[image_header_key], col.dtype]
+                    info = [key, image_header[image_header_key], col.dtype]
+                else:
+                    info = [key, 0.0, col.dtype]
+                    
                 header_infos.append(info)
 
     # New reductions will not yet have a headers_summary table, so instead we
@@ -559,7 +563,7 @@ def parse_the_image_header(reduction_metadata, open_image):
         for key in ['HJD']:
             info = [key, 0.0, np.float]
             header_infos.append(info)
-            
+
     return np.array(header_infos)
 
 
