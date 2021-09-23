@@ -553,11 +553,11 @@ def parse_the_image_header(reduction_metadata, open_image):
         for key in reduction_parameter_keys:
             image_header_key = reduction_parameters_table[key][0]
             print(image_header_key)
-            
+
             #try:
-                info = [key, image_header[image_header_key[0]],
+            info = [key, image_header[image_header_key[0]],
                         reduction_parameters_table[key].dtype]
-                header_infos.append(info)
+            header_infos.append(info)
 
             #except:
             #    pass
