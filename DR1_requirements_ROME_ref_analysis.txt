@@ -34,7 +34,7 @@ mock==4.0.1
 more-itertools==6.0.0
 networkx==2.2
 numpy==1.14.5
-opencv-python==4.0.0.21
+opencv-python==4.1.1.26
 parso==0.4.0
 pexpect==4.7.0
 photutils==0.6
