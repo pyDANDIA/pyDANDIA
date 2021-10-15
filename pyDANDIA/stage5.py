@@ -592,7 +592,7 @@ def subtract_with_constant_kernel(new_images, reference_image_name, reference_im
 
 #            if log is not None:
 #                logs.ifverbose(log, setup,
-                               'kernel matrix computation or shift failed:' + new_image + '. skipping! ' + str(e))
+#                               'kernel matrix computation or shift failed:' + new_image + '. skipping! ' + str(e))
 #            else:
 #                print(str(e))
 
