@@ -540,6 +540,7 @@ def subtract_with_constant_kernel(new_images, reference_image_name, reference_im
         kernel_header['SCALEFAC'] = str(pscale)
         kernel_header['KERBKG'] = bkg_kernel
         print('KERNEL_HEADER: '+repr(kernel_header))
+        exit()
         hdu_kernel = fits.PrimaryHDU(kernel_matrix, header=kernel_header)
         hdu_kernel.writeto(os.path.join(kernel_directory_path, 'kernel_' + new_image), overwrite=True)
         hdu_kernel_err = fits.PrimaryHDU(kernel_uncertainty)
