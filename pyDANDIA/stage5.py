@@ -848,7 +848,7 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
             hdu_kernel.writeto(os.path.join(kernel_directory, 'kernel_stamp_' + str(stamp) + '.fits'), overwrite=True)
             hdu_kernel_err = fits.PrimaryHDU(kernel_uncertainty)
             hdu_kernel_err.writeto(os.path.join(kernel_directory, 'kernel_err_stamp_' + str(stamp) + '.fits'), overwrite=True)
-            print('Output kernel stamp '+path.basename(kernel_directory))
+            print('Output kernel stamp '+os.path.basename(kernel_directory))
             # Particle data group formatting
             pscale_formatted = round_unc(pscale, pscale_err)
 
@@ -884,7 +884,7 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
 
             bkg_image_hdu = fits.PrimaryHDU(bkg_image)
             bkg_image_hdu.writeto(os.path.join(diffim_directory, 'diff_back_stamp_' + str(stamp) + '.fits'), overwrite=True)
-            print('Output diff back stamp '+path.basename(diffim_directory))
+            print('Output diff back stamp '+os.path.basename(diffim_directory))
 
 
             pscales.append(pscale)
