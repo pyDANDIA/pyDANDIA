@@ -862,6 +862,7 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
             ngood = len(difference_image_um[mask])
             kurtosis_quality = kurtosis(difference_image_um[mask])
             skew_quality = skew(difference_image_um[mask])
+            print('NGOOD = '+str(ngood)+' '+str(np.var(difference_image_um[mask])))
             variance_per_pixel = np.var(difference_image_um[mask]) / float(ngood)
 
 
