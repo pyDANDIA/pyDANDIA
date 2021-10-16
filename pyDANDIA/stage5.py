@@ -843,7 +843,7 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
                 kernel_header = fits.Header()
                 kernel_header['SCALEFAC'] = str(pscale)
                 kernel_header['KERBKG'] = bkg_kernel
-                print('KERNEL_HEADER: '+repr(kernel_header))
+                print('KERNEL_HEADER: '+repr(kernel_header)+' '+str(pscale)+' '+str(bkg_kernel))
                 hdu_kernel = fits.PrimaryHDU(kernel_matrix, header=kernel_header)
                 hdu_kernel.writeto(os.path.join(kernel_directory, 'kernel_stamp_' + str(stamp) + '.fits'), overwrite=True)
                 hdu_kernel_err = fits.PrimaryHDU(kernel_uncertainty)
