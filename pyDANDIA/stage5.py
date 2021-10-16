@@ -520,82 +520,79 @@ def subtract_with_constant_kernel(new_images, reference_image_name, reference_im
         smoothing = smoothing_2sharp_images(reduction_metadata, ref_fwhm_x, ref_fwhm_y, ref_sigma_x, ref_sigma_y,
                                             row_index)
 
-#        try:
-        image_structure = image_handling.determine_image_struture(os.path.join(data_image_directory, new_image),log=log)
-        data_image, data_image_unmasked = open_data_image(setup, data_image_directory, new_image,
-                                                          bright_reference_mask, kernel_size, max_adu,
-                                                          xshift=x_shift, yshift=y_shift, sigma_smooth=smoothing,
-                                                          central_crop=maxshift, data_extension=image_structure['sci'])
+        try:
+            image_structure = image_handling.determine_image_struture(os.path.join(data_image_directory, new_image),log=log)
+            data_image, data_image_unmasked = open_data_image(setup, data_image_directory, new_image,
+                                                              bright_reference_mask, kernel_size, max_adu,
+                                                              xshift=x_shift, yshift=y_shift, sigma_smooth=smoothing,
+                                                              central_crop=maxshift, data_extension=image_structure['sci'])
 
-        missing_data_mask = (data_image == 0.)
-        b_vector = bvector_constant(reference_image, data_image, kernel_size, noise_image)
-        kernel_matrix, bkg_kernel, kernel_uncertainty = kernel_solution(umatrix, b_vector, kernel_size,
-                                                                        circular=False)
-        # res = so.minimize(fit_kernel,kernel_matrix.ravel(),args=(data_image,reference_image,bright_reference_mask))
+            missing_data_mask = (data_image == 0.)
+            b_vector = bvector_constant(reference_image, data_image, kernel_size, noise_image)
+            kernel_matrix, bkg_kernel, kernel_uncertainty = kernel_solution(umatrix, b_vector, kernel_size,
+                                                                            circular=False)
+            # res = so.minimize(fit_kernel,kernel_matrix.ravel(),args=(data_image,reference_image,bright_reference_mask))
 
-        pscale = np.sum(kernel_matrix)
-        pscale_err = np.sum(kernel_uncertainty ** 2) ** 0.5
-        np.save(os.path.join(kernel_directory_path, 'kernel_' + new_image + '.npy'), [kernel_matrix, bkg_kernel])
-        kernel_header = fits.Header()
-        kernel_header['SCALEFAC'] = str(pscale)
-        kernel_header['KERBKG'] = bkg_kernel
-        print('KERNEL_HEADER: '+repr(kernel_header))
-        exit()
-        hdu_kernel = fits.PrimaryHDU(kernel_matrix, header=kernel_header)
-        hdu_kernel.writeto(os.path.join(kernel_directory_path, 'kernel_' + new_image), overwrite=True)
-        hdu_kernel_err = fits.PrimaryHDU(kernel_uncertainty)
-        hdu_kernel_err.writeto(os.path.join(kernel_directory_path, 'kernel_err_' + new_image), overwrite=True)
-        # Particle data group formatting
-        pscale_formatted = round_unc(pscale, pscale_err)
-        difference_image = subtract_images(data_image_unmasked, reference_image_unmasked, kernel_matrix,
-                                           kernel_size, bkg_kernel)
-        # unmasked subtraction (for quality stats)
-        mean_sky, median_sky, std_sky = sigma_clipped_stats(reference_image_unmasked, sigma=5.0)
-        difference_image_um = subtract_images(data_image, reference_image, kernel_matrix, kernel_size, bkg_kernel)
-        mask = reference_image != 0
-        ngood = len(difference_image_um[mask])
-        kurtosis_quality = kurtosis(difference_image_um[mask])
-        skew_quality = skew(difference_image_um[mask])
-        variance_per_pixel = np.var(difference_image_um[mask]) / float(ngood)
-        if log is not None:
-            logs.ifverbose(log, setup,
-                           'b_vector calculated for:' + new_image + ' and scale factor ' + pscale_formatted + ' variace per pixel ' + str(
-                               round(variance_per_pixel, 4)) + ' in kernel bin ' + str(umatrix_index))
+            pscale = np.sum(kernel_matrix)
+            pscale_err = np.sum(kernel_uncertainty ** 2) ** 0.5
+            np.save(os.path.join(kernel_directory_path, 'kernel_' + new_image + '.npy'), [kernel_matrix, bkg_kernel])
+            kernel_header = fits.Header()
+            kernel_header['SCALEFAC'] = str(pscale)
+            kernel_header['KERBKG'] = bkg_kernel
+            hdu_kernel = fits.PrimaryHDU(kernel_matrix, header=kernel_header)
+            hdu_kernel.writeto(os.path.join(kernel_directory_path, 'kernel_' + new_image), overwrite=True)
+            hdu_kernel_err = fits.PrimaryHDU(kernel_uncertainty)
+            hdu_kernel_err.writeto(os.path.join(kernel_directory_path, 'kernel_err_' + new_image), overwrite=True)
+            # Particle data group formatting
+            pscale_formatted = round_unc(pscale, pscale_err)
+            difference_image = subtract_images(data_image_unmasked, reference_image_unmasked, kernel_matrix,
+                                               kernel_size, bkg_kernel)
+            # unmasked subtraction (for quality stats)
+            mean_sky, median_sky, std_sky = sigma_clipped_stats(reference_image_unmasked, sigma=5.0)
+            difference_image_um = subtract_images(data_image, reference_image, kernel_matrix, kernel_size, bkg_kernel)
+            mask = reference_image != 0
+            ngood = len(difference_image_um[mask])
+            kurtosis_quality = kurtosis(difference_image_um[mask])
+            skew_quality = skew(difference_image_um[mask])
+            variance_per_pixel = np.var(difference_image_um[mask]) / float(ngood)
+            if log is not None:
+                logs.ifverbose(log, setup,
+                               'b_vector calculated for:' + new_image + ' and scale factor ' + pscale_formatted + ' variace per pixel ' + str(
+                                   round(variance_per_pixel, 4)) + ' in kernel bin ' + str(umatrix_index))
 
-            # EXPERIMENTAL -> DISCARD outliers
-        # mean_diff, median_diff, std_diff = sigma_clipped_stats(difference_image, sigma=4.0)
-        # out3sig = np.where(np.abs(difference_image) > 4.*+std_diff)
-        # outliers_list = []
-        # for rm_idx in range(len(out3sig[0])):
-        #    outliers_list.append((out3sig[0][rm_idx],out3sig[1][rm_idx]))
-        # update umatrix
-        # b_vector_2 = bvector_constant_clean(reference_image, data_image, kernel_size, b_vector, outliers_list)
-        # umatrix_2 = umatrix_constant_clean(reference_image, kernel_size, umatrix, outliers_list)
-        # kernel_matrix_2, bkg_kernel_2, kernel_uncertainty_2 = kernel_solution(umatrix_2, b_vector_2, kernel_size, circular = False)
-        # difference_image = subtract_images(data_image_unmasked, reference_image_unmasked, kernel_matrix_2, kernel_size, bkg_kernel_2)
-        new_header = fits.Header()
-        new_header['SCALEFAC'] = pscale
-        new_header['SCALEERR'] = pscale_err
-        new_header['VARPP'] = variance_per_pixel
-        new_header['NGOOD'] = ngood
-        new_header['SKY'] = median_sky
-        new_header['KURTOSIS'] = kurtosis_quality
-        new_header['SKEW'] = skew_quality
-        print('NEW_HEADER: '+repr(new_header))
-        quality_metrics.append(
-            [new_image, pscale, pscale_err, median_sky, variance_per_pixel, ngood, kurtosis_quality, skew_quality])
-        difference_image_hdu = fits.PrimaryHDU(difference_image, header=new_header)
-        difference_image_hdu.writeto(os.path.join(diffim_directory_path, 'diff_' + new_image), overwrite=True)
+                # EXPERIMENTAL -> DISCARD outliers
+            # mean_diff, median_diff, std_diff = sigma_clipped_stats(difference_image, sigma=4.0)
+            # out3sig = np.where(np.abs(difference_image) > 4.*+std_diff)
+            # outliers_list = []
+            # for rm_idx in range(len(out3sig[0])):
+            #    outliers_list.append((out3sig[0][rm_idx],out3sig[1][rm_idx]))
+            # update umatrix
+            # b_vector_2 = bvector_constant_clean(reference_image, data_image, kernel_size, b_vector, outliers_list)
+            # umatrix_2 = umatrix_constant_clean(reference_image, kernel_size, umatrix, outliers_list)
+            # kernel_matrix_2, bkg_kernel_2, kernel_uncertainty_2 = kernel_solution(umatrix_2, b_vector_2, kernel_size, circular = False)
+            # difference_image = subtract_images(data_image_unmasked, reference_image_unmasked, kernel_matrix_2, kernel_size, bkg_kernel_2)
+            new_header = fits.Header()
+            new_header['SCALEFAC'] = pscale
+            new_header['SCALEERR'] = pscale_err
+            new_header['VARPP'] = variance_per_pixel
+            new_header['NGOOD'] = ngood
+            new_header['SKY'] = median_sky
+            new_header['KURTOSIS'] = kurtosis_quality
+            new_header['SKEW'] = skew_quality
+            quality_metrics.append(
+                [new_image, pscale, pscale_err, median_sky, variance_per_pixel, ngood, kurtosis_quality, skew_quality])
+            difference_image_hdu = fits.PrimaryHDU(difference_image, header=new_header)
+            difference_image_hdu.writeto(os.path.join(diffim_directory_path, 'diff_' + new_image), overwrite=True)
 
-#        except Exception as e:
+        except Exception as e:
 
-#            quality_metrics.append([new_image, -1.0, -1.0, -1.0, -1.0, 0, -1.0, -1.0])
+            quality_metrics.append([new_image, -1.0, -1.0, -1.0, -1.0, 0, -1.0, -1.0])
 
-#            if log is not None:
-#                logs.ifverbose(log, setup,
-#                               'kernel matrix computation or shift failed:' + new_image + '. skipping! ' + str(e))
-#            else:
-#                print(str(e))
+            if log is not None:
+                logs.ifverbose(log, setup,
+                               'kernel matrix computation or shift failed:' + new_image + '. skipping! ' + str(e))
+            else:
+                print(str(e))
 
         log.info(' -> ' + repr(quality_metrics[-1]))
 
@@ -846,6 +843,7 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
                 kernel_header = fits.Header()
                 kernel_header['SCALEFAC'] = str(pscale)
                 kernel_header['KERBKG'] = bkg_kernel
+                print('KERNEL_HEADER: '+repr(kernel_header))
                 hdu_kernel = fits.PrimaryHDU(kernel_matrix, header=kernel_header)
                 hdu_kernel.writeto(os.path.join(kernel_directory, 'kernel_stamp_' + str(stamp) + '.fits'), overwrite=True)
                 hdu_kernel_err = fits.PrimaryHDU(kernel_uncertainty)
@@ -875,6 +873,7 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
                 new_header['SKY'] = median_sky
                 new_header['KURTOSIS'] = kurtosis_quality
                 new_header['SKEW'] = skew_quality
+                print('NEW_HEADER: '+repr(new_header))
                 difference_image_hdu = fits.PrimaryHDU(difference_image, header=new_header)
                 try:
                     os.mkdir(diffim_directory)
