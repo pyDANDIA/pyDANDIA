@@ -861,12 +861,18 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
             mask = ref != 0
             ngood = len(difference_image_um[mask])
             kurtosis_quality = kurtosis(difference_image_um[mask])
+            if np.isnan(kurtosis_quality):
+                kurtosis_quality = 0.0
+                log.info('Kurtosis_quality Nan; setting to zero')
             skew_quality = skew(difference_image_um[mask])
-            print('NGOOD = '+str(ngood)+' '+str(np.var(difference_image_um[mask])))
+            if np.isnan(skew_quality):
+                skew_quality = 0.0
+                log.info('Skew_quality Nan; setting to zero')
             if not np.isnan(np.var(difference_image_um[mask])) and ngood > 0:
                 variance_per_pixel = np.var(difference_image_um[mask]) / float(ngood)
             else:
                 variance_per_pixel = 0.0
+                log.info('Variance_per_pixel Nan; setting to zero')
 
 
             new_header = fits.Header()
