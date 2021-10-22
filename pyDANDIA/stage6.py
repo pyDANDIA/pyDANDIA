@@ -51,7 +51,7 @@ def run_stage6(setup, **kwargs):
 
     """
 
-    stage6_version = 'pyDANDIA_stage6_v1.3.2'
+    stage6_version = 'pyDANDIA_stage6_v1.3.3'
 
     log = logs.start_stage_log(setup.red_dir, 'stage6', version=stage6_version)
     log.info('Setup:\n' + setup.summary() + '\n')
@@ -152,7 +152,7 @@ def run_stage6(setup, **kwargs):
     exposures_id = []
     photometric_table = []
 
-    photometry_data = build_photometry_array(setup,len(all_images),len(starlist),log)
+    photometry_data = build_photometry_array(setup,len(all_images),len(new_images),len(starlist),log)
 
     log.info('Starting photometry of difference images')
 
@@ -967,7 +967,7 @@ def commit_stamp_photometry_matching(conn, params, reduction_metadata,
 
     log.info('Completed ingest of photometry for ' + str(len(entries)) + ' stars')
 
-def build_photometry_array(setup,nimages,nstars,log):
+def build_photometry_array(setup,nimages,n_new_images,nstars,log):
     """Function to construct an array to receive the photometry data.
     This loads pre-existing photometry from earlier pipeline reductions,
     if available.
@@ -990,12 +990,19 @@ def build_photometry_array(setup,nimages,nstars,log):
 
         raise IOError(message)
 
-    photometry_data = np.zeros((nstars,nimages,ncolumns))
+    # Since the phot_data array is recreated from scratch in auto reductions,
+    # this avoids a later crash in lightcurves.py when the phot_data is scaled
+    # for images that have not yet been reduced.
+    if setup.red_mode == 'auto':
+        photometry_data = np.zeros((nstars,n_new_images,ncolumns))
+    else:
+        photometry_data = np.zeros((nstars,nimages,ncolumns))
 
     # If available, transfer the existing photometry into the data arrays
-    if len(existing_phot) > 0:
-        for i in range(0,existing_phot.shape[1],1):
-            photometry_data[:,int(i),:] = existing_phot[:,int(i),:]
+    if setup.red_mode != 'auto':
+        if len(existing_phot) > 0:
+            for i in range(0,existing_phot.shape[1],1):
+                photometry_data[:,int(i),:] = existing_phot[:,int(i),:]
 
     log.info('Completed build of the photometry array')
 
