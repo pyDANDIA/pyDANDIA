@@ -16,7 +16,7 @@ cloudpickle==0.8.0
 cryptography>=3.2
 cycler==0.10.0
 Cython==0.29.5
-dask==1.1.1
+dask==2021.10.0
 DateTime==4.3
 decorator==4.3.2
 entrypoints==0.3
