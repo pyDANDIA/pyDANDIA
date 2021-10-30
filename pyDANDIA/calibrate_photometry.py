@@ -764,7 +764,7 @@ def model_phot_transform2(params,star_catalog,match_index,fit,
 
     cmag = params['cat_mag_col']
     cerr = params['cat_err_col']
-    
+
     if cmag not in star_catalog.colnames or cerr not in star_catalog.colnames:
         log.info('WARNING: No catalog photometry available to automatically calibrate instrumental data in '+params['filter'])
         fit = np.array([-9999.9999, -9999.9999])
@@ -802,7 +802,7 @@ def model_phot_transform2(params,star_catalog,match_index,fit,
         (hist_data,xedges,yedges) = np.histogram2d(det_mags,cat_mags,bins=24)
         #hist_data = hist_data.T
         #import pdb; pdb.set_trace()
-    
+
         idx = np.where(hist_data < (hist_data.max()*0.05))
         hist_data[idx] = 0
 
@@ -893,7 +893,8 @@ def phot_weighted_mean(data,sigma):
 def phot_func(p,mags):
     """Photometric transform function"""
 
-    #return p[0] + p[1]*mags
+    # Single zeropoint
+    p[0] = 1.0
     return p[0]*mags + p[1]
 
 def errfunc(p,x,y):
@@ -966,7 +967,7 @@ def calc_calibrated_mags(fit_params, covar_fit, star_catalog, log):
 
     ''' In this function, we propagate uncertainties of the mag calibration. The formula is:
 
-        cal_mag = a*mag+b
+        cal_mag = a*mag+b [where a is fixed to 1.0]
 
         Therefore, the covariance matrix and Jacobian are:
 
