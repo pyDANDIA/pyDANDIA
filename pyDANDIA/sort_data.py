@@ -76,9 +76,9 @@ def get_image_parameters(hdr):
     ds.instrument = hdr['INSTRUME'].replace('/','').replace('fl','fa')
     try:
         ds.filter = hdr['FILTER']
-    except IndexError:
+    except KeyError:
         ds.filter = get_dominant_filter(hdr)
-        
+
     return ds
 
 def get_dominant_filter(hdr):
