@@ -27,7 +27,7 @@ mpl.use('Agg')
 import matplotlib.pyplot as plt
 import json
 
-VERSION = 'calibrate_photometry_0.4'
+VERSION = 'calibrate_photometry_0.5'
 
 def calibrate_photometry_catalog(setup, **kwargs):
     """Function to calculate the photometric transform between the instrumental
