@@ -126,7 +126,7 @@ def edit_image_reduction_status(red_dir):
     image_list = []
     if image_name[0:1] == '@':
         file_path = image_name[1:]
-        if not path.isfile(image_name[1:]):
+        if not os.path.isfile(image_name[1:]):
             raise IOError('Cannot find input list of images '+image_name)
         else:
             file_lines = open(image_name[1:],'r').readlines()
