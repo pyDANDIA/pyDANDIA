@@ -120,19 +120,32 @@ def edit_image_reduction_status(red_dir):
         image_name = sys.argv[3]
         status = sys.argv[4]
     else:
-        image_name = input('Please enter the name of the image whose status you want to edit: ')
+        image_name = input('Please enter the name of the image whose status you want to edit or give the path to a file listing images, prefixed with @: ')
         status = input('Please enter, in list format, the updated status of this image in all stages (e.g. [0,0,0,0,0,0,0,0]): ')
+
+    image_list = []
+    if image_name[0:1] == '@':
+        file_path = image_name[1:]
+        if not path.isfile(image_name[1:]):
+            raise IOError('Cannot find input list of images '+image_name)
+        else:
+            file_lines = open(image_name[1:],'r').readlines()
+            for line in file_lines:
+                image_list.append(line.replace('\n',''))
+    else:
+        image_list = [image_name]
 
     status_list = status.replace('[','').replace(']','').replace(' ','').split(',')
 
     if len(status_list) != 8:
         raise IOError('Wrong number of entries for the status of the image in each stage (need 8)')
 
-    idx = np.where(reduction_metadata.reduction_status[1]['IMAGES'] == image_name)[0]
+    for image_name in image_list:
+        idx = np.where(reduction_metadata.reduction_status[1]['IMAGES'] == image_name)[0]
 
-    for i in range(0,8,1):
-        col_name = 'STAGE_'+str(i)
-        reduction_metadata.update_a_cell_to_layer('reduction_status', idx, col_name, status_list[i])
+        for i in range(0,8,1):
+            col_name = 'STAGE_'+str(i)
+            reduction_metadata.update_a_cell_to_layer('reduction_status', idx, col_name, status_list[i])
 
     reduction_metadata.save_updated_metadata(red_dir,'pyDANDIA_metadata.fits')
 
