@@ -235,7 +235,7 @@ def verify_image_shifts(new_images, shift_data, image_red_status,threshold = 100
     for i,entry in enumerate(shift_data):
         image_list = np.array(new_images)
         image = entry[0]
-        print(entry, type(entry[1]), type(entry[2]), type(threshold), threshol)
+        print(entry, type(entry[1]), type(entry[2]), type(threshold), threshold)
         if entry[1] == None or entry[2] == None or \
             abs(entry[1]) >= threshold or abs(entry[2]) >= threshold:
             image_red_status[image] = '-1'
