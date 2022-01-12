@@ -589,7 +589,7 @@ def subtract_with_constant_kernel(new_images, reference_image_name, reference_im
             difference_image_hdu.writeto(os.path.join(diffim_directory_path, 'diff_' + new_image), overwrite=True)
 
         except Exception as e:
-            import pdb; pdb.set_trace()
+
             quality_metrics.append([new_image, -1.0, -1.0, -1.0, -1.0, 0, -1.0, -1.0])
 
             if log is not None:
@@ -826,8 +826,9 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
                 
                
                 warp_matrix2 =  np.load(os.path.join(stamps_directory, 'warp_matrice_stamp_'+str(stamp)+'.npy'))
-                #if warp_matrix2.shape != (3,3):
-                #    warp_matrix2 = tf.PolynomialTransform(warp_matrix2)
+                warp_matrix2 = np.round(warp_matrix2,10)
+                if warp_matrix2.shape != (3,3):
+                    warp_matrix2 = tf.PolynomialTransform(warp_matrix2)
 
                 img = stage4.warp_image(img,warp_matrix2)
 
@@ -856,13 +857,8 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
 
                 kernel_matrix, bkg_kernel, kernel_uncertainty = kernel_solution(umatrix, b_vector, kernel_size,circular=False)
                 
-#                kernel_uncertainty = np.std(kernels,axis=0)
-#                re =(np.fft.fft2((ref)))
-#                im =(np.fft.fft2((data_image)))
-#                kkk = im/re
-#                kernel = np.real(np.fft.fftshift(np.fft.ifft2(kkk)))
-#                kernel_matrix = kernel[int((kkk.shape[0]-kernel_size)/2+1):int((kkk.shape[0]-kernel_size)/2+1)+kernel_size,int((kkk.shape[0]-kernel_size)/2+1):int((kkk.shape[0]-kernel_size)/2+1)+kernel_size]
-                #import pdb; pdb.set_trace()
+                kernel_uncertainty = np.std(kernels,axis=0)
+
               
                 
                 pscale = np.sum(kernel_matrix)
@@ -1034,7 +1030,7 @@ def subtract_large_format_image(new_images, reference_image_name, reference_imag
 
 
 def noise_model(model_image, gain=1., readout_noise=0., flat=None, initialize=None):
-    #import pdb; pdb.set_trace()
+
     noise_image = np.copy(model_image)
     mask = (noise_image==1)
     #noise_image[noise_image == 0] = 1.

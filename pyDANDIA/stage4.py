@@ -550,56 +550,7 @@ def crossmatch_catalogs2(ref_sources, data_sources, transform = None):
 
 
 
-def crossmatch_catalogs3(ref_sources, data_sources, transform = None):
 
-    ref = np.c_[ref_sources['xcentroid'],ref_sources['ycentroid'],ref_sources['flux']]
-    img = np.c_[data_sources['xcentroid'],data_sources['ycentroid'],data_sources['flux']]
-
-    if transform:
-
-        data_points = transform(img[:,:2])
-        data_points = np.c_[data_points,img[:,2]]
-
-
-    else:
-
-        data_points = img
-
-    
-    matching = []
-    match_ref = []
-    match_img = []
-    
-    norm_flux_ref = ref[:,2]/ref[:,2].max()
-    norm_flux_img = img[:,2]/img[:,2].max()
-    
-    
-    for ind in range(len(norm_flux_ref)):
-    
-        mask = (np.abs(data_points[:,0]-ref[ind,0])<100) & (np.abs(data_points[:,1]-ref[ind,1])<100)
-    
-        if len(data_points[mask])>0:
-
-            dist = (data_points[mask,0]-ref[ind,0])**2+ (data_points[mask,1]-ref[ind,1])**2
-            barycenter = dist*norm_flux_ref[ind]/norm_flux_img[mask]
-
-            match = np.where(mask)[0][barycenter.argmin()]
-            
-            match_ref.append(ind)
-            match_img.append(match)        
-           
-        
-
-    matching = np.c_[match_ref,match_img]
-    
-    pts_data =   img[matching[:,1]]
-    pts_ref =   ref[matching[:,0]]
-    
-
-    e_pos_data = 0.6  / pts_data[:,2]**0.5#[order][:].data ** 0.5 # Kozlowski 2006
-    e_pos_ref = 0.6  / pts_ref[:,2]**0.5#[order][:].data ** 0.5 # Kozlowski 2006
-
-    return pts_data,pts_ref,e_pos_data,e_pos_ref
 
 
 def refine_positions(image,positions):
@@ -786,7 +737,31 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
     master_mask_hdu = fits.PrimaryHDU(master_mask)
     master_mask_hdu.writeto(os.path.join(reference_image_directory, 'master_mask.fits'), overwrite=True)
 
+def matching_points(reference_image,ref_sources,data_sources,guess):
 
+
+        aa = np.c_[ref_sources['xcentroid'],ref_sources['ycentroid'],ref_sources['flux']]
+        bb = np.c_[data_sources['xcentroid'],data_sources['ycentroid'],data_sources['flux']]
+        #toto = fit_objective2(guess,reference_image,aa[:500],bb[:500])
+        res = fit_transform2(reference_image,bb[:250],aa[:250],guess)
+        model_robust = res
+
+       
+        import scipy.spatial as ss
+
+
+        new_sources_positions = model_robust.inverse(bb[:,:2])
+        new_sources = np.c_[new_sources_positions,bb[:,2]]
+
+        dist = ss.distance.cdist(aa[:1000,:2],new_sources[:1000,:2],metric='euclidean')
+
+        matching2 = match_the_dist2(dist)
+        mask = matching2[:,2]<10
+        pts_reference = aa[:1000][matching2[mask,0].astype(int)]
+        pts_data = bb[:1000][matching2[mask,1].astype(int)]
+
+        return pts_reference,pts_data
+        
 def resample_image_stamps(new_images, reference_image_name, reference_image_directory, reduction_metadata, setup,
                    data_image_directory, resampled_directory_path, ref_row_index, px_scale,
                    image_red_status, log=None, mask_extension_in=-1):
@@ -877,61 +852,11 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
                     else:
                         original_matrix = np.identity(3)
 
-                    #init_transform = rot_scale_translate(reference_image,data_image)
-
                     guess = rot_scale_translate(data_image-bkg_img,reference_image-bkg_ref)
 
                     guess = np.r_[guess,[1,1,0]]
-                    #result =  fit_transform(reference_image-bkg_ref,data_image-bkg_img,guess) 
-                    init_transform =  rotate_shifts_transform(guess,data_image.shape)
-                    #if new_image=='elp1m008-fa05-20210314-0328-e91.fits':
-                       #import pdb; pdb.set_trace()
-                    #pts_data, pts_reference, e_pos_data,e_pos_ref = crossmatch_catalogs3(ref_sources, data_sources, init_transform)
-                    aa = np.c_[ref_sources['xcentroid'],ref_sources['ycentroid'],ref_sources['flux']]
-                    bb = np.c_[data_sources['xcentroid'],data_sources['ycentroid'],data_sources['flux']]
-                    #toto = fit_objective2(guess,reference_image,aa[:500],bb[:500])
-                    res = fit_transform2(reference_image,bb[:250],aa[:250],guess)
-                    model_robust = res
 
-                    # a bit of svd
-#                    good = 0
-
-
-#                    while good<3:
-#                        aa = pts_reference[:500,:2]-np.mean( pts_reference[:500,:2],axis=0)
-#                        bb = pts_data[:500,:2]-np.mean( pts_data[:500,:2],axis=0)
-#                      
-#                        H = np.dot(bb.T,aa)
-#                        qq,ww,dd = np.linalg.svd(H)
-#                        R = np.dot(dd.T,qq)
-#                        shifts = np.mean(pts_reference[:500,:2],axis=0)-np.dot(R, np.mean(pts_data[:500,:2],axis=0))
-#                        new_transform=np.c_[R,shifts.tolist()]
-#                        new_transform = np.r_[new_transform,[[0,0,1]]]
-#                        new_transform = tf.AffineTransform(matrix=new_transform)
-#                        pts_data, pts_reference, e_pos_data,e_pos_ref = crossmatch_catalogs3(ref_sources, data_sources,new_transform)
-#                        print(new_transform.params)
-#                        good += 1
-                    #init_transform = fit_transform(reference_image,aa,bb,guess = guess)
-
-                    #init_transform = rotate_shifts_transform(guess,data_image.shape)
-                    
-                    #pts_data, pts_reference, e_pos_data,e_pos_ref = crossmatch_catalogs2(ref_sources, data_sources, init_transform)
-
-                    #pts_reference2 = np.copy(pts_reference)
-                    #pts_data, pts_reference, e_pos_data,e_pos_ref = crossmatch_catalogs3(ref_sources, data_sources,model_robust)
-                    
-                    import scipy.spatial as ss
-                    tf_tot = model_robust
-
-                    new_sources_positions = tf_tot.inverse(bb[:,:2])
-                    new_sources = np.c_[new_sources_positions,bb[:,2]]
-
-                    dist = ss.distance.cdist(aa[:1000,:2],new_sources[:1000,:2],metric='euclidean')
-
-                    matching2 = match_the_dist2(dist)
-                    mask = matching2[:,2]<10
-                    pts_reference = aa[:1000][matching2[mask,0].astype(int)]
-                    pts_data = bb[:1000][matching2[mask,1].astype(int)]
+                    pts_reference,pts_data=matching_points(reference_image,ref_sources,data_sources,guess)
 
                     model_robust, inliers = ransac((pts_reference[:, :2] , pts_data[:, :2] ), tf.AffineTransform,
                                                    min_samples=10,
@@ -961,7 +886,7 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
 
 
 
-                    #shifted = tf.warp(data_image/data_image.max(), inverse_map=model_final, output_shape=data_image.shape, order=1,mode='constant', cval=0, clip=True, preserve_range=True)*data_image.max()
+                    
                     shifted = warp_image(data_image,model_final)
                     shifted_mask = tf.warp(mask_image, inverse_map=model_final, output_shape=data_image.shape, order=1, mode='constant', cval=1, clip=True, preserve_range=True)
 
@@ -1001,13 +926,14 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
                     log.info('-> Taking section from '+str(stamp)+': '+str(xmin)+':'+str(xmax)+', '+str(ymin)+':'+str(ymax))
 
                     bkg = read_images_stage5.background_mesh_perc(img, master_mask =  shifted_mask[ymin:ymax, xmin:xmax].astype(bool))
-                    img = img-bkg
+
                     sub_ref = reference_image[ymin:ymax,xmin:xmax].astype(float)
 
                     shifts, errors, phasedifff = phase_cross_correlation(sub_ref,img,upsample_factor=10)
+                    guess = np.r_[[[shifts[0],shifts[1],0]],[[1,1,0]]]
                     #if np.max(np.abs(shifts))>1:
                     #    import pdb; pdb.set_trace()
-                    print(papillon)
+
                     log.info('-> Calculated shifts: '+repr(shifts))
 
                     stamp_mask = (ref_sources['xcentroid']<xmax) & (ref_sources['xcentroid']>xmin ) &\
@@ -1018,12 +944,14 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
                     ref_stamps['xcentroid'] -= xmin
                     ref_stamps['ycentroid'] -= ymin
 
-                    data_stamps, stamps_fwhm = extract_catalog(reduction_metadata, img, row_index, log)
+                    data_stamps, stamps_fwhm = extract_catalog(reduction_metadata, img-bkg, row_index, log)
                     log.info('-> Extracted catalog')
 
-                    #init_transform =rot_scale_translate(sub_ref,img)
-                    init_transform = tf.SimilarityTransform(translation=(-shifts[1],-shifts[0]))
-                    pts_data, pts_reference, e_pos_data,e_pos_ref = crossmatch_catalogs2(ref_stamps, data_stamps,init_transform)
+
+
+
+                    pts_reference,pts_data=matching_points(sub_ref,ref_stamps,data_stamps,guess)
+
                     log.info('-> Crossmatch against catalog')
 
                     #pts_reference = np.c_[ref_stamps['xcentroid'].data,  ref_stamps['ycentroid'].data][:len(data_stamps)]
@@ -1033,14 +961,14 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
                     #model_stamp, inliers = ransac((pts_reference[:5000, :2] , pts_data[:5000, :2] ),
                     #                           tf.AffineTransform, min_samples=min(50, int(0.1 * len(pts_data[:5000]))),
                     #                           residual_threshold=1, max_trials=1000)
-                    model_stamp, inliers = ransac((pts_reference[:5000,:2] , pts_data[:5000,:2]),tf.AffineTransform, min_samples=min(50, int(0.1 * len(pts_data[:5000]))),residual_threshold=1, max_trials=1000)
+                    model_stamp, inliers = ransac((pts_reference[:5000,:2] , pts_data[:5000,:2]),tf.AffineTransform, min_samples=3,residual_threshold=1, max_trials=1000)
                     log.info('-> Completed ransac calculation of inliers')
 
 
                     if len(pts_data[:5000][inliers])<10:
                         raise ValueError("Not enough matching stars in stamps! Switching to translation")
 ##                    #save the warp matrices instead of images
-                    #model_stamp = rot_scale_translate(sub_ref,img)
+
                     np.save(os.path.join(resample_directory, 'warp_matrice_stamp_' + str(stamp) + '.npy'), model_stamp.params)
 
                 except:
@@ -1081,7 +1009,7 @@ def warp_image(image_to_warp,warp_matrix):
 
 
 def warp_image_drizzle(image_to_warp,warp_matrix,input_wcs):
-    #import pdb; pdb.set_trace()
+
     input_wcs.wcs.crpix = np.array([0.0,0.0])
     input_wcs.wcs.crpix +=  np.array(image_to_warp.shape)/2
     
@@ -1216,50 +1144,6 @@ def manual_transformation(matrix, center, data_image):
 
 
 def rot_scale_translate(ref_image,data_image):
-#    from skimage.transform import warp_polar
-#    from skimage.filters import window, difference_of_gaussians
-#    from scipy.fftpack import fft2, fftshift
-
-#    image =  difference_of_gaussians(data_image, 5, 20)
-#    rts_image = difference_of_gaussians(ref_image, 5, 20)
-
-
-#    # window images
-#    wimage = image * window('hann', image.shape)
-#    rts_wimage = rts_image * window('hann', image.shape)
-
-#    # work with shifted FFT magnitudesfit_objective(guess,reference_image,data_image)
-#    image_fs = np.abs(fftshift(fft2(wimage)))
-#    rts_fs = np.abs(fftshift(fft2(rts_wimage)))
-
-#    # Create log-polar transformed FFT mag images and register
-#    shape = image_fs.shape
-#    radius = shape[0]# // 8  # only take lower frequencies
-#    warped_image_fs = warp_polar(image_fs, radius=radius, output_shape=shape,
-#                                 scaling='log', order=0)
-#    warped_rts_fs = warp_polar(rts_fs, radius=radius, output_shape=shape,
-#                               scaling='log', order=0)
-
-#    warped_image_fs = warped_image_fs[:shape[0] // 2, :]  # only use half of FFT
-#    warped_rts_fs = warped_rts_fs[:shape[0] // 2, :]
-#    shifts, error, phasediff = phase_cross_correlation(warped_image_fs,
-#                                                       warped_rts_fs,
-#                                                       upsample_factor=10)
-
-#    # Use translation parameters to calculate rotation and scaling parameters
-#    shiftr, shiftc = shifts[:2]
-#    recovered_angle = (360 / shape[0]) * shiftr
-#    klog = shape[1] / np.log(radius)
-#    shift_scale = np.exp(shiftc / klog)
-
-#    first_transform = tf.SimilarityTransform(rotation = recovered_angle/180*np.pi,scale =  shift_scale,translation=(0,0))
-
-#    shifted = tf.warp(data_image/data_image.max(), inverse_map=first_transform, output_shape=data_image.shape,order=3,mode='constant', cval=0, clip=True, preserve_range=True)*data_image.max()
-
-
-#    translation,error, phasediff = phase_cross_correlation(ref_image.astype(float),shifted,upsample_factor=10)
-
-#    final_transform = tf.SimilarityTransform(rotation = recovered_angle/180*np.pi,scale =  shift_scale,translation=(-translation[1],-translation[0]))
 
     solutions = []
     for i in range(4):
