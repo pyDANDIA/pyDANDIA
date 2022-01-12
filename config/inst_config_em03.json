@@ -1,7 +1,7 @@
 {
     "instrid": {
         "comment": "instrid - STRING  - The instrument name.",
-        "value": "em03",
+        "value": "EM03",
 	"format":"S200",
 	"unit":""
     },
