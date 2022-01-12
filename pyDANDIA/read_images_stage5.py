@@ -210,7 +210,7 @@ def mask_the_reference(ref_image,reference_mask,kernel_size,max_adu):
    
     ref_image_unmasked = np.copy(ref_image)
 
-    #mask_extended = sn.morphology.binary_dilation(mask_extended, iterations=1*kernel_size)
+
     
     ref_extended = np.zeros((np.shape(ref_image)[0] + 2 * kernel_size, np.shape(ref_image)[1] + 2 * kernel_size))
     mask_extended = np.ones((np.shape(ref_image)[0] + 2 * kernel_size, np.shape(ref_image)[1] + 2 * kernel_size)).astype(bool)
@@ -221,6 +221,9 @@ def mask_the_reference(ref_image,reference_mask,kernel_size,max_adu):
     noise_extended[kernel_size:-kernel_size, kernel_size:-
                  kernel_size] = np.array(noise, float)
 
+    #mask_extended = sn.morphology.binary_dilation(mask_extended, iterations=1*kernel_size)
+    ref_extended[mask_extended] = 0
+    noise_extended[mask_extended] = 1
 
    
 
@@ -254,83 +257,6 @@ def mask_the_image(data_image,max_adu,reference_mask,kernel_size):
 
     return data_extended, data_image_unmasked, bkg_image
 
-def open_reference(setup, ref_image_directory, ref_image_name, kernel_size, max_adu, ref_extension = 0, log = None, central_crop = None, subset = None, ref_image1 = None, min_adu = None, master_mask = [], external_weight = None):
-    '''
-    reading difference image for constructing u matrix
-
-    :param object string: reference imagefilename
-    :param object string: reference image filename
-    :param object integer: kernel size edge length of the kernel in px
-    :param object float: index of the maximum adu values
-    :return: images, mask
-    '''
-
-    #import pdb; pdb.set_trace()
-
-    if ref_image1 == None:
-        ref_image = fits.open(os.path.join(ref_image_directory, ref_image_name), mmap=True)
-    if subset != None and ref_image1 == None:
-        ref_image=ref_image[ref_extension].data[subset[0]:subset[1],subset[2]:subset[3]]
-        master_mask=master_mask[subset[0]:subset[1],subset[2]:subset[3]]
-    if subset != None and ref_image1 != None:
-        ref_image = fits.HDUList(fits.PrimaryHDU(ref_image1[ref_extension].data[subset[0]:subset[1],subset[2]:subset[3]]))
-        master_mask=master_mask[subset[0]:subset[1],subset[2]:subset[3]]
-
-    ref_image = np.copy(ref_image)
-    ref_image,ref_mask  = cosmicray_lacosmic(ref_image,sigclip=7, objlim = 7., satlevel = max_adu)
-
-
-
-    #bkg_image = background_mesh_perc(ref_image,master_mask = master_mask)
-    #bkg_image = np.median(ref_image[~master_mask])
-   # bkg_image = background_fit(ref_image, master_mask=master_mask)
-    bkg_image = background_mesh_perc(ref_image, master_mask=master_mask)
-    #bkg_image = np.percentile(ref_image,10)
-    if external_weight is not None:
-        try:
-            noise_image = external_weight + np.copy(ref_image)
-        except:
-            noise_image = np.zeros(np.shape(ref_image))
-            print('format mismatch (noise model construction)')
-    else:
-        noise_image = np.copy(ref_image)
-
-
-    #noise_image = gaussian_filter(noise_image, sigma=kernel_size/2)
-    ref_image = ref_image - bkg_image
-    ref_image_unmasked = np.copy(ref_image)
-
-
-
-
-
-
-    mask_extended = np.ones((np.shape(ref_image)[0] + 2 * kernel_size,
-                             np.shape(ref_image)[1] + 2 * kernel_size)).astype(bool)
-    mask_extended[kernel_size:-kernel_size, kernel_size:-kernel_size] = master_mask
-    
-    #mask_extended = sn.morphology.binary_dilation(mask_extended, iterations=5*kernel_size)
-    #import pdb; pdb.set_trace()
-    ref_extended = np.zeros((np.shape(ref_image)[0] + 2 * kernel_size,
-                             np.shape(ref_image)[1] + 2 * kernel_size))
-    ref_extended[kernel_size:-kernel_size, kernel_size:-
-                 kernel_size] = np.array(ref_image, float)
-
-    noise_extended = np.zeros((np.shape(ref_image)[0] + 2 * kernel_size,
-                             np.shape(ref_image)[1] + 2 * kernel_size))
-    noise_extended[kernel_size:-kernel_size, kernel_size:-
-                 kernel_size] = np.array(noise_image, float)
-                 
-    #mask_extended = sn.morphology.binary_dilation(mask_extended, iterations=20)
-
-    ref_extended[mask_extended] = 0.
-
-    #noise_extended = np.ones(ref_extended.shape)
-    noise_extended[mask_extended] = 0.
-
-    
-    ref_image_unmasked[master_mask] = 0. # np.random.randn(len(ref_image_unmasked[bright_mask[kernel_size:-kernel_size,kernel_size:-kernel_size]]))*bkg_sigma
-    return np.array(ref_extended,dtype = float), mask_extended, np.array(ref_image_unmasked, dtype=float), np.array(noise_extended, dtype=float)
 
 
 
@@ -391,7 +317,7 @@ def open_reference(setup, ref_image_directory, ref_image_name, kernel_size, max_
     mask_extended[kernel_size:-kernel_size, kernel_size:-kernel_size] = master_mask
     
     #mask_extended = sn.morphology.binary_dilation(mask_extended, iterations=5*kernel_size)
-    #import pdb; pdb.set_trace()
+    
     ref_extended = np.zeros((np.shape(ref_image)[0] + 2 * kernel_size,
                              np.shape(ref_image)[1] + 2 * kernel_size))
     ref_extended[kernel_size:-kernel_size, kernel_size:-
@@ -409,7 +335,7 @@ def open_reference(setup, ref_image_directory, ref_image_name, kernel_size, max_
     #noise_extended = np.ones(ref_extended.shape)
     noise_extended[mask_extended] = 0.
 
-    
+
     ref_image_unmasked[master_mask] = 0. # np.random.randn(len(ref_image_unmasked[bright_mask[kernel_size:-kernel_size,kernel_size:-kernel_size]]))*bkg_sigma
     return np.array(ref_extended,dtype = float), mask_extended, np.array(ref_image_unmasked, dtype=float), np.array(noise_extended, dtype=float)
 
