@@ -1,0 +1,182 @@
+{
+    "instrid": {
+        "comment": "instrid - STRING  - The instrument name.",
+        "value": "em03",
+	"format":"S200",
+	"unit":""
+    },
+    "objkey": {
+        "comment": "objkey - STRING  - Header keyword recording the object type.",
+        "value": "OBJECT",
+	"format":"S200",
+	"unit":""
+    },
+    "obskey": {
+        "comment": "obskey - STRING  - Header keyword recording the observation type.",
+        "value": "OBSTYPE",
+	"format":"S200",
+	"unit":""
+    },
+    "obskeyb": {
+        "comment": "obskeyb - STRING - Value of the observation type header keyword for a bias frame.",
+        "value": "BIAS",
+	"format":"S200",
+	"unit":""
+    },
+    "obskeyd": {
+        "comment": "obskeyd - STRING - Value of the observation type header keyword for a dark frame.",
+        "value": "DARK",
+	"format":"S200",
+	"unit":""
+    },
+    "obskeyf": {
+        "comment": "obskeyf - STRING - Value of the observation type header keyword for a flat frame.",
+        "value": "SKYFLAT",
+	"format":"S200",
+	"unit":""
+    },
+    "obskeys": {
+        "comment": "obskeys - STRING - Value of the observation type header keyword for a science frame.",
+        "value": "EXPOSE",
+	"format":"S200",
+	"unit":""
+    },
+    "datekey": {
+        "comment": "datekey - STRING - Header keyword recording the date (universal time) at the start of the observation. The value of this keyword should be a STRING of the format YYYY-MM-DDxxx...xxx where YYYY-MM-DD is a valid date and xxx...xxx represents a string of arbitrary characters of any length.",
+        "value": "DATE-OBS",
+	"format":"S200",
+	"unit":"day"
+    },
+    "timekey": {
+        "comment": "timekey - STRING - Header keyword recording the universal time at the start of the observation. The value of this keyword should be a NUMBER in hours, or a STRING of the format HH:MM:SS.SSS, where HH:MM:SS.SSS is a valid time.",
+        "value": "UTSTART",
+	"format":"S200",
+	"unit":""
+    },
+    "rakey": {
+        "comment": "rakey - STRING - Header keyword recording the right ascension (J2000) of the observation. The value of this keyword should be a STRING of the format HH:MM:SS.SSS, where HH:MM:SS.SSS is a valid time.",
+        "value": "RA",
+	"format":"S200",
+	"unit":"h"
+    },
+    "deckey": {
+        "comment": "deckey - STRING - Header keyword recording the declination (J2000) of the observation. The value of this keyword should be a STRING of the format pDD:MM:SS.SSS, where pDD:MM:SS.SSS is an angle between +-90 degrees in sexagesimal format.",
+        "value": "DEC",
+	"format":"S200",
+	"unit":"deg"
+    },
+    "expkey": {
+        "comment": "expkey - STRING - Header keyword recording the image exposure time in seconds. The value of this keyword should be a NUMBER with a non-negative value, or a STRING that represents a valid non-negative number.",
+        "value": "EXPTIME",
+	"format":"S200",
+	"unit":""
+    },
+    "filtkey": {
+        "comment": "filtkey - STRING - Header keyword recording the filter employed. The value of this keyword should be a STRING.",
+        "value": "FILTER",
+	"format":"S200",
+	"unit":""
+    },
+    "pix_scale": {
+        "comment": "pix_scale - DOUBLE - The pixel scale in arcsec per pixel",
+        "value": 0.2785,
+	"format":"float",
+	"unit":"arcsec/pixel"
+    },
+    "fov": {
+        "comment": "fov - DOUBLE - Field of view of the CCD camera (deg). This parameter should be positive and less than or equal to 90.0 (Default value = 0.1).",
+        "value": 0.079,
+	"format":"float",
+	"unit":"deg"
+    },
+    "gain": {
+        "comment": "gain - DOUBLE - CCD gain (e-/ADU). This parameter should be positive (Default value = 1.0)",
+        "value": 2.0
+	"format":"float",
+	"unit":"e/adu"
+    },
+    "ron": {
+        "comment": "ron - DOUBLE - CCD readout noise (ADU). This parameter should be non-negative (Default value = 0.0)",
+        "value": 2.0,
+	"format":"float",
+	"unit":"adu"
+    },
+    "imagex1": {
+        "comment": "imagex1 - INT - Image region bottom left hand corner (x1,y1) and top right hand corner (x2,y2) in pixel number coordinates.",
+        "value": 1,
+	"format":"int",
+	"unit":"pixel"
+    },
+    "imagex2": {
+        "comment": "imagex2 - INT - Image region bottom left hand corner (x1,y1) and top right hand corner (x2,y2) in pixel number coordinates.",
+        "value": 1024,
+	"format":"int",
+	"unit":"pixel"
+    },
+    "imagey1": {
+        "comment": "imagey1 - INT - Image region bottom left hand corner (x1,y1) and top right hand corner (x2,y2) in pixel number coordinates.",
+        "value": 1,
+	"format":"int",
+	"unit":"pixel"
+    },
+    "imagey2": {
+        "comment": "imagey2 - INT - Image region bottom left hand corner (x1,y1) and top right hand corner (x2,y2) in pixel number coordinates.",
+        "value": 1024,
+	"format":"int",
+	"unit":"pixel"
+    },
+    "maxval": {
+        "comment": "maxval - DOUBLE - Maximum useful pixel value in a raw image (ADU).",
+        "value": 65000.0,
+	"format":"float",
+	"unit":"adu"
+    },
+    "minval": {
+        "comment": "minval - DOUBLE - Minimum useful pixel value in a raw image (ADU).",
+        "value": 1.0,
+	"format":"float",
+	"unit":""
+    },
+    "moondkey": {
+        "comment": "moondkey - STRING - Header keyword recording the Lunar distance from target (deg).",
+        "value": "MOONDIST",
+	"format":"S200",
+	"unit":""
+    },
+    "moonfkey": {
+        "comment": "moonfkey - STRING - Header keyword recording the Lunar fractional illumination.",
+        "value": "MOONFRAC",
+	"format":"S200",
+	"unit":""
+    },
+    "oscanx1": {
+        "comment": "oscanx1 - INT - Overscan region bottom left hand corner (x1,y1) and top right hand corner (x2,y2) in pixel number coordinates.",
+        "value": 1,
+	"format":"int",
+	"unit":""
+    },
+    "oscanx2": {
+        "comment": "oscanx2 - INT - Overscan region bottom left hand corner (x1,y1) and top right hand corner (x2,y2) in pixel number coordinates.",
+        "value": 1,
+	"format":"int",
+	"unit":""
+    },
+    "oscany1": {
+        "comment": "oscany1 - INT - Overscan region bottom left hand corner (x1,y1) and top right hand corner (x2,y2) in pixel number coordinates.",
+        "value": 1,
+	"format":"int",
+	"unit":""
+    },
+    "oscany2": {
+        "comment": "oscany2 - INT - Overscan region bottom left hand corner (x1,y1) and top right hand corner (x2,y2) in pixel number coordinates.",
+        "value": 1,
+	"format":"int",
+	"unit":""
+    },
+    "airkey": {
+        "comment": "filtkey - STRING - Header keyword recording the filter employed. The value of this keyword should be a STRING.",
+        "value": "AIRMASS",
+	"format":"S200",
+	"unit":""
+    }
+}
