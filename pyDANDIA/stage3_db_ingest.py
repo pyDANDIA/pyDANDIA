@@ -340,7 +340,10 @@ def harvest_image_params(reduction_metadata, image_path, ref_image_path, **kwarg
     image_params['altitude_m'] = set_if_present(image_header,'HEIGHT')
     image_params['gain_eadu'] = image_header['GAIN']
     image_params['readnoise_e'] = image_header['RDNOISE'] * image_params['gain_eadu']
-    image_params['saturation_e'] = image_header['SATURATE'] * image_params['gain_eadu']
+    try:
+        image_params['saturation_e'] = image_header['SATURATE'] * image_params['gain_eadu']
+    except KeyError:
+        image_params['saturation_e'] = 0.0
 
     image_params['field_id'] = hdr_meta['OBJKEY'][0]
     image_params['date_obs_utc'] = hdr_meta['DATEKEY'][0]
