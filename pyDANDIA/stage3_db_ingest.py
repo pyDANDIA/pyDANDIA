@@ -352,7 +352,7 @@ def harvest_image_params(reduction_metadata, image_path, ref_image_path, **kwarg
     image_params['exposure_time'] = float(hdr_meta['EXPKEY'][0])
     image_params['RA'] = image_header['RA']
     image_params['Dec'] = image_header['DEC']
-    image_params['filter_name'] = image_header['FILTER']
+    image_params['filter_name'] = hdr_meta['FILTKEY'][0]
     image_params['fwhm'] = image_stats['FWHM'][0]
     image_params['fwhm_err'] = None
     image_params['ellipticity'] = None
