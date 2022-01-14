@@ -333,7 +333,10 @@ def harvest_image_params(reduction_metadata, image_path, ref_image_path, **kwarg
     idx = np.where(reduction_metadata.images_stats[1]['IM_NAME'] == image_params['filename'])
     image_stats = reduction_metadata.images_stats[1][idx]
 
-    image_params['diameter_m'] = float(image_header['TELID'].replace('a','').replace('m','.'))
+    try:
+        image_params['diameter_m'] = float(image_header['TELID'].replace('a','').replace('m','.'))
+    except ValueError:
+        image_params['diameter_m'] = 0.0
     image_params['altitude_m'] = image_header['HEIGHT']
     image_params['gain_eadu'] = image_header['GAIN']
     image_params['readnoise_e'] = image_header['RDNOISE'] * image_params['gain_eadu']
