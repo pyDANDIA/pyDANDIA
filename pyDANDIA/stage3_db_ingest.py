@@ -337,7 +337,7 @@ def harvest_image_params(reduction_metadata, image_path, ref_image_path, **kwarg
         image_params['diameter_m'] = float(image_header['TELID'].replace('a','').replace('m','.'))
     except ValueError:
         image_params['diameter_m'] = 0.0
-    image_params['altitude_m'] = image_header['HEIGHT']
+    image_params['altitude_m'] = set_if_present(image_header,'HEIGHT')
     image_params['gain_eadu'] = image_header['GAIN']
     image_params['readnoise_e'] = image_header['RDNOISE'] * image_params['gain_eadu']
     image_params['saturation_e'] = image_header['SATURATE'] * image_params['gain_eadu']
