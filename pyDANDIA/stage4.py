@@ -90,7 +90,7 @@ def run_stage4(setup, **kwargs):
 
     """
 
-    stage4_version = 'stage4 v0.1'
+    stage4_version = 'stage4 v0.2'
 
     log = logs.start_stage_log(setup.red_dir, 'stage4', version=stage4_version)
     log.info('Setup:\n' + setup.summary() + '\n')
