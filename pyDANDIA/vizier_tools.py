@@ -100,7 +100,7 @@ def query_vizier_servers(query_service, coord, search_radius, catalog_id, log=No
     catalog_id  str      Name of catalog to be searched in ViZier's notation
     """
 
-    vizier_servers_list = ['vizier.cfa.harvard.edu', 'vizier.hia.nrc.ca']
+    vizier_servers_list = ['vizier.cfa.harvard.edu', 'vizier.hia.nrc.ca', 'vizier.u-strasbg.fr']
 
     query_service.VIZIER_SERVER = vizier_servers_list[0]
 
