@@ -880,6 +880,7 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
                 except:
 
                     model_final = tf.SimilarityTransform(translation=(x_shift, y_shift))
+                    init_transform = rotate_shifts_transform(guess,reference_image.shape)
                     model_final = init_transform
                     log.info(' -> Using XY shifts')
                 try:
