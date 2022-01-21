@@ -321,10 +321,10 @@ def find_x_y_shifts_from_the_reference_image(setup, reference_image, target_imag
 
 
     sol = rot_scale_translate(reduce_template.astype(float),reduce_image.astype(float))
-    
+
     x_shift = sol[0]
     y_shift = sol[1]
-    
+
     x_new_center = -x_shift + x_center
     y_new_center = -y_shift + y_center
 
@@ -536,7 +536,7 @@ def crossmatch_catalogs2(ref_sources, data_sources, transform = None):
 
     pts1, pts2, matching = reformat_catalog2(ref,data ,distance_threshold=10)
 
-    
+
     pts1 = np.c_[data_sources_x, data_sources_y][matching[:, 1]]
 
 
@@ -628,7 +628,7 @@ def resample_image(new_images, reference_image_name, reference_image_directory, 
             mask_image = np.zeros(data_image.shape)
         else:
             mask_extension = mask_extension_in
-            mask_image = np.array(data_image_hdu[mask_extension].data, dtype=float) 
+            mask_image = np.array(data_image_hdu[mask_extension].data, dtype=float)
 
         shifted_mask = np.copy(mask_image)
         shifted = np.copy(data_image)
@@ -746,7 +746,7 @@ def matching_points(reference_image,ref_sources,data_sources,guess):
         res = fit_transform2(reference_image,bb[:250],aa[:250],guess)
         model_robust = res
 
-       
+
         import scipy.spatial as ss
 
 
@@ -761,7 +761,7 @@ def matching_points(reference_image,ref_sources,data_sources,guess):
         pts_data = bb[:1000][matching2[mask,1].astype(int)]
 
         return pts_reference,pts_data
-        
+
 def resample_image_stamps(new_images, reference_image_name, reference_image_directory, reduction_metadata, setup,
                    data_image_directory, resampled_directory_path, ref_row_index, px_scale,
                    image_red_status, log=None, mask_extension_in=-1):
@@ -875,7 +875,8 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
                     #C = model_robust
                     model_final = model_robust
                     #model_final = init_transform
-                    log.info(' -> Using Affine Transformation')
+                    log.info(' -> Using Affine Transformation:')
+                    log.info(repr(model_final))
 
                 except:
 
@@ -886,13 +887,13 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
 
 
 
-                    
+
                     shifted = warp_image(data_image,model_final)
                     shifted_mask = tf.warp(mask_image, inverse_map=model_final, output_shape=data_image.shape, order=1, mode='constant', cval=1, clip=True, preserve_range=True)
 
                     #corr = np.corrcoef(reference_image[~shifted_mask.astype(bool)], shifted[~shifted_mask.astype(bool)])[0, 1]
-                      
-                      
+
+
                     nrmse = (1-np.sum(reference_image*shifted)**2/np.sum(reference_image**2)/np.sum(shifted**2))**0.5
                     print('Ultimate correlation :', nrmse)
                 except:
@@ -1001,7 +1002,7 @@ def warp_image(image_to_warp,warp_matrix):
 
     #warp_image = tf.warp(image_to_warp/image_to_warp.max(), inverse_map=warp_matrix, output_shape=image_to_warp.shape, order=1,
     #                             mode='constant', cval=0, clip=True, preserve_range=True)*image_to_warp.max()
-                                  
+
     warp_image = tf.warp(image_to_warp,warp_matrix,order=1)
 
 
@@ -1012,11 +1013,11 @@ def warp_image_drizzle(image_to_warp,warp_matrix,input_wcs):
 
     input_wcs.wcs.crpix = np.array([0.0,0.0])
     input_wcs.wcs.crpix +=  np.array(image_to_warp.shape)/2
-    
+
     from reproject import reproject_interp, reproject_adaptive,reproject_exact
     import copy
-    
-    
+
+
     shift_y, shift_x = np.array(image_to_warp.shape[:2]) / 2.+0.5
     tf_rotate = tf.SimilarityTransform(matrix=warp_matrix)
     tf_shift = tf.SimilarityTransform(translation=[-shift_x, -shift_y])
@@ -1024,13 +1025,13 @@ def warp_image_drizzle(image_to_warp,warp_matrix,input_wcs):
     tf_tot =  tf.SimilarityTransform(translation=[warp_matrix[2,0], warp_matrix[2,1]])+tf_shift + tf_rotate + tf_shift_inv
 
     output_wcs = copy.deepcopy(input_wcs)
-    
-    
+
+
     output_wcs.wcs.crpix = np.array(image_to_warp.shape)-np.dot(warp_matrix,[input_wcs.wcs.crpix[0], input_wcs.wcs.crpix[1],1])[:2]
-    
+
     output_wcs.wcs.cd = np.dot(output_wcs.wcs.cd,tf_tot.params[:2,:2])
-    
-    
+
+
     warped_image, fp = reproject_exact((image_to_warp.astype(float), input_wcs),output_wcs, shape_out=image_to_warp.shape)
 
 
@@ -1086,7 +1087,7 @@ def reformat_catalog2(ref_catalog, data_catalog, distance_threshold=1.5):
 
 
             if (ind not in matching_ref):
-                pts1.append(values)   
+                pts1.append(values)
                 pts2.append(ref_catalog[ind])
                 matching.append([ind, idx])
                 matching_ref.append(ind)
@@ -1155,13 +1156,13 @@ def rot_scale_translate(ref_image,data_image):
     solutions = np.array(solutions)
     print(solutions)
     good_combination =  (solutions[:,0]**2+solutions[:,1]**2).argmin()
-    
+
     sol = solutions[good_combination]
 
     sol[:2] = np.dot([[np.cos(sol[2]),-np.sin(sol[2])],[np.sin(sol[2]),np.cos(sol[2])]],sol[:2])
     return sol
-    
-    
+
+
 
 def fit_transform(ref,img,guess = [0,0,0,1,1]):
 
@@ -1170,16 +1171,16 @@ def fit_transform(ref,img,guess = [0,0,0,1,1]):
     #result = so.fmin(fit_objective,guess,args=(ref,img))
     result = so.minimize(fit_objective,guess,args=(ref[100:-100,100:-100],img[100:-100,100:-100]),method='Powell')['x']
 
-    
+
     #tf_tot =  rotate_shifts_transform(result,img.shape)
 
 
     #fitted_transform = tf_tot
-    
+
     return result
-    
-    
-    
+
+
+
 def fit_transform2(ref,ref_sources,img_sources,guess = [0,0,0,1,1,0]):
 
     #import pdb; pdb.set_trace()
@@ -1198,15 +1199,15 @@ def fit_transform2(ref,ref_sources,img_sources,guess = [0,0,0,1,1,0]):
 
 def fit_objective(params,ref,img):
 
-   
+
     tf_tot = rotate_shifts_transform(params,img.shape)
 
     trial = warp_image(img,tf_tot)
 
     #nrmse = skimage.metrics.normalized_root_mse(ref,trial)
-    
+
     nrmse = (1-np.sum(ref*trial)**2/np.sum(ref**2)/np.sum(trial**2))**0.5
-    
+
     return nrmse
 
 def fit_objective2(params,ref,ref_sources,img_sources):
@@ -1220,7 +1221,7 @@ def fit_objective2(params,ref,ref_sources,img_sources):
     image = np.ones(ref.shape)
     mod_img = model_objective2(params,image,img_sources)
     nrmse = (1-np.sum(ref*mod_img)**2/np.sum(ref**2)/np.sum(mod_img**2))**0.5
-    
+
     objective = nrmse
     if np.isnan(objective):
         objective = 0
@@ -1259,14 +1260,14 @@ def model_objective2(params,ref,ref_sources):
     reference = np.ones(ref.shape)
     reference = add_gaussian(reference,new_sources)
 
-   
+
     return reference
-    
+
 def add_gaussian(model,pos):
 
     from astropy.table import Table
     from pyDANDIA import psf
-    
+
     sigma_psf = 3.0
     sources = Table()
     sources['flux'] = pos[:,2]
@@ -1294,15 +1295,15 @@ def add_gaussian(model,pos):
             posx = int(sources['x_mean'][ind])
 
             momo = aa.psf_model(yy,xx,[sources['flux'][ind],sources['y_mean'][ind]-posy+int((size-1)/2),sources['x_mean'][ind]-posx+int((size-1)/2),sources['y_stddev'][ind],sources['x_stddev'][ind]])
-            
-           
-                
+
+
+
             model[posy-int((size-1)/2):posy+int((size-1)/2)+1, posx-int((size-1)/2):posx+int((size-1)/2+1)] += momo
-        
+
         except:
-        
+
             pass
-   
+
 
     return model
 def match_the_dist(distances):
@@ -1313,12 +1314,12 @@ def match_the_dist(distances):
     shape = distances.shape
     theravel = distances.ravel()
     for i in range(len(distances)):
-    
+
         minimum = np.min(distances)
         #mask = distances==minimum
         ii,jj = np.where(distances==minimum)
         #ii = lines[mask][0]
-        #jj = columns[mask][0]        
+        #jj = columns[mask][0]
         #ii,jj = np.unravel_index(theravel.argmin(), shape)
         matching.append([ii[0],jj[0],minimum])
         #global_mask[ii,:]=False
@@ -1331,10 +1332,10 @@ def match_the_dist(distances):
         #theravel[jj::shape[1]]=np.inf
         #theravel[ii*shape[1]:(ii+1)*shape[1]]=np.inf
     matching = np.array(matching)
-    
-    return matching   
 
-    
+    return matching
+
+
 def match_the_dist2(distances):
     matching = []
     #dist = np.copy(distances)
@@ -1343,12 +1344,12 @@ def match_the_dist2(distances):
     shape = distances.shape
     theravel = distances.ravel()
     for i in range(len(distances)):
-    
+
         #minimum = np.min(distances)
         #mask = distances==minimum
         #ii,jj = np.where(distances==minimum)
         #ii = lines[mask][0]
-        #jj = columns[mask][0]        
+        #jj = columns[mask][0]
         ii,jj = np.unravel_index(theravel.argmin(), shape)
         matching.append([ii,jj,distances[ii,jj]])
         #global_mask[ii,:]=False
@@ -1361,22 +1362,22 @@ def match_the_dist2(distances):
         theravel[jj::shape[1]]=np.inf
         theravel[ii*shape[1]:(ii+1)*shape[1]]=np.inf
     matching = np.array(matching)
-    
-    return matching    
+
+    return matching
 def rotate_shifts_transform(params,shape):
-    
+
     shift_y, shift_x = np.array(shape)/ 2. -0.5
     tf_rotate = tf.SimilarityTransform(rotation=params[2])
     tf_shift = tf.SimilarityTransform(translation=[-shift_x, -shift_y])
     tf_shift_inv = tf.SimilarityTransform(translation=[shift_x, shift_y])
     tf_tot =  tf.AffineTransform(scale=params[-3:-1],translation=params[:2],shear=params[-1])+tf_shift + tf_rotate + tf_shift_inv
 
-    return tf_tot    
-    
+    return tf_tot
+
 def model_image(ref,new_sources):
 
 
-   
+
 
     #size of the psf stamp
 
@@ -1394,7 +1395,6 @@ def model_image(ref,new_sources):
 
         momo = aa.psf_model(yy,xx,[new_sources[ind][2],Y[ind]-posy+int((size-1)/2),X[ind]-posx+int((size-1)/2),3,3])
 
-        model[posy-int((size-1)/2):posy+int((size-1)/2)+1, posx-int((size-1)/2):posx+int((size-1)/2+1)] += momo  
-        
-    return momo      
+        model[posy-int((size-1)/2):posy+int((size-1)/2)+1, posx-int((size-1)/2):posx+int((size-1)/2+1)] += momo
 
+    return momo
