@@ -19,3 +19,4 @@ psutil
 seaborn
 pillow>=8.1.1
 boto3
+h5py
