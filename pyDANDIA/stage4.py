@@ -90,7 +90,7 @@ def run_stage4(setup, **kwargs):
 
     """
 
-    stage4_version = 'stage4 v0.1'
+    stage4_version = 'stage4 v0.2'
 
     log = logs.start_stage_log(setup.red_dir, 'stage4', version=stage4_version)
     log.info('Setup:\n' + setup.summary() + '\n')
@@ -881,6 +881,7 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
                 except:
 
                     model_final = tf.SimilarityTransform(translation=(x_shift, y_shift))
+                    init_transform = rotate_shifts_transform(guess,reference_image.shape)
                     model_final = init_transform
                     log.info(' -> Using XY shifts')
                 try:
