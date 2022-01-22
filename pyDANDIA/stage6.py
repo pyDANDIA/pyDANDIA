@@ -997,7 +997,7 @@ def build_photometry_array(setup,nimages,nstars,log):
         for i in range(0,existing_phot.shape[1],1):
             photometry_data[:,int(i),:] = existing_phot[:,int(i),:]
 
-    log.info('Completed build of the photometry array')
+    log.info('Completed build of the photometry array for '+str(nimages)+' images and '+str(nstars)+' stars')
 
     return photometry_data
 

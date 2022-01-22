@@ -17,6 +17,8 @@ def determine_image_struture(file_path, log=None):
     for i in range(0,len(hdu),1):
         if hdu[i].name == 'SCI':
             image_structure['sci'] = i
+        elif hdu[i].name == 'PRIMARY':
+            image_structure['sci'] = i
         elif hdu[i].name == 'BPM':
             image_structure['bpm'] = i
         elif hdu[i].name == 'PYDANDIA_PIXEL_MASK':

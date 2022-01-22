@@ -398,18 +398,21 @@ def check_dataset_dir_structure(dataset_path, log):
         log.info(' -> ERROR: Wrong directory structure for pyDANDIA')
         return False
 
-def check_dataset_dir_unlocked(dataset_path,log):
+def check_dataset_dir_unlocked(dataset_path,log=None):
     """Function to check for a lockfile in a given dataset before starting
     a reduction.  Returns True if unlocked."""
 
     lockfile = path.join(dataset_path,'dataset.lock')
-    log.info('Searching for lockfile at '+lockfile)
-    
+    if log!=None:
+        log.info('Searching for lockfile at '+lockfile)
+
     if path.isfile(lockfile) == True:
-        log.info(' -> '+path.basename(dataset_path)+' is locked')
+        if log!=None:
+            log.info(' -> '+path.basename(dataset_path)+' is locked')
         status = False
     else:
-        log.info(' -> '+path.basename(dataset_path)+' is not locked')
+        if log!=None:
+            log.info(' -> '+path.basename(dataset_path)+' is not locked')
         status = True
 
     return status

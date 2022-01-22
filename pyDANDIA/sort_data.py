@@ -74,9 +74,20 @@ def get_image_parameters(hdr):
     ds.enclosure = hdr['ENCID'].replace('/','')
     ds.tel = hdr['TELESCOP'].replace('/','')
     ds.instrument = hdr['INSTRUME'].replace('/','').replace('fl','fa')
-    ds.filter = hdr['FILTER']
+    try:
+        ds.filter = hdr['FILTER']
+    except KeyError:
+        ds.filter = get_dominant_filter(hdr)
 
     return ds
+
+def get_dominant_filter(hdr):
+    filter_list = []
+    for key in ['FILTER1', 'FILTER2', 'FILTER3']:
+        if 'air' not in hdr[key] and 'None' not in hdr[key]:
+            filter_list.append(hdr[key])
+
+    return filter_list[0]
 
 def get_image_dataset(image, option, log=None):
     """Function to identify what dataset an image belongs to, based on the

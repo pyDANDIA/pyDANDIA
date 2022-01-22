@@ -236,7 +236,7 @@ def verify_image_shifts(new_images, shift_data, image_red_status,threshold = 100
         image_list = np.array(new_images)
         image = entry[0]
         if entry[1] == None or entry[2] == None or \
-            abs(entry[1]) >= threshold or abs(entry[2]) >= threshold:
+            abs(entry[1]) >= float(threshold) or abs(entry[2]) >= float(threshold):
             image_red_status[image] = '-1'
 
             idx = np.where(image_list == image)
@@ -264,11 +264,11 @@ def verify_mask_statistics(reduction_metadata,image_name, mask_data, log=None):
 
 #    (hist,bins) = np.histogram(mask_data)
 #    jdx = np.where(bins.astype(int) <= 1.0)
-#    j1 = jdx[0][-2] 
+#    j1 = jdx[0][-2]
 
     idx = np.where(mask_data.astype(int) == 0)
     j1 = len(idx[0])
-    
+
     if log!=None:
         log.info('Verifying BPM for image '+image_name+':')
         log.info('BPM has '+str(len(idx[0]))+' pixels flagged as bad, '+str(round(percent_bad,1))+'%')
