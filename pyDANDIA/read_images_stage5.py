@@ -205,13 +205,10 @@ def mask_the_reference(ref_image,reference_mask,kernel_size,max_adu):
     # cosmicray routine returns a dimensioned array which is incompatible with
     # other dimensionless arrays for the subsequent calculations.  Ideally
     # dimensions would be used throughout, but in the meantime this line extracts
-    # the array data: 
+    # the array data:
     ref_image = ref_image.to_value()
 
     bkg_image = background_mesh_perc(ref_image, master_mask = reference_mask)
-    print('REF_IMAGE: ',ref_image)
-    print('BKG_IMAGE: ',bkg_image)
-    import pdb; pdb.set_trace()
 
     #bkg_image = np.percentile(data_image,10)
     ref_image = ref_image-bkg_image #- background_mesh_perc(data_image[data_extension].data,master_mask = reference_mask[kernel_size:-kernel_size,kernel_size:-kernel_size])
