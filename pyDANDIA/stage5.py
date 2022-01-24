@@ -771,36 +771,36 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
 
 
 
-            pscales = []
-            pscales_err = []
-            medians_sky = []
-            variances_per_pixel = []
-            ngoods = []
-            kurtosises_quality = []
-            skewes_quality = []
+        pscales = []
+        pscales_err = []
+        medians_sky = []
+        variances_per_pixel = []
+        ngoods = []
+        kurtosises_quality = []
+        skewes_quality = []
 
 
 
-            for stamp in list_of_stamps:
+        for stamp in list_of_stamps:
 
-                stamp_row = np.where(reduction_metadata.stamps[1]['PIXEL_INDEX'] == stamp)[0][0]
-                xmin = int(reduction_metadata.stamps[1][stamp_row]['X_MIN'])
-                xmax = int(reduction_metadata.stamps[1][stamp_row]['X_MAX'])
-                ymin = int(reduction_metadata.stamps[1][stamp_row]['Y_MIN'])
-                ymax = int(reduction_metadata.stamps[1][stamp_row]['Y_MAX'])
+            stamp_row = np.where(reduction_metadata.stamps[1]['PIXEL_INDEX'] == stamp)[0][0]
+            xmin = int(reduction_metadata.stamps[1][stamp_row]['X_MIN'])
+            xmax = int(reduction_metadata.stamps[1][stamp_row]['X_MAX'])
+            ymin = int(reduction_metadata.stamps[1][stamp_row]['Y_MIN'])
+            ymax = int(reduction_metadata.stamps[1][stamp_row]['Y_MAX'])
 
 
-                #ref_extended, bal_mask_extended, ref_unmasked, noise = open_reference(setup, reference_image_directory, reference_image_name, kernel_size_array[umatrix_index], max_adu,
-                 #              ref_extension=ref_structure['sci'], log=log, central_crop=maxshift, master_mask=master_mask,
-                 #              external_weight=None,subset=[ymin,ymax, xmin,xmax])
+            #ref_extended, bal_mask_extended, ref_unmasked, noise = open_reference(setup, reference_image_directory, reference_image_name, kernel_size_array[umatrix_index], max_adu,
+             #              ref_extension=ref_structure['sci'], log=log, central_crop=maxshift, master_mask=master_mask,
+             #              external_weight=None,subset=[ymin,ymax, xmin,xmax])
 #                ref = reference_image[kernel_size:-kernel_size, kernel_size:-kernel_size][ymin:ymax, xmin:xmax]
 
 #                ref_unmasked = reference_image_unmasked[ymin:ymax, xmin:xmax]
 
-                #ref,ref_unmasked,ref_mask,bkg_ref,noise = reference_images[stamp_row]
-                ref,ref_unmasked,ref_mask,bkg_ref,noise =  mask_the_reference(reference_image[ymin:ymax, xmin:xmax],master_mask[ymin:ymax, xmin:xmax],kernel_size,max_adu)
+            #ref,ref_unmasked,ref_mask,bkg_ref,noise = reference_images[stamp_row]
+            ref,ref_unmasked,ref_mask,bkg_ref,noise =  mask_the_reference(reference_image[ymin:ymax, xmin:xmax],master_mask[ymin:ymax, xmin:xmax],kernel_size,max_adu)
 
-                img = resample_image[ymin:ymax, xmin:xmax]
+            img = resample_image[ymin:ymax, xmin:xmax]
 
 
 #                ref_extended = np.zeros((ref.shape[0]+2*kernel_size,ref.shape[1]+2*kernel_size))
@@ -825,105 +825,105 @@ def subtract_with_constant_kernel_on_stamps(new_images, reference_image_name, re
 
 
 
-                warp_matrix2 =  np.load(os.path.join(stamps_directory, 'warp_matrice_stamp_'+str(stamp)+'.npy'))
-                warp_matrix2 = np.round(warp_matrix2,10)
-                if warp_matrix2.shape != (3,3):
-                    warp_matrix2 = tf.PolynomialTransform(warp_matrix2)
+            warp_matrix2 =  np.load(os.path.join(stamps_directory, 'warp_matrice_stamp_'+str(stamp)+'.npy'))
+            warp_matrix2 = np.round(warp_matrix2,10)
+            if warp_matrix2.shape != (3,3):
+                warp_matrix2 = tf.PolynomialTransform(warp_matrix2)
 
-                img = stage4.warp_image(img,warp_matrix2)
+            img = stage4.warp_image(img,warp_matrix2)
 
-                #tot_warp = np.dot(warp_matrix2,warp_matrix)
-                #resample_image = stage4.warp_image(data_image,tot_warp)
-                #img_new = resample_image[ymin:ymax, xmin:xmax]
-                umatrix = umatrix_grid[stamp_row]
-                kernels = []
-                for i in range(5):
-                    data_image, data_image_unmasked,bkg_image = mask_the_image(np.random.poisson(np.abs(img))*np.sign(img),max_adu,ref_mask,kernel_size)
-
-
+            #tot_warp = np.dot(warp_matrix2,warp_matrix)
+            #resample_image = stage4.warp_image(data_image,tot_warp)
+            #img_new = resample_image[ymin:ymax, xmin:xmax]
+            umatrix = umatrix_grid[stamp_row]
+            kernels = []
+            for i in range(5):
+                data_image, data_image_unmasked,bkg_image = mask_the_image(np.random.poisson(np.abs(img))*np.sign(img),max_adu,ref_mask,kernel_size)
 
 
-                    b_vector = bvector_constant(ref,data_image, kernel_size, noise)
 
-                    kernel_matrix, bkg_kernel, kernel_uncertainty = kernel_solution(umatrix, b_vector, kernel_size,circular=False)
-
-
-                    kernels.append(kernel_matrix)
-
-
-                data_image, data_image_unmasked,bkg_image = mask_the_image(img,max_adu,ref_mask,kernel_size)
 
                 b_vector = bvector_constant(ref,data_image, kernel_size, noise)
 
                 kernel_matrix, bkg_kernel, kernel_uncertainty = kernel_solution(umatrix, b_vector, kernel_size,circular=False)
 
-                kernel_uncertainty = np.std(kernels,axis=0)
+
+                kernels.append(kernel_matrix)
+
+
+            data_image, data_image_unmasked,bkg_image = mask_the_image(img,max_adu,ref_mask,kernel_size)
+
+            b_vector = bvector_constant(ref,data_image, kernel_size, noise)
+
+            kernel_matrix, bkg_kernel, kernel_uncertainty = kernel_solution(umatrix, b_vector, kernel_size,circular=False)
+
+            kernel_uncertainty = np.std(kernels,axis=0)
 
 
 
-                pscale = np.sum(kernel_matrix)
-                pscale_err = np.sum(kernel_uncertainty ** 2) ** 0.5
-                np.save(os.path.join(kernel_directory, 'kernel_stamp_' + str(stamp) + '.npy'), [kernel_matrix, bkg_kernel])
-                kernel_header = fits.Header()
-                kernel_header['SCALEFAC'] = str(pscale)
-                kernel_header['KERBKG'] = bkg_kernel
-                hdu_kernel = fits.PrimaryHDU(kernel_matrix, header=kernel_header)
-                hdu_kernel.writeto(os.path.join(kernel_directory, 'kernel_stamp_' + str(stamp) + '.fits'), overwrite=True)
-                hdu_kernel_err = fits.PrimaryHDU(kernel_uncertainty)
-                hdu_kernel_err.writeto(os.path.join(kernel_directory, 'kernel_err_stamp_' + str(stamp) + '.fits'), overwrite=True)
-                # Particle data group formatting
-                pscale_formatted = round_unc(pscale, pscale_err)
+            pscale = np.sum(kernel_matrix)
+            pscale_err = np.sum(kernel_uncertainty ** 2) ** 0.5
+            np.save(os.path.join(kernel_directory, 'kernel_stamp_' + str(stamp) + '.npy'), [kernel_matrix, bkg_kernel])
+            kernel_header = fits.Header()
+            kernel_header['SCALEFAC'] = str(pscale)
+            kernel_header['KERBKG'] = bkg_kernel
+            hdu_kernel = fits.PrimaryHDU(kernel_matrix, header=kernel_header)
+            hdu_kernel.writeto(os.path.join(kernel_directory, 'kernel_stamp_' + str(stamp) + '.fits'), overwrite=True)
+            hdu_kernel_err = fits.PrimaryHDU(kernel_uncertainty)
+            hdu_kernel_err.writeto(os.path.join(kernel_directory, 'kernel_err_stamp_' + str(stamp) + '.fits'), overwrite=True)
+            # Particle data group formatting
+            pscale_formatted = round_unc(pscale, pscale_err)
 
-                difference_image = subtract_images(data_image_unmasked, ref_unmasked, kernel_matrix,
-                                               kernel_size, bkg_kernel)
+            difference_image = subtract_images(data_image_unmasked, ref_unmasked, kernel_matrix,
+                                           kernel_size, bkg_kernel)
 
-                # unmasked subtraction (for quality stats)
-                mean_sky, median_sky, std_sky = sigma_clipped_stats(ref_unmasked, sigma=5.0)
-                difference_image_um = subtract_images(data_image, ref, kernel_matrix, kernel_size, bkg_kernel)
-                mask = ref != 0
-                ngood = len(difference_image_um[mask])
-                kurtosis_quality = kurtosis(difference_image_um[mask])
-                skew_quality = skew(difference_image_um[mask])
-                variance_per_pixel = np.var(difference_image_um[mask]) / float(ngood)
-
-
-
-                new_header = fits.Header()
-                new_header['SCALEFAC'] = pscale
-                new_header['SCALEERR'] = pscale_err
-                new_header['VARPP'] = variance_per_pixel
-                new_header['NGOOD'] = ngood
-                new_header['SKY'] = median_sky
-                new_header['KURTOSIS'] = kurtosis_quality
-                new_header['SKEW'] = skew_quality
-                difference_image_hdu = fits.PrimaryHDU(difference_image, header=new_header)
-                try:
-                    os.mkdir(diffim_directory)
-                except:
-                    pass
-                difference_image_hdu.writeto(os.path.join(diffim_directory, 'diff_stamp_' + str(stamp) + '.fits'), overwrite=True)
-
-                bkg_image_hdu = fits.PrimaryHDU(bkg_image)
-                bkg_image_hdu.writeto(os.path.join(diffim_directory, 'diff_back_stamp_' + str(stamp) + '.fits'), overwrite=True)
+            # unmasked subtraction (for quality stats)
+            mean_sky, median_sky, std_sky = sigma_clipped_stats(ref_unmasked, sigma=5.0)
+            difference_image_um = subtract_images(data_image, ref, kernel_matrix, kernel_size, bkg_kernel)
+            mask = ref != 0
+            ngood = len(difference_image_um[mask])
+            kurtosis_quality = kurtosis(difference_image_um[mask])
+            skew_quality = skew(difference_image_um[mask])
+            variance_per_pixel = np.var(difference_image_um[mask]) / float(ngood)
 
 
-                pscales.append(pscale)
-                pscales_err.append(pscale_err)
-                medians_sky.append(median_sky)
-                variances_per_pixel.append(variance_per_pixel)
-                ngoods.append(ngood)
-                kurtosises_quality.append(kurtosis_quality)
-                skewes_quality.append(skew_quality)
 
-            if log is not None:
-                logs.ifverbose(log, setup,
-                               'b_vector calculated for:' + new_image + ' and scale factor ' + str(np.median(pscales))
-                               + ' +/- '+str(np.median(pscales_err)) +' variance per pixel ' + str(
-                                   np.round(np.median(variances_per_pixel), 4)) + ' in kernel bin ' + str(umatrix_index))
-            quality_metrics.append(
-                [new_image, np.median(pscales), np.median(pscales_err), np.median(medians_sky),
-                 np.median(variances_per_pixel), np.median(ngoods), np.median(kurtosises_quality),
-                 np.median(skewes_quality)])
+            new_header = fits.Header()
+            new_header['SCALEFAC'] = pscale
+            new_header['SCALEERR'] = pscale_err
+            new_header['VARPP'] = variance_per_pixel
+            new_header['NGOOD'] = ngood
+            new_header['SKY'] = median_sky
+            new_header['KURTOSIS'] = kurtosis_quality
+            new_header['SKEW'] = skew_quality
+            difference_image_hdu = fits.PrimaryHDU(difference_image, header=new_header)
+            try:
+                os.mkdir(diffim_directory)
+            except:
+                pass
+            difference_image_hdu.writeto(os.path.join(diffim_directory, 'diff_stamp_' + str(stamp) + '.fits'), overwrite=True)
+
+            bkg_image_hdu = fits.PrimaryHDU(bkg_image)
+            bkg_image_hdu.writeto(os.path.join(diffim_directory, 'diff_back_stamp_' + str(stamp) + '.fits'), overwrite=True)
+
+
+            pscales.append(pscale)
+            pscales_err.append(pscale_err)
+            medians_sky.append(median_sky)
+            variances_per_pixel.append(variance_per_pixel)
+            ngoods.append(ngood)
+            kurtosises_quality.append(kurtosis_quality)
+            skewes_quality.append(skew_quality)
+
+        if log is not None:
+            logs.ifverbose(log, setup,
+                           'b_vector calculated for:' + new_image + ' and scale factor ' + str(np.median(pscales))
+                           + ' +/- '+str(np.median(pscales_err)) +' variance per pixel ' + str(
+                               np.round(np.median(variances_per_pixel), 4)) + ' in kernel bin ' + str(umatrix_index))
+        quality_metrics.append(
+            [new_image, np.median(pscales), np.median(pscales_err), np.median(medians_sky),
+             np.median(variances_per_pixel), np.median(ngoods), np.median(kurtosises_quality),
+             np.median(skewes_quality)])
 
 
 #        except Exception as e:
