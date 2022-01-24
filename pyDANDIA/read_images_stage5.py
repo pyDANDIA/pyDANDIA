@@ -242,6 +242,12 @@ def mask_the_image(data_image,max_adu,reference_mask,kernel_size):
 
     data_image,data_mask = cosmicray_lacosmic(data_image,sigclip=7, objlim = 7., satlevel = max_adu)
 
+    # cosmicray routine returns a dimensioned array which is incompatible with
+    # other dimensionless arrays for the subsequent calculations.  Ideally
+    # dimensions would be used throughout, but in the meantime this line extracts
+    # the array data:
+    data_image = data_image.to_value()
+
     #bkg_image = background_fit(data_image, master_mask = reference_mask[kernel_size:-kernel_size,kernel_size:-kernel_size])
     bkg_image = background_mesh_perc(data_image, master_mask = reference_mask[kernel_size:-kernel_size,kernel_size:-kernel_size])
     #bkg_image = np.percentile(data_image,10)
