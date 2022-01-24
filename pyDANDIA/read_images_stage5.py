@@ -202,6 +202,12 @@ def mask_the_reference(ref_image,reference_mask,kernel_size,max_adu):
     noise = np.copy(ref_image)
     ref_image,ref_mask = cosmicray_lacosmic(ref_image,sigclip=7, objlim = 7., satlevel = max_adu)
 
+    # cosmicray routine returns a dimensioned array which is incompatible with
+    # other dimensionless arrays for the subsequent calculations.  Ideally
+    # dimensions would be used throughout, but in the meantime this line extracts
+    # the array data: 
+    ref_image = ref_image.to_value()
+
     bkg_image = background_mesh_perc(ref_image, master_mask = reference_mask)
     print('REF_IMAGE: ',ref_image)
     print('BKG_IMAGE: ',bkg_image)
