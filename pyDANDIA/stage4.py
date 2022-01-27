@@ -801,7 +801,6 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
 
     for new_image in new_images:
         log.info('Resampling image '+new_image)
-        print('Resampling image '+new_image)
 
         row_index = np.where(reduction_metadata.images_stats[1]['IM_NAME'] == new_image)[0][0]
         x_shift, y_shift = -reduction_metadata.images_stats[1][row_index]['SHIFT_X'], - \
