@@ -206,7 +206,11 @@ def mask_the_reference(ref_image,reference_mask,kernel_size,max_adu):
     # other dimensionless arrays for the subsequent calculations.  Ideally
     # dimensions would be used throughout, but in the meantime this line extracts
     # the array data:
-    ref_image = ref_image.to_value()
+    # Note: This does not always seem to return a dimensioned array
+    try:
+        ref_image = ref_image.to_value()
+    except AttributeError:
+        pass
 
     bkg_image = background_mesh_perc(ref_image, master_mask = reference_mask)
 
