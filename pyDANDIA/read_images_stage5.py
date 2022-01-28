@@ -250,7 +250,10 @@ def mask_the_image(data_image,max_adu,reference_mask,kernel_size):
     # other dimensionless arrays for the subsequent calculations.  Ideally
     # dimensions would be used throughout, but in the meantime this line extracts
     # the array data:
-    data_image = data_image.to_value()
+    try:
+        data_image = data_image.to_value()
+    except AttributeError:
+        pass
 
     #bkg_image = background_fit(data_image, master_mask = reference_mask[kernel_size:-kernel_size,kernel_size:-kernel_size])
     bkg_image = background_mesh_perc(data_image, master_mask = reference_mask[kernel_size:-kernel_size,kernel_size:-kernel_size])
