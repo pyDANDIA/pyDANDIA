@@ -1369,13 +1369,16 @@ def match_the_dist2(distances):
 def rotate_shifts_transform(params,shape):
 
     shift_y, shift_x = np.array(shape)/ 2. -0.5
-    try:
-        tf_rotate = tf.SimilarityTransform(rotation=params[2])
-    except IndexError:
-        tf_rotate = tf.SimilarityTransform(rotation=0.0)
     tf_shift = tf.SimilarityTransform(translation=[-shift_x, -shift_y])
-    tf_shift_inv = tf.SimilarityTransform(translation=[shift_x, shift_y])
-    tf_tot =  tf.AffineTransform(scale=params[-3:-1],translation=params[:2],shear=params[-1])+tf_shift + tf_rotate + tf_shift_inv
+
+    if len(params) > 3:
+        tf_rotate = tf.SimilarityTransform(rotation=params[2])
+        tf_shift_inv = tf.SimilarityTransform(translation=[shift_x, shift_y])
+        tf_tot =  tf.AffineTransform(scale=params[-3:-1],translation=params[:2],
+                                 shear=params[-1]) + \
+                                 tf_shift + tf_rotate + tf_shift_inv
+    else:
+        tf_tot = tf_shift
 
     return tf_tot
 
