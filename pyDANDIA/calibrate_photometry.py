@@ -27,7 +27,7 @@ mpl.use('Agg')
 import matplotlib.pyplot as plt
 import json
 
-VERSION = 'calibrate_photometry_0.5'
+VERSION = 'calibrate_photometry_0.5.1'
 
 def calibrate_photometry_catalog(setup, **kwargs):
     """Function to calculate the photometric transform between the instrumental
@@ -768,13 +768,13 @@ def model_phot_transform2(params,star_catalog,match_index,fit,
     if cmag not in star_catalog.colnames or cerr not in star_catalog.colnames:
         log.info('WARNING: No catalog photometry available to automatically calibrate instrumental data in '+params['filter'])
         fit = np.array([-9999.9999, -9999.9999])
-        covar_fit = np.zeros((3,3))
+        covar_fit = np.zeros((2,2))
 
         return fit, covar_fit
 
     else:
         fit = np.array([1,0])
-        covar_fit = np.zeros((3,3))
+        covar_fit = np.zeros((2,2))
         log.info('Using catalog photometry columns: '+cmag+', '+cerr)
 
         cat_mags = star_catalog[cmag][match_index[:,1]]
