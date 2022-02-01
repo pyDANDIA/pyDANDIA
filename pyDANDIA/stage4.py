@@ -898,7 +898,7 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
 
 
                     nrmse = (1-np.sum(reference_image*shifted)**2/np.sum(reference_image**2)/np.sum(shifted**2))**0.5
-                    log.info('Ultimate correlation :', nrmse)
+                    log.info('Ultimate correlation :'+str(nrmse))
                 except:
                     shifted_mask = np.zeros(np.shape(data_image))
                     log.info(' -> Similarity Transform has failed to produce parameters')
