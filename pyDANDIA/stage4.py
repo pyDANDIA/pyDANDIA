@@ -1004,7 +1004,7 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
 
 def output_shifted_mask(mask_data, image_path):
     mask_hdu = fits.PrimaryHDU(mask_data)
-    mask_hdu.writeto(image_path.replace('.fits', '_mask.fits')), overwrite=True)
+    mask_hdu.writeto(image_path.replace('.fits', '_mask.fits'), overwrite=True)
 
 
 def warp_image(image_to_warp,warp_matrix):
