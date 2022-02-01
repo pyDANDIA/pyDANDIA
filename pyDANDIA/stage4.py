@@ -827,6 +827,7 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
 
         else:
             shifted_mask = np.copy(mask_image)
+            output_shifted_mask(shifted_mask, image_path.replace('.fits','_init.fits'))
 
             shifted_catalog = np.copy(data_image)
             shifted_catalog[mask_image.astype(bool)] = 0
@@ -897,7 +898,7 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
 
 
                     nrmse = (1-np.sum(reference_image*shifted)**2/np.sum(reference_image**2)/np.sum(shifted**2))**0.5
-                    print('Ultimate correlation :', nrmse)
+                    log.info('Ultimate correlation :', nrmse)
                 except:
                     shifted_mask = np.zeros(np.shape(data_image))
                     log.info(' -> Similarity Transform has failed to produce parameters')
@@ -907,6 +908,9 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
             mask = np.abs(shifted_mask) < 10 ** -5
             shifted_mask[mask] = 0
             master_mask += shifted_mask
+
+            # Debugging:
+            output_shifted_mask(shifted_mask, image_path)
 
             #resample the stamps
             resample_directory = os.path.join(resampled_directory_path, new_image)
@@ -997,6 +1001,10 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
     master_mask_hdu.writeto(os.path.join(reference_image_directory, 'master_mask.fits'), overwrite=True)
 
     return image_red_status
+
+def output_shifted_mask(mask_data, image_path):
+    mask_hdu = fits.PrimaryHDU(mask_data)
+    mask_hdu.writeto(image_path.replace('.fits', '_mask.fits')), overwrite=True)
 
 
 def warp_image(image_to_warp,warp_matrix):
