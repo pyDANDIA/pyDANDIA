@@ -268,7 +268,7 @@ def verify_mask_statistics(reduction_metadata,image_name, mask_data, log=None):
 #    j1 = jdx[0][-2]
 
     jdx = np.where(mask_data.astype(int) == 0)
-    j1 = len(idx[0])
+    j1 = len(jdx[0])
 
     if log!=None:
         log.info('Verifying BPM for image '+image_name+':')
