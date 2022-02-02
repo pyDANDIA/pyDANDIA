@@ -1002,10 +1002,16 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
 
     return image_red_status
 
-def output_shifted_mask(mask_data, image_path):
-    mask_hdu = fits.PrimaryHDU(mask_data)
-    mask_hdu.writeto(image_path.replace('.fits', '_mask.fits'), overwrite=True)
+def output_shifted_mask(red_dir, mask_data, image_path):
+    mask_dir = path.join(red_dir, 'data_masks')
+    if not path.isdir(mask_dir):
+        os.mkdir(mask_dir)
 
+    mask_path = path.join(mask_dir,
+                        path.basename(image_path).replace('.fits', '_mask.fits'))
+
+    mask_hdu = fits.PrimaryHDU(mask_data)
+    mask_hdu.writeto(mask_path, overwrite=True)
 
 def warp_image(image_to_warp,warp_matrix):
 
