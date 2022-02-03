@@ -1003,13 +1003,13 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
     return image_red_status
 
 def output_shifted_mask(mask_data, image_path):
-    red_dir = path.join(path.dirname(image_path),'..')
-    mask_dir = path.join(red_dir, 'data_masks')
-    if not path.isdir(mask_dir):
+    red_dir = os.path.join(path.dirname(image_path),'..')
+    mask_dir = os.path.join(red_dir, 'data_masks')
+    if not os.path.isdir(mask_dir):
         os.mkdir(mask_dir)
 
-    mask_path = path.join(mask_dir,
-                        path.basename(image_path).replace('.fits', '_mask.fits'))
+    mask_path = os.path.join(mask_dir,
+                        os.path.basename(image_path).replace('.fits', '_mask.fits'))
 
     mask_hdu = fits.PrimaryHDU(mask_data)
     mask_hdu.writeto(mask_path, overwrite=True)
