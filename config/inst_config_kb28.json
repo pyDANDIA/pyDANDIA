@@ -91,7 +91,7 @@
     },
     "gain": {
         "comment": "gain - DOUBLE - CCD gain (e-/ADU). This parameter should be positive (Default value = 1.0)",
-        "value": 1.60,
+        "value": 1.0,
 	"format":"float",
 	"unit":"e/adu"
     },
