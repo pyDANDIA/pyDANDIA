@@ -63,6 +63,8 @@ class Dataset():
         else:
             if 'fa' in str(self.instrument) or 'fl' in str(self.instrument):
                 self.id_code = str(self.target)+ '_' + self.filter
+            elif 'kb' in str(self.instrument):
+                self.id_code = str(self.target)+ '_0m4_' + self.filter
             else:
                 self.id_code = str(self.target)+ '_' + str(self.instrument).lower() + '_' + self.filter
 
