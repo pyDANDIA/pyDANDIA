@@ -281,3 +281,93 @@ def bvector_construction_nobkg(np.ndarray[DTYPE_t, ndim = 2] reference_image,np.
 
 
     return b_vector
+
+def umatrix_update(np.ndarray[DTYPE_t, ndim = 2] reference_image,np.ndarray[DTYPE_t, ndim = 2] weights, np.ndarray[DTYPE_t, ndim = 2] umatrix_original, pandq, outliers, n_kernel_np, kernel_size_np):
+    #for excluding parts of the image, provide a list of outliers in the same shape
+    #as pandq, i.e. as a list of tuples of pixel indicees
+
+    #Pass a copy of umatrix, since this will overwrite the input
+
+    #For a correct subtraction, a revised b-vector needs to be calculated, i.e. 
+    #apply the same correction to the b-vector
+
+    cdef int ni_image = np.shape(reference_image)[0]
+    cdef int nj_image = np.shape(reference_image)[1]
+    cdef double sum_acc = 0.
+    cdef int idx_l,idx_m,idx_l_prime,idx_m_prime,idx_i,idx_j
+    cdef int kernel_size = np.int(kernel_size_np)
+    cdef int kernel_size_half = np.int(kernel_size_np)/2
+    cdef int n_kernel = np.int(n_kernel_np)
+    
+    for idx_p in range(n_kernel):
+        for idx_q in range(idx_p,n_kernel):
+            sum_acc = 0.
+            idx_l, idx_m = pandq[idx_p]
+            idx_l_prime, idx_m_prime = pandq[idx_q]
+            
+	        #identify outliers, pass them as pixel positions in terms of idx_i and idx_j
+#            for idx_i in range(kernel_size_half,ni_image-kernel_size_half):
+#                for idx_j in range(kernel_size_half,nj_image-kernel_size_half):
+            for outlier in outliers:
+                idx_i, idx_j = outlier
+                umatrix_original[idx_p, idx_q] = umatrix_original[idx_p, idx_q] - reference_image[idx_i + idx_l, idx_j + idx_m] * reference_image[idx_i + idx_l_prime,idx_j + idx_m_prime]  * weights[idx_i, idx_j]
+
+    for idx_p in [n_kernel]:
+        for idx_q in range(n_kernel):
+            sum_acc = 0.
+            idx_l = kernel_size
+            idx_m = kernel_size
+            idx_l_prime, idx_m_prime = pandq[idx_q]
+            for outlier in outliers:
+                idx_i, idx_j = outlier
+                umatrix_original[idx_p, idx_q] = umatrix_original[idx_p, idx_q] - reference_image[idx_i + idx_l_prime, idx_j + idx_m_prime] * weights[idx_i, idx_j]
+    
+    for idx_p in range(n_kernel):
+        for idx_q in [n_kernel]:
+            sum_acc = 0.
+            idx_l, idx_m = pandq[idx_p]
+            idx_l_prime = kernel_size
+            idl_m_prime = kernel_size
+            for outlier in outliers:
+                idx_i, idx_j = outlier
+                umatrix_original[idx_p, idx_q] = umatrix_original[idx_p, idx_q] - reference_image[idx_i + idx_l, idx_j + idx_m] * weights[idx_i, idx_j] 
+
+    sum_acc = 0.
+    for outlier in outliers:
+        idx_i, idx_j = outlier
+        umatrix_original[n_kernel,n_kernel] = umatrix_original[n_kernel, n_kernel] - weights[idx_i, idx_j] 
+    
+    return umatrix_original
+
+
+def bvector_construction_update(np.ndarray[DTYPE_t, ndim = 2] reference_image,np.ndarray[DTYPE_t, ndim = 2] data_image,np.ndarray[DTYPE_t, ndim = 2] weights, np.ndarray[DTYPE_t, ndim = 1] bvector_original, pandq, outliers, n_kernel_np, kernel_size_np):
+
+    #for excluding parts of the image, provide a list of outliers in the same shape
+    #as pandq, i.e. as a list of tuples of pixel indicees
+
+    #Pass a copy of bvector of the original umatrix, since this will overwrite the input
+
+    #For a correct subtraction, a bvector with original u-matrix needs to be calculated, i.e. 
+    #apply the same correction to the b-vector
+
+    cdef int ni_image = np.shape(data_image)[0]
+    cdef int nj_image = np.shape(data_image)[1]
+    cdef double sum_acc = 0.
+    cdef int idx_l,idx_m,idx_l_prime,idx_m_prime,idx_i,idx_j
+    cdef int kernel_size = np.int(kernel_size_np)
+    cdef int kernel_size_half = np.int(kernel_size_np)/2
+    cdef int n_kernel = np.int(n_kernel_np)
+        
+    for idx_p in range(n_kernel):
+        idx_l, idx_m = pandq[idx_p]
+        sum_acc = 0.
+        for outlier in outliers:
+            idx_i, idx_j = outlier
+            bvector_original[idx_p] = bvector_original[idx_p] - data_image[idx_i, idx_j] * reference_image[idx_i + idx_l , idx_j + idx_m ] * weights[idx_i, idx_j]
+
+    sum_acc = 0.
+    for idx_i in range(ni_image):
+       for idx_j in range(nj_image):
+            bvector_original[n_kernel] = bvector_original[n_kernel] - data_image[idx_i, idx_j] * weights[idx_i, idx_j]
+
+    return bvector_original
