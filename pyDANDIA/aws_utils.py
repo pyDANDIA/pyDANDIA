@@ -25,7 +25,10 @@ def upload_file_to_aws(config, lc_file, s3_client, log=None):
                     path.join('OMEGA/realtime_lightcurves', path.basename(lc_file)) )
 
         if log:
-            log.info('Uploaded '+lc_file+' to AWS')
+            log.info('Uploaded '+lc_file+' to AWS at '+\
+                    path.join(config['aws_bucket'],
+                        'OMEGA/realtime_lightcurves',
+                            path.basename(lc_file))) )
 
 def start_s3_client(config, log=None):
 
