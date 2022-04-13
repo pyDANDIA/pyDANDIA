@@ -261,7 +261,7 @@ def output_lightcurve(params, reduction_metadata, photometry_data, star_dataset_
 		if 'suffix' in params.keys():
 			lc_file = lc_file.replace('.dat','_'+str(params['suffix'])+'.dat')
 		datafile = open(lc_file,'w')
-		datafile.write('# HJD    Instrumental mag, mag_error   Calibrated mag, mag_error    Corrected mag, mag_error  QC Flag\n')
+		datafile.write('# HJD    Instrumental mag, mag_error   Calibrated mag, mag_error    Corrected mag, mag_error  QC Flag    Image\n')
 
 		for i in time_order:
 			if valid_data_only:
@@ -272,7 +272,7 @@ def output_lightcurve(params, reduction_metadata, photometry_data, star_dataset_
 					str(photometry_data['instrumental_mag'][i])+'  '+str(photometry_data['instrumental_mag_err'][i])+'  '+\
 					str(photometry_data['calibrated_mag'][i])+'  '+str(photometry_data['calibrated_mag_err'][i])+' '+\
 						str(photometry_data['corrected_mag'][i])+'  '+str(photometry_data['corrected_mag_err'][i])+' '+\
-						str(photometry_data['qc_flag'][i])+'\n')
+						str(photometry_data['qc_flag'][i])+' '+image_list[i]+'\n')
 				else:
 					log.info('-> Datapoint '+str(i)+' filtered out in quality control: mag='+str(photometry_data['instrumental_mag'][i])+
 							' mag_error='+str(photometry_data['instrumental_mag_err'][i])+', cf phot_error_threshold='+str(phot_error_threshold)+\
@@ -282,7 +282,7 @@ def output_lightcurve(params, reduction_metadata, photometry_data, star_dataset_
 				str(photometry_data['instrumental_mag'][i])+'  '+str(photometry_data['instrumental_mag_err'][i])+'  '+\
 				str(photometry_data['calibrated_mag'][i])+'  '+str(photometry_data['calibrated_mag_err'][i])+' '+\
 				str(photometry_data['corrected_mag'][i])+'  '+str(photometry_data['corrected_mag_err'][i])+' '+\
-				str(photometry_data['qc_flag'][i])+'\n')
+				str(photometry_data['qc_flag'][i])+' '+image_list[i]+'\n')
 
 		datafile.close()
 		lc_file_list.append(lc_file)
