@@ -893,8 +893,11 @@ def phot_weighted_mean(data,sigma):
 def phot_func(p,mags):
     """Photometric transform function"""
 
-    # Single zeropoint
-    p[0] = 1.0
+    # Switch for a fixed single zeropoint
+    fit_zp_only = False
+    if fit_zp_only:
+        p[0] = 1.0
+
     return p[0]*mags + p[1]
 
 def errfunc(p,x,y):
@@ -914,7 +917,7 @@ def calc_transform(pinit, x, y):
     odr_obj = ODR(dataset, linear_model, beta0=pinit)
     results = odr_obj.run()
 
-    pfit = [results.beta[0], results.beta[1]]
+    pfit = np.array([results.beta[0], results.beta[1]])
     covar_fit = results.cov_beta*results.res_var
 
     return pfit, covar_fit
