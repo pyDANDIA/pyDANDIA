@@ -892,13 +892,8 @@ def phot_weighted_mean(data,sigma):
 
 def phot_func(p,mags):
     """Photometric transform function"""
-
-    # Switch for a fixed single zeropoint
-    fit_zp_only = False
-    if fit_zp_only:
-        p[0] = 1.0
-
-    return p[0]*mags + p[1]
+    # Expected function is of the form p[0]*mags + p[1]
+    return np.polyval(p,mags)
 
 def errfunc(p,x,y):
     """Function to calculate the residuals on the photometric transform"""
