@@ -893,8 +893,11 @@ def phot_weighted_mean(data,sigma):
 def phot_func(p,mags):
     """Photometric transform function"""
     # Expected function is of the form p[0]*mags + p[1]
-    return np.polyval(p,mags)
-
+    if len(p) == 2:
+        return np.polyval(p,mags)
+    else:
+        raise IndexError('Photometric transform called with an unexpected number of terms')
+        
 def errfunc(p,x,y):
     """Function to calculate the residuals on the photometric transform"""
 
