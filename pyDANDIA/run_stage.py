@@ -224,6 +224,7 @@ def get_args():
 
     params['dx'] = 0.0
     params['dy'] = 0.0
+    params['max_iter_wcs'] = 5
     params['n_sky_bins'] = -1
     params['sky_value'] = None
     params['a0'] = None
@@ -244,7 +245,9 @@ def get_args():
             params['a1'] = float(str(a).split('=')[-1])
         if '-phot_calib_file' in a:
             params['phot_calib_file'] = str(a).split('=')[-1]
-
+        if '-max_iter_wcs' in a:
+            params['max_iter_wcs'] = int(float(str(a).split('=')[-1]))
+            
     if 'None' in str(params['db_file_path']):
         params['build_phot_db'] = False
     elif str(params['db_file_path']).split('.')[-1] != 'db':

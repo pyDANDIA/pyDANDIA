@@ -111,7 +111,10 @@ def run_reference_astrometry(setup, **kwargs):
         # Apply initial transform, if any
         transform = AffineTransform()
         it = 0
-        max_it = 5
+        if 'max_iter_wcs' in kwargs.keys():
+            max_it = kwargs['max_iter_wcs']
+        else:
+            max_it = 5
         iterate = True
         method = 'ransac'
         old_n_match = 0
@@ -460,7 +463,8 @@ def get_default_config(kwargs, log):
 
     default_config = {'force_rotate_ref': False,
                       'dx': 0.0, 'dy': 0.0,
-                      'trust_wcs': False}
+                      'trust_wcs': False,
+                      'max_iter_wcs': 5}
 
     kwargs = config_utils.set_default_config(default_config, kwargs, log)
 
