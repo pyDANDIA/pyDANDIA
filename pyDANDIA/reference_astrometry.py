@@ -239,7 +239,7 @@ def run_reference_astrometry(setup, **kwargs):
 
         output_matched = True
         if output_matched:
-            f = path.join(setup.red_dir,'matched_stars.txt','w')
+            f = os.path.join(setup.red_dir,'matched_stars.txt','w')
             f.write(matched_stars.summary())
             f.close()
 
