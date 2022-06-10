@@ -395,7 +395,7 @@ def identify_inlying_matched_stars(match_index, log):
 
 def calc_world_transform(setup, detected_stars, catalog_stars, log):
 
-    f = open(os.path.join(setup.red_dir,'calc_world_transform.txt'),'w')
+    f = open(path.join(setup.red_dir,'calc_world_transform.txt'),'w')
     f.write('# Star Detected RA, Dec    Catalog RA, Dec    Delta RA Delta Dec[deg]\n')
     for j in range(0,len(detected_stars),1):
         dRA = detected_stars['ra'][j]-catalog_stars['ra'][j]
