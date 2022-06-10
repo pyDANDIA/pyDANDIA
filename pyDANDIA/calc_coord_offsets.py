@@ -395,13 +395,16 @@ def identify_inlying_matched_stars(match_index, log):
 
 def calc_world_transform(setup, detected_stars, catalog_stars, log):
 
+    f = open(os.path.join(setup.red_dir,'calc_world_transform.txt'),'w')
+    f.write('# Star Detected RA, Dec    Catalog RA, Dec    Delta RA Delta Dec[deg]\n')
     for j in range(0,len(detected_stars),1):
         dRA = detected_stars['ra'][j]-catalog_stars['ra'][j]
         dDec = detected_stars['ra'][j]-catalog_stars['dec'][j]
-        log.info('Star '+str(j)+' detected: '+str(detected_stars['ra'][j])+','+str(detected_stars['dec'][j])+\
-                    ' -> catalog: '+\
-                    str(catalog_stars['ra'][j])+','+str(catalog_stars['dec'][j])+\
-                    ' deltas: '+str(dRA)+', '+str(dDec)+'\n')
+        f.write(str(j)+' '+str(detected_stars['ra'][j])+' '+str(detected_stars['dec'][j])+\
+                    ' '+\
+                    str(catalog_stars['ra'][j])+' '+str(catalog_stars['dec'][j])+\
+                    '  '+str(dRA)+', '+str(dDec)+'\n')
+    f.close()
 
     det_array = np.zeros((len(detected_stars),2))
     det_array[:,0] = detected_stars['ra'].data-detected_stars['ra'].data.mean()
