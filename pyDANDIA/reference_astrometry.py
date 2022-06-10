@@ -194,6 +194,7 @@ def run_reference_astrometry(setup, **kwargs):
                         raise ValueError('No matched stars')
 
                 elif it > 1 and kwargs['wcs_method'] in ['offsets']:
+                    # Transform remains set to the given offsets
                     log.info('Calculating transformation using the offets method, iteration '+str(it))
                     matched_stars = wcs.match_stars_pixel_coords(bright_central_detected_stars,
                                                              bright_central_gaia_stars,log,
@@ -235,6 +236,12 @@ def run_reference_astrometry(setup, **kwargs):
                 else:
                     old_n_match = matched_stars.n_match
                     log.info(' -> Iterations continue, iterate='+repr(iterate))
+
+        output_matched = True
+        if output_matched:
+            f = path.join(setup.red_dir,'matched_stars.txt','w')
+            f.write(matched_stars.summary())
+            f.close()
 
         log.info('Transforming catalogue coordinates')
 
