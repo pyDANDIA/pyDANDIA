@@ -116,7 +116,7 @@ def run_reference_astrometry(setup, **kwargs):
         else:
             max_it = 5
         iterate = True
-        method = 'ransac'
+        #method = 'ransac'
         old_n_match = 0
 
         if kwargs['trust_wcs'] == True:
@@ -149,7 +149,7 @@ def run_reference_astrometry(setup, **kwargs):
                                                         selection_radius)
                     matched_stars = match_utils.StarMatchIndex()
 
-                elif it == 1 and method in ['histogram', 'ransac']:
+                elif it == 1 and kwargs['wcs_method'] in ['histogram', 'ransac']:
                     log.info('Calculating transformation using the histogram method, iteration '+str(it))
 
                     stellar_density = utilities.stellar_density(bright_central_gaia_stars,
@@ -178,7 +178,7 @@ def run_reference_astrometry(setup, **kwargs):
 
                         log.info('Histogram method found a small transform, below the methods reliability threshold.  This transform will be ignored in favour of the RANSAC method')
 
-                elif it > 1 and method in ['histogram', 'ransac']:
+                elif it > 1 and kwargs['wcs_method'] in ['histogram', 'ransac']:
                     log.info('Calculating transformation using the ransac method, iteration '+str(it))
                     matched_stars = wcs.match_stars_pixel_coords(bright_central_detected_stars,
                                                              bright_central_gaia_stars,log,
@@ -193,7 +193,13 @@ def run_reference_astrometry(setup, **kwargs):
                     else:
                         raise ValueError('No matched stars')
 
-                if method == 'shortest_string':
+                elif it > 1 and kwargs['wcs_method'] in ['offsets']:
+                    log.info('Calculating transformation using the offets method, iteration '+str(it))
+                    matched_stars = wcs.match_stars_pixel_coords(bright_central_detected_stars,
+                                                             bright_central_gaia_stars,log,
+                                                             tol=2.0,verbose=False)
+
+                if kwargs['wcs_method'] == 'shortest_string':
                     det_array = np.zeros((len(bright_central_detected_stars),2))
                     det_array[:,0] = bright_central_detected_stars['x'].data
                     det_array[:,1] = bright_central_detected_stars['y'].data
@@ -370,7 +376,7 @@ def run_reference_astrometry2(setup, **kwargs):
         it = 0
         max_it = 5
         iterate = True
-        method = 'ransac'
+        #method = 'ransac'
         old_n_match = 0
 
         log.info('Trusting original WCS solution, transformation will be calculated after catalog match to original pixel positions')
@@ -464,7 +470,8 @@ def get_default_config(kwargs, log):
     default_config = {'force_rotate_ref': False,
                       'dx': 0.0, 'dy': 0.0,
                       'trust_wcs': False,
-                      'max_iter_wcs': 5}
+                      'max_iter_wcs': 5,
+                      'wcs_method': 'ransac'}
 
     kwargs = config_utils.set_default_config(default_config, kwargs, log)
 
