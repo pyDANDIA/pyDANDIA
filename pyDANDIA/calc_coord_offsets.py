@@ -395,6 +395,14 @@ def identify_inlying_matched_stars(match_index, log):
 
 def calc_world_transform(setup, detected_stars, catalog_stars, log):
 
+    for j in range(0,len(detected_stars),1):
+        dRA = detected_stars['ra'][j]-catalog_stars['ra'][j]
+        dDec = detected_stars['ra'][j]-catalog_stars['dec'][j]
+        log.info('Star '+str(j)+' detected: '+str(detected_stars['ra'][j])+','+str(detected_stars['dec'][j])+\
+                    ' -> catalog: '+\
+                    str(catalog_stars['ra'][j])+','+str(catalog_stars['dec'][j])+\
+                    ' deltas: '+str(dRA)+', '+str(dDec)+'\n')
+
     det_array = np.zeros((len(detected_stars),2))
     det_array[:,0] = detected_stars['ra'].data-detected_stars['ra'].data.mean()
     det_array[:,1] = detected_stars['dec'].data-detected_stars['dec'].data.mean()
@@ -407,7 +415,7 @@ def calc_world_transform(setup, detected_stars, catalog_stars, log):
                                residual_threshold=0.0003, max_trials=100)
 
 
-    
+
     log.info('RANSAC identified '+str(len(inliers))+' inlying objects in the matched set')
     log.info('Pixel offsets, dRA='+str(model.translation[0])+', dDec='+str(model.translation[1])+' deg')
     log.info('Pixel scale factor '+repr(model.scale))

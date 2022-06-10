@@ -237,7 +237,7 @@ def run_reference_astrometry(setup, **kwargs):
                     old_n_match = matched_stars.n_match
                     log.info(' -> Iterations continue, iterate='+repr(iterate))
 
-        output_matched = True
+        output_matched = False
         if output_matched:
             f = open(os.path.join(setup.red_dir,'matched_stars.txt'),'w')
             f.write(matched_stars.summary(units='both'))
