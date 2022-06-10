@@ -239,7 +239,7 @@ def run_reference_astrometry(setup, **kwargs):
 
         output_matched = True
         if output_matched:
-            f = os.path.join(setup.red_dir,'matched_stars.txt','w')
+            f = open(os.path.join(setup.red_dir,'matched_stars.txt'),'w')
             f.write(matched_stars.summary(units='both'))
             f.close()
 
@@ -611,7 +611,7 @@ def update_catalog_image_coordinates(setup, image_wcs, gaia_sources,
                                      transform=None, radius=None):
 
     log.info('GOT TO CATALOG IMAGE COORD UPDATE WITH THIS TRANSFORM: '+repr(transform))
-    
+
     gaia_sources = wcs.calc_image_coordinates_astropy(setup, image_wcs,
                                                       gaia_sources,log,
                                                       stellar_density,
