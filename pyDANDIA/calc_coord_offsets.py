@@ -393,18 +393,19 @@ def identify_inlying_matched_stars(match_index, log):
 
         exit()
 
-def calc_world_transform(setup, detected_stars, catalog_stars, log):
+def calc_world_transform(setup, detected_stars, catalog_stars, log, output=False):
 
-    f = open(path.join(setup.red_dir,'calc_world_transform.txt'),'w')
-    f.write('# Star Detected RA, Dec    Catalog RA, Dec    Delta RA Delta Dec[deg]\n')
-    for j in range(0,len(detected_stars),1):
-        dRA = detected_stars['ra'][j]-catalog_stars['ra'][j]
-        dDec = detected_stars['ra'][j]-catalog_stars['dec'][j]
-        f.write(str(j)+' '+str(detected_stars['ra'][j])+' '+str(detected_stars['dec'][j])+\
-                    ' '+\
-                    str(catalog_stars['ra'][j])+' '+str(catalog_stars['dec'][j])+\
-                    '  '+str(dRA)+', '+str(dDec)+'\n')
-    f.close()
+    if output:
+        f = open(path.join(setup.red_dir,'calc_world_transform.txt'),'w')
+        f.write('# Star Detected RA, Dec    Catalog RA, Dec    Delta RA Delta Dec[deg]\n')
+        for j in range(0,len(detected_stars),1):
+            dRA = detected_stars['ra'][j]-catalog_stars['ra'][j]
+            dDec = detected_stars['dec'][j]-catalog_stars['dec'][j]
+            f.write(str(j)+' '+str(detected_stars['ra'][j])+' '+str(detected_stars['dec'][j])+\
+                        ' '+\
+                        str(catalog_stars['ra'][j])+' '+str(catalog_stars['dec'][j])+\
+                        '  '+str(dRA)+', '+str(dDec)+'\n')
+        f.close()
 
     det_array = np.zeros((len(detected_stars),2))
     det_array[:,0] = detected_stars['ra'].data-detected_stars['ra'].data.mean()
@@ -420,12 +421,18 @@ def calc_world_transform(setup, detected_stars, catalog_stars, log):
 
 
     log.info('RANSAC identified '+str(len(inliers))+' inlying objects in the matched set')
-    log.info('Pixel offsets, dRA='+str(model.translation[0])+', dDec='+str(model.translation[1])+' deg')
-    log.info('Pixel scale factor '+repr(model.scale))
-    log.info('Pixel rotation '+repr(model.rotation))
+    log.info('WCS offsets, dRA='+str(model.translation[0])+', dDec='+str(model.translation[1])+' deg')
+    log.info('WCS scale factor '+repr(model.scale))
+    log.info('WCS rotation '+repr(model.rotation))
     log.info('Transform matrix '+repr(model.params))
 
     return model
+
+def convert_pixel_to_world_transform(reduction_metadata,pixel_transform):
+    pixscale = reduction_metadata.reduction_parameters[1]['PIX_SCALE'][0]
+    transform = AffineTransform(translation=(pixel_transform.translation[0]*pixscale,
+                                             pixel_transform.translation[1]*pixscale))
+    return transform
 
 def transform_coordinates(setup, detected_stars, transform, coords='pixel',
                           verbose=False):

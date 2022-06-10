@@ -237,12 +237,6 @@ def run_reference_astrometry(setup, **kwargs):
                     old_n_match = matched_stars.n_match
                     log.info(' -> Iterations continue, iterate='+repr(iterate))
 
-        output_matched = False
-        if output_matched:
-            f = open(os.path.join(setup.red_dir,'matched_stars.txt'),'w')
-            f.write(matched_stars.summary(units='both'))
-            f.close()
-
         log.info('Transforming catalogue coordinates')
 
         gaia_sources = update_catalog_image_coordinates(setup, image_wcs,
@@ -251,10 +245,13 @@ def run_reference_astrometry(setup, **kwargs):
                                                         stellar_density_threshold,
                                                         transform=transform, radius=None)
 
-        transform = calc_coord_offsets.calc_world_transform(setup,
+        if kwargs['wcs_method'] != 'offsets':
+            transform = calc_coord_offsets.calc_world_transform(setup,
                                                 bright_central_detected_stars[matched_stars.cat1_index],
                                                 bright_central_gaia_stars[matched_stars.cat2_index],
                                                 log)
+        else:
+            transform = calc_coord_offsets.convert_pixel_to_world_transform(reduction_metadata,transform)
 
         detected_sources = calc_coord_offsets.transform_coordinates(setup, detected_sources,
                                                                 transform, coords='radec',
@@ -609,8 +606,6 @@ def update_catalog_image_coordinates(setup, image_wcs, gaia_sources,
                                      stellar_density, rotate_wcs, kwargs,
                                      stellar_density_threshold,
                                      transform=None, radius=None):
-
-    log.info('GOT TO CATALOG IMAGE COORD UPDATE WITH THIS TRANSFORM: '+repr(transform))
 
     gaia_sources = wcs.calc_image_coordinates_astropy(setup, image_wcs,
                                                       gaia_sources,log,
