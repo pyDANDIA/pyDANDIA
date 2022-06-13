@@ -259,11 +259,11 @@ def run_reference_astrometry(setup, **kwargs):
 
         output_transformed_positions = True
         if output_transformed_positions:
-            calc_coord_offsets.output_transformed_wcs_positions(setup, detected_stars, gaia_sources)
+            calc_coord_offsets.output_transformed_wcs_positions(setup, detected_sources, gaia_sources)
 
-        log.info('Proceeding to x-match of full catalogs')
 
         if xmatch:
+            log.info('Proceeding to x-match of full catalogs')
             matched_stars_gaia = wcs.match_stars_world_coords(detected_sources,gaia_sources,log,'Gaia',
                                                           radius=0.5, ra_centre=image_wcs.wcs.crval[0],
                                                           dec_centre=image_wcs.wcs.crval[1],
@@ -275,6 +275,7 @@ def run_reference_astrometry(setup, **kwargs):
                                                           verbose=False)
 
         else:
+            log.info('Transferring main catalog indices')
             matched_stars_gaia = match_utils.transfer_main_catalog_indices(matched_stars,
                                             bright_central_detected_stars, bright_central_gaia_stars,
                                             detected_sources, gaia_sources, log)
@@ -403,8 +404,6 @@ def run_reference_astrometry2(setup, **kwargs):
                                         bright_central_gaia_stars[matched_stars.cat2_index],
                                         bright_central_detected_stars[matched_stars.cat1_index],
                                         log, coordinates='pixel')
-
-
 
         log.info('Transforming catalogue coordinates')
 

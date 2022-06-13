@@ -429,8 +429,8 @@ def calc_world_transform(setup, detected_stars, catalog_stars, log):
 
 def convert_pixel_to_world_transform(reduction_metadata,pixel_transform,log):
     pixscale = reduction_metadata.reduction_parameters[1]['PIX_SCALE'][0]
-    transform = AffineTransform(translation=(pixel_transform.translation[0]*pixscale,
-                                             pixel_transform.translation[1]*pixscale))
+    transform = AffineTransform(translation=(pixel_transform.translation[0]*pixscale/3600.0,
+                                             pixel_transform.translation[1]*pixscale/3600.0))
 
     log.info('Converted pixel to world transform directly, transformation:')
     log.info('WCS offsets, dRA='+str(transform.translation[0])+', dDec='+str(transform.translation[1])+' deg')
