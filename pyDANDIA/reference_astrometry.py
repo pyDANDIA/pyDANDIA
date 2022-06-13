@@ -251,11 +251,15 @@ def run_reference_astrometry(setup, **kwargs):
                                                 bright_central_gaia_stars[matched_stars.cat2_index],
                                                 log)
         else:
-            transform = calc_coord_offsets.convert_pixel_to_world_transform(reduction_metadata,transform)
+            transform = calc_coord_offsets.convert_pixel_to_world_transform(reduction_metadata,transform,log)
 
         detected_sources = calc_coord_offsets.transform_coordinates(setup, detected_sources,
                                                                 transform, coords='radec',
                                                                 verbose=True)
+
+        output_transformed_positions = True
+        if output_transformed_positions:
+            calc_coord_offsets.output_transformed_wcs_positions(setup, detected_stars, gaia_sources)
 
         log.info('Proceeding to x-match of full catalogs')
 
