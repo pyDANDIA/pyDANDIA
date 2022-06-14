@@ -408,13 +408,18 @@ def output_transformed_wcs_positions(setup, detected_stars, catalog_stars):
 
 def calc_world_transform(setup, detected_stars, catalog_stars, log):
 
+    field_centres = {'detected': [detected_stars['ra'].data.mean(),
+                                  detected_stars['dec'].data.mean()],
+                     'catalog': [catalog_stars['ra'].data.mean(),
+                                catalog_stars['dec'].data.mean()]}
+
     det_array = np.zeros((len(detected_stars),2))
-    det_array[:,0] = detected_stars['ra'].data-detected_stars['ra'].data.mean()
-    det_array[:,1] = detected_stars['dec'].data-detected_stars['dec'].data.mean()
+    det_array[:,0] = detected_stars['ra'].data-field_centres['detected'][0]
+    det_array[:,1] = detected_stars['dec'].data-field_centres['detected'][1]
 
     cat_array = np.zeros((len(catalog_stars),2))
-    cat_array[:,0] = catalog_stars['ra'].data-catalog_stars['ra'].data.mean()
-    cat_array[:,1] = catalog_stars['dec'].data-catalog_stars['dec'].data.mean()
+    cat_array[:,0] = catalog_stars['ra'].data-field_centres['catalog'][0]
+    cat_array[:,1] = catalog_stars['dec'].data-field_centres['catalog'][1]
 
     (model, inliers) = ransac((det_array, cat_array), AffineTransform, min_samples=20,
                                residual_threshold=0.0003, max_trials=100)
@@ -425,7 +430,7 @@ def calc_world_transform(setup, detected_stars, catalog_stars, log):
     log.info('WCS rotation '+repr(model.rotation))
     log.info('Transform matrix '+repr(model.params))
 
-    return model
+    return model, field_centres
 
 def convert_pixel_to_world_transform(reduction_metadata,pixel_transform,detected_stars,log):
     pixscale = reduction_metadata.reduction_parameters[1]['PIX_SCALE'][0]
@@ -441,8 +446,8 @@ def convert_pixel_to_world_transform(reduction_metadata,pixel_transform,detected
 
     return transform
 
-def transform_coordinates(setup, detected_stars, transform, coords='pixel',
-                          verbose=False):
+def transform_coordinates(setup, detected_stars, transform, field_centres={},
+                            coords='pixel',verbose=False):
 
     if coords == 'pixel':
         x = detected_stars['x'].data
@@ -451,8 +456,8 @@ def transform_coordinates(setup, detected_stars, transform, coords='pixel',
         x = detected_stars['ra'].data
         y = detected_stars['dec'].data
     else:
-        x = detected_stars['ra'].data-detected_stars['ra'].data.mean()
-        y = detected_stars['dec'].data-detected_stars['dec'].data.mean()
+        x = detected_stars['ra'].data-field_centres['detected'][0]
+        y = detected_stars['dec'].data-field_centres['detected'][1]
 
     #print('A coeffs: ',transform.params[0,:])
     x1 = transform.params[0,0] * x + \
@@ -470,13 +475,8 @@ def transform_coordinates(setup, detected_stars, transform, coords='pixel',
         detected_stars['x1'] = x1
         detected_stars['y1'] = y1
     else:
-        detected_stars['ra'] = x1
-        detected_stars['dec'] = y1
-
-    if verbose:
-        for j in range(0,len(x),1):
-            if x[j] >= 270.072 and x[j] <= 270.073 and y[j] >= -28.54 and y[j] <= -28.55:
-                print(str(x[j])+','+str(y[j])+' -> '+str(x1[j])+', '+str(y1[j]))
+        detected_stars['ra'] = x1+field_centres['catalog'][0]
+        detected_stars['dec'] = y1+field_centres['catalog'][1]
 
     return detected_stars
 

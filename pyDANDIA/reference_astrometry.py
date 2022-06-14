@@ -238,12 +238,13 @@ def run_reference_astrometry(setup, **kwargs):
                                                         stellar_density_threshold,
                                                         transform=transform, radius=None)
 
-        transform = calc_coord_offsets.calc_world_transform(setup,
+        (transform,field_centres) = calc_coord_offsets.calc_world_transform(setup,
                                                 bright_central_detected_stars[matched_stars.cat1_index],
                                                 bright_central_gaia_stars[matched_stars.cat2_index],
                                                 log)
         detected_sources = calc_coord_offsets.transform_coordinates(setup, detected_sources,
-                                                                        transform, coords='radec',
+                                                                        transform, field_centres,
+                                                                        coords='radec',
                                                                         verbose=True)
 
         output_transformed_positions = True
@@ -256,7 +257,7 @@ def run_reference_astrometry(setup, **kwargs):
             matched_stars_gaia = wcs.match_stars_world_coords(detected_sources,gaia_sources,log,'Gaia',
                                                           radius=0.5, ra_centre=image_wcs.wcs.crval[0],
                                                           dec_centre=image_wcs.wcs.crval[1],
-                                                          verbose=False)
+                                                          verbose=True)
 
             matched_stars_vphas = wcs.match_stars_world_coords(detected_sources,vphas_sources,log,'VPHAS+',
                                                           radius=0.5, ra_centre=image_wcs.wcs.crval[0],
@@ -402,13 +403,14 @@ def run_reference_astrometry2(setup, **kwargs):
                                                         stellar_density_threshold,
                                                         transform=transform, radius=None)
 
-        transform = calc_coord_offsets.calc_world_transform(setup,
+        (transform,field_centres) = calc_coord_offsets.calc_world_transform(setup,
                                                 bright_central_detected_stars[matched_stars.cat1_index],
                                                 bright_central_gaia_stars[matched_stars.cat2_index],
                                                 log)
 
         detected_sources = calc_coord_offsets.transform_coordinates(setup, detected_sources,
-                                                                transform, coords='radec',
+                                                                transform, field_centres,
+                                                                coords='radec',
                                                                 verbose=True)
 
         log.info('Proceeding to x-match of full catalogs')

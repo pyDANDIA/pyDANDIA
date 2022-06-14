@@ -117,7 +117,7 @@ def run_reference_astrometry(setup, **kwargs):
         else:
             selection_radius = 0.05 #degrees
         log.info('Using a radius of '+str(selection_radius)+'deg to identify stars in the frame center')
-        
+
         (bright_central_detected_stars, bright_central_gaia_stars, selection_radius) = \
              wcs.extract_bright_central_stars(setup,detected_sources, gaia_sources,
                                             image_wcs, log, radius=selection_radius)
@@ -209,14 +209,14 @@ def run_reference_astrometry(setup, **kwargs):
         transform_robust, inliers = ransac((np.c_[cc,dd],np.c_[aa,bb]),tf.AffineTransform,residual_threshold = 0.5,min_samples=np.min([len(aa)-1,20]))
 
         matched_stars.reject_outliers(inliers)
-        
+
 
         log.info('Numbers of stars kept for WCS: '+str(len(matched_stars.cat1_index)))
         #gaia_sources = update_catalog_image_coordinates(setup, image_wcs, gaia_sources, log, 'catalog_stars_bright_revised_'+str(0)+'.reg',
         #                                            stellar_density, rotate_wcs, kwargs,
         #                                            stellar_density_threshold,
         #                                            transform=transform_robust, radius=selection_radius)
-        
+
         ####
         #x = bright_central_gaia_stars['x']
         #y = bright_central_gaia_stars['y']
