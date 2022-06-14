@@ -427,8 +427,9 @@ def calc_world_transform(setup, detected_stars, catalog_stars, log):
 
     return model
 
-def convert_pixel_to_world_transform(reduction_metadata,pixel_transform,log):
+def convert_pixel_to_world_transform(reduction_metadata,pixel_transform,detected_stars,log):
     pixscale = reduction_metadata.reduction_parameters[1]['PIX_SCALE'][0]
+
     transform = AffineTransform(translation=(pixel_transform.translation[0]*pixscale/3600.0,
                                              pixel_transform.translation[1]*pixscale/3600.0))
 
@@ -446,6 +447,9 @@ def transform_coordinates(setup, detected_stars, transform, coords='pixel',
     if coords == 'pixel':
         x = detected_stars['x'].data
         y = detected_stars['y'].data
+    elif coords == 'offsetradec':
+        x = detected_stars['ra'].data
+        y = detected_stars['dec'].data
     else:
         x = detected_stars['ra'].data-detected_stars['ra'].data.mean()
         y = detected_stars['dec'].data-detected_stars['dec'].data.mean()
@@ -454,7 +458,6 @@ def transform_coordinates(setup, detected_stars, transform, coords='pixel',
     x1 = transform.params[0,0] * x + \
             transform.params[0,1] * y + \
                 transform.params[0,2]
-
     #x1 = x + transform.params[0,2]
 
     #print('B coeffs: ',transform.params[1,:])
