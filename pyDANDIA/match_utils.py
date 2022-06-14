@@ -176,8 +176,8 @@ class StarMatchIndex:
     def summarize_last(self,units='deg'):
 
         j = self.n_match - 1
-        print('SUMMARIZE_LAST: ',self.n_match, len(self.cat1_index), len(self.separation), j)
-        
+        print('SUMMARIZE_LAST: ',self.n_match, len(self.cat1_index), len(self.cat2_index), len(self.separation), j)
+
         output = 'Catalog 1 star '+str(self.cat1_index[j])+' at RA,Dec=('+\
                         str(self.cat1_ra[j])+', '+str(self.cat1_dec[j])+'), x,y=('+\
                         str(self.cat1_x[j])+', '+str(self.cat1_y[j])+\

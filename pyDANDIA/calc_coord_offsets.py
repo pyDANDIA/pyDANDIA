@@ -408,6 +408,10 @@ def output_transformed_wcs_positions(setup, detected_stars, catalog_stars):
 
 def calc_world_transform(setup, detected_stars, catalog_stars, log):
 
+    min_samples = 20
+    if len(detected_stars) < min_samples:
+        min_samples = len(detected_stars)-1
+
     field_centres = {'detected': [detected_stars['ra'].data.mean(),
                                   detected_stars['dec'].data.mean()],
                      'catalog': [catalog_stars['ra'].data.mean(),
@@ -421,7 +425,7 @@ def calc_world_transform(setup, detected_stars, catalog_stars, log):
     cat_array[:,0] = catalog_stars['ra'].data-field_centres['catalog'][0]
     cat_array[:,1] = catalog_stars['dec'].data-field_centres['catalog'][1]
 
-    (model, inliers) = ransac((det_array, cat_array), AffineTransform, min_samples=20,
+    (model, inliers) = ransac((det_array, cat_array), AffineTransform, min_samples=min_samples,
                                residual_threshold=0.0003, max_trials=100)
 
     log.info('RANSAC identified '+str(len(inliers))+' inlying objects in the matched set')
