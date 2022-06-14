@@ -254,7 +254,7 @@ def run_reference_astrometry(setup, **kwargs):
                                                                         transform, coords='radec',
                                                                         verbose=True)
         else:
-            transform = calc_coord_offsets.convert_pixel_to_world_transform(reduction_metadata,transform,log)
+            transform = calc_coord_offsets.convert_pixel_to_world_transform(reduction_metadata,transform,detected_sources,log)
             detected_sources = calc_coord_offsets.transform_coordinates(setup, detected_sources,
                                                                 transform, coords='offsetradec')
 
