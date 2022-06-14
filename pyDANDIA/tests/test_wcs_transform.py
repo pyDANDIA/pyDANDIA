@@ -88,17 +88,46 @@ def test_offset_transform():
     # Configure pixel transform:
     dx = 130.0
     dy = 20.0
+    pixscale = 0.389/3600   # Converted to degrees
     transform_pix = AffineTransform(translation=(dx, dy))
 
-    # Test catalog of sources:
+    # Generate test catalogs of detected and reference sources:
     detected_sources = simulate_detected_sources()
-    updated_sources = copy.deepcopy(detected_sources)
+    catalog_sources = copy.deepcopy(detected_sources)
 
-    transform_deg = calc_coord_offsets.convert_pixel_to_world_transform(meta,transform_pix,detected_sources,log)
+    # Transform the world coordinates of the catalog sources:
+    catalog_sources['ra'] += dx*pixscale
+    catalog_sources['dec'] += dy*pixscale
 
-    updated_sources = calc_coord_offsets.transform_coordinates(setup, updated_sources,
-                                                            transform_deg, coords='offsetradec',
-                                                            verbose=True)
+    matched_stars = match_utils.StarMatchIndex()
+    matched_stars = wcs.match_stars_pixel_coords(bright_central_detected_stars,
+                                             bright_central_gaia_stars,log,
+                                             tol=2.0,verbose=False)
+    if len(matched_stars.cat1_index) > 3:
+        transform = calc_coord_offsets.calc_pixel_transform(setup,
+                                    bright_central_gaia_stars[matched_stars.cat2_index],
+                                    bright_central_detected_stars[matched_stars.cat1_index],
+                                    log, coordinates='pixel')
+
+    else:
+        raise ValueError('No matched stars')
+    catalog_sources = update_catalog_image_coordinates(setup, image_wcs,
+                                                catalog_sources, log,
+                                                'catalog_sources_revised_'+str(it)+'.reg',
+                                                stellar_density, rotate_wcs, kwargs,
+                                                stellar_density_threshold,
+                                                transform=transform,
+                                                radius=selection_radius)
+    (transform,field_centres) = calc_coord_offsets.calc_world_transform(setup,
+                                            bright_central_detected_stars[matched_stars.cat1_index],
+                                            bright_central_gaia_stars[matched_stars.cat2_index],
+                                            log)
+    detected_sources = calc_coord_offsets.transform_coordinates(setup, detected_sources,
+                                                                    transform, field_centres,
+                                                                    coords='radec',
+                                                                    verbose=True)
+
+
     for j in range(0,len(detected_sources),1):
         assert(detected_sources['ra'][j]+transform_deg.params[0,2] == updated_sources['ra'][j])
         assert(detected_sources['dec'][j]+transform_deg.params[1,2] == updated_sources['dec'][j])
