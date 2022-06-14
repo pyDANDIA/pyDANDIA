@@ -178,7 +178,7 @@ def run_reference_astrometry(setup, **kwargs):
 
                         log.info('Histogram method found a small transform, below the methods reliability threshold.  This transform will be ignored in favour of the RANSAC method')
 
-                elif it > 1 and kwargs['wcs_method'] in ['histogram', 'ransac']:
+                elif it > 1 and kwargs['wcs_method'] in ['histogram', 'ransac', 'offsets']:
                     log.info('Calculating transformation using the ransac method, iteration '+str(it))
                     matched_stars = wcs.match_stars_pixel_coords(bright_central_detected_stars,
                                                              bright_central_gaia_stars,log,
@@ -192,13 +192,6 @@ def run_reference_astrometry(setup, **kwargs):
 
                     else:
                         raise ValueError('No matched stars')
-
-                elif it > 1 and kwargs['wcs_method'] in ['offsets']:
-                    # Transform remains set to the given offsets
-                    log.info('Calculating transformation using the offets method, iteration '+str(it))
-                    matched_stars = wcs.match_stars_pixel_coords(bright_central_detected_stars,
-                                                             bright_central_gaia_stars,log,
-                                                             tol=2.0,verbose=False)
 
                 if kwargs['wcs_method'] == 'shortest_string':
                     det_array = np.zeros((len(bright_central_detected_stars),2))
@@ -245,18 +238,13 @@ def run_reference_astrometry(setup, **kwargs):
                                                         stellar_density_threshold,
                                                         transform=transform, radius=None)
 
-        if kwargs['wcs_method'] != 'offsets':
-            transform = calc_coord_offsets.calc_world_transform(setup,
+        transform = calc_coord_offsets.calc_world_transform(setup,
                                                 bright_central_detected_stars[matched_stars.cat1_index],
                                                 bright_central_gaia_stars[matched_stars.cat2_index],
                                                 log)
-            detected_sources = calc_coord_offsets.transform_coordinates(setup, detected_sources,
+        detected_sources = calc_coord_offsets.transform_coordinates(setup, detected_sources,
                                                                         transform, coords='radec',
                                                                         verbose=True)
-        else:
-            transform = calc_coord_offsets.convert_pixel_to_world_transform(reduction_metadata,transform,detected_sources,log)
-            detected_sources = calc_coord_offsets.transform_coordinates(setup, detected_sources,
-                                                                transform, coords='offsetradec')
 
         output_transformed_positions = True
         if output_transformed_positions:
