@@ -155,7 +155,19 @@ def get_args():
 
 def parse_phot_calibration_file(file_path):
     """Function to read in the parameters of the photometric calibration from
-    a file"""
+    a file
+
+    File format should be:
+    {
+       "filter": "<filter ID>",
+       "a0": <float>,
+       "a1": <float>,
+       "c0": <float>,
+       "c1": <float>,
+       "c2": <float>,
+       "c3": <float>
+    }
+    """
 
     if not os.path.isfile(file_path):
         raise IOError('Cannot find photometric calibration file '+file_path)
