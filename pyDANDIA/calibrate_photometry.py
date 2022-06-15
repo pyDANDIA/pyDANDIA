@@ -835,6 +835,12 @@ def model_phot_transform2(params,star_catalog,match_index,fit,
                 f.write(str(xbins[i])+' '+str(ybins[i])+'\n')
             f.close()
 
+            f = open(os.path.join(params['red_dir'],'unbinned_phot.dat'),'w')
+            for j in range(0,len(cat_mags),1):
+                f.write(str(det_mags[j])+' '+str(det_mag_errs[j])+' '+\
+                        str(cat_mags[j])+' '+str(cat_merrs[j])+'\n')
+            f.close()
+
             plot_file = os.path.join(params['red_dir'],
                         'phot_model_transform_'+params['filter']+'.png')
             if os.path.isfile(plot_file):
@@ -897,7 +903,7 @@ def phot_func(p,mags):
         return np.polyval(p,mags)
     else:
         raise IndexError('Photometric transform called with an unexpected number of terms')
-        
+
 def errfunc(p,x,y):
     """Function to calculate the residuals on the photometric transform"""
 
