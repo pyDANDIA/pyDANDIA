@@ -166,6 +166,11 @@ def fetch_catalog_sources_for_field(setup,field,header,image_wcs,log,
         catalog_utils.output_vizier_catalog(catalog_file, catalog_sources,
                                             catalog_name)
 
+    # Masking catalog array to remove the NaN entries that the Gaia catalog
+    # can occasionally produce.
+    mask = np.isfinite(np.array(catalog_sources['ra']))
+    catalog_sources = catalog_sources[mask]
+
     return catalog_sources
 
 def extract_bright_central_stars(setup, detected_sources, catalog_sources,
