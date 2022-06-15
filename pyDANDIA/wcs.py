@@ -755,6 +755,13 @@ def match_stars_world_coords(detected_sources,catalog_sources,log,catalog_name,
                          'cat2_dec': catalog_sources['dec'][j],
                          'separation': d2d.value[0]}
 
+                    try:
+                        p['cat2_x'] = catalog_sources['x'][j]
+                        p['cat2_y'] = catalog_sources['y'][j]
+                    except:
+                        p['cat2_x'] = np.NaN
+                        p['cat2_y'] = np.NaN
+
                     matched_stars.add_match(p)
                     nm += 1
 
