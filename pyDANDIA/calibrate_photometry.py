@@ -831,11 +831,13 @@ def model_phot_transform2(params,star_catalog,match_index,fit,
         if diagnostics:
 
             f = open(os.path.join(params['red_dir'],'binned_phot.dat'),'w')
+            f.write('# Instrmental_mag   Catalog_mag\n')
             for i in range(0,len(xbins),1):
                 f.write(str(xbins[i])+' '+str(ybins[i])+'\n')
             f.close()
 
             f = open(os.path.join(params['red_dir'],'unbinned_phot.dat'),'w')
+            f.write('# Detected_mag Detected_magerr  Catalog_mag  Catalog_magerr\n')
             for j in range(0,len(cat_mags),1):
                 f.write(str(det_mags[j])+' '+str(det_mag_errs[j])+' '+\
                         str(cat_mags[j])+' '+str(cat_merrs[j])+'\n')
