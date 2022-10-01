@@ -11,7 +11,7 @@ def use_bpm_from_ref_image(params):
 
     # If there is a preexisting master_mask rename it
     mask_file_path = path.join(params['red_dir'],'ref/','master_mask.fits')
-    if path.isfile(old_mask_path):
+    if path.isfile(mask_file_path):
         bkup_mask_path = path.join(params['red_dir'],'ref/','default_master_mask.fits')
         rename(mask_file_path, bkup_mask_path)
         log.info('Renamed preexisting BPM to '+bkup_mask_path)
