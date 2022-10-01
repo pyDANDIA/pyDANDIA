@@ -1,4 +1,5 @@
 from os import path, rename
+from sys import argv
 from pyDANDIA import image_handling
 from pyDANDIA import logs
 
