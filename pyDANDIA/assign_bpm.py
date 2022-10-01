@@ -35,7 +35,7 @@ def get_args():
         params['ref_file_path'] = input('Please enter the path to the reference image: ')
     else:
         params['ref_file_path'] = argv[1]
-    params['red_dir'] = path.dirpath(path.join(path.dirpath(params['ref_file_path']),'../'))
+    params['red_dir'] = path.dirname(path.join(path.dirname(params['ref_file_path']),'../'))
 
     return params
 
