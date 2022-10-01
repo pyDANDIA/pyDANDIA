@@ -2,6 +2,7 @@ from os import path, rename
 from sys import argv
 from pyDANDIA import image_handling
 from pyDANDIA import logs
+from astropy.io import fits
 
 def use_bpm_from_ref_image(params):
     """Function replaces the default master_mask.fits Bad Pixel Mask with
