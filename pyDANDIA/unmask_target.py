@@ -43,9 +43,9 @@ def get_args():
     else:
         params['red_dir'] = argv[1]
         params['target_x'] = float(argv[2])
-        params['target_y'] = float(argv[3]])
+        params['target_y'] = float(argv[3])
         params['dx'] = float(argv[4])
-        params['dy'] = float(argv[5]])
+        params['dy'] = float(argv[5])
     return params
 
 if __name__ == '__main__':
