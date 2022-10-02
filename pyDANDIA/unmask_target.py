@@ -38,10 +38,14 @@ def get_args():
         params['red_dir'] = input('Please enter the path to the reduction directory: ')
         params['target_x'] = float(input('Please enter the x-centroid of the target: '))
         params['target_y'] = float(input('Please enter the y-centroid of the target: '))
+        params['dx'] = float(input('Please enter the half-width of the box around the target: '))
+        params['dy'] = float(input('Please enter the half-height of the box around the target: '))
     else:
         params['red_dir'] = argv[1]
         params['target_x'] = float(argv[2])
         params['target_y'] = float(argv[3]])
+        params['dx'] = float(argv[4])
+        params['dy'] = float(argv[5]])
     return params
 
 if __name__ == '__main__':
