@@ -23,10 +23,10 @@ def unmask(params):
     log.info('Extracted BPM data from reference image '+mask_file_path)
 
     # Identify the pixels close to the target location and set the mask to zero
-    xmin = np.floor(params['target_x']-params['dx'])
-    xmax = np.ceiling(params['target_x']+params['dx'])
-    ymin = np.floor(params['target_y']-params['dy'])
-    ymax = np.ceiling(params['target_y']+params['dy'])
+    xmin = int(np.floor(params['target_x']-params['dx']))
+    xmax = int(np.ceil(params['target_x']+params['dx']))
+    ymin = int(np.floor(params['target_y']-params['dy']))
+    ymax = int(np.ceil(params['target_y']+params['dy']))
     bpm_data[ymin:ymax, xmin:xmax] = 0
     log.info('Unmasked pixels within x-range: ['+str(xmin)+','+str(xmax)
                 + '], y-range: ['+str(xmin)+','+str(xmax)+']')
