@@ -4,6 +4,7 @@ from sys import argv
 from pyDANDIA import image_handling
 from pyDANDIA import logs
 from astropy.io import fits
+import numpy as np
 
 def unmask(params):
 
@@ -22,10 +23,10 @@ def unmask(params):
     log.info('Extracted BPM data from reference image '+mask_file_path)
 
     # Identify the pixels close to the target location and set the mask to zero
-    xmin = params['target_x']-params['dx']
-    xmax = params['target_x']+params['dx']
-    ymin = params['target_y']-params['dy']
-    ymax = params['target_y']+params['dy']
+    xmin = np.floor(params['target_x']-params['dx'])
+    xmax = np.ceiling(params['target_x']+params['dx'])
+    ymin = np.floor(params['target_y']-params['dy'])
+    ymax = np.ceiling(params['target_y']+params['dy'])
     bpm_data[ymin:ymax, xmin:xmax] = 0
     log.info('Unmasked pixels within x-range: ['+str(xmin)+','+str(xmax)
                 + '], y-range: ['+str(xmin)+','+str(xmax)+']')
