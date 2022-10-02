@@ -16,7 +16,7 @@ def unmask(params):
         log.info('Renamed preexisting BPM to '+bkup_mask_path)
 
     # Read the data from the old mask
-    bpm_data = fits.open(bkup_mask_path)[0]
+    bpm_data = fits.open(mask_file_path)[0]
     log.info('Extracted BPM data from reference image '+mask_file_path)
 
     # Identify the pixels close to the target location and set the mask to zero
@@ -27,7 +27,7 @@ def unmask(params):
     bpm_data[ymin:ymax, xmin:xmax] = 0
     log.info('Unmasked pixels within x-range: ['+str(xmin)+','+str(xmax)
                 + '], y-range: ['+str(xmin)+','+str(xmax)+']')
-                
+
     # Output the revised BPM
     master_mask_hdu = fits.PrimaryHDU(bpm_data)
     master_mask_hdu.writeto(mask_file_path, overwrite=True)
