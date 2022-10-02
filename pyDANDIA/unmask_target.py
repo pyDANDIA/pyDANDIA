@@ -1,4 +1,5 @@
-from os import path, rename
+from os import path
+from shutil import copy2
 from sys import argv
 from pyDANDIA import image_handling
 from pyDANDIA import logs
@@ -12,8 +13,8 @@ def unmask(params):
     mask_file_path = path.join(params['red_dir'],'ref/','master_mask.fits')
     if path.isfile(mask_file_path):
         bkup_mask_path = path.join(params['red_dir'],'ref/','default_master_mask.fits')
-        rename(mask_file_path, bkup_mask_path)
-        log.info('Renamed preexisting BPM to '+bkup_mask_path)
+        copy2(mask_file_path, bkup_mask_path)
+        log.info('Copied preexisting BPM to '+bkup_mask_path)
 
     # Read the data from the old mask
     bpm_data = fits.open(mask_file_path)[0]
