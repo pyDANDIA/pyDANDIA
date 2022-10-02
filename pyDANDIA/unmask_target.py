@@ -17,7 +17,8 @@ def unmask(params):
         log.info('Copied preexisting BPM to '+bkup_mask_path)
 
     # Read the data from the old mask
-    bpm_data = fits.open(mask_file_path)[1]
+    bpm = fits.open(mask_file_path)
+    bpm_data = bpm[0].data
     log.info('Extracted BPM data from reference image '+mask_file_path)
 
     # Identify the pixels close to the target location and set the mask to zero
