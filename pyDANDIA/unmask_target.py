@@ -8,7 +8,7 @@ import numpy as np
 
 def unmask(params):
 
-    log = logs.start_stage_log(params['red_dir'], 'assign_bpm')
+    log = logs.start_stage_log(params['red_dir'], 'unmask_bpm')
 
     # If there is a preexisting master_mask rename it
     mask_file_path = path.join(params['red_dir'],'ref/','master_mask.fits')
