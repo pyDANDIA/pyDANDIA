@@ -46,7 +46,7 @@ def get_args():
         params['base_dir'] = input('Please enter the path to the base directory: ')
         params['phot_db_path'] = input('Please enter the path to the database file [or None to switch off DB]: ')
         print('''Please enter the required reduction mode out of:
-        {data_preparation, added_data_preparation, reference_analysis, image_analysis, stage3_db_ingest, stage6, stage3, post_processing}''')
+        {data_preparation, added_data_preparation, reference_analysis, image_analysis, stage3_db_ingest, stage6, stage3, post_processing, recalibrate}''')
         params['red_mode'] = input('Reduction mode: ')
 
     else:
@@ -209,6 +209,11 @@ def trigger_parallel_reduction(setup,dataset_dir,data_status,kwargs,log,debug=Fa
         args = [pythonpath, command, setup.red_mode, dataset_dir, setup.phot_db_path]
 
     elif setup.red_mode == 'post_processing':
+
+        command = path.join(setup.software_dir,'run_stage.py')
+        args = [pythonpath, command, setup.red_mode, dataset_dir, setup.phot_db_path]
+
+    elif setup.red_mode == 'recalibrate':
 
         command = path.join(setup.software_dir,'run_stage.py')
         args = [pythonpath, command, setup.red_mode, dataset_dir, setup.phot_db_path]
