@@ -19,6 +19,7 @@ from pyDANDIA import stage1
 from pyDANDIA import stage2
 from pyDANDIA import stage3
 from pyDANDIA import calibrate_photometry
+from pyDANDIA import recalibrate_photometry
 #from pyDANDIA import reference_astrometry
 from pyDANDIA import new_reference_astrometry
 from pyDANDIA import stage3_db_ingest
