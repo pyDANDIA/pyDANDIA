@@ -34,7 +34,8 @@ def calibrate_photometry_catalog(setup, **kwargs):
     magnitudes produced by the pyDANDIA pipeline and catalog data."""
 
     log = logs.start_stage_log( setup.red_dir, 'phot_calib', version=VERSION )
-
+    print('Started log at '+setup.red_dir)
+    
     params = assign_parameters(setup,kwargs,log)
 
     (reduction_metadata, params) = fetch_metadata(setup,params,log)
