@@ -26,10 +26,15 @@ def run_phot_normalization(setup, **params):
     mag_col = 5
     merr_col = 6
 
+    # Identify the datasets to be used as the primary reference in each
+    # filter:
+    xmatch.id_primary_datasets_per_filter()
+
     # Extract list of filters from xmatch.images['filter'] column
     filter_list = np.unique(xmatch.images['filter'].data)
 
     # Loop over all quadrants.  XXX CURRENTLY LIMITED FOR TESTING XXX
+    # THIS NEEDS TO COMBINE PHOTOMETRY FROM QUADS TO AVOID BOUNDARY ISSUES
     for quad in range(1,2,1):
         phot_file = path.join(setup.red_dir,params['field_name']+'_quad'+str(quad)+'_photometry.hdf5')
         phot_data = hd5_utils.read_phot_from_hd5_file(phot_file, return_type='array')
@@ -54,21 +59,28 @@ def run_phot_normalization(setup, **params):
             rename(path.join(params['red_dir'],'rms.png'),
                    path.join(params['red_dir'],'rms_prenorm'+str(filter)+'.png'))
 
-            # Extract the lightcurves for the primary-ref dataset for this filter
+    # Normalize the photometry of each dataset to that of the reference
+    # image in the primary reference dataset in that filter
+    for filter in filter_list:
+        # Extract the reference image photometry for the primary-ref dataset
+        # for this filter
+        ref_datacode = xmatch.reference_datasets[filter]
+        idx_ref_dataset = np.where(self.datasets['dataset_code'] == ref_datacode)[0]
 
-            # Identify constant stars based on RMS
+        
+    # Identify constant stars based on RMS
 
-            # Extract the lightcurves for all other datasets in turn, and
-            # calculate their weighted offset relative to the primary-ref
-            # dataset for the filter
+    # Extract the lightcurves for all other datasets in turn, and
+    # calculate their weighted offset relative to the primary-ref
+    # dataset for the filter
 
-            # Plot delta mag histogram, delta mag vs mag, delta mag vs position
+    # Plot delta mag histogram, delta mag vs mag, delta mag vs position
 
-            # Compute corrected mag
+    # Compute corrected mag
 
-            # Plot a multi-site final RMS diagram for comparison
+    # Plot a multi-site final RMS diagram for comparison
 
-            # Output updated phot.hdf file
+    # Output updated phot.hdf file
 
     logs.close_log(log)
 

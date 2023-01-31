@@ -426,7 +426,7 @@ def output_revised_photometry(setup, photometry, log):
 
     # Back up the older photometry file for now
     phot_file_name = path.join(setup.red_dir,'photometry.hdf5')
-    bkup_file_name = path.join(setup.red_dir,'photometry_stage6.hdf5')
+    bkup_file_name = path.join(setup.red_dir,'photometry_post_stage6.hdf5')
     if path.isfile(phot_file_name):
         rename(phot_file_name, bkup_file_name)
 

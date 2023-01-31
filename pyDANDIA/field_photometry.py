@@ -236,19 +236,15 @@ def populate_stars_table(dataset,xmatch,dataset_metadata,log):
     dataset_id = '_'.join(dataset['dataset_code'].split('_')[1].split('-')[0:2])
     filter_name = parse_sloan_filter_ids(dataset['dataset_filter'])
 
-    if check_for_reference_dataset(dataset['dataset_code']):
-        mag_column = 'cal_'+filter_name+'_mag_'+dataset_id
-        mag_error_column = 'cal_'+filter_name+'_magerr_'+dataset_id
+    mag_column = 'cal_'+filter_name+'_mag_'+dataset_id
+    mag_error_column = 'cal_'+filter_name+'_magerr_'+dataset_id
 
-        (field_array_idx,dataset_array_idx) = get_dataset_star_indices(dataset,xmatch)
+    (field_array_idx,dataset_array_idx) = get_dataset_star_indices(dataset,xmatch)
 
-        xmatch.stars[mag_column][field_array_idx] = dataset_metadata.star_catalog[1]['cal_ref_mag'][dataset_array_idx]
-        xmatch.stars[mag_error_column][field_array_idx] = dataset_metadata.star_catalog[1]['cal_ref_mag_error'][dataset_array_idx]
+    xmatch.stars[mag_column][field_array_idx] = dataset_metadata.star_catalog[1]['cal_ref_mag'][dataset_array_idx]
+    xmatch.stars[mag_error_column][field_array_idx] = dataset_metadata.star_catalog[1]['cal_ref_mag_error'][dataset_array_idx]
 
-        log.info('-> Populated stars table with '+dataset_id+' reference image photometry for filter '+filter_name)
-    else:
-        log.info('-> Dataset not used as a reference dataset')
-        (field_array_idx,dataset_array_idx) = get_dataset_star_indices(dataset,xmatch)
+    log.info('-> Populated stars table with '+dataset_id+' reference image photometry for filter '+filter_name)
 
     return xmatch, field_array_idx, dataset_array_idx
 
@@ -344,8 +340,6 @@ def init_field_data_table(xmatch,log):
     # sub_image_sky_bkgd, sub_image_sky_bkgd_err,
     # residual_x, residual_y
     # qc_flag
-    # Note: corrected_mag columns included to allow for likely future expansion;
-    # not yet populated
     photometry = np.zeros( (len(xmatch.stars), len(xmatch.images), 17) )
     log.info('Initialized timeseries photometry array')
 
