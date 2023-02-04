@@ -485,10 +485,10 @@ class CrossMatchTable():
 
         for site in sitecodes:
             for f in filters:
-                stars_columns.append( Column(name='cal_'+f+'_mag_'+site', data=np.zeros(nstars), dtype='float') )
-                stars_columns.append( Column(name='cal_'+f+'_magerr_'+site', data=np.zeros(nstars), dtype='float') )
-                stars_columns.append( Column(name='norm_'+f+'_mag_'+site', data=np.zeros(nstars), dtype='float') )
-                stars_columns.append( Column(name='norm_'+f+'_magerr_'+site', data=np.zeros(nstars), dtype='float') )
+                stars_columns.append( Column(name='cal_'+f+'_mag_'+site, data=np.zeros(nstars), dtype='float') )
+                stars_columns.append( Column(name='cal_'+f+'_magerr_'+site, data=np.zeros(nstars), dtype='float') )
+                stars_columns.append( Column(name='norm_'+f+'_mag_'+site, data=np.zeros(nstars), dtype='float') )
+                stars_columns.append( Column(name='norm_'+f+'_magerr_'+site, data=np.zeros(nstars), dtype='float') )
 
         stars_columns.append(Column(name='gaia_source_id', data=np.array(['0.0']*nstars), dtype='S19'))
         stars_columns.append(Column(name='gaia_ra', data=np.zeros(nstars), dtype='float'))
