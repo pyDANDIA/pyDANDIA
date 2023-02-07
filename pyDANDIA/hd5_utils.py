@@ -69,11 +69,13 @@ def read_phot_from_hd5_file(file_path, return_type='hdf5'):
 def load_four_quadrant_photometry(red_dir, file_rootname, verbose=False):
     """Function to read the timeseries photometry from all four quadrants"""
 
-    phot_data = np.array([])
     for q in range(1,5,1):
         file_path = os.path.join(red_dir, file_rootname+'_quad'+str(q)+'_photometry.hdf5')
         quad_data = read_phot_from_hd5_file(file_path, return_type='array')
-        phot_data = np.concatenate((phot_data, quad_data))
+        if q == 1:
+            phot_data = quad_data
+        else:
+            phot_data = np.concatenate((phot_data, quad_data))
         if verbose: print('Read in photometry for quadrant '+str(q))
 
     if verbose: print('Completed read of timeseries photometry: '+repr(phot_data.shape))
