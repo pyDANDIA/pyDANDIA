@@ -55,6 +55,9 @@ def get_photometry_columns(phot_columns='instrumental'):
     elif phot_columns == 'corrected':
         mag_col = 23
         merr_col = 24
+    elif phot_columns == 'normalized':
+        mag_col = 26
+        merr_col = 27
 
     return mag_col, merr_col
 

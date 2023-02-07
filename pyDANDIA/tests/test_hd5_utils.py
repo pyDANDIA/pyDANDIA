@@ -47,6 +47,17 @@ def test_read_phot_hd5():
 
     logs.close_log(log)
 
+def test_read_quadrants():
+
+    red_dir = input('Please enter the path to the test data directory: ')
+    file_rootname = input('Please enter the prefix of the photometry HDF files: ')
+    phot_data = hd5_utils.load_four_quadrant_photometry(red_dir, file_rootname,
+                                                        verbose=True)
+
+    assert(phot_data.shape[0] > 100000)
+    print('Read in photometry data with array shape: '+repr(phot_data.shape))
+
 if __name__ == '__main__':
-    test_write_phot_hd5()
-    test_read_phot_hd5()
+    #test_write_phot_hd5()
+    #test_read_phot_hd5()
+    test_read_quadrants()

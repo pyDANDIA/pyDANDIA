@@ -65,3 +65,18 @@ def read_phot_from_hd5_file(file_path, return_type='hdf5'):
         return dset
     else:
         return np.array(dset[:])
+
+def load_four_quadrant_photometry(red_dir, file_rootname, verbose=False):
+    """Function to read the timeseries photometry from all four quadrants"""
+
+    quadrants = []
+    for q in range(1,5,1):
+        file_path = os.path.join(red_dir, file_rootname+'_quad'+str(q)+'_photometry.hdf5')
+        quadrants.append(read_phot_from_hd5_file(file_path, return_type='array'))
+        if verbose: print('Read in photometry for quadrant '+str(q))
+
+    phot_data = np.concatenate((quadrants[0], quadrants[1]))
+    phot_data = np.concatenate((phot_data, quadrants[2]))
+    phot_data = np.concatenate((phot_data, quadrants[3]))
+
+    return phot_data

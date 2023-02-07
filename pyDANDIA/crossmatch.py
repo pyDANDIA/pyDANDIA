@@ -59,8 +59,13 @@ class CrossMatchTable():
                      Column(name='dataset_red_dir', data=reddirs, dtype='str'),
                      Column(name='dataset_filter', data=filters, dtype='S8'),
                      Column(name='primary_ref',data=pref_index, dtype='int'),
-                     Column(name='phot_transform_a0',data=np.zeros(len(codes)), dtype='float'),
-                     Column(name='phot_transform_a1',data=np.zeros(len(codes)), dtype='float')]
+                     Column(name='norm_a0',data=np.zeros(len(codes)), dtype='float'),
+                     Column(name='norm_a1',data=np.zeros(len(codes)), dtype='float'),
+                     Column(name='norm_covar_0',data=np.zeros(len(codes)), dtype='float'),
+                     Column(name='norm_covar_1',data=np.zeros(len(codes)), dtype='float'),
+                     Column(name='norm_covar_2',data=np.zeros(len(codes)), dtype='float'),
+                     Column(name='norm_covar_3',data=np.zeros(len(codes)), dtype='float'),
+                     ]
 
         self.datasets = Table(dataset_columns)
         self.field_index = Table(field_index_columns)
