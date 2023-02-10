@@ -55,8 +55,8 @@ def run_phot_normalization(setup, **params):
     # to calibrate the quadrant's data separately.  However, there are sufficient
     # stars in each quantant to be able to determine the photometric calibration
     # from a single quadrant, and apply it to the rest of the image.
-    log.info('Loading the timeseries photometry from quadrant 2')
-    file_path = path.join(setup.red_dir, params['field_name']+'_quad2_photometry.hdf5')
+    log.info('Loading the timeseries photometry from quadrant 1')
+    file_path = path.join(setup.red_dir, params['field_name']+'_quad1_photometry.hdf5')
     phot_data = hd5_utils.read_phot_from_hd5_file(file_path, return_type='array')
     log.info('-> Completed photometry load')
 
@@ -122,13 +122,13 @@ def run_phot_normalization(setup, **params):
 
                 # Apply the photometry calibration to the timeseries data
                 # for this dataset
-                #(mag_col, mag_err_col) = field_photometry.get_field_photometry_columns('corrected')
-                #(norm_mag_col, norm_mag_err_col) = field_photometry.get_field_photometry_columns('normalized')
-                #phot_data = normalize_timeseries_photometry(phot_data, image_index,
-                #                                            fit, covar_fit,
-                #                                            mag_col, mag_err_col,
-                #                                            norm_mag_col, norm_mag_err_col,
-                #                                            log)
+                (mag_col, mag_err_col) = field_photometry.get_field_photometry_columns('corrected')
+                (norm_mag_col, norm_mag_err_col) = field_photometry.get_field_photometry_columns('normalized')
+                phot_data = normalize_timeseries_photometry(phot_data, image_index,
+                                                            fit, covar_fit,
+                                                            mag_col, mag_err_col,
+                                                            norm_mag_col, norm_mag_err_col,
+                                                            log)
 
         # Plot a second RMS diagram of the lightcurves for all stars in this
         # filter, post normalization, for comparison
@@ -142,7 +142,7 @@ def run_phot_normalization(setup, **params):
     xmatch.save(params['crossmatch_file'])
 
     # Output the photometry for quadrant 1:
-    #output_quadrant_photometry(params, setup, 1, xmatch, phot_data, log)
+    output_quadrant_photometry(params, setup, 1, xmatch, phot_data, log)
 
     logs.close_log(log)
 
@@ -276,10 +276,16 @@ def calc_phot_normalization(ref_phot, dset_phot, constant_stars, log,
     # Select from the list of constant stars in the primary reference in i-band,
     # those which have valid photometric measurements in the current dataset
     # and filter
+    # Also require that the difference between the dataset and primary reference
+    # magnitude does not exceed a given threshold.  This is to stop a large
+    # number of very faint stellar detections being overweighted in the fit,
+    # compared with the smaller number of better-measured brighter stars.
+    delta_mag = abs(ref_phot[constant_stars,0] - dset_phot[constant_stars,0])
     valid = ((ref_phot[constant_stars,0] > 0.0)
                 & (ref_phot[constant_stars,1] <= 0.05)
                 & (dset_phot[constant_stars,0] > 0.0)
-                & (dset_phot[constant_stars,1] <= 0.05))
+                & (dset_phot[constant_stars,1] <= 0.05)
+                & (delta_mag <= 0.5))
 
     (fit,covar_fit) = calibrate_photometry.calc_transform(fit,
                                                     ref_phot[constant_stars[valid],0],
