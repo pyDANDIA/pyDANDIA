@@ -638,16 +638,16 @@ class CrossMatchTable():
         return results
 
     def id_primary_datasets_per_filter(self):
-        ref_dataset = {'g': None, 'r': None, 'i': None}
+        ref_dataset = {'gp': None, 'rp': None, 'ip': None}
 
         primary_ref = np.where(self.datasets['primary_ref'] == 1)[0]
-        f_primary_ref = self.datasets['filter'][primary_ref]
-        ref_dataset[f_primary_ref] = self.datasets['dataset_code'][primary_ref]
-        entries = self.datasets['dataset_code'][primary_ref].split('_')
+        f_primary_ref = self.datasets['dataset_filter'][primary_ref][0]
+        ref_dataset[f_primary_ref] = self.datasets['dataset_code'][primary_ref][0]
+        entries = str(self.datasets['dataset_code'][primary_ref][0]).split('_')
         reference_source = entries[0]+'_'+entries[1]
 
-        for f in ['g', 'r', 'i']:
+        for f in ref_dataset.keys():
             if ref_dataset[f] == None:
-                ref_dataset[f] = reference_source+'_'+f+'p'
+                ref_dataset[f] = reference_source+'_'+f
 
         self.reference_datasets = ref_dataset

@@ -139,6 +139,29 @@ def update_array_col_index(index3d, new_col):
 
     return new_tuple
 
+def get_field_photometry_columns(phot_columns='instrumental'):
+    """Function to return the column indices of the magnitude and magnitude uncertainties
+    in the photometry array for a single dataset.  Options are:
+    instrumental
+    calibrated
+    corrected
+    """
+
+    if phot_columns == 'instrumental':
+        mag_col = 1
+        merr_col = 2
+    elif phot_columns == 'calibrated':
+        mag_col = 3
+        merr_col = 4
+    elif phot_columns == 'corrected':
+        mag_col = 5
+        merr_col = 6
+    elif phot_columns == 'normalized':
+        mag_col = 7
+        merr_col = 8
+
+    return mag_col, merr_col
+
 def populate_photometry_array(field_star_index, dataset_star_index,
                                 dataset_image_index, photometry, dataset_photometry,
                                 xmatch, log, dataset_metadata):
