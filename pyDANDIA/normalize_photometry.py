@@ -142,7 +142,7 @@ def run_phot_normalization(setup, **params):
     xmatch.save(params['crossmatch_file'])
 
     # Output the photometry for quadrant 1:
-    output_quadrant_photometry(params, setup, 1, xmatch, phot_data, log)
+    output_quadrant_photometry(params, setup, 1, phot_data, log)
 
     logs.close_log(log)
 
@@ -150,17 +150,14 @@ def run_phot_normalization(setup, **params):
     report = 'Completed successfully'
     return status, report
 
-def output_quadrant_photometry(params, setup, qid, xmatch, photometry, log):
-
-    log.info('Outputting photometry for quadrant '+str(qid)
-                +', array shape: '+repr(photometry.shape))
+def output_quadrant_photometry(params, setup, qid, photometry, log):
 
     filename = params['field_name']+'_quad'+str(qid)+'_photometry.hdf5'
+    log.info('Outputting photometry for quadrant '+str(qid)
+                +', array shape: '+repr(photometry.shape)
+                +' to '+filename)
 
-    idx = np.where(xmatch.field_index['quadrant'] == qid)[0]
-    quad_phot_data = photometry[idx,:,:]
-
-    hd5_utils.write_phot_hd5(setup, quad_phot_data, log=log,
+    hd5_utils.write_phot_hd5(setup, photometry, log=log,
                                 filename=filename)
 
 def get_site_code(datacode):
