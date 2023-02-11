@@ -37,12 +37,13 @@ def run_phot_normalization(setup, **params):
     # parameters
     ndset = len(xmatch.datasets)
     ncol = len(xmatch.datasets.colnames)
-    xmatch.datasets.add_column(np.zeros(ndset), name='norm_a0', index=ncol+1)
-    xmatch.datasets.add_column(np.zeros(ndset), name='norm_a1', index=ncol+2)
-    xmatch.datasets.add_column(np.zeros(ndset), name='norm_covar_0', index=ncol+3)
-    xmatch.datasets.add_column(np.zeros(ndset), name='norm_covar_1', index=ncol+4)
-    xmatch.datasets.add_column(np.zeros(ndset), name='norm_covar_2', index=ncol+5)
-    xmatch.datasets.add_column(np.zeros(ndset), name='norm_covar_3', index=ncol+6)
+    if 'norm_a0' not in xmatch.datasets.colnames:
+        xmatch.datasets.add_column(np.zeros(ndset), name='norm_a0', index=ncol+1)
+        xmatch.datasets.add_column(np.zeros(ndset), name='norm_a1', index=ncol+2)
+        xmatch.datasets.add_column(np.zeros(ndset), name='norm_covar_0', index=ncol+3)
+        xmatch.datasets.add_column(np.zeros(ndset), name='norm_covar_1', index=ncol+4)
+        xmatch.datasets.add_column(np.zeros(ndset), name='norm_covar_2', index=ncol+5)
+        xmatch.datasets.add_column(np.zeros(ndset), name='norm_covar_3', index=ncol+6)
     log.info('Expanded xmatch.datasets table for normalization parameters')
 
     # Extract list of filters from xmatch.images['filter'] column
