@@ -63,16 +63,19 @@ def run_phot_normalization(setup, **params):
 
     # Identify constant stars in the dataset
     constant_stars = find_constant_stars(xmatch, phot_data, log)
+    star = 8203
 
     # Normalize the photometry of each dataset to that of the reference
     # image in the primary reference dataset in that filter
-    for filter in filter_list:
+    #for filter in filter_list:
+    for filter in ['ip']:
 
         # Plot an RMS diagram of the lightcurves for all stars in this filter,
         # prior to normalization, for comparison
         image_index = np.where(xmatch.images['filter'] == filter)[0]
         phot_data_filter = phot_data[:,image_index,:]
         (mag_col, mag_err_col) = field_photometry.get_field_photometry_columns('corrected')
+
         plot_multisite_rms(params, phot_data_filter, mag_col, mag_err_col,
                             'rms_prenorm_'+str(filter)+'.png', log)
 
@@ -139,6 +142,21 @@ def run_phot_normalization(setup, **params):
         plot_multisite_rms(params, phot_data_filter, mag_col, mag_err_col,
                             'rms_postnorm_'+str(filter)+'.png', log)
 
+
+        fig = plt.figure(3,(10,10))
+        (norm_mag_col, norm_mag_err_col) = field_photometry.get_field_photometry_columns('normalized')
+        idx = np.where(phot_data[star,:,norm_mag_col] > 0.0)[0]
+        plt.errorbar(phot_data[star,idx,0], phot_data[star,idx,norm_mag_col],
+                     yerr=phot_data[star,idx,norm_mag_err_col], fmt='none', color='k')
+        (xmin,xmax,ymin,ymax) = plt.axis()
+        ymin = max(ymin,14.0)
+        ymax = min(ymax,22.0)
+        plt.axis([xmin,xmax,ymax,ymin])
+        plt.xlabel('HJD')
+        plt.ylabel('Mag')
+        plt.savefig('Star_'+str(star)+'_lc_norm.png')
+        plt.close(3)
+
     # Output updated crossmatch table
     xmatch.save(params['crossmatch_file'])
 
@@ -176,6 +194,13 @@ def plot_multisite_rms(params, phot_data, mag_col, merr_col, plot_filename, log)
     phot_statistics = np.zeros( (len(phot_data),4) )
     (phot_statistics[:,0],werror) = plot_rms.calc_weighted_mean_2D(phot_data, mag_col, merr_col)
     phot_statistics[:,1] = plot_rms.calc_weighted_rms(phot_data, phot_statistics[:,0], mag_col, merr_col)
+
+    text_filename = plot_filename.replace('.png', '.txt')
+    f = open(path.join(params['red_dir'],text_filename),'w')
+    f.write('# Star_index  wMean_mag   RMS\n')
+    for j in range(0,len(phot_statistics),1):
+        f.write(str(j)+' '+str(phot_statistics[:,0])+' '+str(phot_statistics[:,1])+'\n')
+    f.close()
 
     fig = plt.figure(3,(10,10))
     plt.rcParams.update({'font.size': 18})
@@ -228,7 +253,7 @@ def find_constant_stars(xmatch, phot_data, log):
     constant_stars = np.where((rms >= min_cut) & (rms <= max_cut))[0]
 
     log.info('Identified '+str(len(constant_stars))
-            +' stars with RMS between '+str(min_cut)+' and '+str(max_cut)
+            +' stars with RMS between '+str(round(min_cut,3))+' and '+str(round(max_cut,3))
             +'mag to use for the normalization')
 
     return constant_stars
@@ -369,6 +394,15 @@ def apply_phot_normalization_single_frame(fit, covar_fit, frame_phot_data,
     cal_data[valid,3] = star_cat['cal_ref_flux_err'][valid]
 
     if diagnostics:
+        f = open(path.join(params['red_dir'],
+                    'norm_phot_'+dset+'_'+ref+'_'+f+'.txt'),'w')
+        f.write('# Star_id  cal_mag cal_merr  norm_mag  norm_merr\n')
+        for j in valid:
+            f.write(str(j)+' '+str(frame_phot_data[valid,mag_col])+' '\
+                        +str(frame_phot_data[valid,mag_err_col])+' '\
+                        +str(cal_data[valid,0])+' '+str(cal_data[valid,1])+'\n')
+        f.close()
+
         fig = plt.figure(2,(10,10))
         plt.plot(frame_phot_data[valid,mag_col], frame_phot_data[valid,mag_err_col],
                 'g.', label='Pre-calibration')
@@ -377,6 +411,10 @@ def apply_phot_normalization_single_frame(fit, covar_fit, frame_phot_data,
         plt.ylabel('Magnitude error')
         plt.yscale('log')
         plt.grid()
+        (xmin,xmax,ymin,ymax) = plt.axis()
+        xmin = max(14.0, xmin)
+        xmax = min(22.0, xmax)
+        plt.axis([xmin,xmax,ymin,ymax])
         plt.legend()
         plt.savefig(path.join(params['red_dir'],
                     'norm_phot_'+dset+'_'+ref+'_'+f+'.png'))
@@ -425,7 +463,6 @@ def calc_weighted_mean(data):
     mags = np.ma.array(data[:,:,0], mask=mask)
     errs = np.ma.array(data[:,:,1], mask=mask)
 
-    idx = np.where(mags > 0.0)
     err_squared_inv = 1.0 / (errs*errs)
     wmean =  (mags * err_squared_inv).sum(axis=1) / (err_squared_inv.sum(axis=1))
     werror = np.sqrt( 1.0 / (err_squared_inv.sum(axis=1)) )
