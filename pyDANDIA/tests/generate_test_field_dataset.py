@@ -275,22 +275,26 @@ def generate_timeseries_photometry(params, xmatch):
                                                             size=len(image_index))
             phot_data[j,image_index,3] = phot_data[j,image_index,1]
             phot_data[j,image_index,4] = phot_data[j,image_index,2]
+            phot_data[j,image_index,5] = phot_data[j,image_index,1]
+            phot_data[j,image_index,6] = phot_data[j,image_index,2]
 
+            # Columns 7,8 are the normalized photometry - left zeroed here
+            
             # Add the photometric scale factor information
-            phot_data[j,image_index,5] = xmatch.images['pscale'][image_index]
-            phot_data[j,image_index,6] = xmatch.images['pscale_err'][image_index]
+            phot_data[j,image_index,9] = xmatch.images['pscale'][image_index]
+            phot_data[j,image_index,10] = xmatch.images['pscale_err'][image_index]
 
             # Add the indices of the stamp where this star is found
-            phot_data[j,image_index,7] = np.random.randint(1,15)
+            phot_data[j,image_index,11] = np.random.randint(1,15)
 
             # Add sky background data
-            phot_data[j,image_index,8] = xmatch.images['sky'][image_index]
-            phot_data[j,image_index,9] = np.sqrt(xmatch.images['sky'][image_index])
+            phot_data[j,image_index,12] = xmatch.images['sky'][image_index]
+            phot_data[j,image_index,13] = np.sqrt(xmatch.images['sky'][image_index])
 
             # Add residual x,y offsets
-            phot_data[j,image_index,10] = np.random.normal(loc=0.0,scale=5.0,
+            phot_data[j,image_index,14] = np.random.normal(loc=0.0,scale=5.0,
                                                             size=len(image_index))
-            phot_data[j,image_index,11] = np.random.normal(loc=0.0,scale=5.0,
+            phot_data[j,image_index,15] = np.random.normal(loc=0.0,scale=5.0,
                                                             size=len(image_index))
 
             # All QC flags left as 0 = OK

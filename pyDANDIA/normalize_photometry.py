@@ -63,7 +63,7 @@ def run_phot_normalization(setup, **params):
 
     # Identify constant stars in the dataset
     constant_stars = find_constant_stars(xmatch, phot_data, log)
-    star = 8203
+    star = 1
 
     # Normalize the photometry of each dataset to that of the reference
     # image in the primary reference dataset in that filter
@@ -96,8 +96,22 @@ def run_phot_normalization(setup, **params):
             dset_datacode = xmatch.datasets['dataset_code'][idset]
             dset_sitecode = get_site_code(dset_datacode)
 
+            # If the dataset is the reference dataset, replicate the photometric
+            # measurements from the corrected columns to the normalized columns,
+            # since no normalization is required - this ensures the full
+            # lightcurve can be accessed from the normalization columns.
+            if dset_datacode == ref_datacode:
+                log.info('Replicating primary reference photometry from dataset '\
+                        +dset_datacode+' to the normalized photometry columns')
+                image_index = np.where(xmatch.images['dataset_code'] == dset_datacode)[0]
+                (mag_col, mag_err_col) = field_photometry.get_field_photometry_columns('corrected')
+                (norm_mag_col, norm_mag_err_col) = field_photometry.get_field_photometry_columns('normalized')
+                for i in image_index:
+                    phot_data[:,i,norm_mag_col] = phot_data[:,i,mag_col]
+                    phot_data[:,i,norm_mag_err_col] = phot_data[:,i,mag_err_col]
+
             # Normalize any dataset that isn't the same as the reference dataset
-            if dset_datacode != ref_datacode:
+            else:
                 log.info('Normalizing dataset '+dset_datacode+', sitecode='+dset_sitecode)
                 image_index = np.where(xmatch.images['dataset_code'] == dset_datacode)[0]
                 dset_phot = np.zeros((len(xmatch.stars),2))
@@ -121,8 +135,8 @@ def run_phot_normalization(setup, **params):
                                                                     0, 1, log,
                                                             diagnostics=True, ref=sitecode,
                                                             dset=dset_sitecode, f=filter)
-                xmatch.stars['norm_'+filter+'_mag_'+dset_datacode] = cal_phot[:,0]
-                xmatch.stars['norm_'+filter+'_magerr_'+dset_datacode] = cal_phot[:,1]
+                xmatch.stars['norm_'+filter.replace('p','')+'_mag_'+dset_sitecode] = cal_phot[:,0]
+                xmatch.stars['norm_'+filter.replace('p','')+'_magerr_'+dset_sitecode] = cal_phot[:,1]
 
                 # Apply the photometry calibration to the timeseries data
                 # for this dataset
@@ -199,7 +213,7 @@ def plot_multisite_rms(params, phot_data, mag_col, merr_col, plot_filename, log)
     f = open(path.join(params['red_dir'],text_filename),'w')
     f.write('# Star_index  wMean_mag   RMS\n')
     for j in range(0,len(phot_statistics),1):
-        f.write(str(j)+' '+str(phot_statistics[:,0])+' '+str(phot_statistics[:,1])+'\n')
+        f.write(str(j)+' '+str(phot_statistics[j,0])+' '+str(phot_statistics[j,1])+'\n')
     f.close()
 
     fig = plt.figure(3,(10,10))
@@ -311,31 +325,31 @@ def calc_phot_normalization(ref_phot, dset_phot, constant_stars, log,
                 & (delta_mag <= 0.5))
 
     (fit,covar_fit) = calibrate_photometry.calc_transform(fit,
-                                                    ref_phot[constant_stars[valid],0],
-                                                    dset_phot[constant_stars[valid],0])
+                                                    dset_phot[constant_stars[valid],0],
+                                                    ref_phot[constant_stars[valid],0])
     log.info('Normalization calibration fit parameters: '+repr(fit))
     log.info('Covarience: '+repr(covar_fit))
 
     if diagnostics:
         fig = plt.figure(1,(10,10))
-        plt.errorbar(ref_phot[constant_stars,0],
-                     dset_phot[constant_stars,0],
+        plt.errorbar(dset_phot[constant_stars,0],
+                     ref_phot[constant_stars,0],
                      xerr=ref_phot[constant_stars,1],
                      yerr=dset_phot[constant_stars,1],
                      color='k', fmt='none', label='Constant stars')
-        plt.errorbar(ref_phot[constant_stars[valid],0],
-                      dset_phot[constant_stars[valid],0],
+        plt.errorbar(dset_phot[constant_stars[valid],0],
+                      ref_phot[constant_stars[valid],0],
                       xerr=ref_phot[constant_stars[valid],1],
                       yerr=dset_phot[constant_stars[valid],1],
                       color='m', fmt='none', label='Valid calibrators')
 
-        xrange = set_plot_range(ref_phot[constant_stars,0])
-        yrange = set_plot_range(dset_phot[constant_stars,0])
+        xrange = set_plot_range(dset_phot[constant_stars,0])
+        yrange = set_plot_range(ref_phot[constant_stars,0])
         xplot = np.linspace(xrange[0], xrange[1], 50)
         yplot = calibrate_photometry.phot_func(fit,xplot)
         plt.plot(xplot, yplot,'k-')
-        plt.xlabel('Primary ref magnitudes')
-        plt.ylabel('Dataset magnitudes')
+        plt.xlabel('Dataset magnitudes')
+        plt.ylabel('Primary ref magnitudes')
         plt.legend()
         plt.grid()
         plt.title('Normalization of '+dset+' to '+ref+' in '+f)
@@ -394,14 +408,14 @@ def apply_phot_normalization_single_frame(fit, covar_fit, frame_phot_data,
     cal_data[valid,3] = star_cat['cal_ref_flux_err'][valid]
 
     if diagnostics:
-        f = open(path.join(params['red_dir'],
+        file_path = open(path.join(params['red_dir'],
                     'norm_phot_'+dset+'_'+ref+'_'+f+'.txt'),'w')
-        f.write('# Star_id  cal_mag cal_merr  norm_mag  norm_merr\n')
+        file_path.write('# Star_id  cal_mag cal_merr  norm_mag  norm_merr\n')
         for j in valid:
-            f.write(str(j)+' '+str(frame_phot_data[valid,mag_col])+' '\
+            file_path.write(str(j)+' '+str(frame_phot_data[valid,mag_col])+' '\
                         +str(frame_phot_data[valid,mag_err_col])+' '\
                         +str(cal_data[valid,0])+' '+str(cal_data[valid,1])+'\n')
-        f.close()
+        file_path.close()
 
         fig = plt.figure(2,(10,10))
         plt.plot(frame_phot_data[valid,mag_col], frame_phot_data[valid,mag_err_col],
