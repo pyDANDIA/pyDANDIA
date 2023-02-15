@@ -66,6 +66,11 @@ def generate_xmatch(params):
     xmatch.create(params)
 
     # Simulate the dataset
+    quadrants = np.random.randint(1,5,size=params['nstars'])
+    quadrant_ids = np.zeros(params['nstars'])
+    for qid in range(1,5,1):
+        jdx = np.where(quadrants == qid)[0]
+        quadrant_ids[jdx] = np.arange(1,len(jdx)+1,1)
     ras = np.random.uniform(low=params['ra_center']-params['field_radius'],
                             high=params['ra_center']+params['field_radius'],
                             size=params['nstars'])
@@ -134,8 +139,8 @@ def generate_xmatch(params):
     column_list = [ Column(name='field_id', data=np.arange(1,params['nstars']+1,1), dtype='int'),
                     Column(name='ra', data=ras, dtype='float'),
                     Column(name='dec', data=decs, dtype='float'),
-                    Column(name='quadrant', data=np.ones(params['nstars']), dtype='int'),
-                    Column(name='quadrant_id', data=np.arange(1,params['nstars']+1,1), dtype='int'),
+                    Column(name='quadrant', data=quadrants, dtype='int'),
+                    Column(name='quadrant_id', data=quadrant_ids, dtype='int'),
                     Column(name='gaia_source_id', data=gaia_ids, dtype='S19'),
                     Column(name=params['primary_ref']+'_index', data=np.arange(1,params['nstars']+1,1), dtype='int'),
                     Column(name=params['match_dataset']+'_index', data=np.arange(1,params['nstars']+1,1), dtype='int') ]
@@ -279,7 +284,7 @@ def generate_timeseries_photometry(params, xmatch):
             phot_data[j,image_index,6] = phot_data[j,image_index,2]
 
             # Columns 7,8 are the normalized photometry - left zeroed here
-            
+
             # Add the photometric scale factor information
             phot_data[j,image_index,9] = xmatch.images['pscale'][image_index]
             phot_data[j,image_index,10] = xmatch.images['pscale_err'][image_index]
