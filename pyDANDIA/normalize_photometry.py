@@ -68,7 +68,7 @@ def run_phot_normalization(setup, **params):
     # Normalize the photometry of each dataset to that of the reference
     # image in the primary reference dataset in that filter
     #for filter in filter_list:
-    for filter in ['ip']:
+    for filter in filter_list:
 
         # Plot an RMS diagram of the lightcurves for all stars in this filter,
         # prior to normalization, for comparison
