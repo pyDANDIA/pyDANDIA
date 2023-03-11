@@ -651,3 +651,15 @@ class CrossMatchTable():
                 ref_dataset[f] = reference_source+'_'+f
 
         self.reference_datasets = ref_dataset
+
+    def get_dataset_shortcode(self,dataset_code):
+        """Method to convert the long-version of a dataset's code to the
+        short-hand version, e.g.
+        ROME-FIELD-01_lsc-doma-1m0-05-fa15_ip -> lsc-doma_ip
+        """
+
+        entries = dataset_code.split('_')
+        telentries = entries[1].split('-')
+        shortcode = telentries[0]+'-'+telentries[1]+'_'+entries[-1]
+
+        return shortcode
