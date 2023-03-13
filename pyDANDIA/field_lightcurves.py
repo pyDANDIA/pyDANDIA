@@ -65,6 +65,7 @@ def fetch_field_photometry_for_star_idx(params, field_idx, xmatch, log):
 			idx3 = np.where(quad_phot[quad_idx,:,mag_col] > 0.0)[0]
 			idx = set(idx1).intersection(set(idx2))
 			idx = list(idx.intersection(set(idx3)))
+
 			# Store the photometry
 			if len(idx) > 0:
 				photometry = np.zeros((len(idx),3))
@@ -73,8 +74,17 @@ def fetch_field_photometry_for_star_idx(params, field_idx, xmatch, log):
 				photometry[:,2] = quad_phot[quad_idx,idx,merr_col]
 				lc[shortcode] = photometry
 
-		log.info('-> Extract timeseries photometry for star '+str(field_idx+1)+' from dataset '+dataset['dataset_code'])
+				log.info('-> Extracted '+str(len(idx))
+					+' valid datapoints of timeseries photometry for star '
+					+str(field_idx+1)+' from dataset '+dataset['dataset_code'])
+			else:
+				log.info('-> No valid datapoints in the lightcurve for star '
+				+str(field_idx+1)+' from dataset '+dataset['dataset_code'])
 
+		else:
+			log.info('-> Star '+str(field_idx+1)+' was not measured in dataset '
+					+dataset['dataset_code'])
+					
 	return lc
 
 if __name__ == '__main__':
