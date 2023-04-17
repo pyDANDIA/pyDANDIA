@@ -35,6 +35,7 @@ def plot_interactive_lightcurve(lc, filter_list, plot_file, title=None):
 
     data_list = []
     for col_idx,f in enumerate(filter_list):
+        bad_data = []
         for dset, data in lc.items():
             # Expected dataset labels are site-enclosure_filter
             if f in dset:
@@ -45,17 +46,36 @@ def plot_interactive_lightcurve(lc, filter_list, plot_file, title=None):
                             'mag': pd.Series(data[:,1], dtype='float64'),
                             'mag_error': pd.Series(data[:,2], dtype='float64'),
                             'datacode': pd.Series([dset]*len(data), dtype='str'),
-                            'filter': pd.Series([f.replace('p','')]*len(data), dtype='str')
+                            'filter': pd.Series([f.replace('p','')]*len(data), dtype='str'),
+                            'qc': pd.Series(data[:,3], dtype='float64')
                             }
                             ))
 
+                # Filter datapoints that failed QC so they can be highlighted
+                # on the plot
+                bad_idx = np.where(data[:,3] != 0.0)[0]
+                for i in bad_idx:
+                    bad_data.append([data[i,0], data[i,1], data[i,2], data[i,3]])
+
+        data_list.append(pd.DataFrame(
+                {
+                'HJD': pd.Series(bad_data[:,0]-hjd_offset, dtype='float64'),
+                'mag': pd.Series(bad_data[:,1], dtype='float64'),
+                'mag_error': pd.Series(bad_data[:,2], dtype='float64'),
+                'datacode': pd.Series(['bad_data']*len(bad_data), dtype='str'),
+                'filter': pd.Series([f.replace('p','')]*len(bad_data), dtype='str'),
+                'qc': pd.Series(bad_data[:,3], dtype='float64')
+                }
+                ))
+    
     df = pd.concat(data_list)
 
     fig = px.scatter(df, x='HJD', y='mag', color='datacode', error_y='mag_error',
                     facet_col='filter',
                     labels=dict(HJD="HJD-"+str(hjd_offset),
                                 mag="Mag",
-                                datacode="Dataset"))
+                                datacode="Dataset",
+                                qc="QC_Flag"))
 
     if title:
         fig.update_layout(height=600, width=600*len(filter_list),

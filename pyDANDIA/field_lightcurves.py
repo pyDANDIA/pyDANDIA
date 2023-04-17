@@ -53,6 +53,7 @@ def fetch_field_photometry_for_star_idx(params, field_idx, xmatch, log):
 
 	lc = {}
 	(mag_col, merr_col) = field_photometry.get_field_photometry_columns(params['phot_type'])
+	qc_col = 16
 	for dataset in xmatch.datasets:
 		# Extract the photometry of this object for the images from this dataset,
 		# if the field index indicates that the object was measured in this dataset
@@ -68,10 +69,11 @@ def fetch_field_photometry_for_star_idx(params, field_idx, xmatch, log):
 
 			# Store the photometry
 			if len(idx) > 0:
-				photometry = np.zeros((len(idx),3))
+				photometry = np.zeros((len(idx),4))
 				photometry[:,0] = quad_phot[quad_idx,idx,0]
 				photometry[:,1] = quad_phot[quad_idx,idx,mag_col]
 				photometry[:,2] = quad_phot[quad_idx,idx,merr_col]
+				photometry[:,3] = quad_phot[quad_idx,idx,qc_col]
 				lc[shortcode] = photometry
 
 				log.info('-> Extracted '+str(len(idx))
@@ -84,7 +86,7 @@ def fetch_field_photometry_for_star_idx(params, field_idx, xmatch, log):
 		else:
 			log.info('-> Star '+str(field_idx+1)+' was not measured in dataset '
 					+dataset['dataset_code'])
-					
+
 	return lc
 
 if __name__ == '__main__':
