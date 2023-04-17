@@ -75,8 +75,9 @@ def run_phot_normalization(setup, **params):
         image_index = np.where(xmatch.images['filter'] == filter)[0]
         phot_data_filter = phot_data[:,image_index,:]
         (mag_col, mag_err_col) = field_photometry.get_field_photometry_columns('corrected')
+        qc_col = 16
 
-        plot_multisite_rms(params, phot_data_filter, mag_col, mag_err_col,
+        plot_multisite_rms(params, phot_data_filter, mag_col, mag_err_col, qc_col,
                             'rms_prenorm_'+str(filter)+'.png', log)
 
         # Extract the reference image photometry for the primary-ref dataset
@@ -153,7 +154,7 @@ def run_phot_normalization(setup, **params):
         image_index = np.where(xmatch.images['filter'] == filter)[0]
         phot_data_filter = phot_data[:,image_index,:]
         (mag_col, mag_err_col) = field_photometry.get_field_photometry_columns('normalized')
-        plot_multisite_rms(params, phot_data_filter, mag_col, mag_err_col,
+        plot_multisite_rms(params, phot_data_filter, mag_col, mag_err_col, qc_col,
                             'rms_postnorm_'+str(filter)+'.png', log)
 
 
@@ -198,7 +199,7 @@ def get_site_code(datacode):
     sitecode = entries[0]+'_'+entries[1]
     return sitecode
 
-def plot_multisite_rms(params, phot_data, mag_col, merr_col, plot_filename, log):
+def plot_multisite_rms(params, phot_data, mag_col, merr_col, qc_col, plot_filename, log):
     """Function to plot an RMS diagram, with lightcurves combining data from
     multiple sites.  The function expects to receive a pre-filtered array
     of photometry data, for example including lightcurves for all stars
@@ -206,8 +207,8 @@ def plot_multisite_rms(params, phot_data, mag_col, merr_col, plot_filename, log)
 
     # Plot a multi-site initial RMS diagram for reference
     phot_statistics = np.zeros( (len(phot_data),4) )
-    (phot_statistics[:,0],werror) = plot_rms.calc_weighted_mean_2D(phot_data, mag_col, merr_col)
-    phot_statistics[:,1] = plot_rms.calc_weighted_rms(phot_data, phot_statistics[:,0], mag_col, merr_col)
+    (phot_statistics[:,0],werror) = plot_rms.calc_weighted_mean_2D(phot_data, mag_col, merr_col, qc_col=qc_col)
+    phot_statistics[:,1] = plot_rms.calc_weighted_rms(phot_data, phot_statistics[:,0], mag_col, merr_col, qc_col=qc_col)
 
     text_filename = plot_filename.replace('.png', '.txt')
     f = open(path.join(params['red_dir'],text_filename),'w')
@@ -254,8 +255,8 @@ def find_constant_stars(xmatch, phot_data, log):
 
     # Evaluate the photometric scatter of all stars, and select those with
     # the lowest scatter for the brightest quartile of stars.
-    (mean_mag, mean_magerr) = calc_weighted_mean(ref_phot)
-    rms = calc_weighted_rms(ref_phot, mean_mag)
+    (mean_mag, mean_magerr) = calc_weighted_mean_no_qc(ref_phot)
+    rms = calc_weighted_rms_no_qc(ref_phot, mean_mag)
 
     # Function identifies constant stars as those with an RMS in the lowest
     # 1 - 25% of the set.  This excludes both stars with high scatter and those
@@ -471,7 +472,7 @@ def normalize_timeseries_photometry(phot_data, image_index, fit, covar_fit,
 
     return phot_data
 
-def calc_weighted_mean(data):
+def calc_weighted_mean_no_qc(data):
 
     mask = np.invert(np.logical_and(data[:,:,0] > 0.0, data[:,:,1] > 0.0))
     mags = np.ma.array(data[:,:,0], mask=mask)
@@ -483,7 +484,7 @@ def calc_weighted_mean(data):
 
     return wmean, werror
 
-def calc_weighted_rms(data, mean_mag):
+def calc_weighted_rms_no_qc(data, mean_mag):
 
     mask = np.invert(np.logical_and(data[:,:,0] > 0.0, data[:,:,1] > 0.0))
     mags = np.ma.array(data[:,:,0], mask=mask)
