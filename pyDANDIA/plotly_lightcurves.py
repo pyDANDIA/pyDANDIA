@@ -21,7 +21,8 @@ def plot_interactive_lightcurve(lc, filter_list, plot_file, title=None):
               'cpt-domc': '#DDCC77',
               'coj-doma': '#CC6677',
               'coj-domb': '#882255',
-              'coj-domc': '#AA4499'}
+              'coj-domc': '#AA4499',
+              'bad-data': '#000000'}
     symbols = {'lsc-doma': 'circle',
               'lsc-domb': 'circle',
               'lsc-domc': 'circle',
@@ -30,7 +31,8 @@ def plot_interactive_lightcurve(lc, filter_list, plot_file, title=None):
               'cpt-domc': 'diamond',
               'coj-doma': 'square',
               'coj-domb': 'square',
-              'coj-domc': 'square'}
+              'coj-domc': 'square',
+              'bad-data': 'cross'}
     hjd_offset = 2450000.0
 
     data_list = []
@@ -62,12 +64,12 @@ def plot_interactive_lightcurve(lc, filter_list, plot_file, title=None):
                 'HJD': pd.Series(bad_data[:,0]-hjd_offset, dtype='float64'),
                 'mag': pd.Series(bad_data[:,1], dtype='float64'),
                 'mag_error': pd.Series(bad_data[:,2], dtype='float64'),
-                'datacode': pd.Series(['bad_data']*len(bad_data), dtype='str'),
+                'datacode': pd.Series(['bad-data']*len(bad_data), dtype='str'),
                 'filter': pd.Series([f.replace('p','')]*len(bad_data), dtype='str'),
                 'qc': pd.Series(bad_data[:,3], dtype='float64')
                 }
                 ))
-    
+
     df = pd.concat(data_list)
 
     fig = px.scatter(df, x='HJD', y='mag', color='datacode', error_y='mag_error',
