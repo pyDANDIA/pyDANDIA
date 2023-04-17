@@ -65,12 +65,22 @@ def calc_mean_rms_mag(photometry_data,log,phot_columns):
 
     (mag_col, merr_col) = get_photometry_columns(phot_columns)
 
+    # The QC flag column is only present after post-processing stage completed
+    if photometry_data.shape[1] > 23:
+        qc_col = 25
+    else:
+        qc_col = None
+    log.info('Photometry array shape ('+repr(photometry_data.shape)
+                +') indicates that QC post-processing has been done.  Filtering on QC flag.')
+
     phot_statistics = np.zeros( (len(photometry_data),4) )
 
-    (phot_statistics[:,0], phot_statistics[:,3]) = calc_weighted_mean_2D(photometry_data, mag_col, merr_col)
+    (phot_statistics[:,0], phot_statistics[:,3]) = calc_weighted_mean_2D(photometry_data,
+                                                    mag_col, merr_col, qc_col=qc_col)
     log.info('Calculated stellar mean magnitudes weighted by the photometric uncertainties')
 
-    phot_statistics[:,1] = calc_weighted_rms(photometry_data, phot_statistics[:,0], mag_col, merr_col)
+    phot_statistics[:,1] = calc_weighted_rms(photometry_data, phot_statistics[:,0],
+                                                mag_col, merr_col, qc_col=qc_col)
     log.info('Calculated RMS per star weighted by the photometric uncertainties')
 
     phot_statistics[:,2] = calc_percentile_rms(photometry_data, phot_statistics[:,0], mag_col, merr_col)
@@ -78,9 +88,21 @@ def calc_mean_rms_mag(photometry_data,log,phot_columns):
 
     return phot_statistics
 
-def calc_weighted_mean_2D(data, col, errcol):
+def select_valid_data(data, col, errcol, qc_col=None):
+    """Function to select valid photometry measurements to include in the
+    subsequent calculation of statistical metrics. """
 
-    mask = np.invert(np.logical_and(data[:,:,col] > 0.0, data[:,:,errcol] > 0.0))
+    selection = np.logical_and(data[:,:,col] > 0.0, data[:,:,errcol] > 0.0)
+    if qc_col != None:
+        selection = np.logical_and(data[:,:,qc_col] > 0.0, selection)
+
+    mask = np.invert(selection)
+
+    return mask
+
+def calc_weighted_mean_2D(data, col, errcol, qc_col=None):
+
+    mask = select_valid_data(data, col, errcol, qc_col=qc_col)
     mags = np.ma.array(data[:,:,col], mask=mask)
     errs = np.ma.array(data[:,:,errcol], mask=mask)
 
@@ -90,9 +112,9 @@ def calc_weighted_mean_2D(data, col, errcol):
 
     return wmean, werror
 
-def calc_weighted_rms(data, mean_mag, magcol, errcol):
+def calc_weighted_rms(data, mean_mag, magcol, errcol, qc_col=None):
 
-    mask = np.invert(np.logical_and(data[:,:,magcol] > 0.0, data[:,:,errcol] > 0.0))
+    mask = select_valid_data(data, col, errcol, qc_col=qc_col)
     mags = np.ma.array(data[:,:,magcol], mask=mask)
     errs = np.ma.array(data[:,:,errcol], mask=mask)
 
@@ -102,9 +124,9 @@ def calc_weighted_rms(data, mean_mag, magcol, errcol):
 
     return rms
 
-def calc_percentile_rms(data, mean_mag, magcol, errcol):
+def calc_percentile_rms(data, mean_mag, magcol, errcol, qc_col=None):
 
-    mask = np.invert(np.logical_and(data[:,:,magcol] > 0.0, data[:,:,errcol] > 0.0))
+    mask = select_valid_data(data, col, errcol, qc_col=qc_col)
     mags = np.ma.array(data[:,:,magcol], mask=mask)
 
     rms_per = (np.percentile(mags,84, axis=1)-np.percentile(mags,16, axis=1))/2
