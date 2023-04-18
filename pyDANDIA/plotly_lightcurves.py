@@ -56,21 +56,21 @@ def plot_interactive_lightcurve(lc, filter_list, plot_file, title=None):
                 # Filter datapoints that failed QC so they can be highlighted
                 # on the plot
                 bad_idx = np.where(data[:,3] != 0.0)[0]
-                print(datacode+' '+str(len(data))+' datapoints, '+str(len(bad_idx))+' flagged as bad')
+                print(dset+' '+str(len(data))+' datapoints, '+str(len(bad_idx))+' flagged as bad')
                 for i in bad_idx:
                     bad_data.append([data[i,0], data[i,1], data[i,2], data[i,3]])
 
-        bad_data = np.array(bad_data)
-        data_list.append(pd.DataFrame(
-                {
-                'HJD': pd.Series(bad_data[:,0]-hjd_offset, dtype='float64'),
-                'mag': pd.Series(bad_data[:,1], dtype='float64'),
-                'mag_error': pd.Series(bad_data[:,2], dtype='float64'),
-                'datacode': pd.Series(['bad-data']*len(bad_data), dtype='str'),
-                'filter': pd.Series([f.replace('p','')]*len(bad_data), dtype='str'),
-                'qc_flag': pd.Series(bad_data[:,3], dtype='float64')
-                }
-                ))
+        #bad_data = np.array(bad_data)
+        #data_list.append(pd.DataFrame(
+        #        {
+        #        'HJD': pd.Series(bad_data[:,0]-hjd_offset, dtype='float64'),
+        #        'mag': pd.Series(bad_data[:,1], dtype='float64'),
+        #        'mag_error': pd.Series(bad_data[:,2], dtype='float64'),
+        #        'datacode': pd.Series(['bad-data']*len(bad_data), dtype='str'),
+        #        'filter': pd.Series([f.replace('p','')]*len(bad_data), dtype='str'),
+        #        'qc_flag': pd.Series(bad_data[:,3], dtype='float64')
+        #        }
+        #        ))
 
     df = pd.concat(data_list)
 
@@ -79,7 +79,7 @@ def plot_interactive_lightcurve(lc, filter_list, plot_file, title=None):
                     labels=dict(HJD="HJD-"+str(hjd_offset),
                                 mag="Mag",
                                 datacode="Dataset"),
-                    hover_data=['HJD','mag','qc_flag'])
+                    hover_data=['HJD','mag','mag_error','qc_flag'])
 
     if title:
         fig.update_layout(height=600, width=600*len(filter_list),
