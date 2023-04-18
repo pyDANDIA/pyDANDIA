@@ -132,6 +132,9 @@ def plot_interactive_rms(data, plot_file, title=None):
                     labels=dict(mag="mag",
                                 rms="rms"),
                     hover_data=['field_id','mag','rms'])
+    fig.update_traces(
+        marker_size=2
+    )
 
     if title:
         fig.update_layout(height=600, width=600,

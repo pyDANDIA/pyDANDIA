@@ -43,15 +43,17 @@ def calc_field_rms():
         jdx = np.where(xmatch.field_index['quadrant'] == float(int(params['quadrant'])))[0]
         log.info(str(len(jdx))+' stars in quadrant '+params['quadrant'])
 
-        # Calculate lightcurve statistics:
+        # Calculate lightcurve statistics, filtering out any with zero measurements:
         phot_statistics = np.zeros( (len(phot_data_filter),3) )
 
         phot_statistics[:,0] = xmatch.stars['field_id'][jdx]
         (phot_statistics[:,1],werror) = plot_rms.calc_weighted_mean_2D(phot_data_filter, mag_col, mag_err_col, qc_col=qc_col)
         phot_statistics[:,2] = plot_rms.calc_weighted_rms(phot_data_filter, phot_statistics[:,1], mag_col, mag_err_col, qc_col=qc_col)
 
+        selection = np.logical_and(phot_statistics[:,1] > 0.0, phot_statistics[:,2] > 0.0)
+        phot_statistics = phot_statistics[selection]
         print(phot_statistics)
-
+        
         # Plot interactive RMS diagram
         plot_file = path.join(params['red_dir'], params['plot_file_root']+'_'+filter+'.html')
         plotly_lightcurves.plot_interactive_rms(phot_statistics, plot_file,
