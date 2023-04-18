@@ -62,9 +62,9 @@ def get_args():
     params['phot_file'] = path.join(params['red_dir'],
                             params['field_name']+'_quad'+params['quadrant']
                                 +'_photometry.hdf5')
-    params['plot_file'] = params['field_name']+'_quad'+params['quadrant']
+    params['plot_file'] = params['field_name']+'_quad'+params['quadrant'] \
                                 +'_rms_postnorm.png'
-    params['text_file'] = params['field_name']+'_quad'+params['quadrant']
+    params['text_file'] = params['field_name']+'_quad'+params['quadrant'] \
                                 +'_rms_postnorm.txt'
 
     return params
