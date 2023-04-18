@@ -59,6 +59,7 @@ def plot_interactive_lightcurve(lc, filter_list, plot_file, title=None):
                 for i in bad_idx:
                     bad_data.append([data[i,0], data[i,1], data[i,2], data[i,3]])
 
+        bad_data = np.array(bad_data)
         data_list.append(pd.DataFrame(
                 {
                 'HJD': pd.Series(bad_data[:,0]-hjd_offset, dtype='float64'),
