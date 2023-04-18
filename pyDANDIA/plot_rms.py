@@ -114,7 +114,7 @@ def calc_weighted_mean_2D(data, col, errcol, qc_col=None):
 
 def calc_weighted_rms(data, mean_mag, magcol, errcol, qc_col=None):
 
-    mask = select_valid_data(data, col, errcol, qc_col=qc_col)
+    mask = select_valid_data(data, magcol, errcol, qc_col=qc_col)
     mags = np.ma.array(data[:,:,magcol], mask=mask)
     errs = np.ma.array(data[:,:,errcol], mask=mask)
 
@@ -126,7 +126,7 @@ def calc_weighted_rms(data, mean_mag, magcol, errcol, qc_col=None):
 
 def calc_percentile_rms(data, mean_mag, magcol, errcol, qc_col=None):
 
-    mask = select_valid_data(data, col, errcol, qc_col=qc_col)
+    mask = select_valid_data(data, magcol, errcol, qc_col=qc_col)
     mags = np.ma.array(data[:,:,magcol], mask=mask)
 
     rms_per = (np.percentile(mags,84, axis=1)-np.percentile(mags,16, axis=1))/2
