@@ -8,6 +8,8 @@ from pyDANDIA import pipeline_setup
 from pyDANDIA import normalize_photometry
 from pyDANDIA import crossmatch
 from pyDANDIA import field_photometry
+from pyDANDIA import plot_rms
+from pyDANDIA import plotly_lightcurves
 import matplotlib as mpl
 mpl.use('Agg')
 import matplotlib.pyplot as plt
@@ -38,8 +40,18 @@ def calc_field_rms():
     for filter in filter_list:
         image_index = np.where(xmatch.images['filter'] == filter)[0]
         phot_data_filter = phot_data[:,image_index,:]
-        normalize_photometry.plot_multisite_rms(params, phot_data_filter, mag_col, mag_err_col, qc_col,
-                                                params['plot_file_root']+'_'+filter+'.png', log)
+
+        # Calculate lightcurve statistics:
+        phot_statistics = np.zeros( (len(phot_data_filter),3) )
+        phot_statistics[:,0] = xmatch.stars['field_id']
+        (phot_statistics[:,1],werror) = plot_rms.calc_weighted_mean_2D(phot_data_filter, mag_col, merr_col, qc_col=qc_col)
+        phot_statistics[:,2] = plot_rms.calc_weighted_rms(phot_data_filter, phot_statistics[:,0], mag_col, merr_col, qc_col=qc_col)
+
+        # Plot interactive RMS diagram
+        plot_file = params['plot_file_root']+'_'+filter+'.png'
+        plotly_lightcurves.plot_interactive_rms(phot_statistics, plot_file,
+                    title='RMS diagram for '+params['field_name']+', quadrant '\
+                            +params['quadrant']+', '+filter+'-band')
 
     logs.close_log(log)
 

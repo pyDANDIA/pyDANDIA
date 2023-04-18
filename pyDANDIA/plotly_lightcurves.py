@@ -112,6 +112,39 @@ def plot_from_lc_file(file_path):
 
     plot_interactive_lightcurve(lc, filter_list, plot_file)
 
+def plot_interactive_rms(data, plot_file, title=None):
+    """Function to create an interactive lightcurve plot of a multi-dataset
+    lightcurve dictionary
+    data : array: a three-column set of datapoints with field ID (not index), mag, RMS
+    plot_file : str : path to output html file
+    """
+
+    # Construct the Pandas dataframe in the required format
+    df = pd.DataFrame(
+                {
+                'field_id': pd.Series(data[:,0], dtype='int'),
+                'mag': pd.Series(data[:,1], dtype='float64'),
+                'rms': pd.Series(data[:,2], dtype='float64')
+                }
+                )
+
+    fig = px.scatter(df, x='mag', y='rms',
+                    labels=dict(mag="mag",
+                                rms="rms"),
+                    hover_data=['field_id','mag','rms'])
+
+    if title:
+        fig.update_layout(height=600, width=600*len(filter_list),
+                        title=title)
+    else:
+        fig.update_layout(height=600, width=200*len(filter_list))
+    fig.update_xaxes(title_font=dict(size=18),
+                     tickfont=dict(size=18))
+    fig.update_yaxes(title_font=dict(size=18),
+                     tickfont=dict(size=18))
+    fig.write_html(plot_file)
+
+
 if __name__ == '__main__':
     file_path = '/Users/rstreet1/ROMEREA/ROME-FIELD-01/DR1/lcs/star_172333_ROME-FIELD-01_lsc-doma-1m0-05-fa15_ip.dat'
     plot_from_lc_file(file_path)
