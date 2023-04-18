@@ -606,32 +606,40 @@ class CrossMatchTable():
                 field_index.append(None)
         return field_index
 
+    def get_star_skycoords(self):
+        """Method generates a SkyCoord object with all stars in the Stars table.
+        This is used by search methods"""
+
+        self.star_coords = SkyCoord(self.field_index['ra'], self.field_index['dec'],
+                            frame='icrs', unit=(units.deg,units.deg))
+
     def cone_search(self, params, log=None, debug=False):
         """Method to perform a cone search on the field index for all objects
         within the search radius (in decimal degrees) of the (ra_center, dec_centre)
         given"""
 
-        starlist = SkyCoord(self.field_index['ra'], self.field_index['dec'],
-                            frame='icrs', unit=(units.deg,units.deg))
+        if not hasattr(self, 'star_coords'):
+            self.get_star_skycoords()
 
         target = SkyCoord(params['ra_centre'], params['dec_centre'],
                             frame='icrs', unit=(units.deg,units.deg))
 
-        separations = target.separation(starlist)
+        separations = target.separation(self.star_coords)
 
         idx = np.where(separations.value <= params['radius'])[0]
         results = self.field_index[idx]
         results.add_column(separations[idx], name='separation')
 
-        log.info('Identified '+str(len(results))+' candidates within '+str(params['radius'])+\
-                    ' of ('+str(params['ra_centre'])+', '+str(params['dec_centre'])+')')
-        log.info(' '.join(results.colnames))
-        for star in results:
-            log.info(' '.join(str(star[col]) for col in results.colnames))
+        if log:
+            log.info('Identified '+str(len(results))+' candidates within '+str(params['radius'])
+                    +' of ('+str(params['ra_centre'])+', '+str(params['dec_centre'])+')')
+            log.info(' '.join(results.colnames))
+            for star in results:
+                log.info(' '.join(str(star[col]) for col in results.colnames))
 
         if debug and len(idx[0]) == 0:
             idx = np.where(separations.value == separations.value.min())
-            if log!=None:
+            if log:
                 log.info('Nearest closest star: ')
                 log.info(self.field_index['field_id'][idx], self.field_index['ra'][idx], self.field_index['dec'][idx], separations[idx])
 

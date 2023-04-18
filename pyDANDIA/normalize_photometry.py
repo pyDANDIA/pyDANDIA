@@ -12,6 +12,8 @@ from pyDANDIA import field_photometry
 from astropy.table import Table, Column
 import matplotlib.pyplot as plt
 
+VERSION = 'norm_v1.0'
+
 def run_phot_normalization(setup, **params):
     """Function to normalize the photometry between different datasets taken
     of the same field in the same filter but with different instruments.
@@ -22,7 +24,7 @@ def run_phot_normalization(setup, **params):
     to calculate these small magnitude offsets and correct for them.
     """
 
-    log = logs.start_stage_log( setup.red_dir, 'postproc_phot_norm' )
+    log = logs.start_stage_log( setup.red_dir, 'postproc_phot_norm', version=VERSION )
 
     xmatch = crossmatch.CrossMatchTable()
     xmatch.load(params['crossmatch_file'],log=log)
