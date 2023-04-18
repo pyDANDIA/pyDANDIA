@@ -39,7 +39,7 @@ def calc_field_rms():
         image_index = np.where(xmatch.images['filter'] == filter)[0]
         phot_data_filter = phot_data[:,image_index,:]
         normalize_photometry.plot_multisite_rms(params, phot_data_filter, mag_col, mag_err_col, qc_col,
-                                                params['plot_file'], log)
+                                                params['plot_file_root']+'_'+filter+'.png', log)
 
     logs.close_log(log)
 
@@ -64,10 +64,8 @@ def get_args():
     params['phot_file'] = path.join(params['red_dir'],
                             params['field_name']+'_quad'+params['quadrant']
                                 +'_photometry.hdf5')
-    params['plot_file'] = params['field_name']+'_quad'+params['quadrant'] \
-                                +'_rms_postnorm.png'
-    params['text_file'] = params['field_name']+'_quad'+params['quadrant'] \
-                                +'_rms_postnorm.txt'
+    params['plot_file_root'] = params['field_name']+'_quad'+params['quadrant'] \
+                                +'_rms_postnorm'
 
     return params
 
