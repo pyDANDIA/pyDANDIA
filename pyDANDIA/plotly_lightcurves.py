@@ -134,10 +134,10 @@ def plot_interactive_rms(data, plot_file, title=None):
                     hover_data=['field_id','mag','rms'])
 
     if title:
-        fig.update_layout(height=600, width=600*len(filter_list),
+        fig.update_layout(height=600, width=600,
                         title=title)
     else:
-        fig.update_layout(height=600, width=200*len(filter_list))
+        fig.update_layout(height=600, width=200)
     fig.update_xaxes(title_font=dict(size=18),
                      tickfont=dict(size=18))
     fig.update_yaxes(title_font=dict(size=18),
