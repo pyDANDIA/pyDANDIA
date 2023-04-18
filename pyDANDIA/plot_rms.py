@@ -105,7 +105,8 @@ def calc_weighted_mean_2D(data, col, errcol, qc_col=None):
     mask = select_valid_data(data, col, errcol, qc_col=qc_col)
     mags = np.ma.array(data[:,:,col], mask=mask)
     errs = np.ma.array(data[:,:,errcol], mask=mask)
-
+    print(mags)
+    
     err_squared_inv = 1.0 / (errs*errs)
     wmean =  (mags * err_squared_inv).sum(axis=1) / (err_squared_inv.sum(axis=1))
     werror = np.sqrt( 1.0 / (err_squared_inv.sum(axis=1)) )
