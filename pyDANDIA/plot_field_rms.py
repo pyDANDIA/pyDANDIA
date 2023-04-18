@@ -52,7 +52,6 @@ def calc_field_rms():
 
         selection = np.logical_and(phot_statistics[:,1] > 0.0, phot_statistics[:,2] > 0.0)
         phot_statistics = phot_statistics[selection]
-        print(phot_statistics)
         
         # Plot interactive RMS diagram
         plot_file = path.join(params['red_dir'], params['plot_file_root']+'_'+filter+'.html')
