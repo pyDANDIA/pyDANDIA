@@ -49,7 +49,7 @@ def plot_interactive_lightcurve(lc, filter_list, plot_file, title=None):
                             'mag_error': pd.Series(data[:,2], dtype='float64'),
                             'datacode': pd.Series([dset]*len(data), dtype='str'),
                             'filter': pd.Series([f.replace('p','')]*len(data), dtype='str'),
-                            'qc': pd.Series(data[:,3], dtype='float64')
+                            'qc_flag': pd.Series(data[:,3], dtype='float64')
                             }
                             ))
 
