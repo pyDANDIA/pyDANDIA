@@ -47,8 +47,8 @@ def calc_field_rms():
         phot_statistics = np.zeros( (len(phot_data_filter),3) )
 
         phot_statistics[:,0] = xmatch.stars['field_id'][jdx]
-        (phot_statistics[:,1],werror) = plot_rms.calc_weighted_mean_2D(phot_data_filter, mag_col, merr_col, qc_col=qc_col)
-        phot_statistics[:,2] = plot_rms.calc_weighted_rms(phot_data_filter, phot_statistics[:,0], mag_col, merr_col, qc_col=qc_col)
+        (phot_statistics[:,1],werror) = plot_rms.calc_weighted_mean_2D(phot_data_filter, mag_col, mag_err_col, qc_col=qc_col)
+        phot_statistics[:,2] = plot_rms.calc_weighted_rms(phot_data_filter, phot_statistics[:,0], mag_col, mag_err_col, qc_col=qc_col)
 
         # Plot interactive RMS diagram
         plot_file = params['plot_file_root']+'_'+filter+'.html'
