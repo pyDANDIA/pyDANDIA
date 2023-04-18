@@ -56,7 +56,7 @@ def plot_interactive_lightcurve(lc, filter_list, plot_file, title=None):
                 # Filter datapoints that failed QC so they can be highlighted
                 # on the plot
                 bad_idx = np.where(data[:,3] != 0.0)[0]
-                print(data[:,3], data[bad_idx,:3])
+                print(datacode+' '+str(len(data))+' datapoints, '+str(len(bad_idx))+' flagged as bad')
                 for i in bad_idx:
                     bad_data.append([data[i,0], data[i,1], data[i,2], data[i,3]])
 
@@ -68,7 +68,7 @@ def plot_interactive_lightcurve(lc, filter_list, plot_file, title=None):
                 'mag_error': pd.Series(bad_data[:,2], dtype='float64'),
                 'datacode': pd.Series(['bad-data']*len(bad_data), dtype='str'),
                 'filter': pd.Series([f.replace('p','')]*len(bad_data), dtype='str'),
-                'qc': pd.Series(bad_data[:,3], dtype='float64')
+                'qc_flag': pd.Series(bad_data[:,3], dtype='float64')
                 }
                 ))
 
@@ -79,7 +79,7 @@ def plot_interactive_lightcurve(lc, filter_list, plot_file, title=None):
                     labels=dict(HJD="HJD-"+str(hjd_offset),
                                 mag="Mag",
                                 datacode="Dataset"),
-                    hover_data=['HJD','mag','qc'])
+                    hover_data=['HJD','mag','qc_flag'])
 
     if title:
         fig.update_layout(height=600, width=600*len(filter_list),
