@@ -131,7 +131,8 @@ def plot_interactive_rms(data, plot_file, title=None):
     fig = px.scatter(df, x='mag', y='rms',
                     labels=dict(mag="mag",
                                 rms="rms"),
-                    hover_data=['field_id','mag','rms'])
+                    hover_data=['field_id','mag','rms'],
+                    log_y=True)
     fig.update_traces(
         marker_size=2
     )
