@@ -7,6 +7,7 @@ from pyDANDIA import metadata
 from pyDANDIA import pipeline_setup
 from pyDANDIA import normalize_photometry
 from pyDANDIA import crossmatch
+from pyDANDIA import field_photometry
 import matplotlib as mpl
 mpl.use('Agg')
 import matplotlib.pyplot as plt
