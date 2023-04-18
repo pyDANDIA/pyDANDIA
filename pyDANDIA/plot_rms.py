@@ -94,7 +94,7 @@ def select_valid_data(data, col, errcol, qc_col=None):
 
     selection = np.logical_and(data[:,:,col] > 0.0, data[:,:,errcol] > 0.0)
     if qc_col != None:
-        selection = np.logical_and(data[:,:,qc_col] > 0.0, selection)
+        selection = np.logical_and(data[:,:,qc_col] == 0.0, selection)
 
     mask = np.invert(selection)
 
