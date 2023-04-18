@@ -66,7 +66,7 @@ def plot_interactive_lightcurve(lc, filter_list, plot_file, title=None):
                 'mag': pd.Series(bad_data[:,1], dtype='float64'),
                 'mag_error': pd.Series(bad_data[:,2], dtype='float64'),
                 'datacode': pd.Series(['bad-data']*len(bad_data), dtype='str'),
-                'filter': pd.Series(['f.replace('p','')']*len(bad_data), dtype='str'),
+                'filter': pd.Series([f.replace('p','')]*len(bad_data), dtype='str'),
                 'qc': pd.Series(bad_data[:,3], dtype='float64')
                 }
                 ))
