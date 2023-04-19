@@ -29,7 +29,13 @@ def plot_field_star_lightcurves(params, log=None):
 	plot_file = path.join(params['output_dir'],
 				'star_'+str(params['field_id'])+'_lightcurve_'+params['phot_type']+'.html')
 
-	lc = fetch_field_photometry_for_star_idx(params, field_idx, xmatch, log)
+	log.info('Extracting target timeseries photometry from '+params['phot_hdf_file'])
+
+	quad_phot = hd5_utils.read_phot_from_hd5_file(params['phot_hdf_file'],
+												  return_type='array')
+
+	lc = fetch_field_photometry_for_star_idx(params, field_idx, xmatch,
+											 quad_phot, log)
 	filters = ['gp', 'rp', 'ip']
 	title = 'Lightcurves of star field ID='+str(params['field_id'])
 
@@ -41,14 +47,11 @@ def plot_field_star_lightcurves(params, log=None):
 
 	return message
 
-def fetch_field_photometry_for_star_idx(params, field_idx, xmatch, log):
+def fetch_field_photometry_for_star_idx(params, field_idx, xmatch, quad_phot, log):
 
-	log.info('Extracting target timeseries photometry from '+params['phot_hdf_file'])
-
-	quad_phot = hd5_utils.read_phot_from_hd5_file(params['phot_hdf_file'],
-												  return_type='array')
 	quad_idx = xmatch.field_index['quadrant_id'][field_idx] - 1
-	log.info('Extracting the lightcurve of star with field index='
+	if log:
+		log.info('Extracting the lightcurve of star with field index='
 			+str(field_idx)+' and quadrant index='+str(quad_idx))
 
 	lc = {}
@@ -76,15 +79,18 @@ def fetch_field_photometry_for_star_idx(params, field_idx, xmatch, log):
 				photometry[:,3] = quad_phot[quad_idx,idx,qc_col]
 				lc[shortcode] = photometry
 
-				log.info('-> Extracted '+str(len(idx))
+				if log:
+					log.info('-> Extracted '+str(len(idx))
 					+' valid datapoints of timeseries photometry for star '
 					+str(field_idx+1)+' from dataset '+dataset['dataset_code'])
 			else:
-				log.info('-> No valid datapoints in the lightcurve for star '
+				if log:
+					log.info('-> No valid datapoints in the lightcurve for star '
 				+str(field_idx+1)+' from dataset '+dataset['dataset_code'])
 
 		else:
-			log.info('-> Star '+str(field_idx+1)+' was not measured in dataset '
+			if log:
+				log.info('-> Star '+str(field_idx+1)+' was not measured in dataset '
 					+dataset['dataset_code'])
 
 	return lc

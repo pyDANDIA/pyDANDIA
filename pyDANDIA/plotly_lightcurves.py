@@ -72,26 +72,29 @@ def plot_interactive_lightcurve(lc, filter_list, plot_file, title=None):
         #        }
         #        ))
 
-    df = pd.concat(data_list)
+    if len(data_list) > 0:
+        df = pd.concat(data_list)
 
-    fig = px.scatter(df, x='HJD', y='mag', color='datacode', error_y='mag_error',
-                    facet_col='filter',
-                    labels=dict(HJD="HJD-"+str(hjd_offset),
-                                mag="Mag",
-                                datacode="Dataset"),
-                    hover_data=['HJD','mag','mag_error','qc_flag'])
+        fig = px.scatter(df, x='HJD', y='mag', color='datacode', error_y='mag_error',
+                        facet_col='filter',
+                        labels=dict(HJD="HJD-"+str(hjd_offset),
+                                    mag="Mag",
+                                    datacode="Dataset"),
+                        hover_data=['HJD','mag','mag_error','qc_flag'])
 
-    if title:
-        fig.update_layout(height=600, width=600*len(filter_list),
-                        title=title)
+        if title:
+            fig.update_layout(height=600, width=600*len(filter_list),
+                            title=title)
+        else:
+            fig.update_layout(height=600, width=200*len(filter_list))
+        fig.update_xaxes(title_font=dict(size=18),
+                         tickfont=dict(size=18))
+        fig.update_yaxes(title_font=dict(size=18),
+                         tickfont=dict(size=18))
+        fig.write_html(plot_file)
     else:
-        fig.update_layout(height=600, width=200*len(filter_list))
-    fig.update_xaxes(title_font=dict(size=18),
-                     tickfont=dict(size=18))
-    fig.update_yaxes(title_font=dict(size=18),
-                     tickfont=dict(size=18))
-    fig.write_html(plot_file)
-
+        print('Warning: data list empty; no valid lightcurve to plot')
+        
 def plot_from_lc_file(file_path):
 
     if not path.isfile(file_path):

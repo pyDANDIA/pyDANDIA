@@ -26,7 +26,7 @@ def search_xmatch():
     results = search_on_coordinates(xmatch, args.ra, args.dec, args.radius)
 
     print(results)
-    
+
 def search_on_coordinates(xmatch, ra, dec, radius, log=None):
     """Function to search the crossmatch table for a given ROME field to find
     all potential matches with a given set of coordinates and search radius.
@@ -50,9 +50,8 @@ def search_on_coordinates(xmatch, ra, dec, radius, log=None):
     # Search the table for matching objects.
     # The results table is filtered to exclude the indices from individual
     # datasets since this information is generally not required.
-    full_results = xmatch.cone_search({'ra_centre': ra,
-								  'dec_centre': dec,
-								  'radius': radius/3600.0}, log=log)
+    search_params = {'ra_centre': ra, 'dec_centre': dec, 'radius': radius/3600.0}
+    full_results = xmatch.cone_search(search_params, log=log)
 
     return full_results['field_id', 'ra', 'dec', 'separation']
 
