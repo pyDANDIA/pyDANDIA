@@ -20,6 +20,9 @@ def plot_field_lightcurves_enmasse():
     # Get commandline arguments
     args = get_args()
 
+    # Logging:
+    log = logs.start_stage_log( args.output_dir, 'field_lc_bulk')
+
     # Load the JSON file containing the field IDs and data on the targets.
     # This file can be produced using the search_crossmatch_bulk.py code.
     targets = load_target_list(args.target_file)
@@ -39,7 +42,7 @@ def plot_field_lightcurves_enmasse():
         #selected_target = find_closest_match(target_data)
         for star in target_data['rome_stars']:
             quadrant_targets[star['quadrant']].append(star)
-    print('Sorted '+str(len(targets))+' into data quadrants to extract lightcurves')
+    log.info('Sorted '+str(len(targets))+' into data quadrants to extract lightcurves')
 
 
     # Extract the lightcurves for targets in each quadrant.
@@ -50,25 +53,27 @@ def plot_field_lightcurves_enmasse():
         phot_file = path.join(args.input_dir,
                               args.field_name+'_quad'+str(qid)+'_photometry.hdf5')
         if not path.isfile(phot_file):
-            print('Cannot extract lightcurves for quadrant '+str(qid)+' as photometry file not found')
+            log.info('Cannot extract lightcurves for quadrant '+str(qid)+' as photometry file not found')
         else:
-            print('Loading timeseries photometry for quadrant '+str(qid))
+            log.info('Loading timeseries photometry for quadrant '+str(qid))
             phot_file = path.join(args.input_dir,
                                   args.field_name+'_quad'+str(qid)+'_photometry.hdf5')
             quad_phot = hd5_utils.read_phot_from_hd5_file(phot_file,
         												  return_type='array')
 
-            print('Extracting star lightcurves for field IDs:')
+            log.info('Extracting star lightcurves for field IDs:')
             for star in quadrant_targets[qid]:
-                print(' -> '+str(star['field_id']))
+                log.info(' -> '+str(star['field_id']))
                 field_idx = star['field_id'] - 1
                 lc = field_lightcurves.fetch_field_photometry_for_star_idx(params,
-                                                field_idx, xmatch, quad_phot, None)
+                                                field_idx, xmatch, quad_phot, log)
                 title = 'Lightcurves of star field ID='+str(star['field_id'])
                 plot_file = path.join(args.output_dir,
             				'star_'+str(star['field_id'])+'_lightcurve_'+params['phot_type']+'.html')
                 plotly_lightcurves.plot_interactive_lightcurve(lc, filters, plot_file,
             													title=title)
+
+    logs.close_log(log)
 
 def find_closest_match(target_data):
 

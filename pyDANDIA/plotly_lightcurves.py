@@ -87,6 +87,7 @@ def plot_interactive_lightcurve(lc, filter_list, plot_file, title=None):
                             title=title)
         else:
             fig.update_layout(height=600, width=200*len(filter_list))
+        fig['layout']['yaxis']['autorange'] = "reversed"
         fig.update_xaxes(title_font=dict(size=18),
                          tickfont=dict(size=18))
         fig.update_yaxes(title_font=dict(size=18),
@@ -94,7 +95,7 @@ def plot_interactive_lightcurve(lc, filter_list, plot_file, title=None):
         fig.write_html(plot_file)
     else:
         print('Warning: data list empty; no valid lightcurve to plot')
-        
+
 def plot_from_lc_file(file_path):
 
     if not path.isfile(file_path):

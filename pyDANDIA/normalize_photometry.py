@@ -117,6 +117,9 @@ def run_phot_normalization(setup, **params):
             else:
                 log.info('Normalizing dataset '+dset_datacode+', sitecode='+dset_sitecode)
                 image_index = np.where(xmatch.images['dataset_code'] == dset_datacode)[0]
+
+                ## Dset created to hold all stars in field, not quadrant - 
+                # normalization is calculated from whole field.
                 dset_phot = np.zeros((len(xmatch.stars),2))
                 dset_phot[:,0] = xmatch.stars['cal_'+filter.replace('p','')+'_mag_'+dset_sitecode]
                 dset_phot[:,1] = xmatch.stars['cal_'+filter.replace('p','')+'_magerr_'+dset_sitecode]

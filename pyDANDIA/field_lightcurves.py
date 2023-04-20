@@ -21,6 +21,8 @@ def plot_field_star_lightcurves(params, log=None):
 	xmatch = crossmatch.CrossMatchTable()
 	xmatch.load(params['crossmatch_file'], log=log)
 
+	sanity_check(params,xmatch)
+	
 	if log != None:
 		log.info('Plotting lightcurve for star ID '+str(params['field_id']))
 
@@ -46,6 +48,16 @@ def plot_field_star_lightcurves(params, log=None):
 	logs.close_log(log)
 
 	return message
+
+def sanity_check(params,xmatch):
+
+	field_idx = params['field_id'] - 1
+	star_quadrant = int(xmatch.field_index['quadrant'][field_idx])
+	hdf_quadrant = int(path.basename(params['phot_hdf_file']).split('_')[1].replace('quad',''))
+
+	if star_quadrant != hdf_quadrant:
+		raise IOError('The star requested is in quadrant '+str(star_quadrant)
+				+' but the photometry file provided is from quadrant '+str(hdf_quadrant))
 
 def fetch_field_photometry_for_star_idx(params, field_idx, xmatch, quad_phot, log):
 
