@@ -169,17 +169,19 @@ def plot_interactive(data, plot_file, axis_labels, target_params,
                         title=title)
     else:
         fig.update_layout(height=600, width=600)
-    fig.update_xaxes(title_font=dict(size=18),
-                     tickfont=dict(size=18))
-    fig.update_yaxes(title_font=dict(size=18),
-                     tickfont=dict(size=18))
+    fig.update_xaxes(title_font=dict(size=22),
+                     tickfont=dict(size=22),
+                     title_text=axis_labels[0])
+    fig.update_yaxes(title_font=dict(size=22),
+                     tickfont=dict(size=22),
+                     title_text=axis_labels[1])
     if xrange:
         fig.update_xaxes(range=xrange)
     if yrange:
         fig.update_xaxes(range=yrange)
     if xreverse:
         fig['layout']['xaxis']['autorange'] = "reversed"
-        
+
     fig.write_html(plot_file)
 
 

@@ -64,7 +64,7 @@ def calc_field_cmds():
 
         # Plot interactive RMS diagram
         plot_file = path.join(params['red_dir'], params['plot_file_root']+'_'+f1+'_'+f2+f3+'.html')
-        axis_labels = [f1+' [mag]', '('+f2+'-'+f3+')']
+        axis_labels = [f1+' [mag]', '('+f2+'-'+f3+') [mag]']
         plotly_lightcurves.plot_interactive(data, plot_file, axis_labels,
                     target_params,
                     title=params['field_name']+' CMD', xreverse=True)
