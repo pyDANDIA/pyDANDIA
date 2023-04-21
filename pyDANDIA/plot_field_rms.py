@@ -52,12 +52,14 @@ def calc_field_rms():
 
         selection = np.logical_and(phot_statistics[:,1] > 0.0, phot_statistics[:,2] > 0.0)
         phot_statistics = phot_statistics[selection]
-        
+
         # Plot interactive RMS diagram
         plot_file = path.join(params['red_dir'], params['plot_file_root']+'_'+filter+'.html')
-        plotly_lightcurves.plot_interactive_rms(phot_statistics, plot_file,
+        axis_labels = ['Mag', 'RMS [mag]']
+        plotly_lightcurves.plot_interactive(phot_statistics, plot_file, axis_labels,
                     title='RMS diagram for '+params['field_name']+', quadrant '\
-                            +params['quadrant']+', '+filter+'-band')
+                            +params['quadrant']+', '+filter+'-band',
+                    logy=True)
 
     logs.close_log(log)
 
