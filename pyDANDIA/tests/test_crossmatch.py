@@ -12,10 +12,10 @@ import numpy as np
 
 def test_params():
     params = {'primary_ref': 'primary_ref_dataset',
-              'datasets': { 'primary_ref_dataset': ['primary_ref', '/Users/rstreet1/OMEGA/test_data/non_ref_dataset_p/', 'none'],
-                            'dataset0' : [ 'non_ref', '/Users/rstreet1/OMEGA/test_data/non_ref_dataset0/', 'none' ],
-                            'dataset1' : [ 'non_ref', '/Users/rstreet1/OMEGA/test_data/non_ref_dataset1/', 'none' ],
-                            'dataset2' : [ 'non_ref', '/Users/rstreet1/OMEGA/test_data/non_ref_dataset1/', 'none' ]},
+              'datasets': { 'primary_ref_dataset': ['primary_ref', '/Users/rstreet1/OMEGA/test_data/non_ref_dataset_p/', 'ip'],
+                            'dataset0' : [ 'non_ref', '/Users/rstreet1/OMEGA/test_data/non_ref_dataset0/', 'ip' ],
+                            'dataset1' : [ 'non_ref', '/Users/rstreet1/OMEGA/test_data/non_ref_dataset1/', 'rp' ],
+                            'dataset2' : [ 'non_ref', '/Users/rstreet1/OMEGA/test_data/non_ref_dataset1/', 'gp' ]},
               'file_path': 'crossmatch_table.fits',
               'log_dir': '.',
               'gaia_dr': 'Gaia_DR2',
@@ -358,6 +358,15 @@ def test_record_dataset_stamps():
         assert(column in xmatch.stamps.colnames)
     assert(len(xmatch.stamps) == len(meta.images_stats[1])*len(meta.stamps[1]))
 
+def test_get_imagesets():
+
+    params = test_params()
+    xmatch = crossmatch.CrossMatchTable()
+    xmatch.create(params)
+
+    imagesets = xmatch.get_imagesets()
+    print(imagesets)
+    
 if __name__ == '__main__':
     #test_create()
 #    test_add_dataset()
@@ -371,4 +380,5 @@ if __name__ == '__main__':
     #test_init_stars_table()
     #test_match_field_index_with_gaia_catalog()
     #test_load_gaia_catalog_file()
-    test_record_dataset_stamps()
+    #test_record_dataset_stamps()
+    test_get_imagesets()

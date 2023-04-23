@@ -671,3 +671,19 @@ class CrossMatchTable():
         shortcode = telentries[0]+'-'+telentries[1]+'_'+entries[-1]
 
         return shortcode
+
+    def get_imagesets(self):
+
+        image_sets = {}
+        for d in range(0,len(self.datasets),1):
+            dset = self.datasets['dataset_code'][d]
+            filter = self.datasets['dataset_filter'][d]
+            image_idx = np.where(self.images['dataset_code'] == dset)[0]
+            if filter in image_sets.keys():
+                datasets_for_filter = image_sets[filter]
+            else:
+                datasets_for_filter = {}
+            datasets_for_filter[dset] = image_idx
+            image_sets[filter] = datasets_for_filter
+
+        return image_sets
