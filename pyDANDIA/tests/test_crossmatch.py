@@ -366,7 +366,48 @@ def test_get_imagesets():
 
     imagesets = xmatch.get_imagesets()
     print(imagesets)
-    
+
+def test_create_normalizations_table():
+
+    params = {'primary_ref': 'ROME-FIELD-01_lsc-doma-1m0-05-fa15_ip',
+              'datasets': { 'ROME-FIELD-01_lsc-doma-1m0-05-fa15_ip': ['primary_ref', '/Users/rstreet1/OMEGA/test_data/non_ref_dataset_p/', 'ip'],
+                            'ROME-FIELD-01_coj-doma-1m0-11-fa12_ip' : [ 'non_ref', '/Users/rstreet1/OMEGA/test_data/non_ref_dataset0/', 'ip' ]},
+              'file_path': 'crossmatch_table.fits',
+              'log_dir': '.',
+              'gaia_dr': 'Gaia_DR2',
+              'separation_threshold': (2.0/3600.0)*u.deg}
+    xmatch = crossmatch.CrossMatchTable()
+    xmatch.create(params)
+    xmatch.field_index.add_row([1,267.61861696019145, -29.829605383706895, 4, 1, '4056436121079692032', 1, 0])
+    xmatch.field_index.add_row([2,267.70228408545813, -29.83032824102953, 4, 2, '4056436121079692033', 2, 0])
+    xmatch.field_index.add_row([3,267.9873108673885, -29.829734325692858, 3, 1, '4056436121079692034', 3, 0])
+    xmatch.field_index.add_row([4,267.9585073984874, -29.83002538112054, 3, 2, '4056436121079692035', 4, 0])
+
+    xmatch.create_normalizations_table()
+
+    # Test default creation of an empty table:
+    assert(hasattr(xmatch, 'normalizations'))
+    assert(type(xmatch.normalizations) == type(Table([])))
+
+    # Test creation of a table from a pre-build astropy table:
+    column_list = [ Column(name='field_id', data=xmatch.field_index['field_id'],
+                            dtype='int') ]
+    ns = len(xmatch.field_index)
+    for dset in xmatch.datasets['dataset_code']:
+        cname1 = 'delta_mag_'+xmatch.get_dataset_shortcode(dset)
+        cname2 = 'delta_mag_error_'+xmatch.get_dataset_shortcode(dset)
+        column_list.append( Column(name=cname1, data=np.ones(ns), dtype='float') )
+        column_list.append( Column(name=cname2, data=np.ones(ns), dtype='float') )
+    mag_offsets = Table(column_list)
+
+    xmatch.create_normalizations_table(mag_offsets)
+
+    dset = xmatch.datasets['dataset_code'][0]
+    cname1 = 'delta_mag_'+xmatch.get_dataset_shortcode(dset)
+    cname2 = 'delta_mag_error_'+xmatch.get_dataset_shortcode(dset)
+    assert((xmatch.normalizations[cname1]==1.0).all())
+    assert((xmatch.normalizations[cname2]==1.0).all())
+
 if __name__ == '__main__':
     #test_create()
 #    test_add_dataset()
@@ -381,4 +422,5 @@ if __name__ == '__main__':
     #test_match_field_index_with_gaia_catalog()
     #test_load_gaia_catalog_file()
     #test_record_dataset_stamps()
-    test_get_imagesets()
+    #test_get_imagesets()
+    test_create_normalizations_table()

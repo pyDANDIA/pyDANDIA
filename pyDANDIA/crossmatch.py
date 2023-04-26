@@ -191,6 +191,20 @@ class CrossMatchTable():
                             ]
         self.stamps = Table(stamps_columns)
 
+    def create_normalizations_table(self, data_table=None):
+        if not data_table:
+            column_list = [ Column(name='field_id', data=self.field_index['field_id'],
+                                    dtype='int') ]
+            ns = len(self.field_index)
+            for dset in self.datasets['dataset_code']:
+                cname1 = 'delta_mag_'+self.get_dataset_shortcode(dset)
+                cname2 = 'delta_mag_error_'+self.get_dataset_shortcode(dset)
+                column_list.append( Column(name=cname1, data=np.zeros(ns), dtype='float') )
+                column_list.append( Column(name=cname2, data=np.zeros(ns), dtype='float') )
+            data_table = Table(column_list)
+
+        self.normalizations = data_table
+
     def add_dataset_header(self, dataset_idx, dataset_code, dataset_info):
 
         if '/' in dataset_info[0][-1:]:
@@ -546,6 +560,9 @@ class CrossMatchTable():
                     fits.BinTableHDU(self.stars, name='STARS'),
                     fits.BinTableHDU(self.images, name='IMAGES'),
                     fits.BinTableHDU(self.stamps, name='STAMPS')]
+        if hasattr(self, 'normalizations'):
+            hdu_list.append(fits.BinTableHDU(self.normalizations,
+                                             name='NORMALIZATIONS'))
         hdu_list = fits.HDUList(hdu_list)
         hdu_list.writeto(file_path, overwrite=True)
 
@@ -589,7 +606,8 @@ class CrossMatchTable():
         self.stars = load_binary_table(hdu_list, 3)
         self.images = load_binary_table(hdu_list, 4)
         self.stamps = load_binary_table(hdu_list, 5)
-
+        if len(hdu_list) == 7:
+            self.normalizations = load_binary_table(hdu_list, 6)
         if log:
             log.info('Loaded crossmatch table from '+file_path)
 
