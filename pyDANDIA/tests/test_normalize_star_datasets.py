@@ -7,6 +7,56 @@ import copy
 from astropy.table import Table, Column
 from astropy import units as u
 
+def simulate_field_dataproducts(nstars, nimages_dataset):
+
+    # Simulate a xmatch table
+    datasets = [ 'ROME-FIELD-01_lsc-doma-1m0-05-fa15_ip',
+                 'ROME-FIELD-01_coj-doma-1m0-11-fa12_ip' ]
+    datacodes = np.array( [datasets[0]]*nimages_dataset \
+                    + [datasets[1]]*nimages_dataset )
+    nimages = len(datacodes)
+    interval = 0.25  # days
+    hjd_min = 2455555.0
+    hjds1 = np.linspace(hjd_min, hjd_min+(float(nimages_dataset)*interval), nimages_dataset)
+    hjds2 = np.linspace(hjd_min, hjd_min+(float(nimages_dataset)*interval), nimages_dataset)
+    hjds = np.concatenate((hjds1,hjds2))
+
+    xmatch = crossmatch.CrossMatchTable()
+    xmatch.datasets = Table([
+                        Column(name='dataset_code', data=datasets),
+                        Column(name='dataset_red_dir', data=['/no/path/used']*len(datasets)),
+                        Column(name='dataset_filter', data=['ip']*len(datasets)),
+                        Column(name='primary_ref', data=[1]*len(datasets)),
+                        Column(name='norm_a0', data=[1.0]*len(datasets)),
+                        Column(name='norm_a1', data=[0.0]*len(datasets)),
+                        Column(name='norm_covar_0', data=[0.0]*len(datasets)),
+                        Column(name='norm_covar_1', data=[0.0]*len(datasets)),
+                        Column(name='norm_covar_2', data=[0.0]*len(datasets)),
+                        Column(name='norm_covar_3', data=[0.0]*len(datasets)),
+                        ])
+    xmatch.images = Table([
+                        Column(name='dataset_code', data=datacodes),
+                        Column(name='hjd', data=hjds),
+                        ])
+    xmatch.field_index = Table([
+                        Column(name='field_id', data=np.arange(1,nstars+1,1).astype('int')),
+                        Column(name='quadrant', data=np.ones(nstars).astype('int')),
+                        Column(name='quadrant_id', data=np.arange(1,nstars+1,1).astype('int')),
+                        Column(name=datasets[0]+'_index', data=np.arange(1,nstars+1,1)),
+                        Column(name=datasets[1]+'_index', data=np.arange(1,nstars+1,1)),
+                        ])
+
+    # Simulate only normalized photometry data
+    quad_phot = np.zeros((nstars, nimages, 17))
+    baseline_mag = 17.0
+    baseline_mag_error = 1e-3
+    quad_phot[:,:,7].fill(baseline_mag)
+    quad_phot[:,:,8].fill(baseline_mag_error)
+    for j in range(0,nstars,1):
+        quad_phot[j,:,0] = xmatch.images['hjd']
+
+    return xmatch, quad_phot
+
 def test_bin_lc_in_time():
 
     ndays = 2
@@ -32,6 +82,27 @@ def test_bin_lc_in_time():
     plt.xlabel('HJD-2450000.0')
     plt.ylabel('Mag')
     plt.savefig('test_lightcurve_binning.png')
+
+def test_bin_photometry_datasets():
+
+    nstars = 10
+    nimages_dataset = 20
+    baseline_mag = 17.0
+    (xmatch, quad_phot) = simulate_field_dataproducts(nstars, nimages_dataset)
+
+    hjd_min = quad_phot[:,:,0].min()
+    hjd_max = quad_phot[:,:,0].max()
+    ndays = int(hjd_max - hjd_min)
+    survey_time_bins = np.arange(hjd_min, hjd_min+(float(ndays)), 1.0)
+
+    (survey_time_index, binned_phot) = normalize_photometry_stars.bin_photometry_datasets(xmatch, quad_phot, survey_time_bins)
+
+    for dset, binned_data in binned_phot.items():
+        assert(binned_data.shape == (nstars,len(survey_time_bins),3))
+        for i in range(0,len(survey_time_bins),1):
+            assert((binned_data[:,i,0]==survey_time_bins[i]).all())
+            if i in survey_time_index:
+                assert((binned_data[:,i,1]==baseline_mag).all())
 
 def test_measure_dataset_offset():
 
@@ -117,39 +188,11 @@ def test_update_norm_field_photometry_for_star_idx():
     # Simulated test star:
     field_idx = 2
     nstars = 10
-
-    # Simulate a xmatch table
-    datasets = [ 'ROME-FIELD-01_lsc-doma-1m0-05-fa15_ip',
-        'ROME-FIELD-01_coj-doma-1m0-11-fa12_ip' ]
     nimages_dataset = 5
-    datacodes = np.array( [datasets[0]]*nimages_dataset \
-                    + [datasets[1]]*nimages_dataset )
-    nimages = len(datacodes)
-    xmatch = crossmatch.CrossMatchTable()
-    xmatch.datasets = Table([
-                        Column(name='dataset_code', data=datasets),
-                        Column(name='dataset_red_dir', data=['/no/path/used']*len(datasets)),
-                        Column(name='dataset_filter', data=['ip']*len(datasets)),
-                        Column(name='primary_ref', data=[1]*len(datasets)),
-                        Column(name='norm_a0', data=[1.0]*len(datasets)),
-                        Column(name='norm_a1', data=[0.0]*len(datasets)),
-                        Column(name='norm_covar_0', data=[0.0]*len(datasets)),
-                        Column(name='norm_covar_1', data=[0.0]*len(datasets)),
-                        Column(name='norm_covar_2', data=[0.0]*len(datasets)),
-                        Column(name='norm_covar_3', data=[0.0]*len(datasets)),
-                        ])
-    xmatch.images = Table([
-                        Column(name='dataset_code', data=datacodes),
-                        ])
-    xmatch.field_index = Table([
-                        Column(name='field_id', data=np.arange(1,nstars+1,1).astype('int')),
-                        Column(name='quadrant', data=np.ones(nstars).astype('int')),
-                        Column(name='quadrant_id', data=np.arange(1,nstars+1,1).astype('int')),
-                        Column(name=datasets[0]+'_index', data=np.arange(1,nstars+1,1)),
-                        Column(name=datasets[1]+'_index', data=np.arange(1,nstars+1,1)),
-                        ])
+    (xmatch, quad_phot) = simulate_field_dataproducts(nstars, nimages_dataset)
 
-    # Simulate only normalized photometry data
+    # Empty the photometry array and enter data for a single star, for later
+    # ease of testing
     quad_phot = np.zeros((nstars, nimages, 17))
     baseline_mag = 17.0
     baseline_mag_error = 1e-3
@@ -229,4 +272,5 @@ if __name__ == '__main__':
     #test_measure_dataset_offset()
     #test_apply_dataset_offset()
     #test_update_norm_field_photometry_for_star_idx()
-    test_update_mag_offsets_table()
+    #test_update_mag_offsets_table()
+    test_bin_photometry_datasets()
