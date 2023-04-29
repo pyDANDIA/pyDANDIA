@@ -57,7 +57,33 @@ def test_read_quadrants():
     assert(phot_data.shape[0] > 100000)
     print('Read in photometry data with array shape: '+repr(phot_data.shape))
 
+def test_mask_phot_array():
+
+    # Create a test photometry array
+    phot_data = np.ones((200,30,17))
+    mag_col = 7
+    mag_err_col = 8
+    qc_col = 16
+    phot_data[:,:,qc_col].fill(0.0)
+
+    # Mask out all images for a particular star
+    quad_idx = 100
+    phot_data[quad_idx,:,mag_col] = -9999.9
+    phot_data[quad_idx,:,mag_err_col] = -9999.9
+    phot_data[quad_idx,:,qc_col].fill(2.0)
+
+    # Call the masking function
+    phot_data = hd5_utils.mask_phot_array(phot_data, mag_col, mag_err_col,
+                                          qc_col=qc_col)
+
+    assert(type(phot_data) == type(np.ma.masked_array([], mask=[])))
+    mask = np.ma.getmask(phot_data)
+    assert((mask[quad_idx,:,mag_col] == True).all())
+    assert((mask[quad_idx+1,:,mag_col] == False).all())
+
+
 if __name__ == '__main__':
     #test_write_phot_hd5()
     #test_read_phot_hd5()
-    test_read_quadrants()
+    #test_read_quadrants()
+    test_mask_phot_array()

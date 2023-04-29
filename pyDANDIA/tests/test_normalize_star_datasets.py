@@ -1,6 +1,7 @@
 from pyDANDIA import normalize_photometry_stars
 from pyDANDIA import logs
 from pyDANDIA import crossmatch
+from pyDANDIA import field_photometry
 import numpy as np
 import matplotlib.pyplot as plt
 import copy
@@ -109,77 +110,67 @@ def test_measure_dataset_offset():
     log = logs.start_stage_log( '.', 'test_norm_star' )
 
     # Build test data arrays:
-    ndays = 10
-    interval = 0.25  # days
-    hjd_min = 2455555.0
-    hjds = np.arange(hjd_min, hjd_min+(float(ndays)), interval)
-
-    lc1 = np.zeros((len(hjds),3))
-    lc1[:,0] = hjds
-    lc1[:,1] = np.random.randn(len(hjds)) + 17.0
-    lc1[:,2] = np.random.randn(len(hjds)) * 1e-3
-
+    nstars = 100
+    nimages = 10
+    data = np.zeros((nstars,nimages,3))
     test_offset = 0.5
-    lc2 = np.zeros((len(hjds),3))
-    lc2[:,0] = hjds
-    lc2[:,1] = lc1[:,1] + test_offset
-    lc2[:,2] = np.random.randn(len(hjds)) * 1e-3
+    test_offset_error = 1e-3
+    data[:,:,1] = np.random.rand(nimages)*test_offset_error + test_offset
+    data[:,:,2].fill(test_offset_error)
+    mask = (data < 0.0)
+    quad_idx = 50
+    mask[quad_idx,0,1] = True
+    mask[quad_idx,0,2] = True
+    residuals = np.ma.MaskedArray(data, mask=mask)
 
-    (offset,offset_error) = normalize_photometry_stars.measure_dataset_offset(lc1, lc2, log)
+    plot_file = './test_measure_dataset_offset.png'
+    (offset,offset_error) = normalize_photometry_stars.measure_dataset_offset(residuals[quad_idx,:,:],
+                                                            log=log,
+                                                            plot_file=plot_file)
 
-    fig = plt.figure(1,(10,10))
-    plt.rcParams.update({'font.size': 18})
-    plt.errorbar(lc1[:,0]-2450000.0, lc1[:,1], yerr=lc1[:,2],
-            mfc='purple', mec='purple', fmt='o')
-    plt.errorbar(lc2[:,0]-2450000.0, lc2[:,1], yerr=lc2[:,2],
-            mfc='green', mec='green', fmt='d')
-    plt.xlabel('HJD-2450000.0')
-    plt.ylabel('Mag')
-    plt.savefig('test_measure_offset.png')
-
-    assert(abs(test_offset-(-1.0*offset))<1e-3)
+    assert(abs(offset-test_offset) < test_offset_error)
+    assert(offset_error < test_offset_error)
 
     logs.close_log(log)
 
-def test_apply_dataset_offset():
+def test_apply_dataset_offsets():
 
     log = logs.start_stage_log( '.', 'test_norm_star' )
 
     # Build test data arrays:
-    ndays = 10
-    interval = 0.25  # days
-    hjd_min = 2455555.0
-    hjds = np.arange(hjd_min, hjd_min+(float(ndays)), interval)
-
-    lc1 = np.zeros((len(hjds),3))
-    lc1[:,0] = hjds
-    lc1[:,1] = np.random.randn(len(hjds)) + 17.0
-    lc1[:,2] = np.random.randn(len(hjds)) * 1e-3
+    nstars = 10
+    nimages_dataset = 20
+    baseline_mag = 17.0
+    baseline_mag_error = 1e-3
+    (xmatch, quad_phot) = simulate_field_dataproducts(nstars, nimages_dataset)
+    (mag_col, mag_err_col) = field_photometry.get_field_photometry_columns('normalized')
 
     offset = 0.5
-    offset_error = 1e-4
-    lc2 = np.zeros((len(hjds),3))
-    lc2[:,0] = hjds
-    lc2[:,1] = lc1[:,1] + offset
-    lc2[:,2] = np.random.randn(len(hjds)) * 1e-3
+    offset_error = 1e-3
+    quad_offsets = np.zeros((nstars,2))
+    quad_offsets[:,0].fill(offset)
+    quad_offsets[:,1].fill(offset_error)
+    dset = 'ROME-FIELD-01_lsc-doma-1m0-05-fa15_ip'
 
-    lc3 = copy.deepcopy(lc2)
+    quad_phot = normalize_photometry_stars.apply_dataset_offsets(xmatch, quad_phot,
+                                                                dset, quad_offsets,
+                                                                mag_col, mag_err_col,
+                                                                log)
 
-    lc3 = normalize_photometry_stars.apply_dataset_offset(lc3, -offset, offset_error, log)
+    # Test that the photometry for all stars in this dataset's images have
+    # been given the correct offset
+    idx = np.where(xmatch.images['dataset_code'] == dset)[0]
+    assert((quad_phot[:,idx,mag_col] == baseline_mag+offset).all())
+    uncertainty = np.sqrt( (baseline_mag_error*baseline_mag_error)
+                    + (offset_error*offset_error) )
+    assert((quad_phot[:,idx,mag_err_col] == uncertainty).all())
 
-    fig = plt.figure(1,(10,10))
-    plt.rcParams.update({'font.size': 18})
-    plt.errorbar(lc1[:,0]-2450000.0, lc1[:,1], yerr=lc1[:,2],
-            mfc='purple', mec='purple', fmt='o')
-    plt.errorbar(lc2[:,0]-2450000.0, lc2[:,1], yerr=lc2[:,2],
-            mfc='green', mec='green', fmt='d')
-    plt.errorbar(lc3[:,0]-2450000.0, lc3[:,1], yerr=lc3[:,2],
-            mfc='black', mec='black', fmt='x')
-    plt.xlabel('HJD-2450000.0')
-    plt.ylabel('Mag')
-    plt.savefig('test_apply_offset.png')
-
-    assert(lc1[:,1].mean() == lc3[:,1].mean())
+    # Check that the data for the images from the other dataset have
+    # not been changed
+    dset = 'ROME-FIELD-01_coj-doma-1m0-11-fa12_ip'
+    idx = np.where(xmatch.images['dataset_code'] == dset)[0]
+    assert((quad_phot[:,idx,mag_col] == baseline_mag).all())
+    assert((quad_phot[:,idx,mag_err_col] == baseline_mag_error).all())
 
     logs.close_log(log)
 
@@ -254,23 +245,101 @@ def test_update_mag_offsets_table():
 
     xmatch.create_normalizations_table()
 
+    qid = 3
+    jdx = np.where(xmatch.field_index['quadrant'] == qid)[0]
     offset = 0.5
     offset_error = 1e-3
-    field_idx = 1
+    offsets = np.zeros((len(jdx),2))
+    offsets[:,0].fill(offset)
+    offsets[:,1].fill(offset_error)
     dset = 'ROME-FIELD-01_lsc-doma-1m0-05-fa15_ip'
-    xmatch = normalize_photometry_stars.update_mag_offsets_table(xmatch,
-                                            field_idx, dset,
-                                            offset, offset_error)
+    xmatch = normalize_photometry_stars.update_mag_offsets_table(xmatch, qid,
+                                            dset, offsets)
     cname1 = 'delta_mag_'+xmatch.get_dataset_shortcode(dset)
     cname2 = 'delta_mag_error_'+xmatch.get_dataset_shortcode(dset)
 
-    assert(xmatch.normalizations[cname1][field_idx] == offset)
-    assert(xmatch.normalizations[cname2][field_idx] == offset_error)
+    assert((xmatch.normalizations[cname1][jdx] == offset).all())
+    assert((xmatch.normalizations[cname2][jdx] == offset_error).all())
+
+def test_normalize_star_datasets():
+
+    # Simulated dataset
+    nstars = 100
+    nimages_dataset = 20
+    (xmatch, quad_phot) = simulate_field_dataproducts(nstars, nimages_dataset)
+    xmatch.id_primary_datasets_per_filter()
+    xmatch.create_normalizations_table()
+    filter_list =['ip']
+    mag_col = 7
+    mag_err_col = 8
+    qid = 1
+
+    hjd_min = quad_phot[:,:,0].min()
+    hjd_max = quad_phot[:,:,0].max()
+    ndays = int(hjd_max - hjd_min)
+    survey_time_bins = np.arange(hjd_min, hjd_min+(float(ndays)), 1.0)
+
+    dset = 'ROME-FIELD-01_coj-doma-1m0-11-fa12_ip'
+    shortcode = '-'.join((dset.split('_')[1]).split('-')[0:2]) \
+                        + '_' + dset.split('_')[-1]
+    idx = np.where(xmatch.images['dataset_code'] == dset)[0]
+    test_offset = 0.5
+    quad_phot[:,idx,mag_col] += test_offset
+
+    (survey_time_index, binned_phot) = normalize_photometry_stars.bin_photometry_datasets(xmatch, quad_phot,
+                                                                survey_time_bins,
+                                                                mag_col, mag_err_col,
+                                                                log=None)
+
+    (xmatch, quad_phot) = normalize_photometry_stars.normalize_star_datasets(
+                                xmatch, quad_phot, qid, binned_phot,
+                                filter_list, mag_col, mag_err_col, log=None)
+
+    assert((xmatch.normalizations['delta_mag_'+shortcode] == -test_offset).all())
+
+def test_calc_residuals_between_datasets():
+    # Create a pair of test binned datasets
+    nstars = 10
+    nbins = 5
+    binned_pri_ref_data = np.zeros((nstars,nbins,3))
+    binned_data = np.zeros((nstars,nbins,3))
+    hjd_min = 2455555.5
+    hjds = np.arange(hjd_min, hjd_min+nbins, 1.0)
+    for b in range(0,nbins,1):
+        binned_pri_ref_data[:,b,0].fill(hjds[b])
+        binned_data[:,b,0].fill(hjds[b])
+        binned_pri_ref_data[:,b,1] = np.random.rand((nstars))*0.01 + 17.0
+        binned_pri_ref_data[:,b,2] = np.random.rand((nstars))*0.01
+    offset = 0.5
+    binned_data[:,:,1] = binned_pri_ref_data[:,:,1] + offset
+    binned_data[:,:,2] = binned_pri_ref_data[:,:,2]
+
+    # Include some invalid datapoints:
+    istar1 = int(nstars/2.0)
+    binned_pri_ref_data[istar1,:,1] = np.nan
+    binned_pri_ref_data[istar1,:,2] = np.nan
+    istar2 = istar1 + 1
+    binned_data[istar2,:,1] = 0.0
+    binned_data[istar2,:,2] = 0.0
+
+    (residuals,status) = normalize_photometry_stars.calc_residuals_between_datasets(binned_pri_ref_data,
+                                                binned_data)
+
+    assert(type(residuals) == type(np.ma.MaskedArray([])))
+    mask = np.ma.getmask(residuals)
+    assert((mask[istar1,:,1] == True).all())
+    assert((mask[istar1,:,2] == True).all())
+    assert((mask[istar2,:,1] == True).all())
+    assert((mask[istar2,:,2] == True).all())
+    assert(residuals[:,:,1].mean() == -offset)
+    assert(residuals[:,:,2].mean() <= 1e-2)
 
 if __name__ == '__main__':
     #test_bin_lc_in_time()
-    #test_measure_dataset_offset()
-    #test_apply_dataset_offset()
+    test_measure_dataset_offset()
+    #test_apply_dataset_offsets()
     #test_update_norm_field_photometry_for_star_idx()
     #test_update_mag_offsets_table()
-    test_bin_photometry_datasets()
+    #test_bin_photometry_datasets()
+    #test_normalize_star_datasets()
+    #test_calc_residuals_between_datasets()

@@ -81,3 +81,29 @@ def load_four_quadrant_photometry(red_dir, file_rootname, verbose=False):
     if verbose: print('Completed read of timeseries photometry: '+repr(phot_data.shape))
 
     return phot_data
+
+def mask_phot_array(phot_data, col, err_col, qc_col=None):
+    """Function to create a Numpy masked array based on the results of selecting
+    valid photometric entries from a standard-format photometry array."""
+
+    # Select valid data.  Invalid photometry measurements are usually set to
+    # -99.0
+    selection = np.logical_and(phot_data[:,:,col] > 0.0,
+                                phot_data[:,:,err_col] > 0.0)
+    if qc_col != None:
+        selection = np.logical_and(phot_data[:,:,qc_col] == 0.0, selection)
+
+    mask = np.invert(selection)
+
+    expand_mask = np.empty((mask.shape[0], mask.shape[1], phot_data.shape[2]))
+    for col in range(0,expand_mask.shape[2],1):
+        expand_mask[:,:,col] = mask
+
+    phot_data = np.ma.masked_array(phot_data, mask=expand_mask)
+
+    return phot_data
+
+def unmask_phot_array(phot_data):
+    """Function to unmask a masked photometry array.  Convienence wrapper
+    for np.ma function to match the syntax used for the masking function"""
+    return np.ma.getdata(phot_data)

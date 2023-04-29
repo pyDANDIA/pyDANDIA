@@ -16,9 +16,12 @@ import matplotlib.pyplot as plt
 from skimage.measure import ransac, LineModelND
 import copy
 
-VERSION = 'star_norm_v0.1'
+VERSION = 'star_norm_v0.2'
 
 def run_star_normalization(setup, **params):
+
+    # FOR TESTING ONLY:
+    qid = 1
 
     log = logs.start_stage_log( setup.red_dir, 'postproc_star_norm', version=VERSION )
 
@@ -36,9 +39,8 @@ def run_star_normalization(setup, **params):
 
     # Mask the main photometry array, to avoid using invalid data in the calculations
     (mag_col, mag_err_col) = field_photometry.get_field_photometry_columns('normalized')
-    selection = np.logical_and(data[:,:,mag_col] > 0.0, data[:,:,mag_err_col] > 0.0)
-    mask = np.invert(selection) # NEEDS TO GROW TO 3D
-    quad_phot = np.ma.array(quad_phot, mask=mask)
+    quad_phot = hd5_utils.mask_phot_array(quad_phot, mag_col, mag_err_col)
+    log.info('Masked invalid photometry in the data array')
 
     # Create a holding array for the output measured magnitude offset per dataset.
     xmatch.create_normalizations_table()
@@ -46,29 +48,32 @@ def run_star_normalization(setup, **params):
     # The normalization process compares the photometry measurements of a given
     # star from different datasets obtained at the same time.
     survey_time_bins = calc_survey_time_bins(quad_phot, log)
+    log.info('Survey time bins: '+repr(survey_time_bins))
 
     # Assign the images from each dataset to the survey_time_bins based on
     # their HJDs.
     (survey_time_index, binned_phot) = bin_photometry_datasets(xmatch, quad_phot,
                                                                 survey_time_bins,
+                                                                mag_col, mag_err_col,
                                                                 log=log)
 
-    (xmatch, quad_phot) = normalize_star_datasets(params, xmatch, quad_phot,
-                                survey_time_bins, filter_list,
-                                log=None, diagnostics=False)
+    (xmatch, quad_phot) = normalize_star_datasets(params,xmatch, quad_phot, qid,
+                                binned_phot, filter_list, mag_col, mag_err_col,
+                                log=log)
 
     # Store the stellar normalization coefficients per dataset to the
     # crossmatch table:
     xmatch.save(params['crossmatch_file'])
 
     # Output the updated photometry
-    # NEEDS TO UNMASK
+    quad_phot = hd5_utils.unmask_phot_array(quad_phot)
     normalize_photometry.output_quadrant_photometry(params, setup, qid,
                                                     quad_phot, log)
 
     logs.close_log(log)
 
-def bin_photometry_datasets(xmatch, quad_phot, survey_time_bins, log=None):
+def bin_photometry_datasets(xmatch, quad_phot, survey_time_bins,
+                            mag_col, mag_err_col, log=None):
     """Each dataset consists of a set of images with given timestamps, that
     are recorded in the crossmatch table.  Since these are essentially the same
     for all stars (modulo instances where an individual star isn't measured for
@@ -80,8 +85,6 @@ def bin_photometry_datasets(xmatch, quad_phot, survey_time_bins, log=None):
     # Index all images in the whole survey, assigning each one of the time bins
     survey_time_index = np.digitize(xmatch.images['hjd'], survey_time_bins)
     if log: log.info('Digitized the timestamps for all images')
-
-    (mag_col, mag_err_col) = field_photometry.get_field_photometry_columns('normalized')
 
     binned_phot = {}
     for dataset in xmatch.datasets:
@@ -114,6 +117,17 @@ def bin_photometry_datasets(xmatch, quad_phot, survey_time_bins, log=None):
 
         binned_phot[longcode] = binned_data
 
+    sid = 1001
+    for dset in binned_phot.keys():
+        f = open('binned_data_star_'+str(sid)+'_'+dset+'.txt', 'w')
+        f.write('# Bin   HJD   wmean_mag     wmean_error\n')
+        for b in range(0,len(survey_time_bins),1):
+            outstr = str(b)+' '+ str(binned_phot[dset][1001,b,0])+' ' \
+                        + str(binned_phot[dset][1001,b,1])+' ' \
+                        + str(binned_phot[dset][1001,b,2])
+            f.write(outstr+'\n')
+        f.close()
+
     return survey_time_index, binned_phot
 
 def calc_survey_time_bins(quad_phot, log):
@@ -143,16 +157,11 @@ def calc_survey_time_bins(quad_phot, log):
 
     return survey_time_bins
 
-def normalize_star_datasets(params, xmatch, quad_phot, binned_phot,
-                            filter_list,
-                            log=None, diagnostics=False):
+def normalize_star_datasets(params, xmatch, quad_phot, qid, binned_phot,
+                            filter_list, mag_col, mag_err_col, log=None):
     """Function bins the star's lightcurve in time, and calculates the weighted
     mean magnitude offset of each dataset from the primary reference lightcurve
     in each filter, from the binned data, excluding outliers. """
-
-    # Extract the lightcurve of the given star in its constituent datasets:
-    #lc = load_norm_field_photometry_for_star_idx(params, field_idx,
-    #                                            xmatch, quad_phot,log=None)
 
     for f in filter_list:
         # Fetch the primary reference lightcurve for this star
@@ -167,48 +176,89 @@ def normalize_star_datasets(params, xmatch, quad_phot, binned_phot,
             if f in dset:
                 if dset != pri_ref_code:
                     if log: log.info('Measuring magnitude offsets for '+dset)
-
                     binned_data = binned_phot[dset]
 
                     # Determine the offset between this dataset and the primary_ref
                     # for all stars in all time bins:
-                    residuals = np.zeros((binned_data.shape[0],binned_data.shape[1]))
-                    residuals[:,:,0] = binned_pri_ref_data[:,:,0]
-                    residuals[:,:,1] = binned_pri_ref_data[:,:,1] - binned_data[:,:,1]
-                    residuals[:,:,2] = np.sqrt((binned_pri_ref_data[:,:,1]*binned_pri_ref_data[:,:,1]) +
-                                            (binned_data[:,:,1]*binned_data[:,:,1]))
+                    (residuals,status) = calc_residuals_between_datasets(binned_pri_ref_data,
+                                                                binned_data)
 
                     # Since this process uses RANSAC to optimize
                     # the in/outliers independently for each star, this cannot
                     # be an array operation
                     quad_offsets = np.zeros((binned_data.shape[0],2))
-                    for quad_idx in range(0,binned_data.shape[0],1):
-                        (dm, dmerr) = measure_dataset_offset(residuals[quad_idx,:,:],
-                                                            log=None)
-                        quad_offsets[quad_idx,0] = dm
-                        quad_offsets[quad_idx,1] = dmerr
+                    if status:
+                        if log: log.info('Starting RANSAC optimization for each star')
+                        #for quad_idx in range(0,binned_data.shape[0],1):
+                        print('WARNING THIS LOOP IS LIMITED!')
+                        for quad_idx in range(1000,2000,1):
+                            plot_file = path.join(params['red_dir'],'ransac',
+                                        'residuals_'+dset+'_'+str(quad_idx)+'.png')
+                            (dm, dmerr) = measure_dataset_offset(residuals[quad_idx,:,:],
+                                                                log=log, plot_file=plot_file)
+                            quad_offsets[quad_idx,0] = dm
+                            quad_offsets[quad_idx,1] = dmerr
+                            if log and quad_idx%100==0:
+                                log.info('-> quad_idx: '+str(quad_idx)
+                                             +' offset='+str(dm)+' +/- '+str(dmerr))
+                        if log:
+                            log.info('Completed RANSAC optimizations')
+                    else:
+                        if log: log.info('No valid residuals between this dataset and the primary reference')
 
                     # Apply these offsets to correct the unbinned lightcurve
                     # for all stars in the quadrant for this dataset:
                     quad_phot = apply_dataset_offsets(xmatch, quad_phot, dset,
-                                                      quad_offsets, log=None)
+                                                      quad_offsets,
+                                                      mag_col, mag_err_col,
+                                                      log=None)
+                    if log: log.info('Applied stellar photometric normalizations to main data array')
 
                     # Store the coefficients
-                    xmatch = update_mag_offsets_table(xmatch, dset, offset,
-                                                      quad_offsets)
+                    xmatch = update_mag_offsets_table(xmatch, qid, dset, quad_offsets)
+                    if log: log.info('Updated the crossmatch table with normalization coefficients')
 
     return xmatch, quad_phot
 
-def update_mag_offsets_table(xmatch, dset, quad_offsets):
+def calc_residuals_between_datasets(binned_data1, binned_data2):
+
+    # Mask out residuals datapoints if the measurements are invalid in both
+    # binned datasets
+    mask1 = np.logical_and(np.isfinite(binned_data1), binned_data1 > 0.0)
+    mask2 = np.logical_and(np.isfinite(binned_data2), binned_data2 > 0.0)
+    mask = np.invert(np.logical_and(mask1, mask2))
+
+    # Calculate the residuals
+    data = np.zeros((binned_data1.shape[0],binned_data1.shape[1],3))
+    data[:,:,0] = binned_data1[:,:,0]
+    data[:,:,1] = binned_data1[:,:,1] - binned_data2[:,:,1]
+    data[:,:,2] = np.sqrt((binned_data1[:,:,2]*binned_data1[:,:,2]) +
+                            (binned_data2[:,:,2]*binned_data2[:,:,2]))
+
+    # Test whether there are any valid residuals:
+    valid = np.where(mask[:,:,1] == False)[0]
+    if len(valid) > 0:
+        test = True
+    else:
+        test = False
+
+    return np.ma.masked_array(data, mask=mask), test
+
+def update_mag_offsets_table(xmatch, qid, dset, quad_offsets):
+    # Get the field indices of this quadrant's stars
+    jdx = np.where(xmatch.field_index['quadrant'] == qid)[0]
+    quad_ids = xmatch.field_index['quadrant_id'][jdx]
+    field_idxs = xmatch.field_index['field_id'][jdx] - 1
+    raise Error('update_mag_offsets_table function needs testing!')
     cname1 = 'delta_mag_'+xmatch.get_dataset_shortcode(dset)
     cname2 = 'delta_mag_error_'+xmatch.get_dataset_shortcode(dset)
-    xmatch.normalizations[cname1][:] = quad_offsets[:,0]
-    xmatch.normalizations[cname2][:] = quad_offsets[:,1]
+    xmatch.normalizations[cname1][field_idxs] = quad_offsets[quad_ids,0]
+    xmatch.normalizations[cname2][field_idxs] = quad_offsets[quad_ids,1]
 
     return xmatch
 
 def apply_dataset_offsets(xmatch, quad_phot, dset,
-                          quad_offsets, log=None):
+                          quad_offsets, mag_col, mag_err_col, log=None):
 
     # Select the images corresponding to this dataset:
     idx = np.where(xmatch.images['dataset_code'] == dset)[0]
@@ -216,8 +266,9 @@ def apply_dataset_offsets(xmatch, quad_phot, dset,
     # Apply the correction only to valid measurements, since these are
     # otherwise filtered out by other parts of the pipeline
     if len(idx) > 0:
-        quad_phot[:,idx,mag_col] += quad_offsets[:,0]
-        quad_phot[:,idx,mag_err_col] = np.sqrt( quad_phot[:,idx,mag_err_col]*quad_phot[:,idx,mag_err_col]
+        for i in idx:
+            quad_phot[:,i,mag_col] += quad_offsets[:,0]
+            quad_phot[:,i,mag_err_col] = np.sqrt( quad_phot[:,i,mag_err_col]*quad_phot[:,i,mag_err_col]
                                                 + quad_offsets[:,1]*quad_offsets[:,1] )
 
     return quad_phot
@@ -234,6 +285,8 @@ def measure_dataset_offset(residuals, log=None, plot_file=None):
 
     So that:
     dataset + offset -> primary_ref
+
+    Note: Expects a masked array
     """
 
     # Parameters required for the RANSAC fit:
@@ -241,14 +294,15 @@ def measure_dataset_offset(residuals, log=None, plot_file=None):
     residuals_threshold = 0.1
 
     # Identify those bins where both lightcurves have valid measurements
-    select np.where(np.isfinite(residuals[:,1]))[0]
+    mask = np.ma.getmask(residuals)
+    select = np.where(mask[:,1] == False)[0]
     if log: log.info('Identified '+str(len(select))
                 +' bins with contemporaneous lightcurve measurements')
 
     if len(select) >= min_samples:
 
         # Identify in/outliers, and calculate the transformation between the two:
-        (transform, inliers) = ransac(residuals, LineModelND,
+        (transform, inliers) = ransac(residuals[select,:].data, LineModelND,
                                         min_samples=min_samples,
                                         residual_threshold=residuals_threshold)
         offset = transform.params[0][1]
