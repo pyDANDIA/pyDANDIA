@@ -38,12 +38,14 @@ def run_star_normalization(setup, **params):
     log.info('...completed')
 
     # Mask the main photometry array, to avoid using invalid data in the calculations
+    log.info('Masking invalid photometry in the data array')
     (mag_col, mag_err_col) = field_photometry.get_field_photometry_columns('normalized')
     quad_phot = hd5_utils.mask_phot_array(quad_phot, mag_col, mag_err_col)
-    log.info('Masked invalid photometry in the data array')
+    log.info('...completed')
 
     # Create a holding array for the output measured magnitude offset per dataset.
     xmatch.create_normalizations_table()
+    log.info('Initialized table for normalization constants for each star and dataset')
 
     # The normalization process compares the photometry measurements of a given
     # star from different datasets obtained at the same time.
@@ -117,17 +119,6 @@ def bin_photometry_datasets(xmatch, quad_phot, survey_time_bins,
 
         binned_phot[longcode] = binned_data
 
-    sid = 1001
-    for dset in binned_phot.keys():
-        f = open('binned_data_star_'+str(sid)+'_'+dset+'.txt', 'w')
-        f.write('# Bin   HJD   wmean_mag     wmean_error\n')
-        for b in range(0,len(survey_time_bins),1):
-            outstr = str(b)+' '+ str(binned_phot[dset][1001,b,0])+' ' \
-                        + str(binned_phot[dset][1001,b,1])+' ' \
-                        + str(binned_phot[dset][1001,b,2])
-            f.write(outstr+'\n')
-        f.close()
-
     return survey_time_index, binned_phot
 
 def calc_survey_time_bins(quad_phot, log):
@@ -184,22 +175,24 @@ def normalize_star_datasets(params, xmatch, quad_phot, qid, binned_phot,
                                                                 binned_data)
 
                     # Since this process uses RANSAC to optimize
-                    # the in/outliers independently for each star, this cannot
-                    # be an array operation
+                    # the in/outliers independently for each star in this quadrant,
+                    # this cannot be an array operation
                     quad_offsets = np.zeros((binned_data.shape[0],2))
+                    quadrant_stars = np.where(xmatch.field_index['quadrant'] == qid)[0]
                     if status:
                         if log: log.info('Starting RANSAC optimization for each star')
-                        #for quad_idx in range(0,binned_data.shape[0],1):
-                        print('WARNING THIS LOOP IS LIMITED!')
-                        for quad_idx in range(1000,2000,1):
+                        for qstar in quadrant_stars:
+                            fidx = xmatch.field_index['field_id'][qstar] - 1
+                            quad_idx = xmatch.field_index['quadrant_id'][qstar] - 1
                             plot_file = path.join(params['red_dir'],'ransac',
-                                        'residuals_'+dset+'_'+str(quad_idx)+'.png')
+                                        'residuals_'+dset+'_'+str(fidx+1)+'.png')
                             (dm, dmerr) = measure_dataset_offset(residuals[quad_idx,:,:],
-                                                                log=log, plot_file=plot_file)
+                                                                log=None, plot_file=None)
                             quad_offsets[quad_idx,0] = dm
                             quad_offsets[quad_idx,1] = dmerr
-                            if log and quad_idx%100==0:
-                                log.info('-> quad_idx: '+str(quad_idx)
+                            if log:
+                                log.info('-> field ID: '+str(fidx+1)+', quadrant '
+                                            +str(qid)+' quadrant ID: '+str(quad_idx+1)
                                              +' offset='+str(dm)+' +/- '+str(dmerr))
                         if log:
                             log.info('Completed RANSAC optimizations')
@@ -247,13 +240,12 @@ def calc_residuals_between_datasets(binned_data1, binned_data2):
 def update_mag_offsets_table(xmatch, qid, dset, quad_offsets):
     # Get the field indices of this quadrant's stars
     jdx = np.where(xmatch.field_index['quadrant'] == qid)[0]
-    quad_ids = xmatch.field_index['quadrant_id'][jdx]
+    quad_idxs = xmatch.field_index['quadrant_id'][jdx] - 1
     field_idxs = xmatch.field_index['field_id'][jdx] - 1
-    raise Error('update_mag_offsets_table function needs testing!')
     cname1 = 'delta_mag_'+xmatch.get_dataset_shortcode(dset)
     cname2 = 'delta_mag_error_'+xmatch.get_dataset_shortcode(dset)
-    xmatch.normalizations[cname1][field_idxs] = quad_offsets[quad_ids,0]
-    xmatch.normalizations[cname2][field_idxs] = quad_offsets[quad_ids,1]
+    xmatch.normalizations[cname1][field_idxs] = quad_offsets[quad_idxs,0]
+    xmatch.normalizations[cname2][field_idxs] = quad_offsets[quad_idxs,1]
 
     return xmatch
 

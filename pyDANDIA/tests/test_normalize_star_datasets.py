@@ -56,6 +56,10 @@ def simulate_field_dataproducts(nstars, nimages_dataset):
     for j in range(0,nstars,1):
         quad_phot[j,:,0] = xmatch.images['hjd']
 
+    mask = np.empty(quad_phot.shape)
+    mask.fill(False)
+    quad_phot = np.ma.MaskedArray(quad_phot, mask=mask)
+
     return xmatch, quad_phot
 
 def test_bin_lc_in_time():
@@ -238,32 +242,45 @@ def test_update_mag_offsets_table():
               'separation_threshold': (2.0/3600.0)*u.deg}
     xmatch = crossmatch.CrossMatchTable()
     xmatch.create(params)
-    xmatch.field_index.add_row([1,267.61861696019145, -29.829605383706895, 4, 1, '4056436121079692032', 1, 0])
-    xmatch.field_index.add_row([2,267.70228408545813, -29.83032824102953, 4, 2, '4056436121079692033', 2, 0])
-    xmatch.field_index.add_row([3,267.9873108673885, -29.829734325692858, 3, 1, '4056436121079692034', 3, 0])
-    xmatch.field_index.add_row([4,267.9585073984874, -29.83002538112054, 3, 2, '4056436121079692035', 4, 0])
+
+    nstars_per_quadrant = 100
+    mid_ra = 260.0
+    mid_dec = -29.0
+    gaia_start = 4056436121079692032
+    s = 0
+    for qid in range(1,5,1):
+        for j in range(1,nstars_per_quadrant+1,1):
+            s += 1
+            ra = np.random.randn(1)[0]+mid_ra
+            dec = np.random.randn(1)[0]+mid_dec
+            xmatch.field_index.add_row( [s, ra, dec, qid, j, str(gaia_start+s), j, j+5] )
 
     xmatch.create_normalizations_table()
-
     qid = 3
     jdx = np.where(xmatch.field_index['quadrant'] == qid)[0]
     offset = 0.5
     offset_error = 1e-3
     offsets = np.zeros((len(jdx),2))
-    offsets[:,0].fill(offset)
-    offsets[:,1].fill(offset_error)
+    offsets[:,0] = np.random.randn(len(jdx)) + offset
+    offsets[:,1] = np.random.randn(len(jdx))*offset_error
+
     dset = 'ROME-FIELD-01_lsc-doma-1m0-05-fa15_ip'
     xmatch = normalize_photometry_stars.update_mag_offsets_table(xmatch, qid,
                                             dset, offsets)
     cname1 = 'delta_mag_'+xmatch.get_dataset_shortcode(dset)
     cname2 = 'delta_mag_error_'+xmatch.get_dataset_shortcode(dset)
 
-    assert((xmatch.normalizations[cname1][jdx] == offset).all())
-    assert((xmatch.normalizations[cname2][jdx] == offset_error).all())
+    assert((xmatch.normalizations[cname1][jdx] == offsets[:,0]).all())
+    assert((xmatch.normalizations[cname2][jdx] == offsets[:,1]).all())
+
+    jdx = np.where(xmatch.field_index['quadrant'] != qid)[0]
+    assert((xmatch.normalizations[cname1][jdx] == 0.0).all())
+    assert((xmatch.normalizations[cname2][jdx] == 0.0).all())
 
 def test_normalize_star_datasets():
 
     # Simulated dataset
+    params = {'red_dir': './'}
     nstars = 100
     nimages_dataset = 20
     (xmatch, quad_phot) = simulate_field_dataproducts(nstars, nimages_dataset)
@@ -286,13 +303,16 @@ def test_normalize_star_datasets():
     test_offset = 0.5
     quad_phot[:,idx,mag_col] += test_offset
 
-    (survey_time_index, binned_phot) = normalize_photometry_stars.bin_photometry_datasets(xmatch, quad_phot,
-                                                                survey_time_bins,
-                                                                mag_col, mag_err_col,
-                                                                log=None)
+    hjd_min = quad_phot[:,:,0].min()
+    hjd_max = quad_phot[:,:,0].max()
+    ndays = int(hjd_max - hjd_min)
+    survey_time_bins = np.arange(hjd_min, hjd_min+(float(ndays)), 1.0)
+
+    (survey_time_index, binned_phot) = normalize_photometry_stars.bin_photometry_datasets(xmatch, quad_phot, survey_time_bins,
+                                mag_col, mag_err_col, log=None)
 
     (xmatch, quad_phot) = normalize_photometry_stars.normalize_star_datasets(
-                                xmatch, quad_phot, qid, binned_phot,
+                                params, xmatch, quad_phot, qid, binned_phot,
                                 filter_list, mag_col, mag_err_col, log=None)
 
     assert((xmatch.normalizations['delta_mag_'+shortcode] == -test_offset).all())
@@ -336,10 +356,10 @@ def test_calc_residuals_between_datasets():
 
 if __name__ == '__main__':
     #test_bin_lc_in_time()
-    test_measure_dataset_offset()
+    #test_measure_dataset_offset()
     #test_apply_dataset_offsets()
     #test_update_norm_field_photometry_for_star_idx()
     #test_update_mag_offsets_table()
     #test_bin_photometry_datasets()
-    #test_normalize_star_datasets()
+    test_normalize_star_datasets()
     #test_calc_residuals_between_datasets()
