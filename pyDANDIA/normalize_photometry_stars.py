@@ -16,61 +16,58 @@ import matplotlib.pyplot as plt
 from skimage.measure import ransac, LineModelND
 import copy
 
-VERSION = 'star_norm_v0.2'
+VERSION = 'star_norm_v0.8'
 
 def run_star_normalization(setup, **params):
-
-    # FOR TESTING ONLY:
-    qid = 1
 
     log = logs.start_stage_log( setup.red_dir, 'postproc_star_norm', version=VERSION )
 
     xmatch = crossmatch.CrossMatchTable()
     xmatch.load(params['crossmatch_file'],log=log)
     xmatch.id_primary_datasets_per_filter()
+    xmatch.create_normalizations_table()
+
     image_sets = xmatch.get_imagesets()
     filter_list = np.unique(xmatch.images['filter'].data)
 
-    log.info('Loading timeseries photometry...')
-    file_path = path.join(setup.red_dir, params['field_name']\
-                    +'_quad'+str(qid)+'_photometry.hdf5')
-    quad_phot = hd5_utils.read_phot_from_hd5_file(file_path, return_type='array')
-    log.info('...completed')
+    for qid in range(1,5,1):
 
-    # Mask the main photometry array, to avoid using invalid data in the calculations
-    log.info('Masking invalid photometry in the data array')
-    (mag_col, mag_err_col) = field_photometry.get_field_photometry_columns('normalized')
-    quad_phot = hd5_utils.mask_phot_array(quad_phot, mag_col, mag_err_col)
-    log.info('...completed')
+        log.info('Loading timeseries photometry for quadrant '+str(qid)+'...')
+        file_path = path.join(setup.red_dir, params['field_name']\
+                        +'_quad'+str(qid)+'_photometry.hdf5')
+        quad_phot = hd5_utils.read_phot_from_hd5_file(file_path, return_type='array')
+        log.info('...completed')
 
-    # Create a holding array for the output measured magnitude offset per dataset.
-    xmatch.create_normalizations_table()
-    log.info('Initialized table for normalization constants for each star and dataset')
+        # Mask the main photometry array, to avoid using invalid data in the calculations
+        log.info('Masking invalid photometry in the data array')
+        (mag_col, mag_err_col) = field_photometry.get_field_photometry_columns('normalized')
+        quad_phot = hd5_utils.mask_phot_array(quad_phot, mag_col, mag_err_col)
+        log.info('...completed')
 
-    # The normalization process compares the photometry measurements of a given
-    # star from different datasets obtained at the same time.
-    survey_time_bins = calc_survey_time_bins(quad_phot, log)
-    log.info('Survey time bins: '+repr(survey_time_bins))
+        # The normalization process compares the photometry measurements of a given
+        # star from different datasets obtained at the same time.
+        survey_time_bins = calc_survey_time_bins(quad_phot, log)
+        log.info('Survey time bins: '+repr(survey_time_bins))
 
-    # Assign the images from each dataset to the survey_time_bins based on
-    # their HJDs.
-    (survey_time_index, binned_phot) = bin_photometry_datasets(xmatch, quad_phot,
-                                                                survey_time_bins,
-                                                                mag_col, mag_err_col,
-                                                                log=log)
+        # Assign the images from each dataset to the survey_time_bins based on
+        # their HJDs.
+        (survey_time_index, binned_phot) = bin_photometry_datasets(xmatch, quad_phot,
+                                                                    survey_time_bins,
+                                                                    mag_col, mag_err_col,
+                                                                    log=log)
 
-    (xmatch, quad_phot) = normalize_star_datasets(params,xmatch, quad_phot, qid,
-                                binned_phot, filter_list, mag_col, mag_err_col,
-                                log=log)
+        (xmatch, quad_phot) = normalize_star_datasets(params,xmatch, quad_phot, qid,
+                                    binned_phot, filter_list, mag_col, mag_err_col,
+                                    log=log)
+
+        # Output the updated photometry
+        quad_phot = hd5_utils.unmask_phot_array(quad_phot)
+        normalize_photometry.output_quadrant_photometry(params, setup, qid,
+                                                        quad_phot, log)
 
     # Store the stellar normalization coefficients per dataset to the
     # crossmatch table:
     xmatch.save(params['crossmatch_file'])
-
-    # Output the updated photometry
-    quad_phot = hd5_utils.unmask_phot_array(quad_phot)
-    normalize_photometry.output_quadrant_photometry(params, setup, qid,
-                                                    quad_phot, log)
 
     logs.close_log(log)
 
