@@ -146,7 +146,7 @@ def plot_interactive(data, plot_file, axis_labels, target_params,
             )
         )
 
-    if target_params[0]:
+    if len(target_params) > 0:
         fig.add_trace(
             go.Scatter(
                     mode='markers',
@@ -181,7 +181,9 @@ def plot_interactive(data, plot_file, axis_labels, target_params,
         fig.update_xaxes(range=yrange)
     if xreverse:
         fig['layout']['xaxis']['autorange'] = "reversed"
-
+    if logy:
+        fig.update_yaxes(type="log")
+        
     fig.write_html(plot_file)
 
 

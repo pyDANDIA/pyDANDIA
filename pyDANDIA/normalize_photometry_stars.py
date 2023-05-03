@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 from skimage.measure import ransac, LineModelND
 import copy
 
-VERSION = 'star_norm_v0.8'
+VERSION = 'star_norm_v1.0'
 
 def run_star_normalization(setup, **params):
 
@@ -25,10 +25,11 @@ def run_star_normalization(setup, **params):
     xmatch = crossmatch.CrossMatchTable()
     xmatch.load(params['crossmatch_file'],log=log)
     xmatch.id_primary_datasets_per_filter()
-    xmatch.create_normalizations_table()
+    xmatch.create_normalizations_tables()
 
     image_sets = xmatch.get_imagesets()
     filter_list = np.unique(xmatch.images['filter'].data)
+    reference_datasets = define_reference_datasets(xmatch, filter_list)
 
     for qid in range(1,5,1):
 
@@ -55,10 +56,14 @@ def run_star_normalization(setup, **params):
                                                                     survey_time_bins,
                                                                     mag_col, mag_err_col,
                                                                     log=log)
-
-        (xmatch, quad_phot) = normalize_star_datasets(params,xmatch, quad_phot, qid,
-                                    binned_phot, filter_list, mag_col, mag_err_col,
-                                    log=log)
+        # Loop over the set of datasets to use as the primary reference.
+        for pri_ref_datasets in reference_datasets:
+            log.info('Normalizing stars relative to primary reference datasets: '
+                        +repr(pri_ref_datasets))
+            (xmatch, quad_phot) = normalize_star_datasets(params, xmatch, quad_phot, qid,
+                                    binned_phot, filter_list, pri_ref_datasets,
+                                    reference_datasets,
+                                    mag_col, mag_err_col, log=log)
 
         # Output the updated photometry
         quad_phot = hd5_utils.unmask_phot_array(quad_phot)
@@ -70,6 +75,37 @@ def run_star_normalization(setup, **params):
     xmatch.save(params['crossmatch_file'])
 
     logs.close_log(log)
+
+def define_reference_datasets(xmatch, filter_list):
+    """
+    Function to define the datasets to be used as the reference to normalize
+    the photometry to.
+    Overall the primary reference datasets (defined to be LSC-DOMA) provide
+    measurements for ~60% of detected stars, but due to variations in the
+    telescope pointings, they do not provide photometry for the remaining stars.
+    Additional stars can be normalized by considering other datasets as
+    the 'primary reference', if data from LSC-DOMA is not available.
+    In these cases, data from CPT-DOMA and COJ-DOMA will be considered to be
+    the reference in that order of preference.
+    Stars that are not measured in any DOMA dataset (~12%) are NOT normalized,
+    since the remaining datasets are highly concentrated in time due to the REA
+    strategy, and therefore do not provide sufficent overlapping time bins.
+    """
+
+    if not hasattr(xmatch, 'ref_preference_order'):
+        xmatch.id_primary_datasets_per_filter()
+
+    reference_datasets = []
+
+    for primary in xmatch.ref_preference_order:
+        ref_datasets = {}
+        for f in filter_list:
+            for dset_code in xmatch.datasets['dataset_code']:
+                if primary in dset_code and f in dset_code:
+                    ref_datasets[f] = dset_code
+        reference_datasets.append(ref_datasets)
+
+    return reference_datasets
 
 def bin_photometry_datasets(xmatch, quad_phot, survey_time_bins,
                             mag_col, mag_err_col, log=None):
@@ -146,15 +182,17 @@ def calc_survey_time_bins(quad_phot, log):
     return survey_time_bins
 
 def normalize_star_datasets(params, xmatch, quad_phot, qid, binned_phot,
-                            filter_list, mag_col, mag_err_col, log=None):
+                            filter_list, pri_ref_datasets, reference_datasets,
+                            mag_col, mag_err_col,
+                            log=None, verbose=False):
     """Function bins the star's lightcurve in time, and calculates the weighted
     mean magnitude offset of each dataset from the primary reference lightcurve
     in each filter, from the binned data, excluding outliers. """
 
     for f in filter_list:
-        # Fetch the primary reference lightcurve for this star
-        #pri_ref_code = xmatch.get_dataset_shortcode(xmatch.reference_datasets[f])
-        pri_ref_code = xmatch.reference_datasets[f]
+        # Identify the code of the dataset to be used as the primary reference
+        pri_ref_code = pri_ref_datasets[f]
+        log.info('Using '+pri_ref_code+' as the primary reference in filter '+f)
 
         # The primary reference lightcurve for this filter is used to determine
         # the time bins that will be used for the dataset lightcurves
@@ -175,40 +213,83 @@ def normalize_star_datasets(params, xmatch, quad_phot, qid, binned_phot,
                     # the in/outliers independently for each star in this quadrant,
                     # this cannot be an array operation
                     quad_offsets = np.zeros((binned_data.shape[0],2))
-                    quadrant_stars = np.where(xmatch.field_index['quadrant'] == qid)[0]
+                    select_stars = get_dataset_stars_in_quadrant(xmatch, qid,
+                                                        reference_datasets,
+                                                        pri_ref_code, dset, f)
+
                     if status:
-                        if log: log.info('Starting RANSAC optimization for each star')
-                        for qstar in quadrant_stars:
-                            fidx = xmatch.field_index['field_id'][qstar] - 1
-                            quad_idx = xmatch.field_index['quadrant_id'][qstar] - 1
-                            plot_file = path.join(params['red_dir'],'ransac',
-                                        'residuals_'+dset+'_'+str(fidx+1)+'.png')
-                            (dm, dmerr) = measure_dataset_offset(residuals[quad_idx,:,:],
-                                                                log=None, plot_file=None)
-                            quad_offsets[quad_idx,0] = dm
-                            quad_offsets[quad_idx,1] = dmerr
+                        if len(select_stars) > 0:
+                            if log: log.info('Starting RANSAC optimization for '
+                                        +str(len(select_stars))+' stars')
+                            for j in range(0,len(select_stars),1):
+                                fidx = select_stars['field_id'][j] - 1
+                                quad_idx = select_stars['quadrant_id'][j] - 1
+                                #plot_file = path.join(params['red_dir'],'ransac',
+                                #            'residuals_'+dset+'_'+str(fidx+1)+'.png')
+                                (dm, dmerr) = measure_dataset_offset(residuals[quad_idx,:,:],
+                                                                    log=None, plot_file=None)
+                                quad_offsets[quad_idx,0] = dm
+                                quad_offsets[quad_idx,1] = dmerr
+                                if log and verbose:
+                                    log.info('-> field ID: '+str(fidx+1)+', quadrant '
+                                                +str(qid)+' quadrant ID: '+str(quad_idx+1)
+                                                 +' offset='+str(dm)+' +/- '+str(dmerr))
                             if log:
-                                log.info('-> field ID: '+str(fidx+1)+', quadrant '
-                                            +str(qid)+' quadrant ID: '+str(quad_idx+1)
-                                             +' offset='+str(dm)+' +/- '+str(dmerr))
-                        if log:
-                            log.info('Completed RANSAC optimizations')
+                                log.info('Completed RANSAC optimizations')
+
+                            # Apply these offsets to correct the unbinned lightcurve
+                            # for all stars in the quadrant for this dataset:
+                            quad_phot = apply_dataset_offsets(xmatch, quad_phot, dset,
+                                                              quad_offsets,
+                                                              mag_col, mag_err_col,
+                                                              log=None)
+                            if log: log.info('Applied stellar photometric normalizations to main data array')
+
+                        else:
+                            if log:
+                                log.info('No stars in quadrant '+str(qid)
+                                    +' to normalize for this combination of primary reference '+pri_ref_code
+                                    +' and dataset '+dset)
                     else:
                         if log: log.info('No valid residuals between this dataset and the primary reference')
 
-                    # Apply these offsets to correct the unbinned lightcurve
-                    # for all stars in the quadrant for this dataset:
-                    quad_phot = apply_dataset_offsets(xmatch, quad_phot, dset,
-                                                      quad_offsets,
-                                                      mag_col, mag_err_col,
-                                                      log=None)
-                    if log: log.info('Applied stellar photometric normalizations to main data array')
-
                     # Store the coefficients
-                    xmatch = update_mag_offsets_table(xmatch, qid, dset, quad_offsets)
+                    xmatch = update_mag_offsets_table(xmatch, qid, pri_ref_code,
+                                                    dset, select_stars, quad_offsets)
                     if log: log.info('Updated the crossmatch table with normalization coefficients')
 
     return xmatch, quad_phot
+
+def get_dataset_stars_in_quadrant(xmatch, qid, reference_datasets, ref_dset, dset, filter):
+    """Function returns an array of the field indices (not IDs) of stars in
+    a given quadrant which were identified in both primary reference and
+    working datasets"""
+
+    if xmatch.ref_preference_order[0] in ref_dset:
+        stars = range(0,len(xmatch.field_index),1)
+        idx4 = set(stars)
+    elif xmatch.ref_preference_order[1] in ref_dset:
+        priref = reference_datasets[0][filter]
+        idx4 = np.where(xmatch.field_index[priref+'_index'] == 0)[0]
+    elif xmatch.ref_preference_order[2] in ref_dset:
+        priref = reference_datasets[0][filter]
+        idx4a = np.where(xmatch.field_index[priref+'_index'] == 0)[0]
+        priref2 = reference_datasets[1][filter]
+        idx4b = np.where(xmatch.field_index[priref2+'_index'] == 0)[0]
+        idx4 = set(idx4a).intersection(set(idx4b))
+
+    idx1 = np.where(xmatch.field_index['quadrant'] == qid)[0]
+    idx2 = np.where(xmatch.field_index[ref_dset+'_index'] > 0)[0]
+    idx3 = np.where(xmatch.field_index[dset+'_index'] > 0)[0]
+    idx = set(idx1).intersection(set(idx2))
+    idx = idx.intersection(set(idx3))
+    idx = list(idx.intersection(set(idx4)))
+
+    col_list = [ Column(name='field_id', data=xmatch.field_index['field_id'][idx]),
+                 Column(name='quadrant_id', data=xmatch.field_index['quadrant_id'][idx])]
+    select_stars = Table(col_list)
+
+    return select_stars
 
 def calc_residuals_between_datasets(binned_data1, binned_data2):
 
@@ -234,15 +315,21 @@ def calc_residuals_between_datasets(binned_data1, binned_data2):
 
     return np.ma.masked_array(data, mask=mask), test
 
-def update_mag_offsets_table(xmatch, qid, dset, quad_offsets):
+def update_mag_offsets_table(xmatch, qid, pri_ref_code, dset, select_stars,
+                             quad_offsets):
+    short_pri_ref_code = xmatch.get_dataset_shortcode(pri_ref_code)
+    short_pri_ref_code = short_pri_ref_code.split('_')[0]
+
     # Get the field indices of this quadrant's stars
-    jdx = np.where(xmatch.field_index['quadrant'] == qid)[0]
-    quad_idxs = xmatch.field_index['quadrant_id'][jdx] - 1
-    field_idxs = xmatch.field_index['field_id'][jdx] - 1
+    quad_idxs = select_stars['quadrant_id'] - 1
+    field_idxs = select_stars['field_id'] - 1
     cname1 = 'delta_mag_'+xmatch.get_dataset_shortcode(dset)
     cname2 = 'delta_mag_error_'+xmatch.get_dataset_shortcode(dset)
-    xmatch.normalizations[cname1][field_idxs] = quad_offsets[quad_idxs,0]
-    xmatch.normalizations[cname2][field_idxs] = quad_offsets[quad_idxs,1]
+
+    norm_table = xmatch.normalizations[short_pri_ref_code]
+    norm_table[cname1][field_idxs] = quad_offsets[quad_idxs,0]
+    norm_table[cname2][field_idxs] = quad_offsets[quad_idxs,1]
+    xmatch.normalizations[short_pri_ref_code] = norm_table
 
     return xmatch
 
@@ -288,7 +375,7 @@ def measure_dataset_offset(residuals, log=None, plot_file=None):
     if log: log.info('Identified '+str(len(select))
                 +' bins with contemporaneous lightcurve measurements')
 
-    if len(select) >= min_samples:
+    if len(select) > min_samples:
 
         # Identify in/outliers, and calculate the transformation between the two:
         (transform, inliers) = ransac(residuals[select,:].data, LineModelND,
@@ -301,7 +388,7 @@ def measure_dataset_offset(residuals, log=None, plot_file=None):
         jdx1 = np.where(residuals[:,2] > 0.0)[0]
         jdx2 = np.where(abs(residuals[:,1]-offset) <= residuals_threshold)[0]
         jdx = list(set(jdx1).intersection(set(jdx2)))
-        res = (residuals[jdx,1] - offset)
+        res = abs(residuals[jdx,1] - offset)
         err_squared_inv = 1.0 / (residuals[jdx,2]*residuals[jdx,2])
         wmean =  (res * err_squared_inv).sum() / (err_squared_inv.sum())
 

@@ -367,7 +367,7 @@ def test_get_imagesets():
     imagesets = xmatch.get_imagesets()
     print(imagesets)
 
-def test_create_normalizations_table():
+def test_create_normalizations_tables():
 
     params = {'primary_ref': 'ROME-FIELD-01_lsc-doma-1m0-05-fa15_ip',
               'datasets': { 'ROME-FIELD-01_lsc-doma-1m0-05-fa15_ip': ['primary_ref', '/Users/rstreet1/OMEGA/test_data/non_ref_dataset_p/', 'ip'],
@@ -383,30 +383,14 @@ def test_create_normalizations_table():
     xmatch.field_index.add_row([3,267.9873108673885, -29.829734325692858, 3, 1, '4056436121079692034', 3, 0])
     xmatch.field_index.add_row([4,267.9585073984874, -29.83002538112054, 3, 2, '4056436121079692035', 4, 0])
 
-    xmatch.create_normalizations_table()
-
-    # Test default creation of an empty table:
+    xmatch.create_normalizations_tables()
+    
+    # Test default creation of a set of empty tables:
     assert(hasattr(xmatch, 'normalizations'))
-    assert(type(xmatch.normalizations) == type(Table([])))
+    assert(type(xmatch.normalizations) == type({}))
+    for priref, data_table in xmatch.normalizations.items():
+        assert(type(data_table) == type(Table([])))
 
-    # Test creation of a table from a pre-build astropy table:
-    column_list = [ Column(name='field_id', data=xmatch.field_index['field_id'],
-                            dtype='int') ]
-    ns = len(xmatch.field_index)
-    for dset in xmatch.datasets['dataset_code']:
-        cname1 = 'delta_mag_'+xmatch.get_dataset_shortcode(dset)
-        cname2 = 'delta_mag_error_'+xmatch.get_dataset_shortcode(dset)
-        column_list.append( Column(name=cname1, data=np.ones(ns), dtype='float') )
-        column_list.append( Column(name=cname2, data=np.ones(ns), dtype='float') )
-    mag_offsets = Table(column_list)
-
-    xmatch.create_normalizations_table(mag_offsets)
-
-    dset = xmatch.datasets['dataset_code'][0]
-    cname1 = 'delta_mag_'+xmatch.get_dataset_shortcode(dset)
-    cname2 = 'delta_mag_error_'+xmatch.get_dataset_shortcode(dset)
-    assert((xmatch.normalizations[cname1]==1.0).all())
-    assert((xmatch.normalizations[cname2]==1.0).all())
 
 if __name__ == '__main__':
     #test_create()
@@ -423,4 +407,4 @@ if __name__ == '__main__':
     #test_load_gaia_catalog_file()
     #test_record_dataset_stamps()
     #test_get_imagesets()
-    test_create_normalizations_table()
+    test_create_normalizations_tables()
