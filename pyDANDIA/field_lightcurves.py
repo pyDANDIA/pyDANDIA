@@ -22,7 +22,7 @@ def plot_field_star_lightcurves(params, log=None):
 	xmatch.load(params['crossmatch_file'], log=log)
 
 	sanity_check(params,xmatch)
-	
+
 	if log != None:
 		log.info('Plotting lightcurve for star ID '+str(params['field_id']))
 
@@ -43,6 +43,8 @@ def plot_field_star_lightcurves(params, log=None):
 
 	plotly_lightcurves.plot_interactive_lightcurve(lc, filters, plot_file,
 													title=title)
+
+	output_datasets_to_file(params, lc, log)
 
 	message = 'OK'
 	logs.close_log(log)
@@ -106,6 +108,23 @@ def fetch_field_photometry_for_star_idx(params, field_idx, xmatch, quad_phot, lo
 					+dataset['dataset_code'])
 
 	return lc
+
+def output_datasets_to_file(params,lc,log):
+
+	for dset, data in lc.items():
+		if len(data) > 0:
+			file_path = path.join(params['output_dir'],
+								'star_'+str(params['field_id'])+'_'+dset+'.dat')
+			f = open(file_path, 'w')
+			f.write('# Photometry type: '+params['phot_type']+'\n')
+			f.write('# HJD    mag       mag_error     QC_code\n')
+			for i in range(0,len(data),1):
+				f.write(str(data[i,0])+' '+str(data[i,1])+' '
+							+str(data[i,2])+' '+str(data[i,3])+'\n')
+			f.close()
+			log.info('Output data for '+dset+' to '+file_path)
+		else:
+			log.info('No valid data found for '+dset)
 
 if __name__ == '__main__':
 	params = {}
