@@ -66,6 +66,14 @@ def read_phot_from_hd5_file(file_path, return_type='hdf5'):
     else:
         return np.array(dset[:])
 
+def read_star_from_hd5_file(file_path, quad_idx):
+    """Function to read an existing dataset photometry table in HD5 format
+    Function returns two zero-length arrays if none is available"""
+
+    dset = read_phot_from_hd5_file(file_path, return_type='hdf5')
+
+    return np.array(dset[quad_idx,:,:])
+
 def load_four_quadrant_photometry(red_dir, file_rootname, verbose=False):
     """Function to read the timeseries photometry from all four quadrants"""
 

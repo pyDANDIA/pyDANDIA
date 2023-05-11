@@ -28,16 +28,21 @@ def plot_field_star_lightcurves(params, log=None):
 
 	# Offset field ID by one to get array index of data
 	field_idx = params['field_id'] - 1
+	quad_idx = xmatch.field_index['quadrant_id'][field_idx] - 1
+	if log:
+		log.info('Extracting the lightcurve of star with field index='
+			+str(field_idx)+' and quadrant index='+str(quad_idx))
 	plot_file = path.join(params['output_dir'],
 				'star_'+str(params['field_id'])+'_lightcurve_'+params['phot_type']+'.html')
 
 	log.info('Extracting target timeseries photometry from '+params['phot_hdf_file'])
 
-	quad_phot = hd5_utils.read_phot_from_hd5_file(params['phot_hdf_file'],
-												  return_type='array')
+	#quad_phot = hd5_utils.read_phot_from_hd5_file(params['phot_hdf_file'],
+	#											  return_type='array')
+	star_phot = hd5_utils.read_star_from_hd5_file(params['phot_hdf_file'], quad_idx)
 
 	lc = fetch_field_photometry_for_star_idx(params, field_idx, xmatch,
-											 quad_phot, log)
+											 star_phot, log)
 	filters = ['gp', 'rp', 'ip']
 	title = 'Lightcurves of star field ID='+str(params['field_id'])
 
@@ -61,12 +66,7 @@ def sanity_check(params,xmatch):
 		raise IOError('The star requested is in quadrant '+str(star_quadrant)
 				+' but the photometry file provided is from quadrant '+str(hdf_quadrant))
 
-def fetch_field_photometry_for_star_idx(params, field_idx, xmatch, quad_phot, log):
-
-	quad_idx = xmatch.field_index['quadrant_id'][field_idx] - 1
-	if log:
-		log.info('Extracting the lightcurve of star with field index='
-			+str(field_idx)+' and quadrant index='+str(quad_idx))
+def fetch_field_photometry_for_star_idx(params, field_idx, xmatch, star_phot, log):
 
 	lc = {}
 	(mag_col, merr_col) = field_photometry.get_field_photometry_columns(params['phot_type'])
@@ -79,18 +79,18 @@ def fetch_field_photometry_for_star_idx(params, field_idx, xmatch, quad_phot, lo
 			# Select those images from the HDF5 pertaining to this dataset,
 			# then select valid measurements for this star
 			idx1 = np.where(xmatch.images['dataset_code'] == dataset['dataset_code'])[0]
-			idx2 = np.where(quad_phot[quad_idx,:,0] > 0.0)[0]
-			idx3 = np.where(quad_phot[quad_idx,:,mag_col] > 0.0)[0]
+			idx2 = np.where(star_phot[:,0] > 0.0)[0]
+			idx3 = np.where(star_phot[:,mag_col] > 0.0)[0]
 			idx = set(idx1).intersection(set(idx2))
 			idx = list(idx.intersection(set(idx3)))
 
 			# Store the photometry
 			if len(idx) > 0:
 				photometry = np.zeros((len(idx),4))
-				photometry[:,0] = quad_phot[quad_idx,idx,0]
-				photometry[:,1] = quad_phot[quad_idx,idx,mag_col]
-				photometry[:,2] = quad_phot[quad_idx,idx,merr_col]
-				photometry[:,3] = quad_phot[quad_idx,idx,qc_col]
+				photometry[:,0] = star_phot[idx,0]
+				photometry[:,1] = star_phot[idx,mag_col]
+				photometry[:,2] = star_phot[idx,merr_col]
+				photometry[:,3] = star_phot[idx,qc_col]
 				lc[shortcode] = photometry
 
 				if log:
