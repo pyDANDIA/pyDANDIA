@@ -65,8 +65,10 @@ def plot_field_lightcurves_enmasse():
             for star in quadrant_targets[qid]:
                 log.info(' -> '+str(star['field_id']))
                 field_idx = star['field_id'] - 1
+                quad_idx = xmatch.field_index['quadrant_id'][field_idx] - 1
                 lc = field_lightcurves.fetch_field_photometry_for_star_idx(params,
-                                                field_idx, xmatch, quad_phot, log)
+                                                field_idx, xmatch,
+                                                quad_phot[quad_idx,:,:], log)
                 title = 'Lightcurves of star field ID='+str(star['field_id'])
                 plot_file = path.join(args.output_dir,
             				'star_'+str(star['field_id'])+'_lightcurve_'+params['phot_type']+'.html')
