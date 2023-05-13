@@ -11,6 +11,7 @@ from pyDANDIA import pipeline_setup
 from pyDANDIA import plotly_lightcurves
 from pyDANDIA import field_photometry
 import csv
+import copy
 
 def plot_field_star_lightcurves(params, log=None):
 	"""Function to extract a lightcurve for a single star based on its RA, Dec
@@ -43,6 +44,9 @@ def plot_field_star_lightcurves(params, log=None):
 
 	lc = fetch_field_photometry_for_star_idx(params, field_idx, xmatch,
 											 star_phot, log)
+	if params['combine_data']:
+		lc = combine_datasets_by_filter(lc, log)
+
 	filters = ['gp', 'rp', 'ip']
 	title = 'Lightcurves of star field ID='+str(params['field_id'])
 
@@ -109,6 +113,34 @@ def fetch_field_photometry_for_star_idx(params, field_idx, xmatch, star_phot, lo
 
 	return lc
 
+def combine_datasets_by_filter(lc, log):
+
+	log.info('Combining datasets from multiple telescopes for each filter: ')
+	# Group the datasets available for this star's lightcurve by filter
+	filters = {}
+	for dset in lc.keys():
+		f = dset.split('_')[-1]
+		if f not in filters.keys():
+			filters[f] = [dset]
+		else:
+			filters[f].append(dset)
+	log.info(repr(filters))
+
+	# Combine the lightcurves per filter
+	lc_per_filter = {}
+	for f in filters.keys():
+		for i,dset in enumerate(filters[f]):
+			if i == 0:
+				data = copy.deepcopy(lc[dset])
+			else:
+				data = np.concatenate((data, lc[dset]))
+
+		# Sort into time order
+		jdx = np.argsort(data[:,0])
+		lc_per_filter['lco_'+f] = data[jdx]
+
+	return lc_per_filter
+
 def output_datasets_to_file(params,lc,log):
 
 	for dset, data in lc.items():
@@ -135,6 +167,7 @@ if __name__ == '__main__':
 		params['field_id'] = int(float(input('Please enter the field ID of the star in the field index: ')))
 		params['phot_type'] = input('Please enter the columns of photometry to plot {instrumental,calibrated,corrected,normalized}: ')
 		params['output_dir'] = input('Please enter the path to the output directory: ')
+		params['combine_data'] = input('Combine dataset lightcurves by filter?  Y or N: ')
 
 	else:
 		params['crossmatch_file'] = argv[1]
@@ -142,5 +175,11 @@ if __name__ == '__main__':
 		params['field_id'] = int(float(argv[3]))
 		params['phot_type'] = argv[4]
 		params['output_dir'] = argv[5]
+		params['combine_data'] = argv[6]
+
+	if 'Y' in str(params['combine_data']).upper():
+		params['combine_data'] = True
+	else:
+		params['combine_data'] = False
 
 	plot_field_star_lightcurves(params, log=None)

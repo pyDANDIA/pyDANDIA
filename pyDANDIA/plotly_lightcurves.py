@@ -39,6 +39,7 @@ def plot_interactive_lightcurve(lc, filter_list, plot_file, title=None):
     for col_idx,f in enumerate(filter_list):
         bad_data = []
         for dset, data in lc.items():
+
             # Expected dataset labels are site-enclosure_filter
             if f in dset:
                 (sitecode,passband) = dset.split('_')

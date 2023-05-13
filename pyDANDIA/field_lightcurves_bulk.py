@@ -74,7 +74,13 @@ def plot_field_lightcurves_enmasse():
             				'star_'+str(star['field_id'])+'_lightcurve_'+params['phot_type']+'.html')
                 plotly_lightcurves.plot_interactive_lightcurve(lc, filters, plot_file,
             													title=title)
-
+                star_params = {'output_dir': args.output_dir,
+                                'phot_type': params['phot_type'],
+                                'field_id': star['field_id'],
+                                'combine_data': args.combine_data}
+                if args.combine_data:
+                    lc = field_lightcurves.combine_datasets_by_filter(lc, log)
+                field_lightcurves.output_datasets_to_file(star_params, lc, log)
     logs.close_log(log)
 
 def find_closest_match(target_data):
@@ -106,7 +112,13 @@ def get_args():
     parser.add_argument("xmatch_file", help="Name of the crossmatch table", type=str)
     parser.add_argument("field_name", help="Field name prefix to photometry HDF5 files", type=str)
     parser.add_argument("output_dir", help="Path to the directory for output lightcurves", type=str)
+    parser.add_argument("combine_data", help="Combine dataset lightcurves by filter?  Y or N:", type=str)
     args = parser.parse_args()
+
+    if 'Y' in str(args.combine_data).upper():
+        args.combine_data = True
+    else:
+        args.combine_data = False
 
     return args
 
