@@ -6,6 +6,7 @@ sys.path.append(os.path.join(cwd,'../'))
 import hd5_utils
 import pipeline_setup
 import logs
+from astropy.table import Table, Column
 
 TEST_DIR = os.path.join(cwd,'data','proc',
                         'ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip')
@@ -81,9 +82,36 @@ def test_mask_phot_array():
     assert((mask[quad_idx,:,mag_col] == True).all())
     assert((mask[quad_idx+1,:,mag_col] == False).all())
 
+def test_write_norm_hd5():
+
+    test_output_file = os.path.join(TEST_DIR,'star_dataset_normalizations.hdf5')
+
+    if os.path.isfile(test_output_file):
+        os.remove(test_output_file)
+
+    # Simulate a dataset to be output.  For each primary reference dataset,
+    # the table consists of field_id, delta_mag_dset1, delta_mag_error_dset1, etc
+    pri_dset_list = ['lsc-doma', 'cpt-doma', 'coj-doma']
+    dset_list = ['lsc-doma_ip', 'lsc-doma_rp', 'lsc-doma_gp',
+                 'cpt-domb_ip', 'cpt-domb_rp', 'cpt-domb_gp']
+    nstars = 100
+    ndatasets = 4
+    normalizations = {}
+    for pdset in pri_dset_list:
+        column_list = [Column(name='field_id', data=np.arange(1,nstars+1,1))]
+        for dset in dset_list:
+            column_list.append(Column(name='delta_mag+'+dset, data=np.ones(nstars)))
+            column_list.append(Column(name='delta_mag_error+'+dset, data=np.ones(nstars)))
+        normalizations[pdset] = Table(column_list)
+
+    hd5_utils.write_normalizations_hd5(TEST_DIR, normalizations)
+
+    assert os.path.isfile(test_output_file)
+
 
 if __name__ == '__main__':
     #test_write_phot_hd5()
     #test_read_phot_hd5()
     #test_read_quadrants()
-    test_mask_phot_array()
+    #test_mask_phot_array()
+    test_write_norm_hd5()

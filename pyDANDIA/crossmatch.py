@@ -192,25 +192,6 @@ class CrossMatchTable():
                             ]
         self.stamps = Table(stamps_columns)
 
-    def create_normalizations_tables(self):
-        self.ref_preference_order = ['lsc-doma', 'cpt-doma', 'coj-doma']
-
-        column_list = [ Column(name='field_id', data=self.field_index['field_id'],
-                                dtype='int') ]
-        ns = len(self.field_index)
-        for dset in self.datasets['dataset_code']:
-            cname1 = 'delta_mag_'+self.get_dataset_shortcode(dset)
-            cname2 = 'delta_mag_error_'+self.get_dataset_shortcode(dset)
-            column_list.append( Column(name=cname1, data=np.zeros(ns), dtype='float') )
-            column_list.append( Column(name=cname2, data=np.zeros(ns), dtype='float') )
-        data_table = Table(column_list)
-
-        tables = {}
-        for ref in self.ref_preference_order:
-            tables[ref] = data_table
-
-        self.normalizations = tables
-
     def add_dataset_header(self, dataset_idx, dataset_code, dataset_info):
 
         if '/' in dataset_info[0][-1:]:

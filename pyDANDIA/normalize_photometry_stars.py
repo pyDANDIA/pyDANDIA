@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 from skimage.measure import ransac, LineModelND
 import copy
 
-VERSION = 'star_norm_v1.0'
+VERSION = 'star_norm_v1.1'
 
 def run_star_normalization(setup, **params):
 
@@ -25,7 +25,7 @@ def run_star_normalization(setup, **params):
     xmatch = crossmatch.CrossMatchTable()
     xmatch.load(params['crossmatch_file'],log=log)
     xmatch.id_primary_datasets_per_filter()
-    xmatch.create_normalizations_tables()
+    normalizations = create_normalizations_tables(xmatch)
 
     image_sets = xmatch.get_imagesets()
     filter_list = np.unique(xmatch.images['filter'].data)
@@ -60,10 +60,12 @@ def run_star_normalization(setup, **params):
         for pri_ref_datasets in reference_datasets:
             log.info('Normalizing stars relative to primary reference datasets: '
                         +repr(pri_ref_datasets))
-            (xmatch, quad_phot) = normalize_star_datasets(params, xmatch, quad_phot, qid,
+            (xmatch, quad_phot, normalizations) = normalize_star_datasets(params,
+                                    xmatch, quad_phot, qid,
                                     binned_phot, filter_list, pri_ref_datasets,
                                     reference_datasets,
-                                    mag_col, mag_err_col, log=log)
+                                    mag_col, mag_err_col,
+                                    normalizations, log=log)
 
         # Output the updated photometry
         quad_phot = hd5_utils.unmask_phot_array(quad_phot)
@@ -73,8 +75,28 @@ def run_star_normalization(setup, **params):
     # Store the stellar normalization coefficients per dataset to the
     # crossmatch table:
     xmatch.save(params['crossmatch_file'])
+    hd5_utils.write_normalizations_hd5(setup, normalizations)
 
     logs.close_log(log)
+
+def create_normalizations_tables(xmatch):
+    ref_preference_order = ['lsc-doma', 'cpt-doma', 'coj-doma']
+
+    column_list = [ Column(name='field_id', data=xmatch.field_index['field_id'],
+                            dtype='int') ]
+    ns = len(xmatch.field_index)
+    for dset in xmatch.datasets['dataset_code']:
+        cname1 = 'delta_mag_'+xmatch.get_dataset_shortcode(dset)
+        cname2 = 'delta_mag_error_'+xmatch.get_dataset_shortcode(dset)
+        column_list.append( Column(name=cname1, data=np.zeros(ns), dtype='float') )
+        column_list.append( Column(name=cname2, data=np.zeros(ns), dtype='float') )
+    data_table = Table(column_list)
+
+    tables = {}
+    for ref in ref_preference_order:
+        tables[ref] = data_table
+
+    return tables
 
 def define_reference_datasets(xmatch, filter_list):
     """
@@ -183,7 +205,7 @@ def calc_survey_time_bins(quad_phot, log):
 
 def normalize_star_datasets(params, xmatch, quad_phot, qid, binned_phot,
                             filter_list, pri_ref_datasets, reference_datasets,
-                            mag_col, mag_err_col,
+                            mag_col, mag_err_col, normalizations,
                             log=None, verbose=False):
     """Function bins the star's lightcurve in time, and calculates the weighted
     mean magnitude offset of each dataset from the primary reference lightcurve
@@ -254,11 +276,12 @@ def normalize_star_datasets(params, xmatch, quad_phot, qid, binned_phot,
                         if log: log.info('No valid residuals between this dataset and the primary reference')
 
                     # Store the coefficients
-                    xmatch = update_mag_offsets_table(xmatch, qid, pri_ref_code,
-                                                    dset, select_stars, quad_offsets)
+                    normalizations = update_mag_offsets_table(xmatch, qid, pri_ref_code,
+                                                    dset, select_stars, quad_offsets,
+                                                    normalizations)
                     if log: log.info('Updated the crossmatch table with normalization coefficients')
 
-    return xmatch, quad_phot
+    return xmatch, quad_phot, normalizations
 
 def get_dataset_stars_in_quadrant(xmatch, qid, reference_datasets, ref_dset, dset, filter):
     """Function returns an array of the field indices (not IDs) of stars in
@@ -316,7 +339,7 @@ def calc_residuals_between_datasets(binned_data1, binned_data2):
     return np.ma.masked_array(data, mask=mask), test
 
 def update_mag_offsets_table(xmatch, qid, pri_ref_code, dset, select_stars,
-                             quad_offsets):
+                             quad_offsets, normalizations):
     short_pri_ref_code = xmatch.get_dataset_shortcode(pri_ref_code)
     short_pri_ref_code = short_pri_ref_code.split('_')[0]
 
@@ -326,12 +349,12 @@ def update_mag_offsets_table(xmatch, qid, pri_ref_code, dset, select_stars,
     cname1 = 'delta_mag_'+xmatch.get_dataset_shortcode(dset)
     cname2 = 'delta_mag_error_'+xmatch.get_dataset_shortcode(dset)
 
-    norm_table = xmatch.normalizations[short_pri_ref_code]
+    norm_table = normalizations[short_pri_ref_code]
     norm_table[cname1][field_idxs] = quad_offsets[quad_idxs,0]
     norm_table[cname2][field_idxs] = quad_offsets[quad_idxs,1]
-    xmatch.normalizations[short_pri_ref_code] = norm_table
+    normalizations[short_pri_ref_code] = norm_table
 
-    return xmatch
+    return normalizations
 
 def apply_dataset_offsets(xmatch, quad_phot, dset,
                           quad_offsets, mag_col, mag_err_col, log=None):

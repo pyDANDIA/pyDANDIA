@@ -115,3 +115,29 @@ def unmask_phot_array(phot_data):
     """Function to unmask a masked photometry array.  Convienence wrapper
     for np.ma function to match the syntax used for the masking function"""
     return np.ma.getdata(phot_data)
+
+def write_normalizations_hd5(red_dir, normalizations):
+    """Function to output a per-star, per-dataset normalization coefficients
+     tables to an HD5 file.
+
+     The structure of the tables output have the columns:
+     field_id, delta_mag_<dset1>, delta_mag_error_<dset1>, delta_mag_<dset2>, ...
+     where the datasets are listed in the same order as the datasets table
+     in the CrossMatchTable.
+     """
+
+    output_path = os.path.join(red_dir,'star_dataset_normalizations.hdf5')
+
+    column_names = []
+    with h5py.File(output_path, "w") as f:
+        for dset_code, table in normalizations.items():
+            data = np.zeros((len(table),len(table.colnames)))
+            for c,cname in enumerate(table.colnames):
+                data[:,c] = table[cname]
+            if len(column_names) == 0:
+                column_names = table.colnames
+            dset = f.create_dataset(dset_code,
+                                    data.shape,
+                                    dtype='float64',
+                                    data=data)
+    f.close()
