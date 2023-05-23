@@ -160,12 +160,16 @@ def fetch_catalog_sources_for_field(setup,field,header,image_wcs,log,
             log.info('ERROR: Attempt to query unsupported catalog '+catalog_name)
             raise IOError('ERROR: Attempt to query unsupported catalog '+catalog_name)
 
-        log.info('ViZier returned '+str(len(catalog_sources))+\
+        if len(catalog_sources) > 0:
+            log.info('ViZier returned '+str(len(catalog_sources))+\
                  ' within the field of view')
 
-        catalog_utils.output_vizier_catalog(catalog_file, catalog_sources,
+            catalog_utils.output_vizier_catalog(catalog_file, catalog_sources,
                                             catalog_name)
-
+        else:
+            log.info('ViZier returned no within the field of view')
+            raise IOError('No catalog for astrometric fit')
+            
     # Masking catalog array to remove the NaN entries that the Gaia catalog
     # can occasionally produce.
     mask = np.isfinite(np.array(catalog_sources['ra']))

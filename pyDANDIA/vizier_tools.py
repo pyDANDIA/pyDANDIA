@@ -134,7 +134,7 @@ def query_vizier_servers(query_service, coord, search_radius, catalog_id, log=No
             try:
                 result = query_service.query_region(coord, radius=search_radius, catalog=catalog_id)
 
-            except requests.exceptions.ConnectTimeout:
+            except (requests.exceptions.ConnectTimeout, requests.exceptions.ConnectionError):
                 if debug:
                     print('Catalog server '+repr(query_service.VIZIER_SERVER)+' timed out again')
                 if log != None:
@@ -147,6 +147,7 @@ def query_vizier_servers(query_service, coord, search_radius, catalog_id, log=No
                     status = False
 
                     return status, result
+            
 
         # Handle preferred-server timeout by trying the alternative server:
         except requests.exceptions.ConnectTimeout:
