@@ -11,19 +11,7 @@ from astroquery.gaia import Gaia
 from astropy import wcs, coordinates, units, visualization, table
 import requests
 
-def search_vizier_for_sources(ra, dec, radius, catalog, row_limit=-1,
-                              coords='sexigesimal', log=None, debug=False):
-    """Function to perform online query of the 2MASS catalogue and return
-    a catalogue of known objects within the field of view
-
-    Inputs:
-        :param str ra: RA J2000 in sexigesimal format [default, accepts degrees]
-        :param str dec: Dec J2000 in sexigesimal format [default, accepts degrees]
-        :param float radius: Search radius in arcmin
-        :param str catalog: Catalog to search.  Options include:
-                                    ['2MASS', 'VPHAS+']
-    """
-
+def get_supported_catalogs():
     supported_catalogs = { '2MASS': ['2MASS',
                                      {'_RAJ2000':'_RAJ2000', '_DEJ2000':'_DEJ2000', 'Jmag':'Jmag', 'e_Jmag':'e_Jmag', \
                                     'Hmag':'Hmag', 'e_Hmag':'e_Hmag','Kmag':'Kmag', 'e_Kmag':'e_Kmag'},
@@ -52,6 +40,22 @@ def search_vizier_for_sources(ra, dec, radius, catalog, row_limit=-1,
                                     #'parallax':'parallax', 'parallax_error': 'parallax_error'},
                                     {}]
                            }
+    return supported_catalogs
+
+def search_vizier_for_sources(ra, dec, radius, catalog, row_limit=-1,
+                              coords='sexigesimal', log=None, debug=False):
+    """Function to perform online query of the 2MASS catalogue and return
+    a catalogue of known objects within the field of view
+
+    Inputs:
+        :param str ra: RA J2000 in sexigesimal format [default, accepts degrees]
+        :param str dec: Dec J2000 in sexigesimal format [default, accepts degrees]
+        :param float radius: Search radius in arcmin
+        :param str catalog: Catalog to search.  Options include:
+                                    ['2MASS', 'VPHAS+']
+    """
+
+    supported_catalogs = get_supported_catalogs()
 
     (cat_id,cat_col_dict,cat_filters) = supported_catalogs[catalog]
 
@@ -147,7 +151,7 @@ def query_vizier_servers(query_service, coord, search_radius, catalog_id, log=No
                     status = False
 
                     return status, result
-            
+
 
         # Handle preferred-server timeout by trying the alternative server:
         except requests.exceptions.ConnectTimeout:
