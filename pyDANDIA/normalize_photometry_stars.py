@@ -75,7 +75,7 @@ def run_star_normalization(setup, **params):
     # Store the stellar normalization coefficients per dataset to the
     # crossmatch table:
     xmatch.save(params['crossmatch_file'])
-    hd5_utils.write_normalizations_hd5(setup, normalizations)
+    hd5_utils.write_normalizations_hd5(setup.red_dir, normalizations)
 
     logs.close_log(log)
 
