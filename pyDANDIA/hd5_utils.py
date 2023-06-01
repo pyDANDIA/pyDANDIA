@@ -116,7 +116,7 @@ def unmask_phot_array(phot_data):
     for np.ma function to match the syntax used for the masking function"""
     return np.ma.getdata(phot_data)
 
-def write_normalizations_hd5(red_dir, normalizations):
+def write_normalizations_hd5(red_dir, file_prefix, normalizations):
     """Function to output a per-star, per-dataset normalization coefficients
      tables to an HD5 file.
 
@@ -126,7 +126,8 @@ def write_normalizations_hd5(red_dir, normalizations):
      in the CrossMatchTable.
      """
 
-    output_path = os.path.join(red_dir,'star_dataset_normalizations.hdf5')
+    output_path = os.path.join(red_dir,
+                                file_prefix+'_star_dataset_normalizations.hdf5')
 
     column_names = []
     with h5py.File(output_path, "w") as f:
