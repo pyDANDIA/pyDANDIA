@@ -21,11 +21,19 @@ def upload_file_to_aws(config, lc_file, s3_client, log=None):
     else:
 
         with open(lc_file, "rb") as f:
-            s3_client.upload_fileobj(f, config['aws_bucket'],
+            try:
+                response = s3_client.upload_fileobj(f, config['aws_bucket'],
                     path.join('OMEGA/realtime_lightcurves', path.basename(lc_file)) )
+            except ClientError as e:
+               if log:
+                   log.error(e)
 
         if log:
-            log.info('Uploaded '+lc_file+' to AWS')
+            log.info('Uploaded '+lc_file+' to AWS at '+\
+                    path.join(config['aws_bucket'],
+                        'OMEGA/realtime_lightcurves',
+                            path.basename(lc_file)))
+            log.info('Upload report: '+repr(response))
 
 def start_s3_client(config, log=None):
 

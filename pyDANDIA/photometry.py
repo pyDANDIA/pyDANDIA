@@ -170,14 +170,19 @@ def run_psf_photometry(setup,reduction_metadata,log,ref_star_catalog,
 
             (flux, sigma_star) = fitted_model.calc_flux(Y_grid, X_grid, gain)
 
+            try:
+                error_psf_model = psf.get_psf_object('Moffat2D')
+                ppp = np.copy(pars)
+                y,x = np.indices(psf_image.shape)
+                
+                jacobians = aa.psf_model_deriv1(y,x,ppp)+[np.ones(psf_image.shape)] #Adding background jacs
+                jacobians_per_pixel = [[jacobians[0][i,j],jacobians [1][i,j],jacobians [2][i,j],jacobians [3][i,j],jacobians [4][i,j],jacobians [5][i,j]] for i in range(psf_image.shape[0]) for j in range(psf_image.shape[1])]
+                variance_per_pixel = [np.dot(jacobians_per_pixel[i],np.dot(fitted_cov,jacobians_per_pixel[i])) for i in range(len(jacobians_per_pixel))]
 
-            error_psf_model = psf.get_psf_object('Moffat2D')
-            ppp = np.copy(pars)
-            ppp[0] = fitted_cov[0][0]
-            error_psf_model.update_psf_parameters(ppp)
-            error_image = psf.model_psf_in_image(data_section,error_psf_model, [sec_ystar,sec_xstar],   sub_corners)
-            sigma_star2 = error_image.sum()**0.5
-
+                sigma_star2 = np.sum(variance_per_pixel)**0.5
+            except:
+                sigma_star2 = sigma_star
+                
             sigma_ron = np.sqrt(ron*ron * psf_npixels)
             median_sky = np.median(sky_section)
             sigma_sky = np.sqrt(median_sky * gain * psf_npixels)
@@ -529,10 +534,7 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
 
     :param array ref_star_catalog: catalog of objects detected in the image
     """
-    # import matplotlib.pyplot as plt
-    # plt.imshow(np.log10(difference_image))
-    # plt.show()
-
+    
     def check_fwhm(reduction_metadata, image_id, log):
 
         use_image = True
@@ -633,6 +635,7 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
         mask = difference_image == 0
         radius = psf_diameter/2.0
 
+        radius = reduction_metadata.images_stats[1]['FWHM'][image_id]*1
         apertures = CircularAperture(positions, r=radius)
         #apertures = RectangularAperture(positions, w=radius*2,h=radius*2)
 
@@ -727,7 +730,7 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
                     (positions[j][1]>difference_image.shape[0]):
 
                 good_fit = False
-
+           
             if good_fit == True:
 
                 if ref_flux >= 0.0 and error_ref_flux > 0.0:
@@ -793,7 +796,7 @@ def run_psf_photometry_on_difference_image(setup, reduction_metadata, log, ref_s
 
                         list_align_x.append(positions[j][0])
                         list_align_y.append(positions[j][1])
-
+                       
                         if per_star_logging:
                             log.info(' --> Photometry OK')
 

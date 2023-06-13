@@ -17,5 +17,6 @@ pystackreg
 astroalign
 psutil
 seaborn
-pillow>=8.1.1
+pillow>=9.0.1
 boto3
+h5py

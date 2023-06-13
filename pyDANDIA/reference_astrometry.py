@@ -111,9 +111,12 @@ def run_reference_astrometry(setup, **kwargs):
         # Apply initial transform, if any
         transform = AffineTransform()
         it = 0
-        max_it = 5
+        if 'max_iter_wcs' in kwargs.keys():
+            max_it = kwargs['max_iter_wcs']
+        else:
+            max_it = 5
         iterate = True
-        method = 'ransac'
+        #method = 'ransac'
         old_n_match = 0
 
         if kwargs['trust_wcs'] == True:
@@ -146,7 +149,7 @@ def run_reference_astrometry(setup, **kwargs):
                                                         selection_radius)
                     matched_stars = match_utils.StarMatchIndex()
 
-                elif it == 1 and method in ['histogram', 'ransac']:
+                elif it == 1 and kwargs['wcs_method'] in ['histogram', 'ransac']:
                     log.info('Calculating transformation using the histogram method, iteration '+str(it))
 
                     stellar_density = utilities.stellar_density(bright_central_gaia_stars,
@@ -175,7 +178,7 @@ def run_reference_astrometry(setup, **kwargs):
 
                         log.info('Histogram method found a small transform, below the methods reliability threshold.  This transform will be ignored in favour of the RANSAC method')
 
-                elif it > 1 and method in ['histogram', 'ransac']:
+                elif it > 1 and kwargs['wcs_method'] in ['histogram', 'ransac', 'offsets']:
                     log.info('Calculating transformation using the ransac method, iteration '+str(it))
                     matched_stars = wcs.match_stars_pixel_coords(bright_central_detected_stars,
                                                              bright_central_gaia_stars,log,
@@ -190,7 +193,7 @@ def run_reference_astrometry(setup, **kwargs):
                     else:
                         raise ValueError('No matched stars')
 
-                if method == 'shortest_string':
+                if kwargs['wcs_method'] == 'shortest_string':
                     det_array = np.zeros((len(bright_central_detected_stars),2))
                     det_array[:,0] = bright_central_detected_stars['x'].data
                     det_array[:,1] = bright_central_detected_stars['y'].data
@@ -235,18 +238,22 @@ def run_reference_astrometry(setup, **kwargs):
                                                         stellar_density_threshold,
                                                         transform=transform, radius=None)
 
-        transform = calc_coord_offsets.calc_world_transform(setup,
+        (transform,field_centres) = calc_coord_offsets.calc_world_transform(setup,
                                                 bright_central_detected_stars[matched_stars.cat1_index],
                                                 bright_central_gaia_stars[matched_stars.cat2_index],
                                                 log)
-
         detected_sources = calc_coord_offsets.transform_coordinates(setup, detected_sources,
-                                                                transform, coords='radec',
-                                                                verbose=True)
+                                                                        transform, field_centres,
+                                                                        coords='radec',
+                                                                        verbose=True)
 
-        log.info('Proceeding to x-match of full catalogs')
+        output_transformed_positions = True
+        if output_transformed_positions:
+            calc_coord_offsets.output_transformed_wcs_positions(setup, detected_sources, gaia_sources)
+
 
         if xmatch:
+            log.info('Proceeding to x-match of full catalogs')
             matched_stars_gaia = wcs.match_stars_world_coords(detected_sources,gaia_sources,log,'Gaia',
                                                           radius=0.5, ra_centre=image_wcs.wcs.crval[0],
                                                           dec_centre=image_wcs.wcs.crval[1],
@@ -258,6 +265,7 @@ def run_reference_astrometry(setup, **kwargs):
                                                           verbose=False)
 
         else:
+            log.info('Transferring main catalog indices')
             matched_stars_gaia = match_utils.transfer_main_catalog_indices(matched_stars,
                                             bright_central_detected_stars, bright_central_gaia_stars,
                                             detected_sources, gaia_sources, log)
@@ -367,7 +375,7 @@ def run_reference_astrometry2(setup, **kwargs):
         it = 0
         max_it = 5
         iterate = True
-        method = 'ransac'
+        #method = 'ransac'
         old_n_match = 0
 
         log.info('Trusting original WCS solution, transformation will be calculated after catalog match to original pixel positions')
@@ -387,8 +395,6 @@ def run_reference_astrometry2(setup, **kwargs):
                                         bright_central_detected_stars[matched_stars.cat1_index],
                                         log, coordinates='pixel')
 
-
-
         log.info('Transforming catalogue coordinates')
 
         gaia_sources = update_catalog_image_coordinates(setup, image_wcs,
@@ -397,13 +403,14 @@ def run_reference_astrometry2(setup, **kwargs):
                                                         stellar_density_threshold,
                                                         transform=transform, radius=None)
 
-        transform = calc_coord_offsets.calc_world_transform(setup,
+        (transform,field_centres) = calc_coord_offsets.calc_world_transform(setup,
                                                 bright_central_detected_stars[matched_stars.cat1_index],
                                                 bright_central_gaia_stars[matched_stars.cat2_index],
                                                 log)
 
         detected_sources = calc_coord_offsets.transform_coordinates(setup, detected_sources,
-                                                                transform, coords='radec',
+                                                                transform, field_centres,
+                                                                coords='radec',
                                                                 verbose=True)
 
         log.info('Proceeding to x-match of full catalogs')
@@ -460,7 +467,9 @@ def get_default_config(kwargs, log):
 
     default_config = {'force_rotate_ref': False,
                       'dx': 0.0, 'dy': 0.0,
-                      'trust_wcs': False}
+                      'trust_wcs': False,
+                      'max_iter_wcs': 5,
+                      'wcs_method': 'ransac'}
 
     kwargs = config_utils.set_default_config(default_config, kwargs, log)
 

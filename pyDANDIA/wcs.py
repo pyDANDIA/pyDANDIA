@@ -160,11 +160,20 @@ def fetch_catalog_sources_for_field(setup,field,header,image_wcs,log,
             log.info('ERROR: Attempt to query unsupported catalog '+catalog_name)
             raise IOError('ERROR: Attempt to query unsupported catalog '+catalog_name)
 
-        log.info('ViZier returned '+str(len(catalog_sources))+\
+        if len(catalog_sources) > 0:
+            log.info('ViZier returned '+str(len(catalog_sources))+\
                  ' within the field of view')
 
-        catalog_utils.output_vizier_catalog(catalog_file, catalog_sources,
+            catalog_utils.output_vizier_catalog(catalog_file, catalog_sources,
                                             catalog_name)
+        else:
+            log.info('ViZier returned no within the field of view')
+            raise IOError('No catalog for astrometric fit')
+            
+    # Masking catalog array to remove the NaN entries that the Gaia catalog
+    # can occasionally produce.
+    mask = np.isfinite(np.array(catalog_sources['ra']))
+    catalog_sources = catalog_sources[mask]
 
     return catalog_sources
 
@@ -754,6 +763,13 @@ def match_stars_world_coords(detected_sources,catalog_sources,log,catalog_name,
                          'cat2_ra': catalog_sources['ra'][j],
                          'cat2_dec': catalog_sources['dec'][j],
                          'separation': d2d.value[0]}
+
+                    try:
+                        p['cat2_x'] = catalog_sources['x'][j]
+                        p['cat2_y'] = catalog_sources['y'][j]
+                    except:
+                        p['cat2_x'] = np.NaN
+                        p['cat2_y'] = np.NaN
 
                     matched_stars.add_match(p)
                     nm += 1

@@ -69,6 +69,11 @@ def run_stage_stand_alone():
         (status, report) = new_reference_astrometry.run_reference_astrometry(setup,
                                                                         **params)
 
+    elif params['stage'] == 'old_reference_astrometry':
+
+        (status, report) = reference_astrometry.run_reference_astrometry(setup,
+                                                                        **params)
+
     elif params['stage'] == 'stage3':
 
         (status, report) = stage3.run_stage3(setup, **params)
@@ -225,11 +230,13 @@ def get_args():
 
     params['dx'] = 0.0
     params['dy'] = 0.0
+    params['max_iter_wcs'] = 5
     params['n_sky_bins'] = -1
     params['sky_value'] = None
     params['a0'] = None
     params['a1'] = None
     params['phot_calib_file'] = None
+    params['wcs_method'] = 'ransac'
     for a in argv:
         if '-dx' in a:
             params['dx'] = float(str(a).split('=')[-1])
@@ -245,6 +252,10 @@ def get_args():
             params['a1'] = float(str(a).split('=')[-1])
         if '-phot_calib_file' in a:
             params['phot_calib_file'] = str(a).split('=')[-1]
+        if '-max_iter_wcs' in a:
+            params['max_iter_wcs'] = int(float(str(a).split('=')[-1]))
+        if '-wcs_method' in a:
+            params['wcs_method'] = str(a).split('=')[-1]
 
     if 'None' in str(params['db_file_path']):
         params['build_phot_db'] = False

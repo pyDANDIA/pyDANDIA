@@ -151,7 +151,7 @@ class StarMatchIndex:
                     str(self.cat2_ra[j])+', '+str(self.cat2_dec[j])+\
                     '), separation '+str(self.separation[j])+' '+units+'\n'
 
-            else:
+            elif units=='pixel':
 
                 output += 'Catalog 1 star '+str(self.cat1_index[j])+' at ('+\
                     str(self.cat1_x[j])+', '+str(self.cat1_y[j])+\
@@ -159,11 +159,36 @@ class StarMatchIndex:
                     str(self.cat2_x[j])+', '+str(self.cat2_y[j])+\
                     '), separation '+str(self.separation[j])+' '+units+'\n'
 
+            else:
+                output += 'Catalog 1 star '+str(self.cat1_index[j])+' at ('+\
+                    str(self.cat1_x[j])+', '+str(self.cat1_y[j])+\
+                    ') matches Catalog 2 star '+str(self.cat2_index[j])+' at ('+\
+                    str(self.cat2_x[j])+', '+str(self.cat2_y[j])+\
+                    '), separation '+str(self.separation[j])+' '+units+'\n'
+                output += 'Catalog 1 star '+str(self.cat1_index[j])+' at ('+\
+                    str(self.cat1_ra[j])+', '+str(self.cat1_dec[j])+\
+                    ') matches Catalog 2 star '+str(self.cat2_index[j])+' at ('+\
+                    str(self.cat2_ra[j])+', '+str(self.cat2_dec[j])+\
+                    '), separation '+str(self.separation[j])+' '+units+'\n'
+
         return output
 
     def summarize_last(self,units='deg'):
 
         j = self.n_match - 1
+        print('SUMMARIZE_LAST: ',self.n_match)
+        print('Cat 1 index: ',self.cat1_index)
+        print('Cat 2 index: ',self.cat2_index)
+        print('Cat 1 ra: ',self.cat1_ra)
+        print('Cat 1 dec: ',self.cat1_dec)
+        print('Cat 1 x: ',self.cat1_x)
+        print('Cat 1 y: ',self.cat1_y)
+        print('Cat 2 ra: ',self.cat2_ra)
+        print('Cat 2 dec: ',self.cat2_dec)
+        print('Cat 2 x: ',self.cat2_x)
+        print('Cat 2 y: ',self.cat2_y)
+        print('Separation: ',self.separation)
+        print('Star last index: ',j)
 
         output = 'Catalog 1 star '+str(self.cat1_index[j])+' at RA,Dec=('+\
                         str(self.cat1_ra[j])+', '+str(self.cat1_dec[j])+'), x,y=('+\
@@ -289,13 +314,13 @@ class StarMatchIndex:
 
 
     def reject_outliers(self,inliers, log=None):
-        
+
         self.cat1_index = np.array(self.cat1_index)[inliers].tolist()
         self.cat1_ra = np.array(self.cat1_ra)[inliers].tolist()
         self.cat1_dec = np.array(self.cat1_dec)[inliers].tolist()
         self.cat1_x = np.array(self.cat1_x)[inliers].tolist()
         self.cat1_y = np.array(self.cat1_y)[inliers].tolist()
-        
+
         self.cat2_index = np.array(self.cat2_index)[inliers].tolist()
         self.cat2_ra = np.array(self.cat2_ra)[inliers].tolist()
         self.cat2_dec = np.array(self.cat2_dec)[inliers].tolist()
@@ -304,7 +329,7 @@ class StarMatchIndex:
 
         #self.separation = np.array(self.separation)[inliers].tolist()
         self.n_match = len(self.cat2_x)
-        
+
 def transfer_main_catalog_indices(matched_stars, sub_detected_sources, sub_catalog_sources,
                                 full_detected_sources, full_catalog_sources, log):
 

@@ -12,7 +12,7 @@ import logs
 import wcs
 import stage3
 import pipeline_setup
-from pyDANDIA import match_utils
+import match_utils
 import calc_coord_offsets
 from astropy.io import fits
 from astropy.table import Table, Column
@@ -143,36 +143,39 @@ def test_match_stars_world_coords():
 
     log = logs.start_stage_log( cwd, 'test_wcs' )
 
-    detected_coords = np.array(  [  [269.55310076, -28.04655246],
-                                    [269.52451024, -28.04663018],
-                                    [269.53827323, -28.04670613],
-                                    [269.53893954, -28.04667918],
-                                    [269.5575608 , -28.04728878]  ] )
+    detected_coords = np.array(  [  [269.55310076, -28.04655246, 1866.259876089409, 1800.9376518684423],
+                                    [269.52451024, -28.04663018, 1891.7929031808592, 1801.4127610075063],
+                                    [269.53827323, -28.04670613, 1907.0905410137123, 1800.9376518684423],
+                                    [269.53893954, -28.04667918, 1935.2019124607257, 1802.3499854421846],
+                                    [269.5575608 , -28.04728878, 2148.2925744150702, 1800.8690300095063]  ] )
 
     detected_data = [ Column(name='ra', data=detected_coords[:,0]),
-                      Column(name='dec', data=detected_coords[:,1]) ]
+                      Column(name='dec', data=detected_coords[:,1]),
+                      Column(name='x', data=detected_coords[:,2]),
+                      Column(name='y', data=detected_coords[:,3]) ]
 
     detected_sources = Table(data=detected_data)
 
-    catalog_coords = np.array( [ [269.52935399, -28.04729399],
-                                 [269.54868567, -28.04728673],
-                                 [269.5575608 , -28.04728878],
-                                 [269.51156351, -28.04750404] ] )
+    catalog_coords = np.array( [ [269.52935399, -28.04729399, 1866.259876089409, 1800.9376518684423],
+                                 [269.54868567, -28.04728673, 1891.7929031808592, 1801.4127610075063],
+                                 [269.5575608 , -28.04728878, 1907.0905410137123, 1800.9376518684423],
+                                 [269.51156351, -28.04750404, 1935.2019124607257, 1802.3499854421846] ] )
 
     catalog_data = [ Column(name='ra', data=catalog_coords[:,0]),
-                     Column(name='dec', data=catalog_coords[:,1]) ]
+                     Column(name='dec', data=catalog_coords[:,1]),
+                     Column(name='x', data=catalog_coords[:,2]),
+                     Column(name='y', data=catalog_coords[:,3]) ]
 
     catalog_sources = Table(data=catalog_data)
 
     test_match = match_utils.StarMatchIndex()
 
     matched_stars = wcs.match_stars_world_coords(detected_sources,
-                                                 catalog_sources,log,
+                                                 catalog_sources,log,'Gaia',
                                                  verbose=True)
-    print(matched_stars)
 
     assert matched_stars.n_match == 1
-    assert type(matched_stars) == type(test_match)
+    assert 'StarMatchIndex' in str(type(matched_stars)).split("'")[1].split('.')[-1]
     assert detected_coords[matched_stars.cat1_index[0],0] == catalog_coords[matched_stars.cat2_index[0],0]
     assert detected_coords[matched_stars.cat1_index[0],1] == catalog_coords[matched_stars.cat2_index[0],1]
     assert matched_stars.cat1_ra[0] == matched_stars.cat2_ra[0]
@@ -859,7 +862,7 @@ if __name__ == '__main__':
     #test_search_vizier_for_2mass_sources()
     #test_fetch_catalog_sources_for_field()
     #test_search_vizier_for_gaia_sources()
-    #test_match_stars_world_coords()
+    test_match_stars_world_coords()
     #test_image_wcs()
     #test_calc_world_coordinates()
     #test_calc_world_coordinates_astropy()
@@ -871,4 +874,4 @@ if __name__ == '__main__':
     #test_image_wcs_object()
     #test_select_nearest_stars_in_catalog()
     #test_match_star_without_duplication()
-    test_cross_match_star_catalogs()
+    #test_cross_match_star_catalogs()

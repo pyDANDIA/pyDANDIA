@@ -24,22 +24,28 @@ TEST_DIR = path.join(cwd,'data','proc',
                         'ROME-FIELD-0002_lsc-doma-1m0-05-fl15_ip')
 
 def test_calc_transform():
-    """Function to test the photometric transform function"""
+    """Function to test the photometric transform function
 
-    a = [ 16.0, 0.15 ]
-    x = np.linspace(1.0,100.0,100)
-    y = a[0] + (x * a[1]) + np.random.normal(0.0, scale=0.5)
+    Expected calibration function is of the form:
+    mag_cal = p[0]*mag + p[1]
+    """
+
+    a = [ 0.15, 16.0 ]
+    uncertainty = [0.01, 0.5]
+    x = np.linspace(10.0,20.0,10)
+    y = (a[0]*x) + a[1] + np.random.normal(0.0, scale=0.5)
 
     p = [ -1.0, -10.0 ]
 
     (fit,covar_fit) = calibrate_photometry.calc_transform(p, x, y)
 
-    assert fit.all() == np.array(a).all()
+    for i in range(0,1,1):
+        np.testing.assert_almost_equal(fit[i],a[i],uncertainty[i])
 
     fig = plt.figure(1)
 
     xplot = np.linspace(x.min(),x.max(),10)
-    yplot = fit[0] + xplot * fit[1]
+    yplot = fit[0]*xplot + fit[1]
 
     plt.plot(x,y,'m.')
 
@@ -144,9 +150,9 @@ def test_calc_calibrated_mags():
 
 if __name__ == '__main__':
 
-    #test_calc_transform()
+    test_calc_transform()
     #test_fetch_catalog_sources_within_image()
     #test_fetch_catalog_sources_from_metadata()
     #test_parse_phot_calibration_file()
     #test_calc_transform_uncertainty()
-    test_calc_calibrated_mags()
+    #test_calc_calibrated_mags()
