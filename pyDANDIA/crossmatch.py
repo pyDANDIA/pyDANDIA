@@ -324,6 +324,7 @@ class CrossMatchTable():
             star_added = matched_stars.add_match(p, log=log, verbose=True)
             star = self.stars[jfield]
             if self.gaia_dr == 'Gaia-EDR3':
+                print(gaia_data.keys(), len(gaia_data), len(self.stars[jfield]))
                 self.stars[jfield] = [star['field_id'], star['ra'], star['dec']] + [0.0]*108 + \
                                     [int(gaia_data['source_id'][jgaia]),
                                     gaia_data['ra'][jgaia], gaia_data['ra_error'][jgaia],
