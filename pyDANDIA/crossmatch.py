@@ -89,20 +89,30 @@ class CrossMatchTable():
 
         # Combined dataset mode:
         # Use just the list of datasets and filters included
-        if params['combined_datasets'] == True:
+        print(params)
+        if params['combined_datasets']:
             filters = list(set(self.datasets['dataset_filter']))
             sitecodes = list(self.datasets['dataset_code'])
 
+        print(filters, sitecodes)
         stars_columns = [  Column(name='field_id', data=[], dtype='int'),
                             Column(name='ra', data=[], dtype='float'),
                             Column(name='dec', data=[], dtype='float') ]
 
-        for site in sitecodes:
-            for f in filters:
-                stars_columns.append( Column(name='cal_'+f+'_mag_'+site, data=[], dtype='float') )
-                stars_columns.append( Column(name='cal_'+f+'_magerr_'+site, data=[], dtype='float') )
-                stars_columns.append( Column(name='norm_'+f+'_mag_'+site, data=[], dtype='float') )
-                stars_columns.append( Column(name='norm_'+f+'_magerr_'+site, data=[], dtype='float') )
+        if not params['combined_datasets']:
+            for site in sitecodes:
+                for f in filters:
+                    stars_columns.append( Column(name='cal_'+f+'_mag_'+site, data=[], dtype='float') )
+                    stars_columns.append( Column(name='cal_'+f+'_magerr_'+site, data=[], dtype='float') )
+                    stars_columns.append( Column(name='norm_'+f+'_mag_'+site, data=[], dtype='float') )
+                    stars_columns.append( Column(name='norm_'+f+'_magerr_'+site, data=[], dtype='float') )
+
+        else:
+            for site in sitecodes:
+                stars_columns.append( Column(name='cal_mag_'+site, data=[], dtype='float') )
+                stars_columns.append( Column(name='cal_magerr_'+site, data=[], dtype='float') )
+                stars_columns.append( Column(name='norm_mag_'+site, data=[], dtype='float') )
+                stars_columns.append( Column(name='norm_magerr_'+site, data=[], dtype='float') )
 
         stars_columns.append(Column(name='gaia_source_id', data=[], dtype='S19'))
         stars_columns.append(Column(name='gaia_ra', data=[], dtype='float'))
