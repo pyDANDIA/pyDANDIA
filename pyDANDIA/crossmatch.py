@@ -70,20 +70,28 @@ class CrossMatchTable():
 
         self.datasets = Table(dataset_columns)
         self.field_index = Table(field_index_columns)
-        self.create_stars_table()
+        self.create_stars_table(params)
         self.create_images_table()
         self.create_stamps_table()
 
-    def create_stars_table(self):
+    def create_stars_table(self, params):
 
         # The stars table holds the reference image photometry for all stars
-        # in each dataset.  Although not all fields have data from all sites,
+        # in each dataset.
+        # Split dataset, full-field mode:
+        # Although not all fields have data from all sites,
         # to avoid having a variable number of table columns, the table is
         # scaled to the maximum possible set of datasets:
         filters = ['g', 'r', 'i']
         sitecodes = ['lsc_doma', 'lsc_domb', 'lsc_domc',
                      'cpt_doma', 'cpt_domb', 'cpt_domc',
                      'coj_doma', 'coj_domb', 'coj_domc']
+
+        # Combined dataset mode:
+        # Use just the list of datasets and filters included
+        if params['combined_datasets'] = True:
+            filters = list(set(self.datasets['dataset_filter']))
+            sitecodes = list(self.datasets['dataset_code']))
 
         stars_columns = [  Column(name='field_id', data=[], dtype='int'),
                             Column(name='ra', data=[], dtype='float'),

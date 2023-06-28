@@ -163,11 +163,18 @@ def get_args():
         params['separation_threshold'] = float(input('Please enter the maximum allowed separation in arcsec: '))
         params['file_path'] = input('Please enter the path to the crossmatch table: ')
         params['gaia_dr'] = input('Please enter Gaia data release used for dataset astrometry: ')
+        opt = input('Is data from different telescopes combined into a single dataset or not?  {combined, separate}: ')
     else:
         params['datasets_file'] = argv[1]
         params['separation_threshold'] = float(argv[2])
         params['file_path'] = argv[3]
         params['gaia_dr'] = argv[4]
+        opt = argv[5]
+
+    if 'combined' in str(opt).lower():
+        params['combined_datasets'] = True
+    else:
+        params['combined_datasets'] = False
 
     params['log_dir'] = path.dirname(params['file_path'])
 
