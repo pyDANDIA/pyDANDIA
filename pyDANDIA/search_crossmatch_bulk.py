@@ -36,7 +36,7 @@ def search_xmatch_enmasse():
         target_data = targets[targetname]
 
         results = search_crossmatch_table.search_on_coordinates(xmatch,
-                                        target_data[0], target_data[1],
+                                        target_data['ra'], target_data['dec'],
                                         args.radius)
         if len(results) > 1:
             print(targetname+': found '+str(len(results))+' matches')
