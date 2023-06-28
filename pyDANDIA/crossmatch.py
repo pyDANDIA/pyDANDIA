@@ -91,7 +91,7 @@ class CrossMatchTable():
         # Use just the list of datasets and filters included
         if params['combined_datasets'] == True:
             filters = list(set(self.datasets['dataset_filter']))
-            sitecodes = list(self.datasets['dataset_code']))
+            sitecodes = list(self.datasets['dataset_code'])
 
         stars_columns = [  Column(name='field_id', data=[], dtype='int'),
                             Column(name='ra', data=[], dtype='float'),
