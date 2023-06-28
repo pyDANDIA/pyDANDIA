@@ -89,7 +89,7 @@ class CrossMatchTable():
 
         # Combined dataset mode:
         # Use just the list of datasets and filters included
-        if params['combined_datasets'] = True:
+        if params['combined_datasets'] == True:
             filters = list(set(self.datasets['dataset_filter']))
             sitecodes = list(self.datasets['dataset_code']))
 
