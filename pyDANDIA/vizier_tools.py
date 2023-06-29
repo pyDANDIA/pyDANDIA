@@ -34,8 +34,8 @@ def get_supported_catalogs():
                                     'FG':'phot_g_mean_flux', 'e_FG':'phot_g_mean_flux_error',
                                     'FBP':'phot_bp_mean_flux', 'e_FBP':'phot_bp_mean_flux_error',
                                     'FRP':'phot_rp_mean_flux', 'e_FRP':'phot_rp_mean_flux_error',
-                                    'PM':'pm', 'pmRA':'pmra', 'e_pmRA':'pmra_error',
-                                    'pmDE':'pmdec', 'e_pmDE':'pmdec_error',
+                                    'PM':'pm', 'pmRA':'pm_ra', 'e_pmRA':'pm_ra_error',
+                                    'pmDE':'pm_dec', 'e_pmDE':'pm_dec_error',
                                     'Plx':'parallax', 'e_Plx': 'parallax_error'},
                                     #'parallax':'parallax', 'parallax_error': 'parallax_error'},
                                     {}]

@@ -72,7 +72,7 @@ def build_crossmatch_table(params):
             log.info('Finished crossmatch for '+dataset_code)
 
     xmatch.assign_stars_to_quadrants()
-    xmatch.init_stars_table()
+    xmatch.init_stars_table(params)
 
     # Output the full crossmatch table:
     xmatch.save(params['file_path'])
