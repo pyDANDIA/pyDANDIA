@@ -507,6 +507,7 @@ class CrossMatchTable():
 
         self.stars = Table(stars_columns)
         print(self.stars)
+        print(self.stars.colnames)
 
     def record_dataset_stamps(self, dataset_code, dataset_metadata, log):
 
