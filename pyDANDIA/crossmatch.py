@@ -256,7 +256,6 @@ class CrossMatchTable():
         # location and Gaia data.
         nphotcol = len(self.stars.colnames)
         nphotcol -= 21
-        print(len(self.stars.colnames), nphotcol)
 
         matched_stars = match_utils.StarMatchIndex()
 
@@ -302,8 +301,8 @@ class CrossMatchTable():
                                     gaia_data['phot_bp_mean_flux'][jgaia], gaia_data['phot_bp_mean_flux_error'][jgaia],
                                     gaia_data['phot_rp_mean_flux'][jgaia], gaia_data['phot_rp_mean_flux_error'][jgaia],
                                     gaia_data['pm'][jgaia],
-                                    gaia_data['pmra'][jgaia], gaia_data['pmra_error'][jgaia],
-                                    gaia_data['pmdec'][jgaia], gaia_data['pmdec_error'][jgaia],
+                                    gaia_data['pm_ra'][jgaia], gaia_data['pm_ra_error'][jgaia],
+                                    gaia_data['pm_dec'][jgaia], gaia_data['pm_dec_error'][jgaia],
                                     gaia_data['parallax'][jgaia], gaia_data['parallax_error'][jgaia]]
             else:
                 self.stars[jfield] = [star['field_id'], star['ra'], star['dec']] + [0.0]*nphotcol + \
