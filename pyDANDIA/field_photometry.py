@@ -269,6 +269,7 @@ def populate_stars_table(params,dataset,xmatch,dataset_metadata,log):
     # single dataset
     else:
         dataset_id = dataset['dataset_code']
+        filter_name = parse_sloan_filter_ids(dataset['dataset_filter'])
         mag_column = 'cal_mag_'+dataset_id
         mag_error_column = 'cal_magerr_'+dataset_id
 
