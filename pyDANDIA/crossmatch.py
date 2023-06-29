@@ -251,6 +251,13 @@ class CrossMatchTable():
 
         self.gaia_dr = params['gaia_dr']
 
+        # Calculate number of columns of photometry in the stars table, based on
+        # the number of columns overall, minus the standard ones for field index,
+        # location and Gaia data.
+        nphotcol = len(self.stars.colnames)
+        nphotcol -= 21
+        print(len(self.stars.colnames), nphotcol)
+
         matched_stars = match_utils.StarMatchIndex()
 
         field_stars = SkyCoord(self.field_index['ra'], self.field_index['dec'],
@@ -287,7 +294,7 @@ class CrossMatchTable():
             star = self.stars[jfield]
             if self.gaia_dr == 'Gaia-EDR3':
                 print(gaia_data.keys(), len(gaia_data), len(self.stars[jfield]))
-                self.stars[jfield] = [star['field_id'], star['ra'], star['dec']] + [0.0]*108 + \
+                self.stars[jfield] = [star['field_id'], star['ra'], star['dec']] + [0.0]*nphotcol + \
                                     [int(gaia_data['source_id'][jgaia]),
                                     gaia_data['ra'][jgaia], gaia_data['ra_error'][jgaia],
                                     gaia_data['dec'][jgaia], gaia_data['dec_error'][jgaia],
@@ -299,7 +306,7 @@ class CrossMatchTable():
                                     gaia_data['pmdec'][jgaia], gaia_data['pmdec_error'][jgaia],
                                     gaia_data['parallax'][jgaia], gaia_data['parallax_error'][jgaia]]
             else:
-                self.stars[jfield] = [star['field_id'], star['ra'], star['dec']] + [0.0]*108 + \
+                self.stars[jfield] = [star['field_id'], star['ra'], star['dec']] + [0.0]*nphotcol + \
                                     [int(gaia_data['source_id'][jgaia]),
                                     gaia_data['ra'][jgaia], gaia_data['ra_error'][jgaia],
                                     gaia_data['dec'][jgaia], gaia_data['dec_error'][jgaia],
@@ -459,7 +466,6 @@ class CrossMatchTable():
 
         # Combined dataset mode:
         # Use just the list of datasets and filters included
-        print(params)
         if params['combined_datasets']:
             filters = list(set(self.datasets['dataset_filter']))
             sitecodes = list(self.datasets['dataset_code'])
@@ -470,7 +476,6 @@ class CrossMatchTable():
 
 
         if not params['combined_datasets']:
-            print('Shouldnt be here')
             for site in sitecodes:
                 for f in filters:
                     stars_columns.append( Column(name='cal_'+f+'_mag_'+site, data=np.zeros(nstars), dtype='float') )
@@ -479,7 +484,6 @@ class CrossMatchTable():
                     stars_columns.append( Column(name='norm_'+f+'_magerr_'+site, data=np.zeros(nstars), dtype='float') )
 
         else:
-            print('HERE', sitecodes)
             for site in sitecodes:
                 stars_columns.append( Column(name='cal_mag_'+site, data=np.zeros(nstars), dtype='float') )
                 stars_columns.append( Column(name='cal_magerr_'+site, data=np.zeros(nstars), dtype='float') )
@@ -506,8 +510,6 @@ class CrossMatchTable():
         stars_columns.append(Column(name='parallax_error', data=np.zeros(nstars), dtype='float'))
 
         self.stars = Table(stars_columns)
-        print(self.stars)
-        print(self.stars.colnames)
 
     def record_dataset_stamps(self, dataset_code, dataset_metadata, log):
 
