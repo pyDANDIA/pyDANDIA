@@ -75,67 +75,9 @@ class CrossMatchTable():
         self.create_stamps_table()
 
     def create_stars_table(self, params):
-
-        # The stars table holds the reference image photometry for all stars
-        # in each dataset.
-        # Split dataset, full-field mode:
-        # Although not all fields have data from all sites,
-        # to avoid having a variable number of table columns, the table is
-        # scaled to the maximum possible set of datasets:
-        filters = ['g', 'r', 'i']
-        sitecodes = ['lsc_doma', 'lsc_domb', 'lsc_domc',
-                     'cpt_doma', 'cpt_domb', 'cpt_domc',
-                     'coj_doma', 'coj_domb', 'coj_domc']
-
-        # Combined dataset mode:
-        # Use just the list of datasets and filters included
-        print(params)
-        if params['combined_datasets']:
-            filters = list(set(self.datasets['dataset_filter']))
-            sitecodes = list(self.datasets['dataset_code'])
-
-        stars_columns = [  Column(name='field_id', data=[], dtype='int'),
-                            Column(name='ra', data=[], dtype='float'),
-                            Column(name='dec', data=[], dtype='float') ]
-
-        if not params['combined_datasets']:
-            print('Shouldnt be here')
-            for site in sitecodes:
-                for f in filters:
-                    stars_columns.append( Column(name='cal_'+f+'_mag_'+site, data=[], dtype='float') )
-                    stars_columns.append( Column(name='cal_'+f+'_magerr_'+site, data=[], dtype='float') )
-                    stars_columns.append( Column(name='norm_'+f+'_mag_'+site, data=[], dtype='float') )
-                    stars_columns.append( Column(name='norm_'+f+'_magerr_'+site, data=[], dtype='float') )
-
-        else:
-            print('HERE', sitecodes)
-            for site in sitecodes:
-                stars_columns.append( Column(name='cal_mag_'+site, data=[], dtype='float') )
-                stars_columns.append( Column(name='cal_magerr_'+site, data=[], dtype='float') )
-                stars_columns.append( Column(name='norm_mag_'+site, data=[], dtype='float') )
-                stars_columns.append( Column(name='norm_magerr_'+site, data=[], dtype='float') )
-
-        stars_columns.append(Column(name='gaia_source_id', data=[], dtype='S19'))
-        stars_columns.append(Column(name='gaia_ra', data=[], dtype='float'))
-        stars_columns.append(Column(name='gaia_ra_error', data=[], dtype='float'))
-        stars_columns.append(Column(name='gaia_dec', data=[], dtype='float'))
-        stars_columns.append(Column(name='gaia_dec_error', data=[], dtype='float'))
-        stars_columns.append(Column(name='phot_g_mean_flux', data=[], dtype='float'))
-        stars_columns.append(Column(name='phot_g_mean_flux_error', data=[], dtype='float'))
-        stars_columns.append(Column(name='phot_bp_mean_flux', data=[], dtype='float'))
-        stars_columns.append(Column(name='phot_bp_mean_flux_error', data=[], dtype='float'))
-        stars_columns.append(Column(name='phot_rp_mean_flux', data=[], dtype='float'))
-        stars_columns.append(Column(name='phot_rp_mean_flux_error', data=[], dtype='float'))
-        stars_columns.append(Column(name='pm', data=[], dtype='float'))
-        stars_columns.append(Column(name='pmra', data=[], dtype='float'))
-        stars_columns.append(Column(name='pmra_error', data=[], dtype='float'))
-        stars_columns.append(Column(name='pmdec', data=[], dtype='float'))
-        stars_columns.append(Column(name='pmdec_error', data=[], dtype='float'))
-        stars_columns.append(Column(name='parallax', data=[], dtype='float'))
-        stars_columns.append(Column(name='parallax_error', data=[], dtype='float'))
-
-        self.stars = Table(stars_columns)
-        print(self.stars)
+        # Convienence wrapped, named for parity with the functions for other
+        # tables
+        self.init_stars_table(params)
 
     def create_images_table(self):
         # Index filename dataset_code filter hjd datetime exposure RA Dec moon_ang_separation moon_fraction airmass sigma_x sigma_y \
@@ -497,25 +439,52 @@ class CrossMatchTable():
                     star['quadrant_id'] = nstars_quadrants[q-1]
                     self.field_index[j] = star
 
-    def init_stars_table(self):
+    def init_stars_table(self, params):
 
-        nstars = len(self.field_index['field_id'])
+        if self.field_index:
+            nstars = len(self.field_index['field_id'])
+        else:
+            nstars = 0
 
+        # The stars table holds the reference image photometry for all stars
+        # in each dataset.
+        # Split dataset, full-field mode:
+        # Although not all fields have data from all sites,
+        # to avoid having a variable number of table columns, the table is
+        # scaled to the maximum possible set of datasets:
         filters = ['g', 'r', 'i']
         sitecodes = ['lsc_doma', 'lsc_domb', 'lsc_domc',
                      'cpt_doma', 'cpt_domb', 'cpt_domc',
                      'coj_doma', 'coj_domb', 'coj_domc']
 
+        # Combined dataset mode:
+        # Use just the list of datasets and filters included
+        print(params)
+        if params['combined_datasets']:
+            filters = list(set(self.datasets['dataset_filter']))
+            sitecodes = list(self.datasets['dataset_code'])
+
         stars_columns = [  Column(name='field_id', data=self.field_index['field_id'], dtype='int'),
                             Column(name='ra', data=self.field_index['ra'], dtype='float'),
                             Column(name='dec', data=self.field_index['dec'], dtype='float') ]
 
-        for site in sitecodes:
-            for f in filters:
-                stars_columns.append( Column(name='cal_'+f+'_mag_'+site, data=np.zeros(nstars), dtype='float') )
-                stars_columns.append( Column(name='cal_'+f+'_magerr_'+site, data=np.zeros(nstars), dtype='float') )
-                stars_columns.append( Column(name='norm_'+f+'_mag_'+site, data=np.zeros(nstars), dtype='float') )
-                stars_columns.append( Column(name='norm_'+f+'_magerr_'+site, data=np.zeros(nstars), dtype='float') )
+
+        if not params['combined_datasets']:
+            print('Shouldnt be here')
+            for site in sitecodes:
+                for f in filters:
+                    stars_columns.append( Column(name='cal_'+f+'_mag_'+site, data=np.zeros(nstars), dtype='float') )
+                    stars_columns.append( Column(name='cal_'+f+'_magerr_'+site, data=np.zeros(nstars), dtype='float') )
+                    stars_columns.append( Column(name='norm_'+f+'_mag_'+site, data=np.zeros(nstars), dtype='float') )
+                    stars_columns.append( Column(name='norm_'+f+'_magerr_'+site, data=np.zeros(nstars), dtype='float') )
+
+        else:
+            print('HERE', sitecodes)
+            for site in sitecodes:
+                stars_columns.append( Column(name='cal_mag_'+site, data=np.zeros(nstars), dtype='float') )
+                stars_columns.append( Column(name='cal_magerr_'+site, data=np.zeros(nstars), dtype='float') )
+                stars_columns.append( Column(name='norm_mag_'+site, data=np.zeros(nstars), dtype='float') )
+                stars_columns.append( Column(name='norm_magerr_'+site, data=np.zeros(nstars), dtype='float') )
 
         stars_columns.append(Column(name='gaia_source_id', data=np.array(['0.0']*nstars), dtype='S19'))
         stars_columns.append(Column(name='gaia_ra', data=np.zeros(nstars), dtype='float'))
@@ -537,6 +506,7 @@ class CrossMatchTable():
         stars_columns.append(Column(name='parallax_error', data=np.zeros(nstars), dtype='float'))
 
         self.stars = Table(stars_columns)
+        print(self.stars)
 
     def record_dataset_stamps(self, dataset_code, dataset_metadata, log):
 
