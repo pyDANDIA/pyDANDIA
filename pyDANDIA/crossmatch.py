@@ -90,7 +90,6 @@ class CrossMatchTable():
         # Combined dataset mode:
         # Use just the list of datasets and filters included
         print(params)
-        import pdb; pdb.set_trace()
         if params['combined_datasets']:
             filters = list(set(self.datasets['dataset_filter']))
             sitecodes = list(self.datasets['dataset_code'])
@@ -136,6 +135,7 @@ class CrossMatchTable():
         stars_columns.append(Column(name='parallax_error', data=[], dtype='float'))
 
         self.stars = Table(stars_columns)
+        print(self.stars)
 
     def create_images_table(self):
         # Index filename dataset_code filter hjd datetime exposure RA Dec moon_ang_separation moon_fraction airmass sigma_x sigma_y \
