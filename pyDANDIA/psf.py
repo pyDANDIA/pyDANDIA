@@ -1059,7 +1059,12 @@ def fit_star(data, Y_data, X_data, psf_model='Moffat2D',
     if background_model == 'Constant':
         back_model = ConstantBackground()
 
-    guess_psf = [data.max(), Y_data[int(len(Y_data[:, 0]) / 2), 0],
+    if np.abs(np.min(data))>np.max(data):
+    
+        themax = np.min(data)
+    else:
+        themax = data.max()
+    guess_psf = [themax, Y_data[int(len(Y_data[:, 0]) / 2), 0],
                  X_data[0, int(len(Y_data[0, :]) / 2)]] + psf_model.psf_guess()
 
     guess_back = back_model.background_guess(np.median(data))

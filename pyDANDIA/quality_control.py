@@ -260,19 +260,20 @@ def verify_mask_statistics(reduction_metadata,image_name, mask_data, log=None):
 
     idx = np.where(mask_data != 0)
     npix = mask_data.shape[0]*mask_data.shape[1]
+    n_bad = len(idx[0])
     percent_bad = (float(len(idx[0]))/float(npix))*100.0
 
 #    (hist,bins) = np.histogram(mask_data)
 #    jdx = np.where(bins.astype(int) <= 1.0)
 #    j1 = jdx[0][-2]
 
-    idx = np.where(mask_data.astype(int) == 0)
-    j1 = len(idx[0])
+    jdx = np.where(mask_data.astype(int) == 0)
+    j1 = len(jdx[0])
 
     if log!=None:
         log.info('Verifying BPM for image '+image_name+':')
-        log.info('BPM has '+str(len(idx[0]))+' pixels flagged as bad, '+str(round(percent_bad,1))+'%')
-        log.info('BPM has '+str(j1)+' pixels flagged as 1')
+        log.info('BPM has '+str(n_bad)+' pixels flagged as bad, '+str(round(percent_bad,1))+'%')
+        log.info('BPM has '+str(j1)+' pixels flagged as 0')
 
     if percent_bad < threshold:
         return True

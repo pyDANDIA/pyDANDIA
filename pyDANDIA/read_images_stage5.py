@@ -39,30 +39,30 @@ def background_fit(image1, master_mask = []):
 def background_mesh_perc(image1,perc=30,box_guess=300, master_mask = []):
 
     image = np.copy(image1)
-    
+
     if (box_guess>image1.shape[0]/10) | (box_guess>image1.shape[1]/10):
-    
+
         boxx = int(np.min(image1.shape[1])/10)
         boxy = int(np.min(image1.shape[0])/10)
-        
-       
+
+
     else:
         box = box_guess
         boxx = box
-        boxy = box   
+        boxy = box
     xcen_range = (np.arange(0,image1.shape[1],boxx)+boxx/2).astype(int)
     ycen_range = (np.arange(0,image1.shape[0],boxy)+boxy/2).astype(int)
 
-    
+
     halfboxx = int(boxx/2)
     halfboxy = int(boxy/2)
-    
+
     percentile_bkg = np.zeros((len(ycen_range),len(xcen_range)))
     idx = 0
     jdx = 0
 
     result = np.zeros(image1.shape)
-   
+
     for xcen in xcen_range:
         jdx = 0
         for ycen in ycen_range:
@@ -79,7 +79,7 @@ def background_mesh_perc(image1,perc=30,box_guess=300, master_mask = []):
                 percentile_bkg[jdx, idx] = 0
             jdx += 1
         idx += 1
-  
+
     #if boxx != boxy:
     #    import pdb; pdb.set_trace()
 
@@ -88,8 +88,8 @@ def background_mesh_perc(image1,perc=30,box_guess=300, master_mask = []):
 
     #image[min(mask_shape_y):max(mask_shape_y)+1,min(mask_shape_x):max(mask_shape_x)+1] =result
     #result[zero_mask] =0.
-    
-   
+
+
     background = result
     #import pdb; pdb.set_trace()
     return background
@@ -202,27 +202,41 @@ def mask_the_reference(ref_image,reference_mask,kernel_size,max_adu):
     noise = np.copy(ref_image)
     ref_image,ref_mask = cosmicray_lacosmic(ref_image,sigclip=7, objlim = 7., satlevel = max_adu)
 
+    # cosmicray routine returns a dimensioned array which is incompatible with
+    # other dimensionless arrays for the subsequent calculations.  Ideally
+    # dimensions would be used throughout, but in the meantime this line extracts
+    # the array data:
+    # Note: This does not always seem to return a dimensioned array
+    try:
+        ref_image = ref_image.to_value()
+    except AttributeError:
+        pass
+
     bkg_image = background_mesh_perc(ref_image, master_mask = reference_mask)
+
     #bkg_image = np.percentile(data_image,10)
     ref_image = ref_image-bkg_image #- background_mesh_perc(data_image[data_extension].data,master_mask = reference_mask[kernel_size:-kernel_size,kernel_size:-kernel_size])
     #import pdb; pdb.set_trace()
     ref_image[reference_mask] = 0
-   
+
     ref_image_unmasked = np.copy(ref_image)
 
-    #mask_extended = sn.morphology.binary_dilation(mask_extended, iterations=1*kernel_size)
-    
+
+
     ref_extended = np.zeros((np.shape(ref_image)[0] + 2 * kernel_size, np.shape(ref_image)[1] + 2 * kernel_size))
     mask_extended = np.ones((np.shape(ref_image)[0] + 2 * kernel_size, np.shape(ref_image)[1] + 2 * kernel_size)).astype(bool)
     noise_extended = np.ones((np.shape(ref_image)[0] + 2 * kernel_size, np.shape(ref_image)[1] + 2 * kernel_size))
-    
+
     ref_extended[kernel_size:-kernel_size, kernel_size:-kernel_size] = np.array(ref_image, float)
     mask_extended[kernel_size:-kernel_size, kernel_size:-kernel_size] = reference_mask
     noise_extended[kernel_size:-kernel_size, kernel_size:-
                  kernel_size] = np.array(noise, float)
 
+    #mask_extended = sn.morphology.binary_dilation(mask_extended, iterations=1*kernel_size)
+    ref_extended[mask_extended] = 0
+    noise_extended[mask_extended] = 1
 
-   
+
 
     return ref_extended, ref_image_unmasked,mask_extended, bkg_image,noise_extended
 
@@ -232,105 +246,37 @@ def mask_the_image(data_image,max_adu,reference_mask,kernel_size):
 
     data_image,data_mask = cosmicray_lacosmic(data_image,sigclip=7, objlim = 7., satlevel = max_adu)
 
+    # cosmicray routine returns a dimensioned array which is incompatible with
+    # other dimensionless arrays for the subsequent calculations.  Ideally
+    # dimensions would be used throughout, but in the meantime this line extracts
+    # the array data:
+    try:
+        data_image = data_image.to_value()
+    except AttributeError:
+        pass
+
     #bkg_image = background_fit(data_image, master_mask = reference_mask[kernel_size:-kernel_size,kernel_size:-kernel_size])
     bkg_image = background_mesh_perc(data_image, master_mask = reference_mask[kernel_size:-kernel_size,kernel_size:-kernel_size])
     #bkg_image = np.percentile(data_image,10)
     data_image = data_image-bkg_image #- background_mesh_perc(data_image[data_extension].data,master_mask = reference_mask[kernel_size:-kernel_size,kernel_size:-kernel_size])
     #import pdb; pdb.set_trace()
     data_image[reference_mask[kernel_size:-kernel_size, kernel_size:-kernel_size]] = 0
-   
+
     mask_extended = reference_mask
     #mask_extended = sn.morphology.binary_dilation(mask_extended, iterations=1*kernel_size)
-    
+
     data_extended = np.zeros((np.shape(data_image)[0] + 2 * kernel_size, np.shape(data_image)[1] + 2 * kernel_size))
     data_extended[kernel_size:-kernel_size, kernel_size:-kernel_size] = np.array(data_image, float)
     data_extended[mask_extended] = 0.
-    
+
 
     data_image_unmasked = np.copy(data_image)
 
     # extend image size for convolution and kernel solution
-   
+
 
     return data_extended, data_image_unmasked, bkg_image
 
-def open_reference(setup, ref_image_directory, ref_image_name, kernel_size, max_adu, ref_extension = 0, log = None, central_crop = None, subset = None, ref_image1 = None, min_adu = None, master_mask = [], external_weight = None):
-    '''
-    reading difference image for constructing u matrix
-
-    :param object string: reference imagefilename
-    :param object string: reference image filename
-    :param object integer: kernel size edge length of the kernel in px
-    :param object float: index of the maximum adu values
-    :return: images, mask
-    '''
-
-    #import pdb; pdb.set_trace()
-
-    if ref_image1 == None:
-        ref_image = fits.open(os.path.join(ref_image_directory, ref_image_name), mmap=True)
-    if subset != None and ref_image1 == None:
-        ref_image=ref_image[ref_extension].data[subset[0]:subset[1],subset[2]:subset[3]]
-        master_mask=master_mask[subset[0]:subset[1],subset[2]:subset[3]]
-    if subset != None and ref_image1 != None:
-        ref_image = fits.HDUList(fits.PrimaryHDU(ref_image1[ref_extension].data[subset[0]:subset[1],subset[2]:subset[3]]))
-        master_mask=master_mask[subset[0]:subset[1],subset[2]:subset[3]]
-
-    ref_image = np.copy(ref_image)
-    ref_image,ref_mask  = cosmicray_lacosmic(ref_image,sigclip=7, objlim = 7., satlevel = max_adu)
-
-
-
-    #bkg_image = background_mesh_perc(ref_image,master_mask = master_mask)
-    #bkg_image = np.median(ref_image[~master_mask])
-   # bkg_image = background_fit(ref_image, master_mask=master_mask)
-    bkg_image = background_mesh_perc(ref_image, master_mask=master_mask)
-    #bkg_image = np.percentile(ref_image,10)
-    if external_weight is not None:
-        try:
-            noise_image = external_weight + np.copy(ref_image)
-        except:
-            noise_image = np.zeros(np.shape(ref_image))
-            print('format mismatch (noise model construction)')
-    else:
-        noise_image = np.copy(ref_image)
-
-
-    #noise_image = gaussian_filter(noise_image, sigma=kernel_size/2)
-    ref_image = ref_image - bkg_image
-    ref_image_unmasked = np.copy(ref_image)
-
-
-
-
-
-
-    mask_extended = np.ones((np.shape(ref_image)[0] + 2 * kernel_size,
-                             np.shape(ref_image)[1] + 2 * kernel_size)).astype(bool)
-    mask_extended[kernel_size:-kernel_size, kernel_size:-kernel_size] = master_mask
-    
-    #mask_extended = sn.morphology.binary_dilation(mask_extended, iterations=5*kernel_size)
-    #import pdb; pdb.set_trace()
-    ref_extended = np.zeros((np.shape(ref_image)[0] + 2 * kernel_size,
-                             np.shape(ref_image)[1] + 2 * kernel_size))
-    ref_extended[kernel_size:-kernel_size, kernel_size:-
-                 kernel_size] = np.array(ref_image, float)
-
-    noise_extended = np.zeros((np.shape(ref_image)[0] + 2 * kernel_size,
-                             np.shape(ref_image)[1] + 2 * kernel_size))
-    noise_extended[kernel_size:-kernel_size, kernel_size:-
-                 kernel_size] = np.array(noise_image, float)
-                 
-    #mask_extended = sn.morphology.binary_dilation(mask_extended, iterations=20)
-
-    ref_extended[mask_extended] = 0.
-
-    #noise_extended = np.ones(ref_extended.shape)
-    noise_extended[mask_extended] = 0.
-
-    
-    ref_image_unmasked[master_mask] = 0. # np.random.randn(len(ref_image_unmasked[bright_mask[kernel_size:-kernel_size,kernel_size:-kernel_size]]))*bkg_sigma
-    return np.array(ref_extended,dtype = float), mask_extended, np.array(ref_image_unmasked, dtype=float), np.array(noise_extended, dtype=float)
 
 
 
@@ -389,9 +335,9 @@ def open_reference(setup, ref_image_directory, ref_image_name, kernel_size, max_
     mask_extended = np.ones((np.shape(ref_image)[0] + 2 * kernel_size,
                              np.shape(ref_image)[1] + 2 * kernel_size)).astype(bool)
     mask_extended[kernel_size:-kernel_size, kernel_size:-kernel_size] = master_mask
-    
+
     #mask_extended = sn.morphology.binary_dilation(mask_extended, iterations=5*kernel_size)
-    #import pdb; pdb.set_trace()
+
     ref_extended = np.zeros((np.shape(ref_image)[0] + 2 * kernel_size,
                              np.shape(ref_image)[1] + 2 * kernel_size))
     ref_extended[kernel_size:-kernel_size, kernel_size:-
@@ -401,7 +347,7 @@ def open_reference(setup, ref_image_directory, ref_image_name, kernel_size, max_
                              np.shape(ref_image)[1] + 2 * kernel_size))
     noise_extended[kernel_size:-kernel_size, kernel_size:-
                  kernel_size] = np.array(noise_image, float)
-                 
+
     #mask_extended = sn.morphology.binary_dilation(mask_extended, iterations=20)
 
     ref_extended[mask_extended] = 0.
@@ -409,7 +355,7 @@ def open_reference(setup, ref_image_directory, ref_image_name, kernel_size, max_
     #noise_extended = np.ones(ref_extended.shape)
     noise_extended[mask_extended] = 0.
 
-    
+
     ref_image_unmasked[master_mask] = 0. # np.random.randn(len(ref_image_unmasked[bright_mask[kernel_size:-kernel_size,kernel_size:-kernel_size]]))*bkg_sigma
     return np.array(ref_extended,dtype = float), mask_extended, np.array(ref_image_unmasked, dtype=float), np.array(noise_extended, dtype=float)
 

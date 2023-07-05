@@ -30,7 +30,7 @@ def combine_photometry_from_all_datasets():
         dataset_metadata.load_all_metadata(setup.red_dir, 'pyDANDIA_metadata.fits')
 
         (xmatch,dataset_image_index) = populate_images_table(dataset,dataset_metadata, xmatch, log)
-        (xmatch, field_star_index, dataset_stars_index) = populate_stars_table(dataset,xmatch,dataset_metadata,log)
+        (xmatch, field_star_index, dataset_stars_index) = populate_stars_table(params,dataset,xmatch,dataset_metadata,log)
         xmatch = populate_stamps_table(xmatch, dataset['dataset_code'], dataset_metadata, log)
 
     # These loops are deliberately separated because it makes it easier to
@@ -254,13 +254,24 @@ def check_for_reference_dataset(dataset_code):
     else:
         return False
 
-def populate_stars_table(dataset,xmatch,dataset_metadata,log):
+def populate_stars_table(params,dataset,xmatch,dataset_metadata,log):
 
-    dataset_id = '_'.join(dataset['dataset_code'].split('_')[1].split('-')[0:2])
-    filter_name = parse_sloan_filter_ids(dataset['dataset_filter'])
+    # Default: timeseries from different instruments are handled as separate
+    # datasets
+    if not params['combined_datasets']:
+        dataset_id = '_'.join(dataset['dataset_code'].split('_')[1].split('-')[0:2])
+        filter_name = parse_sloan_filter_ids(dataset['dataset_filter'])
 
-    mag_column = 'cal_'+filter_name+'_mag_'+dataset_id
-    mag_error_column = 'cal_'+filter_name+'_magerr_'+dataset_id
+        mag_column = 'cal_'+filter_name+'_mag_'+dataset_id
+        mag_error_column = 'cal_'+filter_name+'_magerr_'+dataset_id
+
+    # Combined data: timeseries from different instruments merged into a
+    # single dataset
+    else:
+        dataset_id = dataset['dataset_code']
+        filter_name = parse_sloan_filter_ids(dataset['dataset_filter'])
+        mag_column = 'cal_mag_'+dataset_id
+        mag_error_column = 'cal_magerr_'+dataset_id
 
     (field_array_idx,dataset_array_idx) = get_dataset_star_indices(dataset,xmatch)
 
@@ -376,11 +387,18 @@ def get_args():
         params['crossmatch_file'] = input('Please enter the path to the field crossmatch table: ')
         params['log_dir'] = input('Please enter the path to the log directory: ')
         params['field_name'] = input('Please enter the field identifier: ')
+        opt = input('Is data from different telescopes combined into a single dataset or not?  {combined, separate}: ')
     else:
         params['datasets_file'] = argv[1]
         params['crossmatch_file'] = argv[2]
         params['log_dir'] = argv[3]
         params['field_name'] = argv[4]
+        opt = argv[5]
+
+    if 'combined' in str(opt).lower():
+        params['combined_datasets'] = True
+    else:
+        params['combined_datasets'] = False
 
     return params
 

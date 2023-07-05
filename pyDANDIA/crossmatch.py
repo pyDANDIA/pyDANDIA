@@ -70,52 +70,14 @@ class CrossMatchTable():
 
         self.datasets = Table(dataset_columns)
         self.field_index = Table(field_index_columns)
-        self.create_stars_table()
+        self.create_stars_table(params)
         self.create_images_table()
         self.create_stamps_table()
 
-    def create_stars_table(self):
-
-        # The stars table holds the reference image photometry for all stars
-        # in each dataset.  Although not all fields have data from all sites,
-        # to avoid having a variable number of table columns, the table is
-        # scaled to the maximum possible set of datasets:
-        filters = ['g', 'r', 'i']
-        sitecodes = ['lsc_doma', 'lsc_domb', 'lsc_domc',
-                     'cpt_doma', 'cpt_domb', 'cpt_domc',
-                     'coj_doma', 'coj_domb', 'coj_domc']
-
-        stars_columns = [  Column(name='field_id', data=[], dtype='int'),
-                            Column(name='ra', data=[], dtype='float'),
-                            Column(name='dec', data=[], dtype='float') ]
-
-        for site in sitecodes:
-            for f in filters:
-                stars_columns.append( Column(name='cal_'+f+'_mag_'+site, data=[], dtype='float') )
-                stars_columns.append( Column(name='cal_'+f+'_magerr_'+site, data=[], dtype='float') )
-                stars_columns.append( Column(name='norm_'+f+'_mag_'+site, data=[], dtype='float') )
-                stars_columns.append( Column(name='norm_'+f+'_magerr_'+site, data=[], dtype='float') )
-
-        stars_columns.append(Column(name='gaia_source_id', data=[], dtype='S19'))
-        stars_columns.append(Column(name='gaia_ra', data=[], dtype='float'))
-        stars_columns.append(Column(name='gaia_ra_error', data=[], dtype='float'))
-        stars_columns.append(Column(name='gaia_dec', data=[], dtype='float'))
-        stars_columns.append(Column(name='gaia_dec_error', data=[], dtype='float'))
-        stars_columns.append(Column(name='phot_g_mean_flux', data=[], dtype='float'))
-        stars_columns.append(Column(name='phot_g_mean_flux_error', data=[], dtype='float'))
-        stars_columns.append(Column(name='phot_bp_mean_flux', data=[], dtype='float'))
-        stars_columns.append(Column(name='phot_bp_mean_flux_error', data=[], dtype='float'))
-        stars_columns.append(Column(name='phot_rp_mean_flux', data=[], dtype='float'))
-        stars_columns.append(Column(name='phot_rp_mean_flux_error', data=[], dtype='float'))
-        stars_columns.append(Column(name='pm', data=[], dtype='float'))
-        stars_columns.append(Column(name='pmra', data=[], dtype='float'))
-        stars_columns.append(Column(name='pmra_error', data=[], dtype='float'))
-        stars_columns.append(Column(name='pmdec', data=[], dtype='float'))
-        stars_columns.append(Column(name='pmdec_error', data=[], dtype='float'))
-        stars_columns.append(Column(name='parallax', data=[], dtype='float'))
-        stars_columns.append(Column(name='parallax_error', data=[], dtype='float'))
-
-        self.stars = Table(stars_columns)
+    def create_stars_table(self, params):
+        # Convienence wrapped, named for parity with the functions for other
+        # tables
+        self.init_stars_table(params)
 
     def create_images_table(self):
         # Index filename dataset_code filter hjd datetime exposure RA Dec moon_ang_separation moon_fraction airmass sigma_x sigma_y \
@@ -289,6 +251,12 @@ class CrossMatchTable():
 
         self.gaia_dr = params['gaia_dr']
 
+        # Calculate number of columns of photometry in the stars table, based on
+        # the number of columns overall, minus the standard ones for field index,
+        # location and Gaia data.
+        nphotcol = len(self.stars.colnames)
+        nphotcol -= 21
+
         matched_stars = match_utils.StarMatchIndex()
 
         field_stars = SkyCoord(self.field_index['ra'], self.field_index['dec'],
@@ -324,7 +292,8 @@ class CrossMatchTable():
             star_added = matched_stars.add_match(p, log=log, verbose=True)
             star = self.stars[jfield]
             if self.gaia_dr == 'Gaia-EDR3':
-                self.stars[jfield] = [star['field_id'], star['ra'], star['dec']] + [0.0]*108 + \
+                print(gaia_data.keys(), len(gaia_data), len(self.stars[jfield]))
+                self.stars[jfield] = [star['field_id'], star['ra'], star['dec']] + [0.0]*nphotcol + \
                                     [int(gaia_data['source_id'][jgaia]),
                                     gaia_data['ra'][jgaia], gaia_data['ra_error'][jgaia],
                                     gaia_data['dec'][jgaia], gaia_data['dec_error'][jgaia],
@@ -332,11 +301,11 @@ class CrossMatchTable():
                                     gaia_data['phot_bp_mean_flux'][jgaia], gaia_data['phot_bp_mean_flux_error'][jgaia],
                                     gaia_data['phot_rp_mean_flux'][jgaia], gaia_data['phot_rp_mean_flux_error'][jgaia],
                                     gaia_data['pm'][jgaia],
-                                    gaia_data['pmra'][jgaia], gaia_data['pmra_error'][jgaia],
-                                    gaia_data['pmdec'][jgaia], gaia_data['pmdec_error'][jgaia],
+                                    gaia_data['pm_ra'][jgaia], gaia_data['pm_ra_error'][jgaia],
+                                    gaia_data['pm_dec'][jgaia], gaia_data['pm_dec_error'][jgaia],
                                     gaia_data['parallax'][jgaia], gaia_data['parallax_error'][jgaia]]
             else:
-                self.stars[jfield] = [star['field_id'], star['ra'], star['dec']] + [0.0]*108 + \
+                self.stars[jfield] = [star['field_id'], star['ra'], star['dec']] + [0.0]*nphotcol + \
                                     [int(gaia_data['source_id'][jgaia]),
                                     gaia_data['ra'][jgaia], gaia_data['ra_error'][jgaia],
                                     gaia_data['dec'][jgaia], gaia_data['dec_error'][jgaia],
@@ -476,25 +445,49 @@ class CrossMatchTable():
                     star['quadrant_id'] = nstars_quadrants[q-1]
                     self.field_index[j] = star
 
-    def init_stars_table(self):
+    def init_stars_table(self, params):
 
-        nstars = len(self.field_index['field_id'])
+        if self.field_index:
+            nstars = len(self.field_index['field_id'])
+        else:
+            nstars = 0
 
+        # The stars table holds the reference image photometry for all stars
+        # in each dataset.
+        # Split dataset, full-field mode:
+        # Although not all fields have data from all sites,
+        # to avoid having a variable number of table columns, the table is
+        # scaled to the maximum possible set of datasets:
         filters = ['g', 'r', 'i']
         sitecodes = ['lsc_doma', 'lsc_domb', 'lsc_domc',
                      'cpt_doma', 'cpt_domb', 'cpt_domc',
                      'coj_doma', 'coj_domb', 'coj_domc']
 
+        # Combined dataset mode:
+        # Use just the list of datasets and filters included
+        if params['combined_datasets']:
+            filters = list(set(self.datasets['dataset_filter']))
+            sitecodes = list(self.datasets['dataset_code'])
+
         stars_columns = [  Column(name='field_id', data=self.field_index['field_id'], dtype='int'),
                             Column(name='ra', data=self.field_index['ra'], dtype='float'),
                             Column(name='dec', data=self.field_index['dec'], dtype='float') ]
 
-        for site in sitecodes:
-            for f in filters:
-                stars_columns.append( Column(name='cal_'+f+'_mag_'+site, data=np.zeros(nstars), dtype='float') )
-                stars_columns.append( Column(name='cal_'+f+'_magerr_'+site, data=np.zeros(nstars), dtype='float') )
-                stars_columns.append( Column(name='norm_'+f+'_mag_'+site, data=np.zeros(nstars), dtype='float') )
-                stars_columns.append( Column(name='norm_'+f+'_magerr_'+site, data=np.zeros(nstars), dtype='float') )
+
+        if not params['combined_datasets']:
+            for site in sitecodes:
+                for f in filters:
+                    stars_columns.append( Column(name='cal_'+f+'_mag_'+site, data=np.zeros(nstars), dtype='float') )
+                    stars_columns.append( Column(name='cal_'+f+'_magerr_'+site, data=np.zeros(nstars), dtype='float') )
+                    stars_columns.append( Column(name='norm_'+f+'_mag_'+site, data=np.zeros(nstars), dtype='float') )
+                    stars_columns.append( Column(name='norm_'+f+'_magerr_'+site, data=np.zeros(nstars), dtype='float') )
+
+        else:
+            for site in sitecodes:
+                stars_columns.append( Column(name='cal_mag_'+site, data=np.zeros(nstars), dtype='float') )
+                stars_columns.append( Column(name='cal_magerr_'+site, data=np.zeros(nstars), dtype='float') )
+                stars_columns.append( Column(name='norm_mag_'+site, data=np.zeros(nstars), dtype='float') )
+                stars_columns.append( Column(name='norm_magerr_'+site, data=np.zeros(nstars), dtype='float') )
 
         stars_columns.append(Column(name='gaia_source_id', data=np.array(['0.0']*nstars), dtype='S19'))
         stars_columns.append(Column(name='gaia_ra', data=np.zeros(nstars), dtype='float'))
