@@ -660,9 +660,14 @@ def calc_stamp_statistics(params,dimage_path,dimage_idx,log):
             statistics.append([dimage_idx, i, np.median(image), image.std()])
     else:
         stamp = path.join(dimage_path,'diff_stamp_'+str(params['stamp_number'])+'.fits')
-        image = fits.getdata(stamp)
-        statistics.append([dimage_idx, params['stamp_number'], np.median(image), image.std()])
+        if path.isfile(stamp):
+            image = fits.getdata(stamp)
+            statistics.append([dimage_idx, params['stamp_number'], np.median(image), image.std()])
 
+        # If for whatever reason the stamp was not created, set the STDev value
+        # to exceed the configured threshold for flagging as bad.
+        else:
+            statistics.append([dimage_idx, params['stamp_number'], -99.0, params['diff_std_threshold']*10.0])
     log.info(repr(statistics[-1]))
 
     return statistics
