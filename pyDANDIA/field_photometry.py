@@ -53,7 +53,7 @@ def combine_photometry_from_all_datasets():
                                                 dataset_metadata)
 
         # Output tables to quadrant HDF5 file
-        output_quad_photometry(params, xmatch, photometry, q, log)
+        output_quad_photometry(params, xmatch, quad_photometry, q, log)
 
     # Update the xmatch table
     xmatch.save(params['crossmatch_file'])
