@@ -65,12 +65,12 @@ def combine_photometry_from_all_datasets():
 def output_quad_photometry(params, xmatch, quad_photometry, q, log):
 
     log.info('Outputting quadrant '+str(q)+' photometry, array shape: '
-                +repr(photometry.shape))
+                +repr(quad_photometry.shape))
 
     setup = pipeline_setup.PipelineSetup()
     setup.red_dir = path.join(path.dirname(params['crossmatch_file']))
     filename = params['field_name']+'_quad'+str(q)+'_photometry.hdf5'
-    hd5_utils.write_phot_hd5(setup, quad_phototometry, log=log,
+    hd5_utils.write_phot_hd5(setup, quad_photometry, log=log,
                                 filename=filename)
 
 def parse_sloan_filter_ids(filter_name):
