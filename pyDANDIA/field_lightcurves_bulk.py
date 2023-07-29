@@ -47,7 +47,7 @@ def plot_field_lightcurves_enmasse():
 
     # Extract the lightcurves for targets in each quadrant.
     # By default, extract the normalised photometry.
-    params = {'phot_type': 'normalized'}
+    params = {'phot_type': args.phot_type}
     filters = ['gp', 'rp', 'ip']
     for qid in range(1,5,1):
         phot_file = path.join(args.input_dir,
@@ -111,6 +111,7 @@ def get_args():
     parser.add_argument("input_dir", help="Path to the input data directory containing the photometry", type=str)
     parser.add_argument("xmatch_file", help="Name of the crossmatch table", type=str)
     parser.add_argument("field_name", help="Field name prefix to photometry HDF5 files", type=str)
+    parser.add_argument("phot_type", help="Photometry type {instrumental, calibrated, normalized}", type=str)
     parser.add_argument("output_dir", help="Path to the directory for output lightcurves", type=str)
     parser.add_argument("combine_data", help="Combine dataset lightcurves by filter?  Y or N:", type=str)
     args = parser.parse_args()
