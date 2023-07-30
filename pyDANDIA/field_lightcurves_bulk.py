@@ -111,7 +111,7 @@ def get_args():
     parser.add_argument("input_dir", help="Path to the input data directory containing the photometry", type=str)
     parser.add_argument("xmatch_file", help="Name of the crossmatch table", type=str)
     parser.add_argument("field_name", help="Field name prefix to photometry HDF5 files", type=str)
-    parser.add_argument("phot_type", help="Photometry type {instrumental, calibrated, normalized}", type=str)
+    parser.add_argument("phot_type", help="Photometry type {instrumental, calibrated, corrected, normalized}", type=str)
     parser.add_argument("output_dir", help="Path to the directory for output lightcurves", type=str)
     parser.add_argument("combine_data", help="Combine dataset lightcurves by filter?  Y or N:", type=str)
     args = parser.parse_args()
