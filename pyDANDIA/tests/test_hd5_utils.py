@@ -108,10 +108,62 @@ def test_write_norm_hd5():
 
     assert os.path.isfile(test_output_file)
 
+def test_update_norm_hd5():
+
+    test_output_file = os.path.join(TEST_DIR,'TEST_star_dataset_normalizations.hdf5')
+
+    if os.path.isfile(test_output_file):
+        os.remove(test_output_file)
+
+    # Simulate a dataset to be output.  For each primary reference dataset,
+    # the table consists of field_id, delta_mag_dset1, delta_mag_error_dset1, etc
+    # Initially, all coefficients are set to zero
+    pri_dset_list = ['lsc-doma', 'cpt-doma', 'coj-doma']
+    dset_list = ['lsc-doma_ip', 'lsc-doma_rp', 'lsc-doma_gp',
+                 'cpt-domb_ip', 'cpt-domb_rp', 'cpt-domb_gp']
+    nstars = 100
+    ndatasets = 4
+    normalizations = {}
+    for pdset in pri_dset_list:
+        column_list = [Column(name='field_id', data=np.arange(1,nstars+1,1))]
+        for dset in dset_list:
+            column_list.append(Column(name='delta_mag_'+dset, data=np.zeros(nstars)))
+            column_list.append(Column(name='delta_mag_error_'+dset, data=np.zeros(nstars)))
+        normalizations[pdset] = Table(column_list)
+
+    hd5_utils.write_normalizations_hd5(TEST_DIR, 'TEST', normalizations)
+
+    # Now update one of the tables to coefficients of one
+    norm_table = normalizations['cpt-doma']
+    norm_table['delta_mag_'+'lsc-doma_rp'] = np.ones(nstars)
+    norm_table['delta_mag_error_'+'lsc-doma_rp'] = np.ones(nstars)
+    normalizations['cpt-doma'] = norm_table
+
+    # Output the revised data to file:
+    hd5_utils.update_normalizations_table(test_output_file,
+                                          'cpt-doma',
+                                          norm_table)
+
+    # Read back in the specific table from the revised file and
+    # check that the revised table has changed correctly
+    revised_normalizations = hd5_utils.read_normalizations_table(test_output_file,
+                                                                 'cpt-doma',
+                                                                 norm_table.colnames)
+
+    assert((revised_normalizations['delta_mag_lsc-doma_rp'] == 1.0).all())
+
+    # Read back one of the other tables and check that it hasn't changed:
+    revised_normalizations = hd5_utils.read_normalizations_table(test_output_file,
+                                                                 'lsc-doma',
+                                                                 norm_table.colnames)
+
+    assert((revised_normalizations['delta_mag_lsc-doma_rp'] == 0.0).all())
+
 
 if __name__ == '__main__':
     #test_write_phot_hd5()
     #test_read_phot_hd5()
     #test_read_quadrants()
     #test_mask_phot_array()
-    test_write_norm_hd5()
+    #test_write_norm_hd5()
+    test_update_norm_hd5()

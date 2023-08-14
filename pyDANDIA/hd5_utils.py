@@ -1,6 +1,7 @@
 import os
 import h5py
 import numpy as np
+from astropy.table import Table, Column
 
 def write_phot_hd5(setup, dataset_phot_data, log=None,
                     filename=None):
@@ -142,3 +143,68 @@ def write_normalizations_hd5(red_dir, file_prefix, normalizations):
                                     dtype='float64',
                                     data=data)
     f.close()
+
+def read_normalizations_table(file_path, table_name, column_names, type='table'):
+    """Function to read a specific table of normalization coefficients for a
+    specified primary reference
+    """
+
+    if not os.path.isfile(file_path):
+        raise IOError('Cannot find normalizations coefficients HDF5 file '+file_path)
+
+    # Read the relevant table from the file
+    with h5py.File(file_path, "r") as f:
+        data = np.array(f[table_name])
+    f.close()
+
+    # Convert the numpy array from the file into an astropy Table
+    if type=='table':
+        columns = []
+        for i,col in enumerate(column_names):
+            columns.append(Column(name=col, data=data[:,i]))
+
+        return Table(columns)
+
+    else:
+        return data
+
+def update_normalizations_table(file_path, table_name, data_table):
+    """Function to update the values of  per-star, per-dataset normalization
+    coefficients to a specific table in an existing HD5 file.
+
+    The structure of the tables output have the columns:
+    field_id, delta_mag_<dset1>, delta_mag_error_<dset1>, delta_mag_<dset2>, ...
+    where the datasets are listed in the same order as the datasets table
+    in the CrossMatchTable.
+    """
+
+    # List of expected data table extensions:
+    table_list = ['lsc-doma', 'cpt-doma', 'coj-doma']
+
+    if not os.path.isfile(file_path):
+        raise IOError('Expected '+file_path+' to exist, cannot output!')
+
+    new_file_path = file_path.split('.')[0]+'_new.hdf5'
+
+    with h5py.File(new_file_path, "w") as new_file:
+        for tab in table_list:
+            if tab != table_name:
+                data = read_normalizations_table(file_path, tab,
+                                                 data_table.colnames,
+                                                 type='array')
+                dset = new_file.create_dataset(tab,
+                                               data.shape,
+                                               dtype='float64',
+                                               data=data)
+            else:
+                data = np.zeros((len(data_table),len(data_table.colnames)))
+                for c,cname in enumerate(data_table.colnames):
+                    data[:,c] = data_table[cname]
+                dset = new_file.create_dataset(table_name,
+                                               data.shape,
+                                               dtype='float64',
+                                               data=data)
+    new_file.close()
+
+    # Move the revised file to overwrite the original file
+    os.rename(new_file_path, file_path)

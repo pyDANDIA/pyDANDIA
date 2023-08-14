@@ -36,14 +36,12 @@ def init_normalization_tables(params):
     # for each dataset from the primary reference in each case, so we
     # initalize tables for each of the primary references, and the number of
     # columns in each table depends on the number of datasets
-    column_list = [ Column(name='field_id', data=xmatch.field_index['field_id'],
+    column_names = get_table_columns(xmatch)
+    column_list = [ Column(name=column_names[0], data=xmatch.field_index['field_id'],
                             dtype='int') ]
     ns = len(xmatch.field_index)
-    for dset in xmatch.datasets['dataset_code']:
-        cname1 = 'delta_mag_'+xmatch.get_dataset_shortcode(dset)
-        cname2 = 'delta_mag_error_'+xmatch.get_dataset_shortcode(dset)
-        column_list.append( Column(name=cname1, data=np.zeros(ns), dtype='float') )
-        column_list.append( Column(name=cname2, data=np.zeros(ns), dtype='float') )
+    for col in column_names[1:]:
+        column_list.append( Column(name=col, data=np.zeros(ns), dtype='float') )
     data_table = Table(column_list)
 
     tables = {}
@@ -57,6 +55,14 @@ def init_normalization_tables(params):
                                         tables)
     log.info('Output initalized tables of star lightcurve normalization coefficients')
     logs.close_log(log)
+
+def get_table_columns(xmatch):
+    column_list = ['field_id']
+    for dset in xmatch.datasets['dataset_code']:
+        column_list.append('delta_mag_'+xmatch.get_dataset_shortcode(dset))
+        column_list.append('delta_mag_error_'+xmatch.get_dataset_shortcode(dset))
+
+    return column_list
 
 def get_args():
 
