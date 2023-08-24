@@ -205,7 +205,7 @@ def normalize_star_datasets(params, xmatch, quad_phot, qid, binned_phot,
 
         # Load the table of normalization coefficients for this primary reference
         # dataset:
-        column_names = get_table_columns(xmatch)
+        column_names = create_star_normalization_tables.get_table_columns(xmatch)
         short_pri_ref_code = xmatch.get_dataset_shortcode(pri_ref_code)
         short_pri_ref_code = short_pri_ref_code.split('_')[0]
         normalizations = hd5_utils.read_normalizations_table(normalizations_file,
