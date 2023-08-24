@@ -20,6 +20,7 @@ from astropy.table import Table, Column
 from photutils import DAOStarFinder
 from skimage import transform as tf
 from skimage.transform import rotate
+from skimage.measure import ransac
 
 #mpl.use('Agg')
 
@@ -338,6 +339,7 @@ def find_x_y_shifts_from_the_reference_image(setup, reference_image, target_imag
 
 
 def extract_catalog(reduction_metadata, data_image, row_index, log):
+
     central_region_x, central_region_y = np.shape(data_image)
     center_x, center_y = int(central_region_x / 2), int(central_region_y / 2)
 
@@ -389,36 +391,33 @@ def extract_catalog(reduction_metadata, data_image, row_index, log):
 
 
 def crossmatch_catalogs(ref_sources, data_sources, transform=None):
-    data_sources_x, data_sources_y = np.copy(data_sources['xcentroid'].data), np.copy(
-        data_sources['ycentroid'].data)
 
-    ref = np.c_[ref_sources['xcentroid'], ref_sources['ycentroid'], ref_sources['flux']]
 
     if transform:
 
         data_points = np.c_[
-            data_sources['xcentroid'], data_sources['ycentroid'], [1] * len(
+            data_sources[:,0], data_sources[:,1], [1] * len(
                 data_sources)]
+
         data_points = np.dot(transform.params, data_points.T)
 
-        data = np.c_[data_points[0], data_points[1], data_sources['flux']]
+        data = np.c_[data_points[0], data_points[1], data_sources[:,2]]
 
     else:
 
-        data = np.c_[
-            data_sources['xcentroid'], data_sources['ycentroid'], data_sources['flux']]
+        data =  data_sources
 
-    pts1, pts2, matching = reformat_catalog(ref, data, distance_threshold=1)
-
-    pts1 = np.c_[data_sources_x, data_sources_y][matching[:, 1]]
+    pts1, pts2, matching = reformat_catalog(ref_sources, data,
+                                            distance_threshold=1)
+    pts1 = data_sources[:,:2][matching[:,1]]
 
     pts1 = np.c_[pts1, [1] * len(pts1)]
     pts2 = np.c_[pts2, [1] * len(pts2)]
 
-    e_pos_data = 0.6 / data_sources['flux'][
-        matching[:, 1]]  # [order][:].data ** 0.5 # Kozlowski 2006
-    e_pos_ref = 0.6 / ref_sources['flux'][
-        matching[:, 0]]  # [order][:].data ** 0.5 # Kozlowski 2006
+    e_pos_data = 0.6 / data_sources[
+        matching[:, 1],2]  # [order][:].data ** 0.5 # Kozlowski 2006
+    e_pos_ref = 0.6 / ref_sources[
+        matching[:, 0],2]  # [order][:].data ** 0.5 # Kozlowski 2006
 
     return pts1, pts2, e_pos_data, e_pos_ref, matching
 
@@ -442,7 +441,7 @@ def warp_image(image_to_warp, warp_matrix):
     #                             mode='constant', cval=0, clip=True,
     #                             preserve_range=True)*image_to_warp.max()
 
-    warp_image = tf.warp(image_to_warp, warp_matrix, order=1)
+    warp_image = tf.warp(image_to_warp, warp_matrix, order=1,preserve_range=True)
 
     return warp_image
 
@@ -507,7 +506,6 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
                           px_scale,
                           image_red_status, log=None, mask_extension_in=-1):
 
-    from skimage.measure import ransac
     # import sep
     list_of_stamps = reduction_metadata.stamps[1]['PIXEL_INDEX'].tolist()
 
@@ -537,6 +535,9 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
 
     ref_sources, ref_fwhm = extract_catalog(reduction_metadata, masked_ref - bkg_ref,
                                             ref_row_index, log)
+
+    sources_in_ref = np.c_[ref_sources['xcentroid'], ref_sources[
+        'ycentroid'], ref_sources['flux']]
 
     log.info('Starting image resampling')
     # Is there a mask already?
@@ -578,65 +579,15 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
             image_red_status[new_image] = -1
 
         else:
-            shifted_mask = np.copy(mask_image)
-            output_shifted_mask(shifted_mask, image_path.replace('.fits', '_init.fits'))
-
-            shifted_catalog = np.copy(data_image)
-            shifted_catalog[mask_image.astype(bool)] = 0
-            # bkg = read_images_stage5.background_fit(shifted_catalog, master_mask =
-            # mask_image.astype(bool))
             bkg_img = read_images_stage5.background_mesh_perc(data_image, perc=30,
                                                               box_guess=300,
                                                               master_mask=mask_image.astype(
                                                                   bool))
-
-
-            data_sources, data_fwhm = extract_catalog(reduction_metadata,
-                                                      shifted_catalog - bkg_img,
-                                                      row_index, log)
-            try:
-
-                sources_in_ref = np.c_[ref_sources['xcentroid'], ref_sources[
-                    'ycentroid'],ref_sources['flux']]
-                sources_in_ref =  sources_in_ref[sources_in_ref[:,2].argsort()[::-1],]
-
-                sources_in_im = np.c_[data_sources['xcentroid'], data_sources[
-                    'ycentroid'],data_sources['flux']]
-                sources_in_im = sources_in_im[sources_in_im[:, 2].argsort()[::-1],]
-
-                init_transform, corr = find_init_transform( masked_ref ,data_image,
-                                                            sources_in_ref,
-                                                            sources_in_im)
-
-
-                pts_data, pts_reference, e_pos_data, e_pos_ref,\
-                    matching = crossmatch_catalogs(
-                    ref_sources, data_sources, init_transform)
-
-                pts_reference2 = np.copy(pts_reference)
-
-                model_robust, inliers = ransac(
-                    (pts_reference2[:5000, :2], pts_data[:5000, :2]),
-                    tf.AffineTransform,
-                    min_samples=min(50, int(0.1 * len(pts_data[:5000]))),
-                    residual_threshold=1, max_trials=1000)
-
-                if len(pts_data[:5000][inliers]) < 10:
-                    raise ValueError(
-                        "Not enough matching stars! Switching to translation")
-
-                model_final = model_robust
-                log.info(' -> Using Affine Transformation:')
-                log.info(repr(model_final))
-
-            except:
-
-                model_final = tf.SimilarityTransform(
-                    translation=(-x_shift, -y_shift))
-
-                log.info(' -> Using XY shifts:')
-                log.info(repr(model_final))
-
+            model_final = align_two_images(masked_ref, data_image, bkg_img,
+                                           sources_in_ref,
+                                           reduction_metadata,
+                                        row_index, x_shift,
+                                        y_shift, log)
             try:
 
                 shifted = warp_image(data_image, model_final)
@@ -674,105 +625,58 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
             log.info(' -> Resampling image stamps')
 
             for stamp in list_of_stamps:
-                try:
-                    stamp_row = \
-                        np.where(reduction_metadata.stamps[1]['PIXEL_INDEX'] == stamp)[
-                            0][0]
-                    xmin = reduction_metadata.stamps[1][stamp_row]['X_MIN'].astype(int)
-                    xmax = reduction_metadata.stamps[1][stamp_row]['X_MAX'].astype(int)
-                    ymin = reduction_metadata.stamps[1][stamp_row]['Y_MIN'].astype(int)
-                    ymax = reduction_metadata.stamps[1][stamp_row]['Y_MAX'].astype(int)
+                stamp_row = \
+                    np.where(reduction_metadata.stamps[1]['PIXEL_INDEX'] == stamp)[
+                        0][0]
+                xmin = reduction_metadata.stamps[1][stamp_row]['X_MIN'].astype(int)
+                xmax = reduction_metadata.stamps[1][stamp_row]['X_MAX'].astype(int)
+                ymin = reduction_metadata.stamps[1][stamp_row]['Y_MIN'].astype(int)
+                ymax = reduction_metadata.stamps[1][stamp_row]['Y_MAX'].astype(int)
 
-                    img = shifted[ymin:ymax, xmin:xmax]
-                    log.info('-> Taking section from ' + str(stamp) + ': ' + str(
-                        xmin) + ':' + str(xmax) + ', ' + str(ymin) + ':' + str(ymax))
+                img = shifted[ymin:ymax, xmin:xmax]
+                log.info('-> Taking section from ' + str(stamp) + ': ' + str(
+                    xmin) + ':' + str(xmax) + ', ' + str(ymin) + ':' + str(ymax))
 
-                    bkg = read_images_stage5.background_mesh_perc(img,
-                                                                  master_mask=shifted_mask[
-                                                                              ymin:ymax,
-                                                                              xmin:xmax].astype(
-                                                                      bool))
+                sub_ref = reference_image[ymin:ymax, xmin:xmax].astype(float)
 
-                    sub_ref = reference_image[ymin:ymax, xmin:xmax].astype(float)
+                #shifts, errors, phasedifff = phase_cross_correlation(sub_ref, img,
+                #
+                #                                                     upsample_factor=10)
 
-                    shifts, errors, phasedifff = phase_cross_correlation(sub_ref, img,
-                                                                         upsample_factor=10)
+                shifts = 0,0
+                #guess = np.r_[[[shifts[0], shifts[1], 0]], [[1, 1, 0]]]
+                # if np.max(np.abs(shifts))>1:
+                #    import pdb; pdb.set_trace()
 
-                    shifts = 0,0
-                    guess = np.r_[[[shifts[0], shifts[1], 0]], [[1, 1, 0]]]
-                    # if np.max(np.abs(shifts))>1:
-                    #    import pdb; pdb.set_trace()
+                log.info('-> Calculated shifts: ' + repr(shifts))
 
-                    log.info('-> Calculated shifts: ' + repr(shifts))
+                stamp_mask = (ref_sources['xcentroid'] < xmax) & (
+                        ref_sources['xcentroid'] > xmin) & \
+                             (ref_sources['ycentroid'] < ymax) & (
+                                     ref_sources['ycentroid'] > ymin)
+                log.info('-> Derived stamp mask')
 
-                    stamp_mask = (ref_sources['xcentroid'] < xmax) & (
-                            ref_sources['xcentroid'] > xmin) & \
-                                 (ref_sources['ycentroid'] < ymax) & (
-                                         ref_sources['ycentroid'] > ymin)
-                    log.info('-> Derived stamp mask')
+                ref_stamps = ref_sources[stamp_mask]
+                ref_stamps['xcentroid'] -= xmin
+                ref_stamps['ycentroid'] -= ymin
+                bkg = read_images_stage5.background_mesh_perc(img,
+                                                              master_mask=shifted_mask[
+                                                                          ymin:ymax,
+                                                                          xmin:xmax].astype(
+                                                                  bool))
 
-                    ref_stamps = ref_sources[stamp_mask]
-                    ref_stamps['xcentroid'] -= xmin
-                    ref_stamps['ycentroid'] -= ymin
+                sources_in_ref_stamps = np.c_[ref_stamps['xcentroid'], ref_stamps[
+                    'ycentroid'], ref_stamps['flux']]
 
-                    data_stamps, stamps_fwhm = extract_catalog(reduction_metadata,
-                                                               img - bkg, row_index,
-                                                               log)
-                    log.info('-> Extracted catalog')
-
-                    sources_in_ref = np.c_[ref_stamps['xcentroid'], ref_stamps[
-                        'ycentroid'], ref_stamps['flux']]
-                    sources_in_ref = sources_in_ref[sources_in_ref[:, 2].argsort()[::-1],]
-
-                    sources_in_im = np.c_[data_stamps['xcentroid'], data_stamps[
-                        'ycentroid'], data_stamps['flux']]
-                    sources_in_im = sources_in_im[sources_in_im[:, 2].argsort()[::-1],]
+                model_stamp = align_two_images(sub_ref, img, bkg, sources_in_ref_stamps,
+                                               reduction_metadata,
+                                               row_index, -shifts[1],
+                                               -shifts[0], log)
 
 
-                    init_transform, corr = find_init_transform(sub_ref, img,
-                                                              sources_in_ref,
-                                                              sources_in_im)
-
-                    pts_data, pts_reference, e_pos_data, e_pos_ref, \
-                        matching = crossmatch_catalogs(
-                        ref_sources, data_sources, init_transform)
-
-                    log.info('-> Crossmatch against catalog')
-
-                    # pts_reference = np.c_[ref_stamps['xcentroid'].data,
-                    # ref_stamps['ycentroid'].data][:len(data_stamps)]
-                    # pts_data = np.c_[data_stamps['xcentroid'].data,  data_stamps[
-                    # 'ycentroid'].data]
-
-                    # model_stamp, inliers = ransac((pts_reference[:5000, :2] ,
-                    # pts_data[:5000, :2] ),
-                    #                           tf.AffineTransform, min_samples=min(
-                    #                           50, int(0.1 * len(pts_data[:5000]))),
-                    #                           residual_threshold=1, max_trials=1000)
-
-                    model_stamp, inliers = ransac(
-                        (pts_reference[:5000, :2], pts_data[:5000, :2]),
-                        tf.AffineTransform, min_samples=3, residual_threshold=1,
-                        max_trials=1000)
-                    log.info('-> Completed ransac calculation of inliers')
-
-                    if len(pts_data[:5000][inliers]) < 10:
-                        raise ValueError(
-                            "Not enough matching stars in stamps! Switching to "
-                            "translation")
-                    ##                    #save the warp matrices instead of images
-
-                    np.save(os.path.join(resample_directory,
-                                         'warp_matrice_stamp_' + str(stamp) + '.npy'),
-                            model_stamp.params)
-
-                except:
-
-                    model_stamp = tf.SimilarityTransform(
-                        translation=(-shifts[1], -shifts[0]))
-                    np.save(os.path.join(resample_directory,
-                                         'warp_matrice_stamp_' + str(stamp) + '.npy'),
-                            model_stamp.params)
+                np.save(os.path.join(resample_directory,
+                                     'warp_matrice_stamp_' + str(stamp) + '.npy'),
+                        model_stamp.params)
 
             # save the warp matrices instead of images
             np.save(os.path.join(resample_directory, 'warp_matrice_image.npy'),
@@ -791,6 +695,56 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
                             overwrite=True)
 
     return image_red_status
+
+
+def align_two_images(ref, img, bkg_img, ref_catalog, reduction_metadata, row_index,
+                     x_shift,
+                     y_shift, log):
+
+    try:
+
+
+        data_sources, data_fwhm = extract_catalog(reduction_metadata,
+                                                  img - bkg_img,
+                                                  row_index, log)
+
+        sources_in_im = np.c_[data_sources['xcentroid'], data_sources[
+            'ycentroid'], data_sources['flux']]
+        sources_in_im = sources_in_im[sources_in_im[:, 2].argsort()[::-1],]
+
+        init_transform, corr = find_init_transform(ref, img,
+                                                   ref_catalog,
+                                                   sources_in_im)
+
+        pts_data, pts_reference, e_pos_data, e_pos_ref, \
+            matching = crossmatch_catalogs(
+            ref_catalog, sources_in_im, init_transform)
+
+        pts_reference2 = np.copy(pts_reference)
+
+        model_robust, inliers = ransac(
+            (pts_reference2[:5000, :2], pts_data[:5000, :2]),
+            tf.AffineTransform,
+            min_samples=min(50, int(0.1 * len(pts_data[:5000]))),
+            residual_threshold=1, max_trials=1000)
+
+        if len(pts_data[:5000][inliers]) < 10:
+            raise ValueError(
+                "Not enough matching stars! Switching to translation")
+
+        model_final = model_robust
+        log.info(' -> Using Affine Transformation:')
+        log.info(repr(model_final))
+
+    except:
+
+        model_final = tf.SimilarityTransform(
+            translation=(-x_shift, -y_shift))
+
+        log.info(' -> Using XY shifts:')
+        log.info(repr(model_final))
+
+    return model_final
 
 
 def fit_the_points(params, ref, im, imshape):
