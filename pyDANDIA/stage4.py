@@ -478,8 +478,6 @@ def reformat_catalog(ref_catalog, data_catalog, distance_threshold=1.5):
     return pts1, pts2, matching
 
 
-
-
 def rot_scale_translate(ref_image, data_image):
     solutions = []
     for i in range(4):
