@@ -56,26 +56,51 @@ def run_star_normalization(setup, **params):
         if log: log.info('Digitized the timestamps for all images')
 
         # Loop over the set of datasets to use as the primary reference.
+        # Each pri_ref_datasets in the list is a dictionary of the
+        # datasets per filter
         for pri_ref_datasets in reference_datasets:
             log.info('Normalizing stars relative to primary reference datasets: '
                         +repr(pri_ref_datasets))
 
-            # Loop over all datasets
+            # Bin the photometry for all stars from primary reference datasets
+            # for all filters
+            binned_ref_phot = {}
+            for f, longcode in pri_ref_datasets.item():
+                bin_data = bin_photometry_datasets(xmatch, quad_phot,
+                                                    survey_time_bins,
+                                                    survey_time_index,
+                                                    longcode,
+                                                    mag_col, mag_err_col,
+                                                    log=log)
+                binned_ref_phot[longcode] = bin_data[longcode]
+            print('1: binned_ref_phot ',binned_ref_phot)
+
+            # Loop over all datasets - note that this means each filter
+            # is handled separately
             for dataset in xmatch.datasets:
                 longcode = dataset['dataset_code']
 
                 # Bin the photometry for all stars from the current dataset
-                binned_phot = bin_photometry_datasets(xmatch, quad_phot,
+                bin_data = bin_photometry_datasets(xmatch, quad_phot,
                                                         survey_time_bins,
                                                         survey_time_index,
                                                         longcode,
                                                         mag_col, mag_err_col,
                                                         log=log)
+                print('2: bin_data ',bin_data)
 
+                # Combined the dataset's binned photometry with that from
+                # the primary reference datasets in all filters
+                binned_photometry['longcode'] = bin_data[longcode]
+                for dcode, dphot in binned_ref_phot.items():
+                    binned_photometry[dcode] = dphot
+                print('3: binned_photometry ',binned_photometry)
+                
                 # Normalize the photometry for all stars
                 (xmatch, quad_phot) = normalize_star_datasets(params,
                                         xmatch, quad_phot, qid,
-                                        binned_phot, filter_list, pri_ref_datasets,
+                                        binned_photometry, filter_list,
+                                        pri_ref_datasets,
                                         reference_datasets,
                                         mag_col, mag_err_col,
                                         log=log)
@@ -135,8 +160,8 @@ def bin_photometry_datasets(xmatch, quad_phot, survey_time_bins, survey_time_ind
     """
 
     if log: log.info('Starting to bin the photometry for each dataset')
-
     binned_phot = {}
+
     if log: log.info('-> Binning data for '+longcode)
 
     binned_data = np.zeros((quad_phot.shape[0],len(survey_time_bins),3))
