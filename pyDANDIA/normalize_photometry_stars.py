@@ -74,7 +74,7 @@ def run_star_normalization(setup, **params):
                                                     log=log)
                 binned_ref_phot[longcode] = bin_data[longcode]
             print('1: binned_ref_phot ',binned_ref_phot)
-
+            breakpoint()
             # Loop over all datasets - note that this means each filter
             # is handled separately
             for dataset in xmatch.datasets:
@@ -88,14 +88,16 @@ def run_star_normalization(setup, **params):
                                                         mag_col, mag_err_col,
                                                         log=log)
                 print('2: bin_data ',bin_data)
+                breakpoint()
 
                 # Combined the dataset's binned photometry with that from
                 # the primary reference datasets in all filters
                 binned_photometry = {}
-                binned_photometry['longcode'] = bin_data[longcode]
+                binned_photometry[longcode] = bin_data[longcode]
                 for dcode, dphot in binned_ref_phot.items():
                     binned_photometry[dcode] = dphot
                 print('3: binned_photometry ',binned_photometry)
+                breakpoint()
 
                 # Normalize the photometry for all stars
                 (xmatch, quad_phot) = normalize_star_datasets(params,
@@ -114,8 +116,6 @@ def run_star_normalization(setup, **params):
     # Store the stellar normalization coefficients per dataset to the
     # crossmatch table:
     xmatch.save(params['crossmatch_file'])
-    hd5_utils.write_normalizations_hd5(setup.red_dir, params['field_name'],
-                                        normalizations)
 
     logs.close_log(log)
 
