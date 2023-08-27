@@ -52,20 +52,33 @@ def run_star_normalization(setup, **params):
 
         # Assign the images from each dataset to the survey_time_bins based on
         # their HJDs.
-        (survey_time_index, binned_phot) = bin_photometry_datasets(xmatch, quad_phot,
-                                                                    survey_time_bins,
-                                                                    mag_col, mag_err_col,
-                                                                    log=log)
+        survey_time_index = np.digitize(xmatch.images['hjd'], survey_time_bins)
+        if log: log.info('Digitized the timestamps for all images')
+
         # Loop over the set of datasets to use as the primary reference.
         for pri_ref_datasets in reference_datasets:
             log.info('Normalizing stars relative to primary reference datasets: '
                         +repr(pri_ref_datasets))
-            (xmatch, quad_phot) = normalize_star_datasets(params,
-                                    xmatch, quad_phot, qid,
-                                    binned_phot, filter_list, pri_ref_datasets,
-                                    reference_datasets,
-                                    mag_col, mag_err_col,
-                                    log=log)
+
+            # Loop over all datasets
+            for dataset in xmatch.datasets:
+                longcode = dataset['dataset_code']
+
+                # Bin the photometry for all stars from the current dataset
+                binned_phot = bin_photometry_datasets(xmatch, quad_phot,
+                                                        survey_time_bins,
+                                                        survey_time_index,
+                                                        longcode,
+                                                        mag_col, mag_err_col,
+                                                        log=log)
+
+                # Normalize the photometry for all stars
+                (xmatch, quad_phot) = normalize_star_datasets(params,
+                                        xmatch, quad_phot, qid,
+                                        binned_phot, filter_list, pri_ref_datasets,
+                                        reference_datasets,
+                                        mag_col, mag_err_col,
+                                        log=log)
 
         # Output the updated photometry
         quad_phot = hd5_utils.unmask_phot_array(quad_phot)
@@ -111,52 +124,48 @@ def define_reference_datasets(xmatch, filter_list):
 
     return reference_datasets
 
-def bin_photometry_datasets(xmatch, quad_phot, survey_time_bins,
-                            mag_col, mag_err_col, log=None):
+def bin_photometry_datasets(xmatch, quad_phot, survey_time_bins, survey_time_index,
+                            longcode, mag_col, mag_err_col, log=None):
     """Each dataset consists of a set of images with given timestamps, that
     are recorded in the crossmatch table.  Since these are essentially the same
     for all stars (modulo instances where an individual star isn't measured for
     some reason) we save compute time by assigning all of the images of each
-    dataset to a survey_time_bin in advance."""
+    dataset to a survey_time_bin in advance.
+    longcode = dataset['dataset_code']
+    """
 
     if log: log.info('Starting to bin the photometry for each dataset')
 
-    # Index all images in the whole survey, assigning each one of the time bins
-    survey_time_index = np.digitize(xmatch.images['hjd'], survey_time_bins)
-    if log: log.info('Digitized the timestamps for all images')
-
     binned_phot = {}
-    for dataset in xmatch.datasets:
-        longcode = dataset['dataset_code']
-        if log: log.info('-> Binning data for '+longcode)
+    if log: log.info('-> Binning data for '+longcode)
 
-        binned_data = np.zeros((quad_phot.shape[0],len(survey_time_bins),3))
+    binned_data = np.zeros((quad_phot.shape[0],len(survey_time_bins),3))
 
-        # Extract the image array indices for the images from this dataset,
-        # and their corresponding timestamps
-        idx1 = set(np.where(xmatch.images['dataset_code'] == dataset['dataset_code'])[0])
+    # Extract the image array indices for the images from this dataset,
+    # and their corresponding timestamps
+    idx1 = set(np.where(xmatch.images['dataset_code'] == longcode)[0])
 
-        for b in range(0,len(survey_time_bins),1):
-            binned_data[:,b,0].fill(survey_time_bins[b])
+    for b in range(0,len(survey_time_bins),1):
+        binned_data[:,b,0].fill(survey_time_bins[b])
 
-            # Identify whether this dataset has any measurements in this bin
-            idx2 = np.where(survey_time_index == b)[0]
-            idx = list(idx1.intersection(set(idx2)))
-            if len(idx) > 0:
-                # For all stars, calculate the weighted mean magnitude combining
-                # all photometric measurements in this bin
-                # wmean, werror -> arrays of length nstars
-                (wmean, werror) = plot_rms.calc_weighted_mean_2D(quad_phot[:,idx,:],
-                                                                 mag_col, mag_err_col)
-                binned_data[:,b,1] = wmean
-                binned_data[:,b,2] = werror
-            else:
-                binned_data[:,b,1].fill(np.NaN)
-                binned_data[:,b,2].fill(np.NaN)
+        # Identify whether this dataset has any measurements in this bin
+        idx2 = np.where(survey_time_index == b)[0]
+        idx = list(idx1.intersection(set(idx2)))
+        if len(idx) > 0:
+            # For all stars, calculate the weighted mean magnitude combining
+            # all photometric measurements in this bin
+            # wmean, werror -> arrays of length nstars
+            (wmean, werror) = plot_rms.calc_weighted_mean_2D(quad_phot[:,idx,:],
+                                                             mag_col, mag_err_col)
+            binned_data[:,b,1] = wmean
+            binned_data[:,b,2] = werror
+        else:
+            binned_data[:,b,1].fill(np.NaN)
+            binned_data[:,b,2].fill(np.NaN)
 
-        binned_phot[longcode] = binned_data
+    binned_phot[longcode] = binned_data
 
-    return survey_time_index, binned_phot
+    return binned_phot
 
 def calc_survey_time_bins(quad_phot, log):
     """The normalization process compares the photometry measurements of a given

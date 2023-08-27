@@ -94,14 +94,19 @@ def test_bin_photometry_datasets():
     nstars = 10
     nimages_dataset = 20
     baseline_mag = 17.0
+    (mag_col, mag_err_col) = field_photometry.get_field_photometry_columns('normalized')
     (xmatch, quad_phot) = simulate_field_dataproducts(nstars, nimages_dataset)
+    longcode = xmatch.datasets['dataset_code'][1]
 
     hjd_min = quad_phot[:,:,0].min()
     hjd_max = quad_phot[:,:,0].max()
     ndays = int(hjd_max - hjd_min)
     survey_time_bins = np.arange(hjd_min, hjd_min+(float(ndays)), 1.0)
+    survey_time_index = np.digitize(xmatch.images['hjd'], survey_time_bins)
 
-    (survey_time_index, binned_phot) = normalize_photometry_stars.bin_photometry_datasets(xmatch, quad_phot, survey_time_bins)
+    binned_phot = normalize_photometry_stars.bin_photometry_datasets(xmatch, quad_phot,
+                        survey_time_bins, survey_time_index,
+                        longcode, mag_col, mag_err_col)
 
     for dset, binned_data in binned_phot.items():
         assert(binned_data.shape == (nstars,len(survey_time_bins),3))
@@ -446,8 +451,8 @@ if __name__ == '__main__':
     #test_measure_dataset_offset()
     #test_apply_dataset_offsets()
     #test_update_norm_field_photometry_for_star_idx()
-    test_update_mag_offsets_table()
-    #test_bin_photometry_datasets()
+    #test_update_mag_offsets_table()
+    test_bin_photometry_datasets()
     #test_normalize_star_datasets()
     #test_calc_residuals_between_datasets()
     #test_define_reference_datasets()
