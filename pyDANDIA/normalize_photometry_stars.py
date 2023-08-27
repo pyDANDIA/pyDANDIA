@@ -91,6 +91,7 @@ def run_star_normalization(setup, **params):
 
                 # Combined the dataset's binned photometry with that from
                 # the primary reference datasets in all filters
+                binned_photometry = {}
                 binned_photometry['longcode'] = bin_data[longcode]
                 for dcode, dphot in binned_ref_phot.items():
                     binned_photometry[dcode] = dphot
