@@ -65,7 +65,7 @@ def run_star_normalization(setup, **params):
             # Bin the photometry for all stars from primary reference datasets
             # for all filters
             binned_ref_phot = {}
-            for f, longcode in pri_ref_datasets.item():
+            for f, longcode in pri_ref_datasets.items():
                 bin_data = bin_photometry_datasets(xmatch, quad_phot,
                                                     survey_time_bins,
                                                     survey_time_index,
@@ -95,7 +95,7 @@ def run_star_normalization(setup, **params):
                 for dcode, dphot in binned_ref_phot.items():
                     binned_photometry[dcode] = dphot
                 print('3: binned_photometry ',binned_photometry)
-                
+
                 # Normalize the photometry for all stars
                 (xmatch, quad_phot) = normalize_star_datasets(params,
                                         xmatch, quad_phot, qid,
