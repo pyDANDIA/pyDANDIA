@@ -56,7 +56,7 @@ def calc_field_rms():
         # Plot interactive RMS diagram
         plot_file = path.join(params['red_dir'], params['plot_file_root']+'_'+filter+'.html')
         axis_labels = ['Mag', 'RMS [mag]']
-        target_params = {}
+        target_params = [False]
         plot_title = 'RMS diagram for '+params['field_name']+', quadrant '\
                 +params['quadrant']+', '+filter+'-band'
         plotly_lightcurves.plot_interactive(phot_statistics, plot_file, axis_labels,
