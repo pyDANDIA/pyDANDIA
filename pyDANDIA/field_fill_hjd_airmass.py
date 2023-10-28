@@ -24,7 +24,7 @@ def fill_images_table(args):
     # Search for gaps in the Image table columns for HJD and airmass
     for i in range(0,len(xmatch.images['filename']),1):
         if xmatch.images['hjd'][i] == 0.0:
-            xmatch.images['hjd'][i] = calc_hjd(xmatch.images['datetime'][i],
+            xmatch.images['hjd'][i] = time_utils.calc_hjd(xmatch.images['datetime'][i],
                      xmatch.images['RA'][i],
                      xmatch.images['Dec'][i],
                      xmatch.images['exposure'][i])
