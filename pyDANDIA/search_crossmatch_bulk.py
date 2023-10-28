@@ -45,7 +45,13 @@ def search_xmatch_enmasse():
         else:
             print(targetname+': no matches')
 
-        if len(results) > 0:
+        event_obs = check_event_observed(xmatch, target_data)
+        if event_obs:
+            print(targetname+': has observations during event')
+        else:
+            print(targetname+': has insufficient datapoints during event')
+
+        if len(results) > 0 and event_obs:
             rome_stars = []
             for j in range(0,len(results),1):
                 field_idx = results['field_id'][j] - 1
@@ -79,6 +85,29 @@ def output_search_results(output_file, search_results):
     with open(output_file, 'w') as write_file:
         write_file.write(json_data)
         write_file.close()
+
+def check_event_observed(xmatch, target_data):
+    """
+    Function to check whether the data contain observations during the event
+    Requires at least 5 datapoints to be obtained between t0-tE <= t < = t0+tE
+    """
+    # Minimum number of observations required during event
+    nobs = 5
+
+    if 't0' in target_data.keys():
+        tmin = target_data['t0'] - target_data['tE']
+        tmax = target_data['t0'] + target_data['tE']
+
+        idx1 = np.where(xmatch.images['hjd'] >= tmin)[0]
+        idx2 = np.where(xmatch.images['hjd'] <= tmax)[0]
+        idx = list(set(idx1).intersection(set(idx2)))
+
+        if len(idx) > nobs:
+            return True
+        else:
+            return False
+    else:
+        return True
 
 def get_args():
     parser = argparse.ArgumentParser()
