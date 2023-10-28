@@ -30,7 +30,7 @@ def fill_images_table(args):
                      xmatch.images['exposure'][i])
 
         if xmatch.images['airmass'][i] == 0.0:
-            hdr = fits.gethead(path.join(args.red_dir, xmatch.images['dataset_code'][i],
+            hdr = fits.getheader(path.join(args.red_dir, xmatch.images['dataset_code'][i],
                                          'data', xmatch.images['filename'][i]))
             airmass = hdr['AIRMASS']
             xmatch.images['airmass'][i] = airmass
