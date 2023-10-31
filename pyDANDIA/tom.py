@@ -88,9 +88,9 @@ def list_dataproducts(config, login, payload, target_pk, log=None):
             else:
                 log.info('No existing datafiles in TOM for target '+payload['name'])
     else:
-        log.info('Error during query for previous datafiles for this target':)
+        log.info('Error during query for previous datafiles for this target: ')
         log.info(str(response.text))
-        
+
     return existing_datafiles
 
 def delete_old_datafile_version(config, login, payload, existing_datafiles, log=None):
