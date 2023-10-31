@@ -11,6 +11,9 @@ from pyDANDIA import metadata
 
 def upload_lightcurve(setup, payload, log=None):
 
+    if log:
+        log.info('Started lightcurve upload with payload: ' + repr(payload))
+        
     decision_to_upload = decide_whether_to_upload(payload, log=log)
 
     if decision_to_upload:
