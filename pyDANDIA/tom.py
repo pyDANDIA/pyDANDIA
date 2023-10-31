@@ -65,27 +65,32 @@ def list_dataproducts(config, login, payload, target_pk, log=None):
     have already been uploaded to the TOM"""
 
     dataupload_url = concat_urls(config['tom_url'],config['dataproducts_endpoint'])
+    existing_datafiles = {}
 
     #ur = {'target': target_pk, 'data_product_type': 'photometry', 'page_size': 99999}
     ur = {'data_product_type': 'photometry', 'limit': 99999}
 
     # List endpoint does not currently support queries specific to target ID
     #response = requests.get(dataupload_url, params=ur, auth=login).json()
-    response = requests.get(dataupload_url, params=ur, auth=login).json()
+    response = requests.get(dataupload_url, params=ur, auth=login)
 
-    existing_datafiles = {}
-    for entry in response['results']:
-        if entry['target'] == target_pk:
-            existing_datafiles[path.basename(entry['data'])] = entry['id']
+    if response.status_code == 200:
+        response = response.json()
+        for entry in response['results']:
+            if entry['target'] == target_pk:
+                existing_datafiles[path.basename(entry['data'])] = entry['id']
 
-    if log != None:
-        if len(existing_datafiles) > 0:
-            log.info('Found existing datafiles for target '+payload['name']+\
-                    ', ID='+str(target_pk)+' in the TOM:')
-            log.info(repr(existing_datafiles))
-        else:
-            log.info('No existing datafiles in TOM for target '+payload['name'])
-
+        if log != None:
+            if len(existing_datafiles) > 0:
+                log.info('Found existing datafiles for target '+payload['name']+\
+                        ', ID='+str(target_pk)+' in the TOM:')
+                log.info(repr(existing_datafiles))
+            else:
+                log.info('No existing datafiles in TOM for target '+payload['name'])
+    else:
+        log.info('Error during query for previous datafiles for this target':)
+        log.info(str(response.text))
+        
     return existing_datafiles
 
 def delete_old_datafile_version(config, login, payload, existing_datafiles, log=None):
