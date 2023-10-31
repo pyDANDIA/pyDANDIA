@@ -13,13 +13,14 @@ def upload_lightcurve(setup, payload, log=None):
 
     if log:
         log.info('Started lightcurve upload with payload: ' + repr(payload))
-        
-    decision_to_upload = decide_whether_to_upload(payload, log=log)
+
+    config_file = path.join(setup.pipeline_config_dir, 'tom_config.json')
+    config = config_utils.build_config_from_json(config_file)
+    login = (config['user_id'], config['password'])
+
+    decision_to_upload = decide_whether_to_upload(payload, config, login, log=log)
 
     if decision_to_upload:
-        config_file = path.join(setup.pipeline_config_dir, 'tom_config.json')
-        config = config_utils.build_config_from_json(config_file)
-        login = (config['user_id'], config['password'])
 
         reduction_metadata = metadata.MetaData()
         reduction_metadata.load_all_metadata(setup.red_dir, 'pyDANDIA_metadata.fits')
@@ -42,7 +43,7 @@ def upload_lightcurve(setup, payload, log=None):
         if close_log_file:
             logs.close_log(log)
 
-def decide_whether_to_upload(payload, log=None):
+def decide_whether_to_upload(payload, config, login, log=None):
     upload = True
 
     if not path.isfile(payload['file_path']):
@@ -58,6 +59,12 @@ def decide_whether_to_upload(payload, log=None):
 
     if upload and log!=None:
         log.info('-> Lightcurve has passed sanity checks and will be uploaded to TOM')
+
+    mop_status = tom.check_mop_live(config, login)
+    if log:
+        log.info('-> MOP status: '+repr(mop_status))
+    if not mop_status:
+        upload = False
 
     return upload
 

@@ -114,3 +114,15 @@ def delete_old_datafile_version(config, login, payload, existing_datafiles, log=
             response = requests.delete(delete_data_url, auth=login)
             if log!=None:
                 log.info('Attempted to remove old datafile from TOM with response: '+repr(response.text))
+
+def check_mop_live(config, login):
+    """Function to verify that MOP is responding before attempting an upload"""
+
+    dataupload_url = concat_urls(config['tom_url'], config['dataproducts_endpoint'])
+    ur = {'data_product_type': 'photometry', 'limit': 99999}
+    response = requests.get(dataupload_url, params=ur, auth=login)
+
+    if response.status_code == 200:
+        return True
+    else:
+        return False
