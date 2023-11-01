@@ -122,7 +122,7 @@ def plot_field_colour_mag_diagram(config, xmatch, valid_stars, selected_stars,
 
 def plot_field_colour_colour_diagram(config, xmatch, valid_stars, selected_stars, log):
     """Function to plot a colour-colour diagram from the field cross-match
-    table, for colour indices (g-i) .vs. (r-i)"""
+    table, for colour indices (g-r) .vs. (r-i)"""
 
     fig = plt.figure(1,(10,10))
 
@@ -130,7 +130,7 @@ def plot_field_colour_colour_diagram(config, xmatch, valid_stars, selected_stars
 
     plt.rcParams.update({'font.size': 25})
 
-    colour1 = '(g-i)'
+    colour1 = '(g-r)'
     colour2 = '(r-i)'
     (default_marker_colour, field_marker_colour, marker_colour) = plot_data_colours()
     if len(selected_stars) < len(valid_stars):
