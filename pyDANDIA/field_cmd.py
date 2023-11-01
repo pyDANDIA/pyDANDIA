@@ -340,12 +340,12 @@ def select_by_photometry_quality(xmatch, config, log):
     qc_idx = np.logical_and(qc_idx, xmatch.stars[icol] >  0.0)
     qc_idx = np.logical_and(qc_idx, xmatch.stars[ierrcol] <= config['i_sigma_max'])
 
-    select_stars = np.where(qc_idx)[0]
+    qc_idx = np.where(qc_idx)[0]
 
-    qc_idx2 = np.where(np.logical_and(xmatch.stars[rcol] > 0.0,
-                                      xmatch.stars[rerrcol] <= config['r_sigma_max']))[0]
-    qc_idx3 = np.where(np.logical_and(xmatch.stars[icol] >  0.0,
-                                      xmatch.stars[ierrcol] <= config['i_sigma_max']))[0]
+    #qc_idx2 = np.where(np.logical_and(xmatch.stars[rcol] > 0.0,
+    #                                  xmatch.stars[rerrcol] <= config['r_sigma_max']))[0]
+    #qc_idx3 = np.where(np.logical_and(xmatch.stars[icol] >  0.0,
+    #                                  xmatch.stars[ierrcol] <= config['i_sigma_max']))[0]
 
     # qc_idx1 = np.where( np.logical_and( np.less_equal(xmatch.stars['cal_g_magerr_'+config['reference_dataset_code']], config['g_sigma_max']),
     #                     np.less_equal(xmatch.stars['cal_r_magerr_'+config['reference_dataset_code']], config['r_sigma_max']) ) )[0]
