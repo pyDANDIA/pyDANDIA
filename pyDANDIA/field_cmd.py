@@ -334,9 +334,14 @@ def select_by_photometry_quality(xmatch, config, log):
     icol = 'cal_i_mag_'+config['reference_dataset_code']
     ierrcol = 'cal_i_magerr_'+config['reference_dataset_code']
 
-    qc_idx1 = np.where(np.logical_and(xmatch.stars[gcol] > 0.0,
-                                      xmatch.stars[gerrcol] <= config['g_sigma_max']))[0]
-    print(xmatch.stars[gcol][qc_idx1], xmatch.stars[gerrcol][qc_idx1])
+    qc_idx = np.logical_and(xmatch.stars[gcol] > 0.0, xmatch.stars[gerrcol] <= config['g_sigma_max'])
+    qc_idx = np.logical_and(qc_idx, xmatch.stars[rcol] > 0.0)
+    qc_idx = np.logical_and(qc_idx, xmatch.stars[rerrcol] <= config['r_sigma_max'])
+    qc_idx = np.logical_and(qc_idx, xmatch.stars[icol] >  0.0)
+    qc_idx = np.logical_and(qc_idx, xmatch.stars[ierrcol] <= config['i_sigma_max'])
+
+    select_stars = np.where(qc_idx)[0]
+
     qc_idx2 = np.where(np.logical_and(xmatch.stars[rcol] > 0.0,
                                       xmatch.stars[rerrcol] <= config['r_sigma_max']))[0]
     qc_idx3 = np.where(np.logical_and(xmatch.stars[icol] >  0.0,
@@ -348,8 +353,8 @@ def select_by_photometry_quality(xmatch, config, log):
     #                     np.less_equal(xmatch.stars['(g-i)_error'], config['gi_sigma_max']) ) )[0]
     # qc_idx3 = np.where( np.logical_and( np.less_equal(xmatch.stars['(r-i)_error'], config['ri_sigma_max']),
     #                     np.less_equal(xmatch.stars['(g-r)_error'], config['gr_sigma_max']) ) )[0]
-    qc_idx = set(qc_idx1).intersection(set(qc_idx2))
-    qc_idx = np.array(list(qc_idx.intersection(set(qc_idx3))))
+    #qc_idx = set(qc_idx1).intersection(set(qc_idx2))
+    #qc_idx = np.array(list(qc_idx.intersection(set(qc_idx3))))
 
     log.info(' -> '+str(len(qc_idx))+' stars meet the quality selection criteria:')
     log.info('    Max phot uncertainty, g = '+str(config['g_sigma_max']))
