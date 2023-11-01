@@ -336,6 +336,7 @@ def select_by_photometry_quality(xmatch, config, log):
 
     qc_idx1 = np.where(np.logical_and(xmatch.stars[gcol] > 0.0,
                                       xmatch.stars[gerrcol] <= config['g_sigma_max']))[0]
+    print(xmatch.stars[gcol][qc_idx1], xmatch.stars[gerrcol][qc_idx1])
     qc_idx2 = np.where(np.logical_and(xmatch.stars[rcol] > 0.0,
                                       xmatch.stars[rerrcol] <= config['r_sigma_max']))[0]
     qc_idx3 = np.where(np.logical_and(xmatch.stars[icol] >  0.0,
