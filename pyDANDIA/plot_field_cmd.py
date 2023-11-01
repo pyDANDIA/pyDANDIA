@@ -75,6 +75,43 @@ def calc_field_cmds():
                     target_params,
                     title=params['field_name']+' CMD', yreverse=True)
 
+    # Plot colour-colour diagram (g-i) .vs. (r-i)
+    col1 = 'cal_g_mag_' + primary_ref
+    col4 = 'cal_g_magerr_' + primary_ref
+    col2 = 'cal_r_mag_' + primary_ref
+    col5 = 'cal_r_magerr_' + primary_ref
+    col3 = 'cal_i_mag_' + primary_ref
+    col6 = 'cal_i_magerr_' + primary_ref
+
+    jdx = np.logical_and(xmatch.stars[col1] > 0.0, xmatch.stars[col2] > 0.0)
+    jdx = np.logical_and(jdx, xmatch.stars[col3] > 0.0)
+    jdx = np.logical_and(jdx, xmatch.stars[col4] <= 0.1)
+    jdx = np.logical_and(jdx, xmatch.stars[col5] <= 0.1)
+    jdx = np.logical_and(jdx, xmatch.stars[col6] <= 0.1)
+    select_stars = np.where(jdx)[0]
+    data = np.zeros((len(select_stars), 3))
+    data[:, 0] = xmatch.stars['field_id'][select_stars]
+    data[:, 1] = xmatch.stars[col1][select_stars] - xmatch.stars[col2][select_stars]
+    data[:, 2] = xmatch.stars[col2][select_stars] - xmatch.stars[col3][select_stars]
+
+    if params['target_field_id']:
+        field_idx = params['target_field_id'] - 1
+        target_x = xmatch.stars[col1][field_idx] - xmatch.stars[col2][field_idx]
+        target_y = xmatch.stars[col2][field_idx] - xmatch.stars[col3][field_idx]
+        target_params = [params['target_field_id'], target_x, target_y]
+    else:
+        target_params = [None, None, None]
+
+    log.info(str(len(select_stars)) + ' stars have valid measurements in '
+             + f1 + ', ' + f2 + ' and ' + f3 + ' bands')
+
+    # Plot interactive RMS diagram
+    plot_file = path.join(params['red_dir'], params['plot_file_root'] + '_colour_colour.html')
+    axis_labels = ['SDSS (g-i) [mag]', 'SDSS (r-i) [mag]']
+    plotly_lightcurves.plot_interactive(data, plot_file, axis_labels,
+                                        target_params,
+                                        title=params['field_name'], yreverse=True)
+
     logs.close_log(log)
 
 def get_args():
