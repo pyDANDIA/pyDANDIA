@@ -192,7 +192,7 @@ def output_photometry(config, xmatch, selected_stars, log):
                         str(star['(r-i)'])+' '+str(star['(r-i)_error'])+' '+\
                         str(selected)+' '+str(star['gaia_source_id'])+' '+\
                         str(star['parallax'])+' '+str(star['parallax_error'])+' '+\
-                        str(star['proper_motion'])+'\n' )
+                        str(star['pm'])+'\n' )
 
         f.close()
 

@@ -118,7 +118,7 @@ def plot_from_lc_file(file_path):
     plot_interactive_lightcurve(lc, filter_list, plot_file)
 
 def plot_interactive(data, plot_file, axis_labels, target_params,
-                        title=None, logy=False, xreverse=False,
+                        title=None, logy=False, xreverse=False, yreverse=False,
                         xrange=None, yrange=None):
     """General purpose function to create an interactive graph with a single dataset
     data : array: a three-column set of datapoints with field ID (not index), mag, color
@@ -137,7 +137,7 @@ def plot_interactive(data, plot_file, axis_labels, target_params,
                 y=data[:,2],
                 marker=dict(
                     color='Black',
-                    size=2
+                    size=1
                 ),
                 marker_symbol='circle',
                 name='Field stars',
@@ -182,6 +182,8 @@ def plot_interactive(data, plot_file, axis_labels, target_params,
         fig.update_xaxes(range=yrange)
     if xreverse:
         fig['layout']['xaxis']['autorange'] = "reversed"
+    if yreverse:
+        fig['layout']['yaxis']['autorange'] = "reversed"
     if logy:
         fig.update_yaxes(type="log")
 
