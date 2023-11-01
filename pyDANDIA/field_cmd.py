@@ -118,7 +118,9 @@ def plot_field_colour_mag_diagram(config, xmatch, valid_stars, selected_stars,
     log.info('Colour-magnitude diagram output to '+plot_file)
 
 def plot_data_colours():
-    default_marker_colour = '#8c6931'
+    #default_marker_colour = '#8c6931'
+    #field_marker_colour = '#E1AE13'
+    default_marker_colour = '#000000'
     field_marker_colour = '#E1AE13'
     marker_colour = default_marker_colour
     return default_marker_colour, field_marker_colour, marker_colour
