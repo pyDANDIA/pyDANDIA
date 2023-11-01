@@ -153,5 +153,11 @@
         "comment": "Maximum (g-i) colour uncertainty to use for plots",
         "format": "float",
         "unit": "mag"
+    },
+    "legend": {
+        "value": "True",
+        "comment": "Switch for banner-style plot legend",
+        "format": "string",
+        "unit": "None"
     }
 }
