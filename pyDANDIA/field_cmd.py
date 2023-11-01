@@ -158,7 +158,7 @@ def plot_field_colour_colour_diagram(config, xmatch, valid_stars, selected_stars
     xmax = config['plot_'+col_key1+'_range'][1]
     ymin = config['plot_'+col_key2+'_range'][0]
     ymax = config['plot_'+col_key2+'_range'][1]
-    plt.axis([xmin,xmax,ymax,ymin])
+    plt.axis([xmin,xmax,ymin,ymax])
 
     xticks = np.arange(xmin,xmax,0.1)
     yticks = np.arange(ymin,ymax,0.2)

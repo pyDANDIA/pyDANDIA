@@ -110,7 +110,7 @@ def calc_field_cmds():
     axis_labels = ['SDSS (g-i) [mag]', 'SDSS (r-i) [mag]']
     plotly_lightcurves.plot_interactive(data, plot_file, axis_labels,
                                         target_params,
-                                        title=params['field_name'], yreverse=True)
+                                        title=params['field_name'])
 
     logs.close_log(log)
 
