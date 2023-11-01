@@ -32,7 +32,7 @@ def field_colour_analysis():
     plot_field_colour_mag_diagram(config, xmatch, valid_stars, selected_stars, '(g-i)', 'i', log)
 
     plot_field_colour_colour_diagram(config, xmatch, valid_stars, selected_stars, log)
-    
+
     output_photometry(config, xmatch, selected_stars, log)
 
     logs.close_log(log)
@@ -153,7 +153,7 @@ def plot_field_colour_colour_diagram(config, xmatch, valid_stars, selected_stars
 
     [xmin,xmax,ymin,ymax] = plt.axis()
     col_key1 = colour1.replace('(','').replace(')','').replace('-','')
-    col_key2 = colour1.replace('(','').replace(')','').replace('-','')
+    col_key2 = colour2.replace('(','').replace(')','').replace('-','')
     xmin = config['plot_'+col_key1+'_range'][0]
     xmax = config['plot_'+col_key1+'_range'][1]
     ymin = config['plot_'+col_key2+'_range'][0]
