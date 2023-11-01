@@ -89,7 +89,7 @@
         "unit": "mag"
     },
     "i_sigma_max": {
-        "value": 1.0,
+        "value": 0.5,
         "comment": "Maximum SDSS-i magnitude uncertainty to use for plots",
         "format": "float",
         "unit": "mag"
@@ -101,7 +101,7 @@
         "unit": "mag"
     },
     "r_sigma_max": {
-        "value": 1.0,
+        "value": 0.5,
         "comment": "Maximum SDSS-r magnitude uncertainty to use for plots",
         "format": "float",
         "unit": "mag"
@@ -113,7 +113,7 @@
         "unit": "mag"
     },
     "g_sigma_max": {
-        "value": 1.0,
+        "value": 0.5,
         "comment": "Maximum SDSS-g magnitude uncertainty to use for plots",
         "format": "float",
         "unit": "mag"
@@ -125,7 +125,7 @@
         "unit": "mag"
     },
     "ri_sigma_max": {
-        "value": 1.0,
+        "value": 0.5,
         "comment": "Maximum (r-i) colour uncertainty to use for plots",
         "format": "float",
         "unit": "mag"
@@ -137,7 +137,7 @@
         "unit": "mag"
     },
     "gr_sigma_max": {
-        "value": 10.0,
+        "value": 0.5,
         "comment": "Maximum (g-r) colour uncertainty to use for plots",
         "format": "float",
         "unit": "mag"
@@ -149,7 +149,7 @@
         "unit": "mag"
     },
     "gi_sigma_max": {
-        "value": 1.0,
+        "value": 0.5,
         "comment": "Maximum (g-i) colour uncertainty to use for plots",
         "format": "float",
         "unit": "mag"
