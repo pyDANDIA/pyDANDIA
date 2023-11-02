@@ -92,8 +92,8 @@ def plot_static_rms(config, phot_statistics, filter, log, plot_file=None):
     plt.tight_layout()
 
     [xmin,xmax,ymin,ymax] = plt.axis()
-    xmin = config['plot_'+filter+'_range'][0]
-    xmax = config['plot_'+filter+'_range'][1]
+    xmin = config['plot_'+filter.replace('p','')+'_range'][0]
+    xmax = config['plot_'+filter.replace('p','')+'_range'][1]
     ymin = config['plot_rms_range'][0]
     ymax = config['plot_rms_range'][1]
     plt.axis([xmin,xmax,ymin,ymax])
