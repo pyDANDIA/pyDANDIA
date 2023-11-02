@@ -63,12 +63,13 @@ def calc_field_rms():
         target_params = [False]
         plot_title = 'RMS diagram for '+config['field_name']+', quadrant '+config['quadrant']+', '+filter+'-band'
         if config['interactive']:
-            plot_file = path.join(config['red_dir'],
+            plot_file = path.join(config['output_dir'],
                                   config['field_name']+'_quad'+config['quadrant']+'_rms_postnorm'+'_'+filter+'.html')
             plotly_lightcurves.plot_interactive(phot_statistics, plot_file, axis_labels,
                     target_params, title=plot_title, logy=True, xreverse=True)
         else:
-            plot_file = path.join(config['red_dir'], config['field_name']+'_quad'+config['quadrant']+'_rms_postnorm'+'_'+filter+'.png')
+            plot_file = path.join(config['output_dir'],
+                                  config['field_name']+'_quad'+config['quadrant']+'_rms_postnorm'+'_'+filter+'.png')
             plot_static_rms(config, phot_statistics, filter, log, plot_file=plot_file)
 
     logs.close_log(log)
@@ -98,7 +99,7 @@ def plot_static_rms(config, phot_statistics, filter, log, plot_file=None):
     plt.axis([xmin,xmax,ymin,ymax])
 
     if plot_file == None:
-        plot_file = path.join(config['red_dir'],'rms.png')
+        plot_file = path.join(config['output_dir'],'rms.png')
     plt.savefig(plot_file)
 
     log.info('Output RMS plot to '+plot_file)
