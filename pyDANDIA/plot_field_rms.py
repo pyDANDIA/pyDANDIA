@@ -66,9 +66,36 @@ def calc_field_rms():
                     target_params, title=plot_title, logy=True, xreverse=True)
         else:
             plot_file = path.join(args.red_dir, args.field_name+'_quad'+args.quadrant+'_rms_postnorm'+'_'+filter+'.png')
-            plot_rms.plot_rms(phot_statistics, {'red_dir': args.red_dir}, log, plot_file=plot_file)
-            
+            plot_static_rms(args, phot_statistics, log, plot_file=plot_file)
+
     logs.close_log(log)
+
+def plot_static_rms(args, phot_statistics, log, plot_file=None):
+
+    fig = plt.figure(1,(10,10))
+    plt.rcParams.update({'font.size': 18})
+
+    mask = np.logical_and(phot_statistics[:,1] > 0.0, phot_statistics[:,2] > 0.0)
+    plt.plot(phot_statistics[mask,1], phot_statistics[mask,2], 'k.',
+            marker=".", markersize=0.5, alpha=0.5, label='Weighted RMS')
+
+    plt.yscale('log')
+    plt.xlabel('Weighted mean mag')
+    plt.ylabel('RMS [mag]')
+
+    plt.grid()
+    l = plt.legend()
+    plt.tight_layout()
+
+    [xmin,xmax,ymin,ymax] = plt.axis()
+    plt.axis([xmin,xmax,1e-3,5.0])
+
+    if plot_file == None:
+        plot_file = path.join(args.red_dir,'rms.png')
+    plt.savefig(plot_file)
+
+    log.info('Output RMS plot to '+plot_file)
+    plt.close(1)
 
 def get_args():
 
