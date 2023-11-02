@@ -44,7 +44,7 @@ def plot_all_fields(args):
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
         ax.spines["bottom"].set_visible(False)
-    plot_ranges = calc_survey_boundaries()
+    plot_ranges = calc_survey_boundaries(args)
 
     ax.set_autoscaley_on(False)
     ax.set_autoscalex_on(False)
@@ -110,7 +110,7 @@ def plot_all_fields(args):
     plt.savefig(path.join(args.data_dir, 'ROME_survey_colour.png'), dpi=300,
                         facecolor=fig.get_facecolor(), edgecolor='none')
 
-def calc_survey_boundaries():
+def calc_survey_boundaries(args):
 
     ra_min = 1000.0
     ra_max = -1000.0
@@ -123,10 +123,16 @@ def calc_survey_boundaries():
         if field_data[1] < dec_min: dec_min = field_data[1]
         if field_data[1] > dec_max: dec_max = field_data[1]
 
-    ra_min = ra_min * 0.99
-    ra_max = ra_max * 1.01
-    dec_min = dec_min * 1.01
-    dec_max = dec_max * 0.99
+    if args.mode == 'poster':
+        ra_min = ra_min * 0.99
+        ra_max = ra_max * 1.01
+        dec_min = dec_min * 1.01
+        dec_max = dec_max * 0.99
+    else:
+        ra_min = ra_min * 1.0
+        ra_max = ra_max * 1.0
+        dec_min = dec_min * 1.01
+        dec_max = dec_max * 0.99
 
     print('Survey boundaries RA='+str(ra_min)+' - '+str(ra_max)+\
             ', Dec='+str(dec_min)+' - '+str(dec_max))
