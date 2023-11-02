@@ -62,7 +62,7 @@ def calc_field_rms():
         axis_labels = ['Mag', 'RMS [mag]']
         target_params = [False]
         plot_title = 'RMS diagram for '+config['field_name']+', quadrant '+config['quadrant']+', '+filter+'-band'
-        if args.mode == 'interactive':
+        if config['interactive']:
             plot_file = path.join(config['red_dir'],
                                   config['field_name']+'_quad'+config['quadrant']+'_rms_postnorm'+'_'+filter+'.html')
             plotly_lightcurves.plot_interactive(phot_statistics, plot_file, axis_labels,
@@ -111,6 +111,12 @@ def get_args():
     args = parser.parse_args()
 
     config = config_utils.build_config_from_json(args.config_file)
+
+    for key in ['interactive']:
+        if 'false' in str(config[key]).lower():
+            config[key] = False
+        else:
+            config[key] = True
 
     return config
 
