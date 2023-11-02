@@ -10,6 +10,7 @@ from pyDANDIA import crossmatch
 from pyDANDIA import field_photometry
 from pyDANDIA import plot_rms
 from pyDANDIA import plotly_lightcurves
+from pyDANDIA import config_utils
 import matplotlib as mpl
 mpl.use('Agg')
 import matplotlib.pyplot as plt
@@ -17,21 +18,22 @@ import argparse
 
 def calc_field_rms():
 
-    args = get_args()
+    config = get_args()
 
-    log = logs.start_stage_log( args.red_dir, 'field_rms' )
+    log = logs.start_stage_log( config['red_dir'], 'field_rms' )
 
     # Crossmatch table provides information on the filter used for each image
     xmatch = crossmatch.CrossMatchTable()
-    xmatch.load(path.join(args.red_dir,args.field_name+'_field_crossmatch.fits'),log=log)
+    xmatch.load(path.join(config['red_dir'],config['field_name']+'_field_crossmatch.fits'),log=log)
     log.info('Loaded crossmatch table for the field')
 
     filter_list = np.unique(xmatch.images['filter'].data)
     log.info('Identified list of filters to process: '+repr(filter_list))
 
     log.info('Loading the timeseries photometry...')
-    phot_data = hd5_utils.read_phot_from_hd5_file(path.join(args.red_dir,
-                                                            args.field_name+'_quad'+args.quadrant+'_photometry.hdf5'),
+    phot_data = hd5_utils.read_phot_from_hd5_file(path.join(config['red_dir'],
+                                                            config['field_name']+'_quad'+config['quadrant']\
+                                                            +'_photometry.hdf5'),
                                                   return_type='array')
     log.info('-> Completed photometry load')
 
@@ -43,8 +45,8 @@ def calc_field_rms():
     for filter in filter_list:
         image_index = np.where(xmatch.images['filter'] == filter)[0]
         phot_data_filter = phot_data[:,image_index,:]
-        jdx = np.where(xmatch.field_index['quadrant'] == float(int(args.quadrant)))[0]
-        log.info(str(len(jdx))+' stars in quadrant '+args.quadrant)
+        jdx = np.where(xmatch.field_index['quadrant'] == float(int(config['quadrant'])))[0]
+        log.info(str(len(jdx))+' stars in quadrant '+config['quadrant'])
 
         # Calculate lightcurve statistics, filtering out any with zero measurements:
         phot_statistics = np.zeros( (len(phot_data_filter),3) )
@@ -59,18 +61,19 @@ def calc_field_rms():
         # Plot interactive RMS diagram
         axis_labels = ['Mag', 'RMS [mag]']
         target_params = [False]
-        plot_title = 'RMS diagram for '+args.field_name+', quadrant '+args.quadrant+', '+filter+'-band'
+        plot_title = 'RMS diagram for '+config['field_name']+', quadrant '+config['quadrant']+', '+filter+'-band'
         if args.mode == 'interactive':
-            plot_file = path.join(args.red_dir, args.field_name+'_quad'+args.quadrant+'_rms_postnorm'+'_'+filter+'.html')
+            plot_file = path.join(config['red_dir'],
+                                  config['field_name']+'_quad'+config['quadrant']+'_rms_postnorm'+'_'+filter+'.html')
             plotly_lightcurves.plot_interactive(phot_statistics, plot_file, axis_labels,
                     target_params, title=plot_title, logy=True, xreverse=True)
         else:
-            plot_file = path.join(args.red_dir, args.field_name+'_quad'+args.quadrant+'_rms_postnorm'+'_'+filter+'.png')
-            plot_static_rms(args, phot_statistics, log, plot_file=plot_file)
+            plot_file = path.join(config['red_dir'], config['field_name']+'_quad'+config['quadrant']+'_rms_postnorm'+'_'+filter+'.png')
+            plot_static_rms(config, phot_statistics, filter, log, plot_file=plot_file)
 
     logs.close_log(log)
 
-def plot_static_rms(args, phot_statistics, log, plot_file=None):
+def plot_static_rms(config, phot_statistics, filter, log, plot_file=None):
 
     fig = plt.figure(1,(10,10))
     plt.rcParams.update({'font.size': 18})
@@ -88,10 +91,14 @@ def plot_static_rms(args, phot_statistics, log, plot_file=None):
     plt.tight_layout()
 
     [xmin,xmax,ymin,ymax] = plt.axis()
-    plt.axis([xmin,xmax,1e-3,5.0])
+    xmin = config['plot_'+filter+'_range'][0]
+    xmax = config['plot_'+filter+'_range'][1]
+    ymin = config['plot_rms_range'][0]
+    ymax = config['plot_rms_range'][1]
+    plt.axis([xmin,xmax,ymin,ymax])
 
     if plot_file == None:
-        plot_file = path.join(args.red_dir,'rms.png')
+        plot_file = path.join(config['red_dir'],'rms.png')
     plt.savefig(plot_file)
 
     log.info('Output RMS plot to '+plot_file)
@@ -100,13 +107,12 @@ def plot_static_rms(args, phot_statistics, log, plot_file=None):
 def get_args():
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('red_dir', help='Path to the top-level data directory')
-    parser.add_argument('field_name', help='Name of the field')
-    parser.add_argument('quadrant', help='Index number of the quadrant to analyse')
-    parser.add_argument('mode', help='Plot mode {interactive, static}')
+    parser.add_argument('config_file', help='Path to the plot configuration file')
     args = parser.parse_args()
 
-    return args
+    config = config_utils.build_config_from_json(args.config_file)
+
+    return config
 
 
 if __name__ == '__main__':
