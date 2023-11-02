@@ -28,6 +28,12 @@
         "format": "string",
         "unit": ""
     },
+    "reference_dataset_code": {
+        "value": "lsc_doma",
+        "comment": "Identifier for the site/enclosure to be used as the photometry reference dataset, cannot be None [e.g. lsc_doma]",
+        "format": "string",
+        "unit": ""
+    },
     "plot_i_range": {
         "value": [12.0, 20.0],
         "comment": "Minimum and maximum SDSS-i magnitudes to use for plots",

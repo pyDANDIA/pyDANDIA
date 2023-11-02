@@ -27,6 +27,9 @@ def calc_field_rms():
     xmatch.load(path.join(config['red_dir'],config['field_name']+'_field_crossmatch.fits'),log=log)
     log.info('Loaded crossmatch table for the field')
 
+    # Exclude stars with poor photometry
+    qc_mask = select_by_photometry_quality(xmatch, config)
+
     filter_list = np.unique(xmatch.images['filter'].data)
     log.info('Identified list of filters to process: '+repr(filter_list))
 
@@ -56,6 +59,7 @@ def calc_field_rms():
         phot_statistics[:,2] = plot_rms.calc_weighted_rms(phot_data_filter, phot_statistics[:,1], mag_col, mag_err_col, qc_col=qc_col)
 
         selection = np.logical_and(phot_statistics[:,1] > 0.0, phot_statistics[:,2] > 0.0)
+        selection = np.logical_and(selection, qc_mask)
         phot_statistics = phot_statistics[selection]
 
         # Plot interactive RMS diagram
@@ -73,6 +77,26 @@ def calc_field_rms():
             plot_static_rms(config, phot_statistics, filter, log, plot_file=plot_file)
 
     logs.close_log(log)
+
+def select_by_photometry_quality(xmatch, config):
+    gcol = 'cal_g_mag_'+config['reference_dataset_code']
+    gerrcol = 'cal_g_magerr_'+config['reference_dataset_code']
+    rcol = 'cal_r_mag_'+config['reference_dataset_code']
+    rerrcol = 'cal_r_magerr_'+config['reference_dataset_code']
+    icol = 'cal_i_mag_'+config['reference_dataset_code']
+    ierrcol = 'cal_i_magerr_'+config['reference_dataset_code']
+
+    qc_mask = np.logical_and(xmatch.stars[gcol] > 0.0, xmatch.stars[gerrcol] <= config['g_sigma_max'])
+    qc_mask = np.logical_and(qc_mask, xmatch.stars[rcol] > 0.0)
+    qc_mask = np.logical_and(qc_mask, xmatch.stars[rerrcol] <= config['r_sigma_max'])
+    qc_mask = np.logical_and(qc_mask, xmatch.stars[icol] >  0.0)
+    qc_mask = np.logical_and(qc_mask, xmatch.stars[ierrcol] <= config['i_sigma_max'])
+
+    if len(qc_mask) == 0:
+        raise ValueError('All stars excluded by quality control criteria')
+
+    return qc_mask
+
 
 def plot_static_rms(config, phot_statistics, filter, log, plot_file=None):
 
