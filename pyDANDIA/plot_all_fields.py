@@ -1,5 +1,5 @@
 from os import path
-from sys import argv
+import argparse
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -31,17 +31,19 @@ naxis2 = 4096
 FIELD_HALF_WIDTH = (( naxis2 * pixel_scale ) / 3600.0) / 2.0 # Deg
 FIELD_HALF_HEIGHT = (( naxis1 * pixel_scale ) / 3600.0) / 2.0 # Deg
 
-def plot_all_fields(data_dir):
+def plot_all_fields(args):
 
     fig = plt.figure(1,(39,27))
-    fig.patch.set_facecolor('black')
+    if args.mode == 'poster':
+        fig.patch.set_facecolor('black')
 
     ax = plt.subplot(111)
     plt.subplots_adjust(left=0.075, right=0.95, top=0.85, bottom=0.15)
-    ax.set_facecolor('black')
-    ax.spines["top"].set_visible(False)
-    ax.spines["right"].set_visible(False)
-    ax.spines["bottom"].set_visible(False)
+    if args.mode == 'poster':
+        ax.set_facecolor('black')
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+        ax.spines["bottom"].set_visible(False)
     plot_ranges = calc_survey_boundaries()
 
     ax.set_autoscaley_on(False)
@@ -52,7 +54,7 @@ def plot_all_fields(data_dir):
 
     for field_id,field_data in ROME_FIELDS.items():
 
-        file_name = path.join(data_dir, field_id+'_colour.png')
+        file_name = path.join(args.data_dir, field_id+'_colour.png')
 
         if path.isfile(file_name):
 
@@ -67,6 +69,13 @@ def plot_all_fields(data_dir):
 
             plt.imshow(image, extent=extent)
 
+            # Annotate each field with its index for identification
+            if args.mode == 'paper':
+                field_idx = field_id.split('-')[-1]
+                if field_idx[0:1] == '0': field_idx = field_idx[1:]
+                plt.annotate(field_idx, (field_data[0] - FIELD_HALF_WIDTH, field_data[1] - FIELD_HALF_HEIGHT),
+                             **{'fontsize': 30})
+
     plt.grid(linestyle='--',c='gray', linewidth=0.5)
     ax.tick_params(axis='x', colors='gray')
     ax.tick_params(axis='y', colors='gray')
@@ -79,25 +88,26 @@ def plot_all_fields(data_dir):
     for tick in ax.yaxis.get_major_ticks():
         tick.label.set_fontsize(30)
 
-    ax.title.set_color('white')
-    figure_title = 'ROME Survey of the Galactic Bulge'
-    plt.text(0.5, 1.08, figure_title,
-        horizontalalignment='center',
-        fontsize=100, c='gray',
-        transform = ax.transAxes)
+    if args.mode == 'poster':
+        ax.title.set_color('white')
+        figure_title = 'ROME Survey of the Galactic Bulge'
+        plt.text(0.5, 1.08, figure_title,
+            horizontalalignment='center',
+            fontsize=100, c='gray',
+            transform = ax.transAxes)
 
-    plt.text(0.5, -0.16, '5 million stars  $\\bullet$  3 filters  $\\bullet$  3 years',
-        horizontalalignment='center',
-        fontsize=80, c='gray',
-        transform = ax.transAxes)
+        plt.text(0.5, -0.16, '5 million stars  $\\bullet$  3 filters  $\\bullet$  3 years',
+            horizontalalignment='center',
+            fontsize=80, c='gray',
+            transform = ax.transAxes)
 
-    image = plt.imread(path.join(data_dir,'LCO_new_logo_lightgrey.png'))
-    ax2 = fig.add_axes([0.875, -0.01, 0.1, 0.1], anchor='NE')
-    ax2.imshow(image)
-    ax2.axis('off')
+        image = plt.imread(path.join(args.data_dir,'LCO_new_logo_lightgrey.png'))
+        ax2 = fig.add_axes([0.875, -0.01, 0.1, 0.1], anchor='NE')
+        ax2.imshow(image)
+        ax2.axis('off')
 
     plt.draw()
-    plt.savefig(path.join(data_dir, 'ROME_survey_colour.png'), dpi=300,
+    plt.savefig(path.join(args.data_dir, 'ROME_survey_colour.png'), dpi=300,
                         facecolor=fig.get_facecolor(), edgecolor='none')
 
 def calc_survey_boundaries():
@@ -124,10 +134,9 @@ def calc_survey_boundaries():
     return [ra_min, ra_max, dec_min, dec_max]
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('data_dir', help="Please enter the path to the data directory")
+    parser.add_argument('mode', help="Option from {poster, paper} to toggle different layouts")
+    args = parser.parse_args()
 
-    if len(argv) > 1:
-        data_dir = argv[1]
-    else:
-        data_dir = input('Please enter the path to the data directory: ')
-
-    plot_all_fields(data_dir)
+    plot_all_fields(args)

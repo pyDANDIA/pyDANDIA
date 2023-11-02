@@ -342,20 +342,6 @@ def select_by_photometry_quality(xmatch, config, log):
 
     qc_idx = np.where(qc_idx)[0]
 
-    #qc_idx2 = np.where(np.logical_and(xmatch.stars[rcol] > 0.0,
-    #                                  xmatch.stars[rerrcol] <= config['r_sigma_max']))[0]
-    #qc_idx3 = np.where(np.logical_and(xmatch.stars[icol] >  0.0,
-    #                                  xmatch.stars[ierrcol] <= config['i_sigma_max']))[0]
-
-    # qc_idx1 = np.where( np.logical_and( np.less_equal(xmatch.stars['cal_g_magerr_'+config['reference_dataset_code']], config['g_sigma_max']),
-    #                     np.less_equal(xmatch.stars['cal_r_magerr_'+config['reference_dataset_code']], config['r_sigma_max']) ) )[0]
-    # qc_idx2 = np.where( np.logical_and( np.less_equal(xmatch.stars['cal_i_magerr_'+config['reference_dataset_code']], config['i_sigma_max']),
-    #                     np.less_equal(xmatch.stars['(g-i)_error'], config['gi_sigma_max']) ) )[0]
-    # qc_idx3 = np.where( np.logical_and( np.less_equal(xmatch.stars['(r-i)_error'], config['ri_sigma_max']),
-    #                     np.less_equal(xmatch.stars['(g-r)_error'], config['gr_sigma_max']) ) )[0]
-    #qc_idx = set(qc_idx1).intersection(set(qc_idx2))
-    #qc_idx = np.array(list(qc_idx.intersection(set(qc_idx3))))
-
     log.info(' -> '+str(len(qc_idx))+' stars meet the quality selection criteria:')
     log.info('    Max phot uncertainty, g = '+str(config['g_sigma_max']))
     log.info('    Max phot uncertainty, r = '+str(config['r_sigma_max']))
