@@ -13,23 +13,26 @@ from pyDANDIA import plotly_lightcurves
 import matplotlib as mpl
 mpl.use('Agg')
 import matplotlib.pyplot as plt
+import argparse
 
 def calc_field_rms():
 
-    params = get_args()
+    args = get_args()
 
-    log = logs.start_stage_log( params['red_dir'], 'field_rms' )
+    log = logs.start_stage_log( args.red_dir, 'field_rms' )
 
     # Crossmatch table provides information on the filter used for each image
     xmatch = crossmatch.CrossMatchTable()
-    xmatch.load(params['crossmatch_file'],log=log)
+    xmatch.load(path.join(args.red_dir,args.field_name+'_field_crossmatch.fits'),log=log)
     log.info('Loaded crossmatch table for the field')
 
     filter_list = np.unique(xmatch.images['filter'].data)
     log.info('Identified list of filters to process: '+repr(filter_list))
 
     log.info('Loading the timeseries photometry...')
-    phot_data = hd5_utils.read_phot_from_hd5_file(params['phot_file'], return_type='array')
+    phot_data = hd5_utils.read_phot_from_hd5_file(path.join(args.red_dir,
+                                                            args.field_name+'_quad'+args.quadrant+'_photometry.hdf5'),
+                                                  return_type='array')
     log.info('-> Completed photometry load')
 
     # By default, select the columns of photometry that have been normalized:
@@ -40,8 +43,8 @@ def calc_field_rms():
     for filter in filter_list:
         image_index = np.where(xmatch.images['filter'] == filter)[0]
         phot_data_filter = phot_data[:,image_index,:]
-        jdx = np.where(xmatch.field_index['quadrant'] == float(int(params['quadrant'])))[0]
-        log.info(str(len(jdx))+' stars in quadrant '+params['quadrant'])
+        jdx = np.where(xmatch.field_index['quadrant'] == float(int(args.quadrant)))[0]
+        log.info(str(len(jdx))+' stars in quadrant '+args.quadrant)
 
         # Calculate lightcurve statistics, filtering out any with zero measurements:
         phot_statistics = np.zeros( (len(phot_data_filter),3) )
@@ -54,41 +57,29 @@ def calc_field_rms():
         phot_statistics = phot_statistics[selection]
 
         # Plot interactive RMS diagram
-        plot_file = path.join(params['red_dir'], params['plot_file_root']+'_'+filter+'.html')
         axis_labels = ['Mag', 'RMS [mag]']
         target_params = [False]
-        plot_title = 'RMS diagram for '+params['field_name']+', quadrant '\
-                +params['quadrant']+', '+filter+'-band'
-        plotly_lightcurves.plot_interactive(phot_statistics, plot_file, axis_labels,
+        plot_title = 'RMS diagram for '+args.field_name+', quadrant '+args.quadrant+', '+filter+'-band'
+        if args.mode == 'interactive':
+            plot_file = path.join(args.red_dir, args.field_name+'_quad'+args.quadrant+'_rms_postnorm'+'_'+filter+'.html')
+            plotly_lightcurves.plot_interactive(phot_statistics, plot_file, axis_labels,
                     target_params, title=plot_title, logy=True, xreverse=True)
-
+        else:
+            plot_file = path.join(args.red_dir, args.field_name+'_quad'+args.quadrant+'_rms_postnorm'+'_'+filter+'.png')
+            plot_rms.plot_rms(phot_statistics, {'red_dir': args.red_dir}, log, plot_file=plot_file)
+            
     logs.close_log(log)
 
 def get_args():
 
-    params = {}
+    parser = argparse.ArgumentParser()
+    parser.add_argument('red_dir', help='Path to the top-level data directory')
+    parser.add_argument('field_name', help='Name of the field')
+    parser.add_argument('quadrant', help='Index number of the quadrant to analyse')
+    parser.add_argument('mode', help='Plot mode {interactive, static}')
+    args = parser.parse_args()
 
-    if len(argv) == 1:
-
-        params['red_dir'] = input('Please enter the path to the top-level data directory: ')
-        params['field_name'] = input('Please enter the name of the field: ')
-        params['quadrant'] = input('Please enter the index number of the quadrant to analyse: ')
-
-    else:
-
-        params['red_dir'] = argv[1]
-        params['field_name'] = argv[2]
-        params['quadrant'] = argv[3]
-
-    params['crossmatch_file'] = path.join(params['red_dir'],
-                            params['field_name']+'_field_crossmatch.fits')
-    params['phot_file'] = path.join(params['red_dir'],
-                            params['field_name']+'_quad'+params['quadrant']
-                                +'_photometry.hdf5')
-    params['plot_file_root'] = params['field_name']+'_quad'+params['quadrant'] \
-                                +'_rms_postnorm'
-
-    return params
+    return args
 
 
 if __name__ == '__main__':
