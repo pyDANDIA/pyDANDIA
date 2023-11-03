@@ -53,7 +53,7 @@ def search_on_coordinates(xmatch, ra, dec, radius, log=None):
     search_params = {'ra_centre': ra, 'dec_centre': dec, 'radius': radius/3600.0}
     full_results = xmatch.cone_search(search_params, log=log)
 
-    return full_results['field_id', 'ra', 'dec', 'separation']
+    return full_results['field_id', 'ra', 'dec', 'separation', 'cal_g_mag_lsc_doma', 'cal_r_mag_lsc_doma', 'cal_i_mag_lsc_doma']
 
 
 def get_args():

@@ -639,6 +639,9 @@ class CrossMatchTable():
         idx = np.where(separations.value <= params['radius'])[0]
         results = self.field_index[idx]
         results.add_column(separations[idx], name='separation')
+        results.add_column(self.stars['cal_g_mag_lsc_doma'][idx], name='cal_g_mag_lsc_doma')
+        results.add_column(self.stars['cal_r_mag_lsc_doma'][idx], name='cal_r_mag_lsc_doma')
+        results.add_column(self.stars['cal_i_mag_lsc_doma'][idx], name='cal_i_mag_lsc_doma')
 
         if log:
             log.info('Identified '+str(len(results))+' candidates within '+str(params['radius'])
