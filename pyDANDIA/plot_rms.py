@@ -110,7 +110,7 @@ def calc_weighted_mean_2D(data, col, errcol, qc_col=None):
     wmean =  (mags * err_squared_inv).sum(axis=1) / (err_squared_inv.sum(axis=1))
     werror = np.sqrt( 1.0 / (err_squared_inv.sum(axis=1)) )
 
-    jdx = mags.count(axis=0)
+    jdx = mags.count(axis=1)
     print('MAG COUNT: ',jdx, len(jdx), mags.shape)
     jj = np.where(jdx <= 50)[0]
     wmean[jj] = 0.0
