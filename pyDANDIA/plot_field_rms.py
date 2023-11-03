@@ -59,7 +59,7 @@ def calc_field_rms():
         phot_statistics[:,2] = plot_rms.calc_weighted_rms(phot_data_filter, phot_statistics[:,1], mag_col, mag_err_col, qc_col=qc_col)
 
         selection = np.logical_and(phot_statistics[:,1] > 0.0, phot_statistics[:,2] > 0.0)
-        selection = np.logical_and(selection, qc_mask)
+        selection = np.logical_and(qc_mask[jdx], selection)
         phot_statistics = phot_statistics[selection]
 
         # Plot interactive RMS diagram
@@ -91,9 +91,6 @@ def select_by_photometry_quality(xmatch, config):
     qc_mask = np.logical_and(qc_mask, xmatch.stars[rerrcol] <= config['r_sigma_max'])
     qc_mask = np.logical_and(qc_mask, xmatch.stars[icol] >  0.0)
     qc_mask = np.logical_and(qc_mask, xmatch.stars[ierrcol] <= config['i_sigma_max'])
-
-    if len(qc_mask) == 0:
-        raise ValueError('All stars excluded by quality control criteria')
 
     return qc_mask
 
