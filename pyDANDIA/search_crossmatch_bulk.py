@@ -60,7 +60,11 @@ def search_xmatch_enmasse():
                                     'ra': results['ra'][j],
                                     'dec': results['dec'][j],
                                     'quadrant': qid,
-                                    'separation_deg': results['separation'][j]})
+                                    'separation_deg': results['separation'][j],
+                                    'cal_g_mag_lsc_doma': results['cal_g_mag_lsc_doma'][j],
+                                    'cal_r_mag_lsc_doma': results['cal_r_mag_lsc_doma'][j],
+                                    'cal_i_mag_lsc_doma': results['cal_i_mag_lsc_doma'][j],
+                                   })
             search_results[targetname] = {'target_data': target_data,
                                           'search_radius_deg': args.radius/3600.0,
                                             'rome_stars': rome_stars}
