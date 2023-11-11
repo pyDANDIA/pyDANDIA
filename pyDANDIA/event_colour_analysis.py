@@ -30,7 +30,6 @@ import photometry_classes
 import logging
 import stellar_radius_relations
 import lens_properties
-import pyslalib
 import phot_source_colour
 
 def perform_event_analysis():

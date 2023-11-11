@@ -163,7 +163,7 @@ class Star:
 
             if self.V != None and self.BV != None:
 
-                output += 'V_meas = '+self.outval('V',3)+' +/- '+self.outval('sig_V',3)+'mag '+\
+                output += ' V_meas = '+self.outval('V',3)+' +/- '+self.outval('sig_V',3)+'mag '+\
                          '(B-V)_meas = '+self.outval('BV',3)+' +/- '+self.outval('sig_BV',3)+'mag'
 
             if self.V != None and self.VR != None:
@@ -175,7 +175,7 @@ class Star:
         elif johnsons and show_mags == False and show_cal:
 
             try:
-                output += '(V-R)_0 = '+self.outval('VR_0',3)+' +/- '+self.outval('sig_VR_0',3)+'mag '+\
+                output += ' (V-R)_0 = '+self.outval('VR_0',3)+' +/- '+self.outval('sig_VR_0',3)+'mag '+\
                          '(Rc-Ic)_0 = '+self.outval('RI_0',3)+' +/- '+self.outval('sig_RI_0',3)+'mag'
             except AttributeError:
                 pass

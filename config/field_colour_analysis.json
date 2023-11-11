@@ -1,72 +1,80 @@
 {
-    "db_file_path": {
-        "value": "/Users/rstreet1/ROMEREA/ROME-FIELD-01/ROME-FIELD-01_phot.db",
-        "comment": "Path to the multi-filter photometry database for this field or None",
-        "format": "string",
-        "unit": ""
-    },
     "xmatch_file_path": {
-        "value": "/Users/rstreet1/ROMEREA/test_data/ROME-FIELD-01_lsc_xmatch.fits",
+        "value": "/Users/rstreet1/ROMEREA/ROME-FIELD-01/DR1/ROME-FIELD-01_field_crossmatch.fits",
         "comment": "Path to the multi-filter cross-match table for this field of None",
         "format": "string",
         "unit": ""
     },
-    "red_dirs": {
-        "value": {"g": "/Users/rstreet1/ROMEREA/test_data/ROME-FIELD-01_lsc-domb-1m0-09-fa15_gp/",
-                  "r": "/Users/rstreet1/ROMEREA/test_data/ROME-FIELD-01_lsc-domb-1m0-09-fa15_rp/",
-                  "i": "/Users/rstreet1/ROMEREA/test_data/ROME-FIELD-01_lsc-domb-1m0-09-fa15_ip/"},
-        "comment": "Paths to the reduction directories for g, r, i photometry data for the primary reference, or None",
+    "reference_dataset_code": {
+        "value": "lsc_doma",
+        "comment": "Identifier for the site/enclosure to be used as the photometry reference dataset, cannot be None [e.g. lsc_doma]",
         "format": "string",
         "unit": ""
     },
     "target_lightcurve_files": {
-        "value": {"g": "/Users/rstreet1/ROMEREA/ROME-FIELD-01/star_78284_ROME-FIELD-01_lsc-doma-1m0-05-fa15_gp.dat",
-                  "r": "/Users/rstreet1/ROMEREA/ROME-FIELD-01/star_78284_ROME-FIELD-01_lsc-doma-1m0-05-fa15_rp.dat",
-                  "i": "/Users/rstreet1/ROMEREA/ROME-FIELD-01/star_78284_ROME-FIELD-01_lsc-doma-1m0-05-fa15_ip.dat"},
+        "value": {"g": "/Users/rstreet1/ROMEREA/ROME-FIELD-01/DR1/lightcurves/events/Star_132120/star_132120_lco_gp_cleaned.dat",
+                  "r": "/Users/rstreet1/ROMEREA/ROME-FIELD-01/DR1/lightcurves/events/Star_132120/star_132120_lco_rp_cleaned.dat",
+                  "i": "/Users/rstreet1/ROMEREA/ROME-FIELD-01/DR1/lightcurves/events/Star_132120/star_132120_lco_ip_cleaned.dat"},
         "comment": "Paths to target lightcurves files for g, r, i for the primary reference, or None",
         "format": "string",
         "unit": ""
     },
     "output_dir": {
-        "value": "/Users/rstreet1/ROMEREA/ROME-FIELD-01/",
+        "value": "/Users/rstreet1/ROMEREA/ROME-FIELD-01/DR1/CMD/Star_132120/",
         "comment": "Directory path for output",
         "format": "string",
         "unit": ""
     },
     "photometry_data_file": {
-        "value": "ROME-FIELD-01_colour_photometry.txt",
+        "value": "star_132120_colour_photometry.txt",
         "comment": "Filename for output of multi-band photometry [or None]",
         "format": "string",
         "unit": ""
     },
     "event_model_parameters_file": {
-            "value": "/Users/rstreet1/ROMEREA/ROME-FIELD-01/OB190011_model_parameters.json",
+            "value": "/Users/rstreet1/ROMEREA/ROME-FIELD-01/DR1/CMD/Star_132120/OB170926_model_parameters.json",
             "comment": "Path to file with event model parameters",
             "format": "string",
             "unit": ""
     },
-    "flux_reference_datasets": {
-            "value": {"g": "lsc-doma-fa15_gp",
-                      "r": "lsc-doma-fa15_rp",
-                      "i": "lsc-doma-fa15_ip"},
-            "comment": "Labels of datasets to use as flux references for colour analysis",
-            "format": "string",
-            "unit": ""
+    "parallax_min": {
+        "value": -99.0,
+        "comment": "Maximum Gaia parallax used to select stars. Set to -99.0 for no selection.",
+        "format": "float",
+        "unit": "mas"
+    },
+    "parallax_max": {
+        "value": 99.0,
+        "comment": "Maximum Gaia parallax used to select stars. Set to +99.0 for no selection.",
+        "format": "float",
+        "unit": "mas"
+    },
+    "pm_min": {
+        "value": -99.0,
+        "comment": "Maximum Gaia parallax used to select stars. Set to -99.0 for no selection.",
+        "format": "float",
+        "unit": ""
+    },
+    "pm_max": {
+        "value": 99.0,
+        "comment": "Maximum Gaia parallax used to select stars. Set to +99.0 for no selection.",
+        "format": "float",
+        "unit": ""
     },
     "target_field_id": {
-        "value": 78284,
+        "value": 132120,
         "comment": "Field star ID of a specific star in the database or None",
         "format": "integer",
         "unit": ""
     },
     "target_ra": {
-        "value": "17:51:55.92",
+        "value": "17:51:21.61",
         "comment": "Right ascension of field centre or target in sexigesimal format, cannot be None",
         "format": "string",
         "unit": ""
     },
     "target_dec": {
-        "value": "-29:59:23.1",
+        "value": "-30:05:44.7",
         "comment": "Declination of field centre or target in sexigesimal format, cannot be None",
         "format": "string",
         "unit": ""
@@ -132,7 +140,7 @@
         "unit": "mag"
     },
     "i_sigma_max": {
-        "value": 0.01,
+        "value": 0.05,
         "comment": "Maximum SDSS-i magnitude uncertainty to use for plots",
         "format": "float",
         "unit": "mag"
@@ -144,7 +152,7 @@
         "unit": "mag"
     },
     "r_sigma_max": {
-        "value": 0.01,
+        "value": 0.05,
         "comment": "Maximum SDSS-r magnitude uncertainty to use for plots",
         "format": "float",
         "unit": "mag"
@@ -156,7 +164,7 @@
         "unit": "mag"
     },
     "g_sigma_max": {
-        "value": 0.01,
+        "value": 0.05,
         "comment": "Maximum SDSS-g magnitude uncertainty to use for plots",
         "format": "float",
         "unit": "mag"
@@ -168,7 +176,7 @@
         "unit": "mag"
     },
     "ri_sigma_max": {
-        "value": 0.02,
+        "value": 0.05,
         "comment": "Maximum (r-i) colour uncertainty to use for plots",
         "format": "float",
         "unit": "mag"
@@ -180,7 +188,7 @@
         "unit": "mag"
     },
     "gr_sigma_max": {
-        "value": 0.02,
+        "value": 0.05,
         "comment": "Maximum (g-r) colour uncertainty to use for plots",
         "format": "float",
         "unit": "mag"
@@ -192,7 +200,7 @@
         "unit": "mag"
     },
     "gi_sigma_max": {
-        "value": 0.02,
+        "value": 0.05,
         "comment": "Maximum (g-i) colour uncertainty to use for plots",
         "format": "float",
         "unit": "mag"
@@ -216,7 +224,7 @@
         "unit": ""
     },
     "add_source_trail": {
-        "value": "true",
+        "value": "false",
         "comment": "Switch to add a marker for the source colour trail on plots",
         "format": "string",
         "unit": ""

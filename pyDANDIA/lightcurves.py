@@ -501,6 +501,26 @@ def read_pydandia_lightcurve(file_path, skip_zero_entries=True):
 
 	return lc
 
+def read_cleaned_pydandia_lightcurve(file_path, skip_zero_entries=True):
+	"""Function to read the cleaned pyDANDIA lightcurve file format to an astropy Table"""
+
+	if path.isfile(file_path) == False:
+		raise IOError('Cannot find input lightcurve file '+file_path)
+
+	data = np.loadtxt(file_path, comments='#', delimiter=' ', skiprows=0)
+
+	if skip_zero_entries:
+		idx = np.where(data[:,0] != 0.0)[0]
+	else:
+		idx = np.arange(0,len(data),1)
+
+	lc = table.Table( [table.Column(name='hjd', data=data[idx,0]),
+						table.Column(name='mag', data=data[idx,1]),
+						table.Column(name='mag_err', data=data[idx,2]),
+						table.Column(name='qc_code', data=data[idx,3])] )
+
+	return lc
+
 if __name__ == '__main__':
 	params = {}
 
