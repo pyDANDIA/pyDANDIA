@@ -82,6 +82,12 @@
         "format": "string",
         "unit": ""
     },
+    "downsample_factor": {
+        "value": 5,
+        "comment": "Select every N points from the dataset to reduced overall plot size.  Set to 1 for normal operation",
+        "format": "int",
+        "unit": ""
+    },
     "plot_i_range": {
         "value": [12.0, 20.0],
         "comment": "Minimum and maximum SDSS-i magnitudes to use for plots",

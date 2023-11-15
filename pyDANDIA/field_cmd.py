@@ -320,6 +320,13 @@ def apply_star_selection(config, xmatch, log):
     if len(idx) == 0:
         raise ValueError('All stars excluded by combined selection criteria')
 
+    # Apply any downselection of points if configured.
+    # This option is available to reduce the size of the resulting plots if necessary
+    if config['downsample_factor'] > 1:
+        random_idx = np.random.choice(np.arange(0,len(xmatch.stars),1), size=int(len(xmatch.stars)/config['downsample_factor']))
+        print(random_idx)
+        
+
     selected_stars = selected_stars[idx]
 
     log.info('Total number of stars selected: '+str(len(selected_stars)))
