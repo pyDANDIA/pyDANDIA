@@ -322,6 +322,7 @@ def apply_star_selection(config, xmatch, log):
     if config['downsample_factor'] > 1:
         random_idx = np.random.choice(np.arange(0,len(xmatch.stars),1), size=int(len(xmatch.stars)/config['downsample_factor']))
         idx = list(set(idx).intersection(set(random_idx)))
+        log.info('WARNING: downsampling factor set to ' + str(config['downsample_factor']))
 
     if len(idx) == 0:
         raise ValueError('All stars excluded by combined selection criteria')
