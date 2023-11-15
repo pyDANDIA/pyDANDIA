@@ -317,15 +317,14 @@ def apply_star_selection(config, xmatch, log):
         pm_idx = select_by_parallax(xmatch, config, log)
         idx = list(set(idx).intersection(set(pm_idx)))
 
-    if len(idx) == 0:
-        raise ValueError('All stars excluded by combined selection criteria')
-
     # Apply any downselection of points if configured.
     # This option is available to reduce the size of the resulting plots if necessary
     if config['downsample_factor'] > 1:
         random_idx = np.random.choice(np.arange(0,len(xmatch.stars),1), size=int(len(xmatch.stars)/config['downsample_factor']))
-        print(random_idx)
-        
+        idx = list(set(idx).intersection(set(random_idx)))
+
+    if len(idx) == 0:
+        raise ValueError('All stars excluded by combined selection criteria')
 
     selected_stars = selected_stars[idx]
 
