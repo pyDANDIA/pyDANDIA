@@ -61,6 +61,12 @@
         "format": "float",
         "unit": ""
     },
+    "downsample_factor": {
+        "value": 5,
+        "comment": "Select every N points from the dataset to reduced overall plot size.  Set to 1 for normal operation",
+        "format": "int",
+        "unit": ""
+    },
     "target_field_id": {
         "value": 132120,
         "comment": "Field star ID of a specific star in the database or None",

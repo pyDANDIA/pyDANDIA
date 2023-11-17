@@ -600,7 +600,15 @@ def plot_colour_mag_diagram(config, xmatch, valid_stars, selected_stars,
         marker_colour = field_marker_colour
 
     if not config['plot_selected_radius_only']:
-        plt.scatter(xmatch.stars[col_key][valid_stars],xmatch.stars[y_key][valid_stars],
+
+        if config['downsample_factor'] > 1:
+            idx = random_idx = np.random.choice(np.arange(0,len(xmatch.stars),1),
+                                                size=int(len(xmatch.stars)/config['downsample_factor']))
+            plot_idx = list(set(valid_stars).intersection(set(random_idx)))
+        else:
+            plot_idx = valid_stars
+
+        plt.scatter(xmatch.stars[col_key][plot_idx],xmatch.stars[y_key][plot_idx],
                  c=marker_colour, marker='.', s=1,
                  label='Stars within field of view')
 
@@ -723,7 +731,14 @@ def plot_colour_colour_diagram(config, xmatch, valid_stars, selected_stars, RC, 
         region_inst_ri = xmatch.stars['(r-i)'][selected_stars] - RC.Eri
 
     if not config['plot_selected_radius_only']:
-        ax.scatter(inst_gr, inst_ri,
+
+        if config['downsample_factor'] > 1:
+            idx = list(np.random.choice(np.arange(0, len(inst_gr), 1),
+                                                size=int(len(inst_gr) / config['downsample_factor'])))
+        else:
+            idx = list(np.arange(0, len(inst_gr),1))
+
+        ax.scatter(inst_gr[idx], inst_ri[idx],
                    c=marker_colour, marker='.', s=1,
                  label='Stars within field of view')
 
@@ -772,7 +787,8 @@ def plot_colour_colour_diagram(config, xmatch, valid_stars, selected_stars, RC, 
              xerr = source.sig_gr, color='m',
              marker='d',markersize=10, label='Source')
 
-    if config['add_blend']:
+    if config['add_blend'] and blend.gr and RC.Egr and blend.ri \
+                and RC.Eri and blend.sig_ri and blend.sig_gr:
         plt.errorbar(blend.gr-RC.Egr, blend.ri-RC.Eri,
              yerr = blend.sig_ri,
              xerr = blend.sig_gr, color='b',

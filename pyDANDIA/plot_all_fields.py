@@ -36,6 +36,9 @@ def plot_all_fields(args):
     fig = plt.figure(1,(39,27))
     if args.mode == 'poster':
         fig.patch.set_facecolor('black')
+        fontsize = 30
+    else:
+        fontsize = 50
 
     ax = plt.subplot(111)
     plt.subplots_adjust(left=0.075, right=0.95, top=0.85, bottom=0.15)
@@ -74,19 +77,19 @@ def plot_all_fields(args):
                 field_idx = field_id.split('-')[-1]
                 if field_idx[0:1] == '0': field_idx = field_idx[1:]
                 plt.annotate(field_idx, (field_data[0] - FIELD_HALF_WIDTH, field_data[1] - FIELD_HALF_HEIGHT),
-                             **{'fontsize': 30})
+                             **{'fontsize': fontsize})
 
     plt.grid(linestyle='--',c='gray', linewidth=0.5)
     ax.tick_params(axis='x', colors='gray')
     ax.tick_params(axis='y', colors='gray')
     ax.yaxis.label.set_color('gray')
     ax.xaxis.label.set_color('gray')
-    plt.xlabel('RA [deg]', fontsize=30)
-    plt.ylabel('Dec [deg]', fontsize=30)
+    plt.xlabel('RA [deg]', fontsize=fontsize)
+    plt.ylabel('Dec [deg]', fontsize=fontsize)
     for tick in ax.xaxis.get_major_ticks():
-        tick.label.set_fontsize(30)
+        tick.label.set_fontsize(fontsize)
     for tick in ax.yaxis.get_major_ticks():
-        tick.label.set_fontsize(30)
+        tick.label.set_fontsize(fontsize)
 
     if args.mode == 'poster':
         ax.title.set_color('white')
@@ -108,7 +111,7 @@ def plot_all_fields(args):
 
     plt.draw()
     plt.savefig(path.join(args.data_dir, 'ROME_survey_colour.png'), dpi=300,
-                        facecolor=fig.get_facecolor(), edgecolor='none')
+                        facecolor=fig.get_facecolor(), edgecolor='none', bbox_inches='tight')
 
 def calc_survey_boundaries(args):
 
