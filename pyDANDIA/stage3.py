@@ -47,6 +47,8 @@ def run_stage3(setup, **kwargs):
     reduction_metadata = metadata.MetaData()
     reduction_metadata.load_all_metadata(metadata_directory=setup.red_dir,
                                          metadata_name='pyDANDIA_metadata.fits')
+    reduction_metadata.create_software_layer(np.array([VERSION, 'NONE']), log=log)
+    reduction_metadata.save_a_layer_to_file(setup.red_dir, 'pyDANDIA_metadata.fits', 'software', log=log)
     image_red_status = reduction_metadata.fetch_image_status(3)
 
     sane = check_metadata(reduction_metadata,log)
@@ -121,13 +123,6 @@ def run_stage3(setup, **kwargs):
 
         reduction_metadata = calibrate_photometry.calibrate_photometry(setup, reduction_metadata, log,
                                                                         **kwargs)
-
-        reduction_metadata.create_software_layer(np.array([VERSION,'NONE']),
-                                                     log=log)
-
-        reduction_metadata.save_a_layer_to_file(setup.red_dir,
-                                                'pyDANDIA_metadata.fits',
-                                                'software', log=log)
 
         image_red_status = metadata.set_image_red_status(image_red_status,'1')
 

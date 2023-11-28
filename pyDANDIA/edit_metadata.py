@@ -207,6 +207,20 @@ def change_reduction_dir(red_dir):
 
     reduction_metadata.save_updated_metadata(red_dir,'pyDANDIA_metadata.fits')
 
+
+def add_software_table(red_dir):
+
+    reduction_metadata = metadata.MetaData()
+    reduction_metadata.load_all_metadata(red_dir, 'pyDANDIA_metadata.fits')
+
+    s3version = input('Enter stage 3 version string: ')
+    s6version = input('Enter stage 6 version string: ')
+
+    reduction_metadata.create_software_layer(np.array([s3version, s6version]), log=None)
+    reduction_metadata.save_a_layer_to_file(red_dir, 'pyDANDIA_metadata.fits', 'software', log=None)
+
+    reduction_metadata.save_updated_metadata(red_dir,'pyDANDIA_metadata.fits')
+
 if __name__ == '__main__':
     if len(sys.argv) == 1:
         red_dir = input('Please enter the path to the reduction directory: ')
@@ -221,6 +235,7 @@ if __name__ == '__main__':
                 Change a reduction directory         8
                 Add reduction parameter              9
                 Add reduction parameter all datasets 10
+                Add software table                   11
                 Cancel                               Any other key""")
         opt = input('Please select an option: ')
     else:
@@ -247,3 +262,5 @@ if __name__ == '__main__':
         add_reduction_parameters(red_dir)
     elif opt == '10':
         batch_add_reduction_parameters(red_dir)
+    elif opt == '11':
+        add_software_table(red_dir)
