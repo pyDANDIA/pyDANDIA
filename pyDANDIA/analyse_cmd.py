@@ -456,7 +456,8 @@ def load_target_timeseries_photometry(config,xmatch,log):
 
     if config['target_field_id'] != None:
 
-        target.star_index = config['target_field_id']
+        target.star_id = config['target_field_id']
+        target.star_index = config['target_field_id'] - 1
 
         col_suffix = '_mag_'+config['reference_dataset_code']
         err_suffix = '_magerr_'+config['reference_dataset_code']
@@ -637,19 +638,23 @@ def plot_colour_mag_diagram(config, xmatch, valid_stars, selected_stars,
     if getattr(source,blue_filter) != None and getattr(source,red_filter) != None\
         and config['add_source']:
 
+        if config['add_crosshairs']:
+            label = 'Source crosshairs'
+        else:
+            label = 'Source'
+
         plt.errorbar(getattr(source,col_attr), getattr(source,yaxis_filter),
                  yerr = getattr(source,'sig_'+yaxis_filter),
                  xerr = getattr(source,'sig_'+col_attr), color='m',
-                 marker='d',markersize=10, label='Source crosshairs')
+                 marker='d',markersize=10, label=label)
 
         if config['add_crosshairs']:
-            plot_crosshairs(fig,getattr(source,col_attr),getattr(source,yaxis_filter),'m')
+            plot_crosshairs(fig,getattr(source,col_attr),getattr(source,yaxis_filter),'m', config, col_attr, yaxis_filter)
 
         if config['add_source_trail']:
             red_lc = source.lightcurves[red_filter]
             blue_lc = source.lightcurves[blue_filter]
             y_lc = source.lightcurves[yaxis_filter]
-
             (smags, smagerr, scols, scolerr) = calc_colour_lightcurve(blue_lc, red_lc, y_lc)
 
             plt.errorbar(scols, smags, yerr = smagerr, xerr = scolerr,
@@ -794,9 +799,9 @@ def plot_colour_colour_diagram(config, xmatch, valid_stars, selected_stars, RC, 
              xerr = blend.sig_gr, color='b',
              marker='v',markersize=10, label='Blend')
 
-    plt.xlabel('SDSS (g-r) [mag]')
+    plt.xlabel('SDSS $(g-r)_{0}$ [mag]')
 
-    plt.ylabel('SDSS (r-i) [mag]')
+    plt.ylabel('SDSS $(r-i)_{0}$ [mag]')
 
     plot_file = path.join(config['output_dir'],'colour_colour_diagram.pdf')
 
@@ -859,16 +864,20 @@ def plot_colour_colour_diagram(config, xmatch, valid_stars, selected_stars, RC, 
 
     log.info('Colour-colour diagram output to '+plot_file)
 
-def plot_crosshairs(fig,xvalue,yvalue,linecolour):
+def plot_crosshairs(fig,xvalue,yvalue,linecolour, config, col_attr, yaxis_filter):
 
     ([xmin,xmax,ymin,ymax]) = plt.axis()
-    xdata = np.linspace(int(xmin),int(xmax),10)
+    xmin = config['plot_'+col_attr+'_range'][0]
+    xmax = config['plot_'+col_attr+'_range'][1]
+    ymin = config['plot_'+yaxis_filter+'_range'][0]
+    ymax = config['plot_'+yaxis_filter+'_range'][1]
+    xdata = np.linspace(xmin,xmax,10)
     ydata = np.zeros(len(xdata))
     ydata.fill(yvalue)
 
     plt.plot(xdata, ydata, linecolour+'-', alpha=0.5)
 
-    ydata = np.linspace(int(ymin),int(ymax),10)
+    ydata = np.linspace(ymin,ymax,10)
     xdata = np.zeros(len(ydata))
     xdata.fill(xvalue)
 

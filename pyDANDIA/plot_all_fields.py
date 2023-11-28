@@ -2,6 +2,8 @@ from os import path
 import argparse
 import matplotlib.pyplot as plt
 import numpy as np
+from PIL import Image
+from skimage.color import rgb2gray
 
 ROME_FIELDS={'ROME-FIELD-01':[ 267.835895375 , -30.0608178195 , '17:51:20.6149','-30:03:38.9442' ],
             'ROME-FIELD-02':[ 269.636745458 , -27.9782661111 , '17:58:32.8189','-27:58:41.758' ],
@@ -31,6 +33,10 @@ naxis2 = 4096
 FIELD_HALF_WIDTH = (( naxis2 * pixel_scale ) / 3600.0) / 2.0 # Deg
 FIELD_HALF_HEIGHT = (( naxis1 * pixel_scale ) / 3600.0) / 2.0 # Deg
 
+BACKGROUND = {'DECam':[ 271.014958, -28.75124167,'18:04:03.59', '-28:45:04.47', 'decam_bulge_image.tiff', 0.263],
+              'DSS': [269.335, -29.178, '17:57:20.4', '-29:10:40.8', 'DSS_ROME_footprint_car.png', 6.95]}
+
+
 def plot_all_fields(args):
 
     fig = plt.figure(1,(39,27))
@@ -55,29 +61,47 @@ def plot_all_fields(args):
     ax.set_xlim([plot_ranges[1], plot_ranges[0]])
     ax.set_ylim([plot_ranges[2], plot_ranges[3]])
 
-    for field_id,field_data in ROME_FIELDS.items():
 
-        file_name = path.join(args.data_dir, field_id+'_colour.png')
+    bkgd_data = BACKGROUND['DSS']
+    file_name = path.join(args.data_dir, bkgd_data[4])
+    bkgd_image = np.array(Image.open(file_name))
+    bkgd_desat = rgb2gray(bkgd_image)
+    (bkgd_naxis1, bkgd_naxis2) = bkgd_desat.shape
+    BKGD_HALF_WIDTH = (( bkgd_naxis2 * bkgd_data[5] ) / 3600.0) / 2.0 # Deg
+    BKGD_HALF_HEIGHT = (( bkgd_naxis1 * bkgd_data[5] ) / 3600.0) / 2.0 # Deg
+    extent = [bkgd_data[0] - BKGD_HALF_WIDTH,
+              bkgd_data[0] + BKGD_HALF_WIDTH,
+              bkgd_data[1] - BKGD_HALF_HEIGHT,
+              bkgd_data[1] + BKGD_HALF_HEIGHT]
+    bkgd_desat = np.fliplr(bkgd_desat)
+    #bkgd_desat = np.flipud(bkgd_desat)
+    plt.imshow(bkgd_desat, extent=extent)
 
-        if path.isfile(file_name):
+    plot_rome_fields = True
+    if plot_rome_fields:
+        for field_id,field_data in ROME_FIELDS.items():
 
-            image = plt.imread(file_name)
-            image = np.fliplr(image)
-            image = np.flipud(image)
+            file_name = path.join(args.data_dir, field_id+'_colour.png')
 
-            extent = [ field_data[0] - FIELD_HALF_WIDTH,
-                        field_data[0] + FIELD_HALF_WIDTH,
-                        field_data[1] - FIELD_HALF_HEIGHT,
-                        field_data[1] + FIELD_HALF_HEIGHT ]
+            if path.isfile(file_name):
 
-            plt.imshow(image, extent=extent)
+                image = plt.imread(file_name)
+                image = np.fliplr(image)
+                image = np.flipud(image)
 
-            # Annotate each field with its index for identification
-            if args.mode == 'paper':
-                field_idx = field_id.split('-')[-1]
+                extent = [ field_data[0] - FIELD_HALF_WIDTH,
+                field_data[0] + FIELD_HALF_WIDTH,
+                field_data[1] - FIELD_HALF_HEIGHT,
+                field_data[1] + FIELD_HALF_HEIGHT ]
+
+                plt.imshow(image, extent=extent)
+
+                # Annotate each field with its index for identification
+                if args.mode == 'paper':
+                    field_idx = field_id.split('-')[-1]
                 if field_idx[0:1] == '0': field_idx = field_idx[1:]
                 plt.annotate(field_idx, (field_data[0] - FIELD_HALF_WIDTH, field_data[1] - FIELD_HALF_HEIGHT),
-                             **{'fontsize': fontsize})
+                                **{'fontsize': fontsize})
 
     plt.grid(linestyle='--',c='gray', linewidth=0.5)
     ax.tick_params(axis='x', colors='gray')
