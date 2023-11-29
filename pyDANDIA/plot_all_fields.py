@@ -61,21 +61,22 @@ def plot_all_fields(args):
     ax.set_xlim([plot_ranges[1], plot_ranges[0]])
     ax.set_ylim([plot_ranges[2], plot_ranges[3]])
 
-
-    bkgd_data = BACKGROUND['DSS']
-    file_name = path.join(args.data_dir, bkgd_data[4])
-    bkgd_image = np.array(Image.open(file_name))
-    bkgd_desat = rgb2gray(bkgd_image)
-    (bkgd_naxis1, bkgd_naxis2) = bkgd_desat.shape
-    BKGD_HALF_WIDTH = (( bkgd_naxis2 * bkgd_data[5] ) / 3600.0) / 2.0 # Deg
-    BKGD_HALF_HEIGHT = (( bkgd_naxis1 * bkgd_data[5] ) / 3600.0) / 2.0 # Deg
-    extent = [bkgd_data[0] - BKGD_HALF_WIDTH,
-              bkgd_data[0] + BKGD_HALF_WIDTH,
-              bkgd_data[1] - BKGD_HALF_HEIGHT,
-              bkgd_data[1] + BKGD_HALF_HEIGHT]
-    bkgd_desat = np.fliplr(bkgd_desat)
-    #bkgd_desat = np.flipud(bkgd_desat)
-    plt.imshow(bkgd_desat, extent=extent)
+    plot_bkgd = False
+    if plot_bkgd:
+        bkgd_data = BACKGROUND['DSS']
+        file_name = path.join(args.data_dir, bkgd_data[4])
+        bkgd_image = np.array(Image.open(file_name))
+        bkgd_desat = rgb2gray(bkgd_image)
+        (bkgd_naxis1, bkgd_naxis2) = bkgd_desat.shape
+        BKGD_HALF_WIDTH = (( bkgd_naxis2 * bkgd_data[5] ) / 3600.0) / 2.0 # Deg
+        BKGD_HALF_HEIGHT = (( bkgd_naxis1 * bkgd_data[5] ) / 3600.0) / 2.0 # Deg
+        extent = [bkgd_data[0] - BKGD_HALF_WIDTH,
+                  bkgd_data[0] + BKGD_HALF_WIDTH,
+                  bkgd_data[1] - BKGD_HALF_HEIGHT,
+                  bkgd_data[1] + BKGD_HALF_HEIGHT]
+        bkgd_desat = np.fliplr(bkgd_desat)
+        #bkgd_desat = np.flipud(bkgd_desat)
+        plt.imshow(bkgd_desat, extent=extent)
 
     plot_rome_fields = True
     if plot_rome_fields:
