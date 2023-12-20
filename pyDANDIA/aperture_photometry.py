@@ -5,6 +5,8 @@ from pyDANDIA import  metadata
 from pyDANDIA import  pipeline_setup
 from pyDANDIA import  starfind
 import photutils
+from astropy.stats import SigmaClip
+import numpy as np
 
 VERSION = 'pyDANDIA_ap_phot_v0.0.1'
 
@@ -36,9 +38,10 @@ def run_aperture_photometry(setup, **kwargs):
 
     # Loop over all selected images
     for image in new_images:
+        image_path = os.path.join(setup.red_dir, 'data', image)
 
         # Perform object detection on the image
-        (status, report, params) = starfind.starfind(setup, im, reduction_metadata,
+        (status, report, params) = starfind.starfind(setup, image_path, reduction_metadata,
                                                      plot_it=False, log=log, thumbsize=500)
 
         # Calculate the x, y offsets between the reference star_catalog and the objects in this frame
@@ -53,8 +56,8 @@ def run_aperture_photometry(setup, **kwargs):
 
 
         # Perform aperture photometry at the transformed positions - for two apertures?
-        phot_table = aperture_phot(data[1].data, np.c_[xx, yy], radius=data_fwhm)
-        phot_table2 = aperture_phot(data[1].data, np.c_[xx, yy], radius=3)
+        phot_table = ap_phot_image(data[1].data, np.c_[xx, yy], radius=data_fwhm)
+        phot_table2 = ap_phot_image(data[1].data, np.c_[xx, yy], radius=3)
 
         fluxes.append(phot_table['aperture_sum'].value)
         efluxes.append(phot_table['aperture_sum_err'].value)
@@ -79,30 +82,30 @@ def run_aperture_photometry(setup, **kwargs):
 
     return status, report
 
-def ap_phot_image(data,pos,radius=3):
+def ap_phot_image(data,pos,radius=3.0):
     """
-    Function to perform aperture photometry on a single image, given the source catalog from the re
+    Function to perform aperture photometry on a single image, given an input source catalog.
+    Based on a function by Etienne Bachelet
+
     Args:
-        setup:
-        reduction_metadata:
-        log:
-        image_path:
-        psf_model:
-        sky_model:
+        image: numpy image pixel data 2D array
+        positions: 2D numpy array of star pixel positions (x,y)
+        radius: float radius of the aperture to use for photometry in pixels
 
     Returns:
+        phot_table: photutils output table
     """
 
     rad = 2*radius
     apertures = photutils.CircularAperture(pos, r=rad)
-    sigma_clip = photutils.SigmaClip(sigma=3.)
+    sigma_clip = SigmaClip(sigma=3.)
     bkg_estimator = photutils.MedianBackground()
     bkg = photutils.Background2D(data, (50, 50),  filter_size=(3, 3), sigma_clip=sigma_clip, bkg_estimator=bkg_estimator)
     #breakpoint()
     ron = 0
     gain = 1
 
-    error = calc_total_error(np.abs(data), (bkg.background_rms**2)**0.5, gain)
+    error = photutils.utils.calc_total_error(np.abs(data), (bkg.background_rms**2)**0.5, gain)
     error = (error**2+ron**2/gain**2)**0.5
     phot_table = photutils.aperture_photometry(data-bkg.background, apertures, method='subpixel',error=error)
 
