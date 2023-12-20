@@ -4,6 +4,7 @@ from pyDANDIA import  logs
 from pyDANDIA import  metadata
 from pyDANDIA import  pipeline_setup
 from pyDANDIA import  starfind
+from pyDANDI import image_handling
 import photutils
 from astropy.stats import SigmaClip
 import numpy as np
@@ -36,17 +37,26 @@ def run_aperture_photometry(setup, **kwargs):
     new_images = reduction_metadata.find_images_need_to_be_process(setup, all_images,
                                                                    stage_number=4, rerun_all=False, log=log)
 
+    # Retrieve the reference image pixel data:
+    ref_image_path = os.path.join(str(reduction_metadata.data_architecture[1]['REF_PATH'][0]),
+                               str(reduction_metadata.data_architecture[1]['REF_IMAGE'][0]))
+    ref_structure = image_handling.determine_image_struture(ref_image_path, log=log)
+    ref_image = image_handling.get_science_image(meta_pars['ref_image_path'], image_structure=ref_structure)
+
     # Loop over all selected images
     for image in new_images:
+        # Retrieve image pixel data
         image_path = os.path.join(setup.red_dir, 'data', image)
+        image_structure = image_handling.determine_image_struture(image_path, log=log)
+        data_image = image_handling.get_science_image(image_path, image_structure=image_structure)
 
         # Perform object detection on the image
         (status, report, params) = starfind.starfind(setup, image_path, reduction_metadata,
                                                      plot_it=False, log=log, thumbsize=500)
 
         # Calculate the x, y offsets between the reference star_catalog and the objects in this frame
-        align = stage4.find_init_transform(ref[1].data, data[1].data,
-                                           refcat[:250],
+        align = stage4.find_init_transform(ref_image, data_image,
+                                           reduction_metadata.star_catalog[1],
                                            datacat[:250])
 
         # Transform the positions of objects in the reference star_catalog to their corresponding positions in
