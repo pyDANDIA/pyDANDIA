@@ -4,7 +4,7 @@ from pyDANDIA import  logs
 from pyDANDIA import  metadata
 from pyDANDIA import  pipeline_setup
 from pyDANDIA import  starfind
-from pyDANDI import image_handling
+from pyDANDIA import image_handling
 import photutils
 from astropy.stats import SigmaClip
 import numpy as np
