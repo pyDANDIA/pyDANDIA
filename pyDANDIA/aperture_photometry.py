@@ -41,7 +41,7 @@ def run_aperture_photometry(setup, **kwargs):
     ref_image_path = os.path.join(str(reduction_metadata.data_architecture[1]['REF_PATH'][0]),
                                str(reduction_metadata.data_architecture[1]['REF_IMAGE'][0]))
     ref_structure = image_handling.determine_image_struture(ref_image_path, log=log)
-    ref_image = image_handling.get_science_image(meta_pars['ref_image_path'], image_structure=ref_structure)
+    ref_image = image_handling.get_science_image(ref_image_path, image_structure=ref_structure)
 
     # Loop over all selected images
     for image in new_images:
