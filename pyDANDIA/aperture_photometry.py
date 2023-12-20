@@ -90,7 +90,7 @@ def run_aperture_photometry(setup, **kwargs):
     #phot2 = final_phot(times, fluxes2, efluxes2, pscale2, exptime)
 
     # Store timeseries photometry
-
+    report = 'OK'
     log.info('Aperture photometry: ' + report)
     logs.close_log(log)
 
