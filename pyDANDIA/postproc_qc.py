@@ -289,7 +289,7 @@ def calc_image_residuals(reduction_metadata, photometry, phot_residuals, log):
     image_residuals = np.ma.masked_array(image_residuals, mask=extend_mask)
     log.info('Masked image entries where no stars had valid photometric residuals')
 
-    log.info('Image weighted mean photometric residual and RMS:')
+    log.info('Image weighted mean photometric residual, RMS and timestamp')
     for i, image_name in enumerate(reduction_metadata.headers_summary[1]['IMAGES']):
         log.info(str(i)+' '+image_name+' '+str(image_residuals[i,0])+' '+\
                 str(image_residuals[i,1])+' '+str(image_residuals[i,2]))

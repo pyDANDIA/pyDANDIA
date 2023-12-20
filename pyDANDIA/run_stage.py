@@ -19,7 +19,8 @@ from pyDANDIA import stage1
 from pyDANDIA import stage2
 from pyDANDIA import stage3
 from pyDANDIA import calibrate_photometry
-from pyDANDIA import reference_astrometry
+from pyDANDIA import recalibrate_photometry
+#from pyDANDIA import reference_astrometry
 from pyDANDIA import new_reference_astrometry
 from pyDANDIA import stage3_db_ingest
 from pyDANDIA import stage4
@@ -106,6 +107,10 @@ def run_stage_stand_alone():
 
         (status, report) = image_coadd.run_coadd(setup)
 
+    elif params['stage'] == 'recalibrate':
+
+        (status, report) = recalibrate_photometry.apply_photometric_calibration(setup, params)
+
     else:
 
         print('ERROR: Unsupported stage name given')
@@ -126,7 +131,8 @@ def get_args():
 
             where stage is the name of the stage or code to be run, one of:
                 stage0, stage1, stage2, stage3, stage4, stage5, stage6,
-                starfind, stage3_db_ingest, reference_astrometry
+                starfind, stage3_db_ingest, reference_astrometry,
+                recalibrate
 
             and the path to the reduction directory is given to the dataset
             to be processed

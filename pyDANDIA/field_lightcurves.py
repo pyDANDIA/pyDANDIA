@@ -8,9 +8,12 @@ from pyDANDIA import hd5_utils
 from pyDANDIA import crossmatch
 from pyDANDIA import logs
 from pyDANDIA import pipeline_setup
+from pyDANDIA import plotly_lightcurves
+from pyDANDIA import field_photometry
 import csv
+import copy
 
-def extract_field_star_lightcurves(params, log=None, format='dat'):
+def plot_field_star_lightcurves(params, log=None):
 	"""Function to extract a lightcurve for a single star based on its RA, Dec
 	using the star_catolog in the metadata for a single reduction."""
 
@@ -19,128 +22,164 @@ def extract_field_star_lightcurves(params, log=None, format='dat'):
 	xmatch = crossmatch.CrossMatchTable()
 	xmatch.load(params['crossmatch_file'], log=log)
 
+	sanity_check(params,xmatch)
+
 	if log != None:
-		log.info('Searching for star at RA,Dec='+str(params['ra'])+', '+str(params['dec']))
+		log.info('Plotting lightcurve for star ID '+str(params['field_id']))
 
-	c = SkyCoord(params['ra'], params['dec'], frame='icrs', unit=(units.hourangle, units.deg))
+	# Offset field ID by one to get array index of data
+	field_idx = params['field_id'] - 1
+	quad_idx = xmatch.field_index['quadrant_id'][field_idx] - 1
+	if log:
+		log.info('Extracting the lightcurve of star with field index='
+			+str(field_idx)+' and quadrant index='+str(quad_idx))
+	plot_file = path.join(params['output_dir'],
+				'star_'+str(params['field_id'])+'_lightcurve_'+params['phot_type']+'.html')
 
-	if 'radius' in params.keys():
-		radius = float(params['radius'])
-	else:
-		radius = 2.0
+	log.info('Extracting target timeseries photometry from '+params['phot_hdf_file'])
 
-	results = xmatch.cone_search({'ra_centre': c.ra.deg,
-								  'dec_centre': c.dec.deg,
-								  'radius': radius}, log=log)
+	#quad_phot = hd5_utils.read_phot_from_hd5_file(params['phot_hdf_file'],
+	#											  return_type='array')
+	star_phot = hd5_utils.read_star_from_hd5_file(params['phot_hdf_file'], quad_idx)
 
-	if log != None and len(results) == 0:
-		log.info('No matching objects found')
+	lc = fetch_field_photometry_for_star_idx(params, field_idx, xmatch,
+											 star_phot, log)
+	if params['combine_data']:
+		lc = combine_datasets_by_filter(lc, log)
 
-	if log != None and len(results) > 0:
-		log.info('Extracting lightcurves for the following matching objects')
+	filters = ['gp', 'rp', 'ip']
+	title = 'Lightcurves of star field ID='+str(params['field_id'])
 
-	for star in results:
+	plotly_lightcurves.plot_interactive_lightcurve(lc, filters, plot_file,
+													title=title)
 
-		if log!=None:
-			log.info('-> Star dataset ID: '+str(star['field_id'])+' separation: '+str(star['separation'])+' deg')
-
-		photometry_data = fetch_field_photometry_for_star(params, star, xmatch, log)
-
-		for dataset_code, phot_data in photometry_data.items():
-			time_order = np.argsort(phot_data['hjd'])
-
-			lc_file = path.join(params['output_dir'],'star_'+str(star['field_id'])+'_'+dataset_code+'.'+str(format))
-
-			if format == 'dat':
-				datafile = open(lc_file,'w')
-				datafile.write('# HJD    Instrumental mag, mag_error   Calibrated mag, mag_error   Corrected mag, mag_error   Normalized mag, mag_error  QC_Flag\n')
-
-				for i in time_order:
-					datafile.write(str(phot_data['hjd'][i])+'  '+\
-							str(phot_data['instrumental_mag'][i])+'  '+str(phot_data['instrumental_mag_err'][i])+'  '+\
-							str(phot_data['calibrated_mag'][i])+'  '+str(phot_data['calibrated_mag_err'][i])+'  '+\
-							str(phot_data['corrected_mag'][i])+'  '+str(phot_data['corrected_mag_err'][i])+'  '+\
-							str(phot_data['normalized_mag'][i])+'  '+str(phot_data['normalized_mag_err'][i])+'  '+\
-							str(phot_data['qc_flag'][i])+'\n')
-
-				datafile.close()
-
-			elif format == 'csv':
-				with open(lc_file, 'w', newline='') as csvfile:
-					datafile = csv.writer(csvfile, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
-					datafile.writerow(['time', 'filter', 'magnitude', 'error'])
-					for i in time_order:
-						if photdata['instrumental_mag'][i] > 0.0:
-							datafile.writerow([str(phot_data['hjd'][i]), params['filter_name'],
-												str(phot_data['instrumental_mag'][i]),
-												str(phot_data['instrumental_mag_err'][i])])
-
-			else:
-				log.info('Unrecognized lightcurve format requested ('+str(format)+') no output possible')
-
-			if log!=None:
-				log.info('-> Output photometry for dataset '+dataset_code+' to '+lc_file)
+	output_datasets_to_file(params, lc, log)
 
 	message = 'OK'
 	logs.close_log(log)
 
 	return message
 
-def fetch_field_photometry_for_star(params, star, xmatch, log):
+def sanity_check(params,xmatch):
 
-	phot_file = params['field_name']+'_quad'+str(star['quadrant'])+'_photometry.hdf5'
-	log.info('Extracting target timeseries photometry from '+phot_file)
+	field_idx = params['field_id'] - 1
+	star_quadrant = int(xmatch.field_index['quadrant'][field_idx])
+	hdf_quadrant = int(path.basename(params['phot_hdf_file']).split('_')[1].replace('quad',''))
 
-	setup = pipeline_setup.PipelineSetup()
-	setup.red_dir = params['phot_dir']
+	if star_quadrant != hdf_quadrant:
+		raise IOError('The star requested is in quadrant '+str(star_quadrant)
+				+' but the photometry file provided is from quadrant '+str(hdf_quadrant))
 
-	quad_phot = hd5_utils.read_phot_hd5(setup,log=log,filename=phot_file)
+def fetch_field_photometry_for_star_idx(params, field_idx, xmatch, star_phot, log):
 
-	photometry = {}
-
+	lc = {}
+	(mag_col, merr_col) = field_photometry.get_field_photometry_columns(params['phot_type'])
+	qc_col = 16
 	for dataset in xmatch.datasets:
-		idx = np.where(xmatch.images['dataset_code'] == dataset['dataset_code'])[0]
-		photometry[dataset['dataset_code']] = Table([ Column(name='hjd', data=quad_phot[star['quadrant_id']-1,idx,0], dtype='float'),
-								Column(name='instrumental_mag', data=quad_phot[star['quadrant_id']-1,idx,1], dtype='float'),
-								Column(name='instrumental_mag_err', data=quad_phot[star['quadrant_id']-1,idx,2], dtype='float'),
-								Column(name='calibrated_mag', data=quad_phot[star['quadrant_id']-1,idx,3], dtype='float'),
-								Column(name='calibrated_mag_err', data=quad_phot[star['quadrant_id']-1,idx,4], dtype='float'),
-								Column(name='corrected_mag', data=quad_phot[star['quadrant_id']-1,idx,5], dtype='float'),
-								Column(name='corrected_mag_err', data=quad_phot[star['quadrant_id']-1,idx,6], dtype='float'),
-								Column(name='normalized_mag', data=quad_phot[star['quadrant_id']-1,idx,7], dtype='float'),
-								Column(name='normalized_mag_err', data=quad_phot[star['quadrant_id']-1,idx,8], dtype='float'),
-								Column(name='qc_flag', data=quad_phot[star['quadrant_id']-1,idx,16], dtype='float'),
-								])
+		# Extract the photometry of this object for the images from this dataset,
+		# if the field index indicates that the object was measured in this dataset
+		if xmatch.field_index[dataset['dataset_code']+'_index'][field_idx] != 0:
+			shortcode = xmatch.get_dataset_shortcode(dataset['dataset_code'])
+			# Select those images from the HDF5 pertaining to this dataset,
+			# then select valid measurements for this star
+			idx1 = np.where(xmatch.images['dataset_code'] == dataset['dataset_code'])[0]
+			idx2 = np.where(star_phot[:,0] > 0.0)[0]
+			idx3 = np.where(star_phot[:,mag_col] > 0.0)[0]
+			idx = set(idx1).intersection(set(idx2))
+			idx = list(idx.intersection(set(idx3)))
 
-		log.info('-> Extract timeseries photometry for star '+str(star['field_id'])+' from dataset '+dataset['dataset_code'])
+			# Store the photometry
+			if len(idx) > 0:
+				photometry = np.zeros((len(idx),4))
+				photometry[:,0] = star_phot[idx,0]
+				photometry[:,1] = star_phot[idx,mag_col]
+				photometry[:,2] = star_phot[idx,merr_col]
+				photometry[:,3] = star_phot[idx,qc_col]
+				lc[shortcode] = photometry
 
-	return photometry
+				if log:
+					log.info('-> Extracted '+str(len(idx))
+					+' valid datapoints of timeseries photometry for star '
+					+str(field_idx+1)+' from dataset '+dataset['dataset_code'])
+			else:
+				if log:
+					log.info('-> No valid datapoints in the lightcurve for star '
+				+str(field_idx+1)+' from dataset '+dataset['dataset_code'])
+
+		else:
+			if log:
+				log.info('-> Star '+str(field_idx+1)+' was not measured in dataset '
+					+dataset['dataset_code'])
+
+	return lc
+
+def combine_datasets_by_filter(lc, log):
+
+	log.info('Combining datasets from multiple telescopes for each filter: ')
+	# Group the datasets available for this star's lightcurve by filter
+	filters = {}
+	for dset in lc.keys():
+		f = dset.split('_')[-1]
+		if f not in filters.keys():
+			filters[f] = [dset]
+		else:
+			filters[f].append(dset)
+	log.info(repr(filters))
+
+	# Combine the lightcurves per filter
+	lc_per_filter = {}
+	for f in filters.keys():
+		for i,dset in enumerate(filters[f]):
+			if i == 0:
+				data = copy.deepcopy(lc[dset])
+			else:
+				data = np.concatenate((data, lc[dset]))
+
+		# Sort into time order
+		jdx = np.argsort(data[:,0])
+		lc_per_filter['lco_'+f] = data[jdx]
+
+	return lc_per_filter
+
+def output_datasets_to_file(params,lc,log):
+
+	for dset, data in lc.items():
+		if len(data) > 0:
+			file_path = path.join(params['output_dir'],
+								'star_'+str(params['field_id'])+'_'+dset+'.dat')
+			f = open(file_path, 'w')
+			f.write('# Photometry type: '+params['phot_type']+'\n')
+			f.write('# HJD    mag       mag_error     QC_code\n')
+			for i in range(0,len(data),1):
+				f.write(str(data[i,0])+' '+str(data[i,1])+' '
+							+str(data[i,2])+' '+str(data[i,3])+'\n')
+			f.close()
+			log.info('Output data for '+dset+' to '+file_path)
+		else:
+			log.info('No valid data found for '+dset)
 
 if __name__ == '__main__':
 	params = {}
 
 	if len(argv) == 1:
 		params['crossmatch_file'] = input('Please enter the path to the field crossmatch file: ')
-		params['phot_dir'] = input('Please enter the path to the directory containing the field photometry HDF5 files: ')
-		params['field_name'] = input('Please enter the field name used for the photometry files: ')
-		params['ra'] = input('Please enter the RA [sexigesimal]: ')
-		params['dec'] = input('Please enter the Dec [sexigesimal]: ')
-		params['radius'] = input('Please enter the search radius in arcsec: ')
+		params['phot_hdf_file'] = input('Please enter the path to the directory containing the field photometry HDF5 files: ')
+		params['field_id'] = int(float(input('Please enter the field ID of the star in the field index: ')))
+		params['phot_type'] = input('Please enter the columns of photometry to plot {instrumental,calibrated,corrected,normalized}: ')
 		params['output_dir'] = input('Please enter the path to the output directory: ')
+		params['combine_data'] = input('Combine dataset lightcurves by filter?  Y or N: ')
 
 	else:
 		params['crossmatch_file'] = argv[1]
-		params['phot_dir'] = argv[2]
-		params['field_name'] = argv[3]
-		params['ra'] = argv[4]
-		params['dec'] = argv[5]
-		params['radius'] = argv[6]
-		params['output_dir'] = argv[7]
+		params['phot_hdf_file'] = argv[2]
+		params['field_id'] = int(float(argv[3]))
+		params['phot_type'] = argv[4]
+		params['output_dir'] = argv[5]
+		params['combine_data'] = argv[6]
 
-	# Ensure units are decimal degrees
-	params['radius'] = float(params['radius'])/3600.0
+	if 'Y' in str(params['combine_data']).upper():
+		params['combine_data'] = True
+	else:
+		params['combine_data'] = False
 
-	#message = extract_star_lightcurves_on_position(params)
-    #print(message)
-
-	extract_field_star_lightcurves(params, log=None, format='dat')
+	plot_field_star_lightcurves(params, log=None)

@@ -139,6 +139,29 @@ def update_array_col_index(index3d, new_col):
 
     return new_tuple
 
+def get_field_photometry_columns(phot_columns='instrumental'):
+    """Function to return the column indices of the magnitude and magnitude uncertainties
+    in the photometry array for a single dataset.  Options are:
+    instrumental
+    calibrated
+    corrected
+    """
+
+    if phot_columns == 'instrumental':
+        mag_col = 1
+        merr_col = 2
+    elif phot_columns == 'calibrated':
+        mag_col = 3
+        merr_col = 4
+    elif phot_columns == 'corrected':
+        mag_col = 5
+        merr_col = 6
+    elif phot_columns == 'normalized':
+        mag_col = 7
+        merr_col = 8
+
+    return mag_col, merr_col
+
 def populate_photometry_array(field_star_index, dataset_star_index,
                                 dataset_image_index, photometry, dataset_photometry,
                                 xmatch, log, dataset_metadata):
@@ -236,19 +259,15 @@ def populate_stars_table(dataset,xmatch,dataset_metadata,log):
     dataset_id = '_'.join(dataset['dataset_code'].split('_')[1].split('-')[0:2])
     filter_name = parse_sloan_filter_ids(dataset['dataset_filter'])
 
-    if check_for_reference_dataset(dataset['dataset_code']):
-        mag_column = 'cal_'+filter_name+'_mag_'+dataset_id
-        mag_error_column = 'cal_'+filter_name+'_magerr_'+dataset_id
+    mag_column = 'cal_'+filter_name+'_mag_'+dataset_id
+    mag_error_column = 'cal_'+filter_name+'_magerr_'+dataset_id
 
-        (field_array_idx,dataset_array_idx) = get_dataset_star_indices(dataset,xmatch)
+    (field_array_idx,dataset_array_idx) = get_dataset_star_indices(dataset,xmatch)
 
-        xmatch.stars[mag_column][field_array_idx] = dataset_metadata.star_catalog[1]['cal_ref_mag'][dataset_array_idx]
-        xmatch.stars[mag_error_column][field_array_idx] = dataset_metadata.star_catalog[1]['cal_ref_mag_error'][dataset_array_idx]
+    xmatch.stars[mag_column][field_array_idx] = dataset_metadata.star_catalog[1]['cal_ref_mag'][dataset_array_idx]
+    xmatch.stars[mag_error_column][field_array_idx] = dataset_metadata.star_catalog[1]['cal_ref_mag_error'][dataset_array_idx]
 
-        log.info('-> Populated stars table with '+dataset_id+' reference image photometry for filter '+filter_name)
-    else:
-        log.info('-> Dataset not used as a reference dataset')
-        (field_array_idx,dataset_array_idx) = get_dataset_star_indices(dataset,xmatch)
+    log.info('-> Populated stars table with '+dataset_id+' reference image photometry for filter '+filter_name)
 
     return xmatch, field_array_idx, dataset_array_idx
 
@@ -344,8 +363,6 @@ def init_field_data_table(xmatch,log):
     # sub_image_sky_bkgd, sub_image_sky_bkgd_err,
     # residual_x, residual_y
     # qc_flag
-    # Note: corrected_mag columns included to allow for likely future expansion;
-    # not yet populated
     photometry = np.zeros( (len(xmatch.stars), len(xmatch.images), 17) )
     log.info('Initialized timeseries photometry array')
 
