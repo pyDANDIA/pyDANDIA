@@ -53,7 +53,11 @@ def run_aperture_photometry(setup, **kwargs):
         # Perform object detection on the image
         (status, report, params) = starfind.starfind(setup, image_path, reduction_metadata,
                                                      plot_it=False, log=log, thumbsize=500)
-
+        print(status)
+        print(report)
+        print(params)
+        exit()
+        
         # Calculate the x, y offsets between the reference star_catalog and the objects in this frame
         align = stage4.find_init_transform(ref_image, data_image,
                                            reduction_metadata.star_catalog[1],
