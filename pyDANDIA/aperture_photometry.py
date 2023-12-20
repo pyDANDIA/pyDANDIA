@@ -57,7 +57,7 @@ def run_aperture_photometry(setup, **kwargs):
         print(report)
         print(params)
         exit()
-        
+
         # Calculate the x, y offsets between the reference star_catalog and the objects in this frame
         align = stage4.find_init_transform(ref_image, data_image,
                                            reduction_metadata.star_catalog[1],
@@ -84,10 +84,10 @@ def run_aperture_photometry(setup, **kwargs):
         fwhms.append(data_fwhm)
 
     # Scale the photometry by the image exposure time
-    pscale = phot_scales(fluxes, exptime, refind=0, sub_catalog=np.arange(100, 200))
-    pscale2 = phot_scales(fluxes2, exptime, refind=0, sub_catalog=np.arange(100, 200))
-    phot = final_phot(times, fluxes, efluxes, pscale, exptime)
-    phot2 = final_phot(times, fluxes2, efluxes2, pscale2, exptime)
+    #pscale = phot_scales(fluxes, exptime, refind=0, sub_catalog=np.arange(100, 200))
+    #pscale2 = phot_scales(fluxes2, exptime, refind=0, sub_catalog=np.arange(100, 200))
+    #phot = final_phot(times, fluxes, efluxes, pscale, exptime)
+    #phot2 = final_phot(times, fluxes2, efluxes2, pscale2, exptime)
 
     # Store timeseries photometry
 
