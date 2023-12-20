@@ -362,6 +362,24 @@ def run_new_reduction(setup, config, red_log):
 
     return status
 
+def run_ap_phot_reduction(setup, config, red_log):
+    """
+    Backbone pipeline function controlling the workflow to perform aperture photometry
+
+    Note: Preliminary version expects to operate on an existing pyDANDIA DIA reduction
+    directory
+
+    Args:
+        setup: pipeline Setup object
+        config: configuration JSON dictionary for the current code
+        red_log: open logfile instance
+
+    Returns:
+        status: string Status report on completion of pipeline
+    """
+
+
+
 def check_for_assigned_ref_image(setup, log):
     """Function to check whether a reduction has been assigned a reference
     image, or needs stage 2 to be run."""
