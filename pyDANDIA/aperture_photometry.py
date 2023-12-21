@@ -51,20 +51,27 @@ def run_aperture_photometry(setup, **kwargs):
         data_image = image_handling.get_science_image(image_path, image_structure=image_structure)
 
         # Perform object detection on the image
-        (status, report, params) = starfind.starfind(setup, image_path, reduction_metadata,
-                                                     plot_it=False, log=log, thumbsize=500)
         detected_objects = starfind.detect_sources(setup, reduction_metadata,
                                                    image_path,
                                                    data_image,
                                                    log,
                                                    diagnostics=False)
-        print(detected_objects)
-        exit()
 
         # Calculate the x, y offsets between the reference star_catalog and the objects in this frame
-        align = stage4.find_init_transform(ref_image, data_image,
-                                           reduction_metadata.star_catalog[1],
-                                           datacat[:250])
+        refcat = np.c_[
+            reduction_metadata.star_catalog[1]['x'].data,
+            reduction_metadata.star_catalog[1]['y'].data,
+            reduction_metadata.star_catalog[1]['ref_flux'].data
+        ]
+        datacat = np.c_[
+            detected_objects['x'].data,
+            detected_objects['y'].data,
+            detected_objects['ref_flux'].data
+        ]
+
+        align = stage4.find_init_transform(ref_image, data_image, refcat, datacat)
+        print(align)
+        exit()
 
         # Transform the positions of objects in the reference star_catalog to their corresponding positions in
         # the current image
