@@ -53,9 +53,12 @@ def run_aperture_photometry(setup, **kwargs):
         # Perform object detection on the image
         (status, report, params) = starfind.starfind(setup, image_path, reduction_metadata,
                                                      plot_it=False, log=log, thumbsize=500)
-        print(status)
-        print(report)
-        print(params)
+        detected_objects = starfind.detect_sources(setup, reduction_metadata,
+                                                   image_path,
+                                                   data_image,
+                                                   log,
+                                                   diagnostics=False)
+        print(detected_objects)
         exit()
 
         # Calculate the x, y offsets between the reference star_catalog and the objects in this frame
