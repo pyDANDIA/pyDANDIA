@@ -1,10 +1,11 @@
 import os
 from astropy.io import fits
-from pyDANDIA import  logs
-from pyDANDIA import  metadata
-from pyDANDIA import  pipeline_setup
-from pyDANDIA import  starfind
+from pyDANDIA import logs
+from pyDANDIA import metadata
+from pyDANDIA import pipeline_setup
+from pyDANDIA import starfind
 from pyDANDIA import image_handling
+from pyDANDIA import stage4
 import photutils
 from astropy.stats import SigmaClip
 import numpy as np
