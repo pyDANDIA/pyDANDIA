@@ -45,7 +45,10 @@ def run_aperture_photometry(setup, **kwargs):
     ref_image = image_handling.get_science_image(ref_image_path, image_structure=ref_structure)
 
     # Loop over all selected images
+    logs.ifverbose(log, setup, 'Performing aperture photometry for each image:')
     for image in new_images:
+        logs.ifverbose(log, setup,
+                       ' -> ' + os.path.basename(image))
         # Retrieve image pixel data
         image_path = os.path.join(setup.red_dir, 'data', image)
         image_structure = image_handling.determine_image_struture(image_path, log=log)
