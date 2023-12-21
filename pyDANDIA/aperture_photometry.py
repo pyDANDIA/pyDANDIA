@@ -72,27 +72,28 @@ def run_aperture_photometry(setup, **kwargs):
 
         align = stage4.find_init_transform(ref_image, data_image, refcat, datacat)
         print(align)
-        exit()
 
         # Transform the positions of objects in the reference star_catalog to their corresponding positions in
         # the current image
-        xx, yy, zz = np.dot(np.linalg.pinv(align[0]),
-                            np.r_[[ref_cat['xcentroid'], ref_cat['ycentroid'], [1] * len(ref_cat['flux'])]])
+        skip = True
+        if not skip:
+            xx, yy, zz = np.dot(np.linalg.pinv(align[0]),
+                                np.r_[[ref_cat['xcentroid'], ref_cat['ycentroid'], [1] * len(ref_cat['flux'])]])
 
 
-        # Perform aperture photometry at the transformed positions - for two apertures?
-        phot_table = ap_phot_image(data[1].data, np.c_[xx, yy], radius=data_fwhm)
-        phot_table2 = ap_phot_image(data[1].data, np.c_[xx, yy], radius=3)
+            # Perform aperture photometry at the transformed positions - for two apertures?
+            phot_table = ap_phot_image(data[1].data, np.c_[xx, yy], radius=data_fwhm)
+            phot_table2 = ap_phot_image(data[1].data, np.c_[xx, yy], radius=3)
 
-        fluxes.append(phot_table['aperture_sum'].value)
-        efluxes.append(phot_table['aperture_sum_err'].value)
+            fluxes.append(phot_table['aperture_sum'].value)
+            efluxes.append(phot_table['aperture_sum_err'].value)
 
-        fluxes2.append(phot_table2['aperture_sum'].value)
-        efluxes2.append(phot_table2['aperture_sum_err'].value)
+            fluxes2.append(phot_table2['aperture_sum'].value)
+            efluxes2.append(phot_table2['aperture_sum_err'].value)
 
-        times.append(data[1].header['MJD-OBS'])
-        exptime.append(data[1].header['EXPTIME'])
-        fwhms.append(data_fwhm)
+            times.append(data[1].header['MJD-OBS'])
+            exptime.append(data[1].header['EXPTIME'])
+            fwhms.append(data_fwhm)
 
     # Scale the photometry by the image exposure time
     #pscale = phot_scales(fluxes, exptime, refind=0, sub_catalog=np.arange(100, 200))
