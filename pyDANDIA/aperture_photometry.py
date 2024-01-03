@@ -44,6 +44,15 @@ def run_aperture_photometry(setup, **kwargs):
     ref_structure = image_handling.determine_image_struture(ref_image_path, log=log)
     ref_image = image_handling.get_science_image(ref_image_path, image_structure=ref_structure)
 
+    # Extract the reference image detected sources catalog, and sort it to produce a list of
+    # objects in order of flux:
+    refcat = np.c_[
+        reduction_metadata.star_catalog[1]['x'].data,
+        reduction_metadata.star_catalog[1]['y'].data,
+        reduction_metadata.star_catalog[1]['ref_flux'].data
+    ]
+    refcat = refcat[refcat['ref_flux'].argsort()[::-1]]
+
     # Loop over all selected images
     logs.ifverbose(log, setup, 'Performing aperture photometry for each image:')
     for image in new_images:
@@ -61,20 +70,18 @@ def run_aperture_photometry(setup, **kwargs):
                                                    log,
                                                    diagnostics=False)
 
-        # Calculate the x, y offsets between the reference star_catalog and the objects in this frame
-        refcat = np.c_[
-            reduction_metadata.star_catalog[1]['x'].data,
-            reduction_metadata.star_catalog[1]['y'].data,
-            reduction_metadata.star_catalog[1]['ref_flux'].data
-        ]
+        # Sort the detected source catalogs from the working image
         datacat = np.c_[
             detected_objects['x'].data,
             detected_objects['y'].data,
             detected_objects['ref_flux'].data
         ]
+        datacat = datacat[datacat['ref_flux'].argsort()[::-1]]
 
-        align = stage4.find_init_transform(ref_image, data_image, refcat, datacat)
-        print(align)
+        # Calculate the x, y offsets between the reference star_catalog and the objects in this frame
+        align = stage4.find_init_transform(ref_image, data_image, refcat[:250], datacat[:250])
+        logs.ifverbose(log, setup,
+                       ' -> alignment: ' + repr(align))
 
         # Transform the positions of objects in the reference star_catalog to their corresponding positions in
         # the current image
