@@ -19,3 +19,4 @@ seaborn
 pillow>=9.0.1
 boto3
 h5py
+jplephem==2.21
