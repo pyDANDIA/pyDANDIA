@@ -53,7 +53,6 @@ pyDANDIA==0.1
 pyerfa==2.0.0
 Pygments==2.4.2
 pyparsing==2.3.1
-pySLALIB==1.0.4
 pystackreg==0.2.1
 pytest==4.2.1
 python-dateutil==2.8.0

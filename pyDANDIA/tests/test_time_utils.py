@@ -14,20 +14,33 @@ import pyslalib.slalib as S
 import math
 
 def test_calc_hjd():
-    """Test of time code against the British Astronomical Society's online 
+    """Test of time code against Texas A&M's online
     HJD calculator at:
-    http://britastro.org/computing/applets_dt.html
+    https://doncarona.tamu.edu/apps/jd/
+    and the British Astronomical Society calculator at
+    https://britastro.org/computing/applets_dt.html
+
+    HEASARC has a time conversion tool but it doesn't handle HJDs
+    https://heasarc.gsfc.nasa.gov/cgi-bin/Tools/xTime/xTime.pl
+
+    Jason Eastman's online calculators will convert from UTC->BJD
+    and HJD->BJD, but not UTC->HJD
+    https://astroutils.astronomy.osu.edu/time/
     """
     
-    dateobs = '2019-02-02T12:34:00.0'
-    ra = '17:59:27.05'
-    dec = '-28:36:37.0'
-    exptime = 60.0
-    
-    hjd = time_utils.calc_hjd(dateobs, ra, dec, exptime, debug=True)
-    
-    assert hjd == 2458517.020578858
+    dateobs = '2024-03-06T17:48:06.492'
+    RA = '05:55:10.305'
+    Dec = '+07:24:25.430'
+    exp_time = 0.0
+    tel_code = 'ogg-clma-2m0a'
+    output1 = 2460376.2429285203        # Texas A&M
+    output2 = 2460376.24292             # British Astro Society
 
+    hjd = time_utils.calc_hjd(dateobs, RA, Dec, tel_code, exp_time)
+
+    print('Calculated HJD=' + str(hjd) + ' reference value=' + str(output1))
+
+    assert hjd == output1
     
 if __name__ == '__main__':
     
