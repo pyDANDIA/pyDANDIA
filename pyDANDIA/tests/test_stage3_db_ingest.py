@@ -623,6 +623,18 @@ def test_generate_primary_ref_match_table():
     
     logs.close_log(log)
 
+def test_harvest_image_params():
+
+    kwargs = {'build_phot_db': False}
+
+    image_params = harvest_image_params(
+        reduction_metadata,
+        image_path,
+        ref_image_path,
+        **kwargs
+    )
+
+
 if __name__ == '__main__':
 
     #test_configure_setup()

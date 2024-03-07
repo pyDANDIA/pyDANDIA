@@ -3,7 +3,6 @@
 Created on Fri Feb 15 11:58:24 2019
 
 @author: rstreet
-Code adapted from T. Lister's code from NEOExchange
 """
 
 import argparse
@@ -27,7 +26,8 @@ def calc_hjd(dateobs, RA, Dec, tel_code, exp_time):
     Returns:
         hjd      float Calculated HJD
 
-    This
+    This function is based on a recipe from Astropy's documentation:
+    https://docs.astropy.org/en/stable/time/
     """
 
     # Get the geographic location of the telescope

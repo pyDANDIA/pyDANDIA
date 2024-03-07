@@ -11,7 +11,7 @@ from datetime import datetime,timedelta
 import pyslalib.slalib as S
 import math
 from astropy.time import Time, TimeDelta
-import argparse
+
 
 def calc_hjd(dateobs,RA,Dec,exptime,debug=False):
     """Function to calculate the Heliocentric Julian Date from the parameters
@@ -271,3 +271,14 @@ def round_datetime(date_to_round, round_mins=10, round_up=False):
 
 
 if __name__ == '__main__':
+
+    if len(argv) == 1:
+        print('Call sequence: python calctime.py DateObsStr RA Dec exptime[s]')
+        exit()
+    else:
+        dateobs = argv[1]
+        RA = argv[2]
+        Dec = argv[3]
+        exptime = float(argv[4])
+
+    hjd = calc_hjd(dateobs,RA,Dec,exptime,debug=True)

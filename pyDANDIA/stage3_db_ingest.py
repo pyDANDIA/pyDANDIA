@@ -398,9 +398,12 @@ def harvest_image_params(reduction_metadata, image_path, ref_image_path, **kwarg
     image_params['delta_x'] = None
     image_params['delta_y'] = None
 
-    image_params['hjd'] = time_utils.calc_hjd(image_params['date_obs_utc'],
-                                  image_params['RA'],image_params['Dec'],
-                                  image_params['exposure_time'])
+    image_params['hjd'] = time_utils.calc_hjd(
+        image_params['date_obs_utc'],
+        image_params['RA'],image_params['Dec'],
+        '-'.join(image_params['facility_code'].split('-')[0:3]),
+        image_params['exposure_time']
+    )
 
     return image_params
 
