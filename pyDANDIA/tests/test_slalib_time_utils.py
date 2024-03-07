@@ -11,196 +11,115 @@ from datetime import datetime,timedelta
 import pyslalib.slalib as S
 import math
 from astropy.time import Time, TimeDelta
-import argparse
+import slalib_time_utils
+import numpy as np
 
-def calc_hjd(dateobs,RA,Dec,exptime,debug=False):
-    """Function to calculate the Heliocentric Julian Date from the parameters
-    in a typical image header:
+def get_test_cases():
+    return [
+        {
+        'dateobs': '2024-03-06T17:48:06.492',
+        'RA': '05:55:10.305',
+        'Dec': '+07:24:25.430',
+        'exp_time': 0.0,
+        'tel_code': 'ogg-clma-2m0a',
+        'RA_deg': 88.7929375,
+        'Dec_deg': 7.40706389,
+        'MJD_UTC': 60375.741741805556,
+        'MJD_TT': 60375.74254254629,
+        'obs_site': {
+            'name': 'ogg',
+            'lat': 20.7070833333 * np.pi/180.0,
+            'lon': 156.2576111111 * np.pi/180.0,
+            'height': 3055.0
+        },
+        'BJD_TDB': 2460376.243709158 - 2400000.5,
+    }
+    ]
 
-    :params string dateobs: DATE-OBS, Exposure start time in UTC,
-                            %Y-%m-%dT%H:%M:%S format
-    :params float exptime:  Exposure time in seconds
-    :params string RA:      RA in sexigesimal hours format, J2000.0
-    :params string Dec:     Dec in sexigesimal degrees format, J2000.0
+def test_slalib_leap_seconds():
+    """SLAlib is precompiled code with a built-in table of the known leap seconds
+    declared to the date of compilation.  This test is designed as a reminder to the
+    user to install updates and recompile when new leap second are announced by
+    comparing the standard correction for leap seconds with that of the installed
+    Astropy version"""
 
-    Returns:
+    # Expected offset for leap seconds as of 2024 March 6:
+    tai_utc_offset = 69.184
 
-    :params float HJD:      HJD
-    """
+    # Test time in UTC:
+    test_cases = get_test_cases()
+    usecase = test_cases[0]
 
-    # Convert RA, Dec to radians:
-    dRA = sexig2dec(RA)
-    dRA = dRA * 15.0 * math.pi / 180.0
-    dDec = sexig2dec(Dec)
-    dDec = dDec * math.pi / 180.0
-    if debug:
-        print('RA '+RA+' -> decimal radians '+str(dRA))
-        print('Dec '+Dec+' -> decimal radians '+str(dDec))
+    # Calculate the TAI-UTC offset using Astropy
+    t = Time(usecase['dateobs'], format='isot', scale='utc')
+    dt = (t.tai.mjd - t.mjd) * 24.0 * 60.0 * 60.0    # Difference in seconds
 
-    # Convert the timestamp into a DateTime object:
-    if 'T' in dateobs:
-        try:
-            dt = datetime.strptime(dateobs,"%Y-%m-%dT%H:%M:%S.%f")
-        except ValueError:
-            dt = datetime.strptime(dateobs,"%Y-%m-%dT%H:%M:%S")
-    else:
-        try:
-            dt = datetime.strptime(dateobs,"%Y-%m-%d %H:%M:%S.%f")
-        except ValueError:
-            dt = datetime.strptime(dateobs,"%Y-%m-%d %H:%M:%S")
+    # Calculate using SLAlib
+    offset = S.sla_dat(t.mjd)
 
-    # Convert the exposure time into a TimeDelta object and add half of it
-    # to the time to get the exposure mid-point:
-    expt = timedelta(seconds=exptime)
+    # If these are not the same, SLAlib needs updating
+    np.testing.assert_almost_equal(offset, dt, decimal=3)
 
-    dt = dt + expt/2.0
-
-    if debug:
-        print('DATE-OBS = '+str(dateobs))
-        print('Exposure time = '+str(expt))
-        print('Mid-point of exposure = '+dt.strftime("%Y-%m-%dT%H:%M:%S.%f"))
-
-        at = Time(dateobs,format='isot', scale='utc')
-        aexpt = TimeDelta(exptime,format='sec')
-
-        adt = at + aexpt/2.0
-        print('Astropy: mid-point of exposure = '+adt.value)
-
-    # Calculate the MJD (UTC) timestamp:
-    mjd_utc = datetime2mjd_utc(dt)
-    if debug:
-        print('MJD_UTC = '+str(mjd_utc))
-        print('Astropy MJD_UTC = '+str(adt.mjd))
-
-    # Correct the MJD to TT:
-    mjd_tt = mjd_utc2mjd_tt(mjd_utc)
-    if debug:
-        print('MJD_TT = '+str(mjd_tt))
-
-        att = adt.tt
-        print('Astropy MJD_TT = '+str(att.mjd))
-
-    # Calculating MJD of 1st January that year: sla_clyd XXXX convert to TT?
-    (mjd_jan1,iexec) = S.sla_cldj(dt.year,1,1)
-    if debug:
-        print('MJD of Jan 1, '+str(dt.year)+' = '+str(mjd_jan1))
-
-        at_jan1 = Time(str(dt.year)+'-01-01T00:00:00.0',format='isot', scale='utc')
-        print('Astropy MJD of Jan 1, '+str(dt.year)+' = '+str(at_jan1.mjd))
-
-    # Calculating the MJD difference between the DateObs and Jan 1 of the same year:
-    tdiff = mjd_tt - mjd_jan1
-    if debug:
-        print('Time difference from Jan 1 - dateobs, '+\
-                str(dt.year)+' = '+str(tdiff))
-
-        atdiff = att.mjd - at_jan1.mjd
-        print('Astropy time difference = '+str(atdiff))
-
-    # Calculating the RV and time corrections to the Sun: XX Year could change
-    print(dRA,dDec,dt.year,int(tdiff),(tdiff-int(tdiff)))
-    (rv,tcorr) = S.sla_ecor(dRA,dDec,dt.year,int(tdiff),(tdiff-int(tdiff)))
-    if debug:
-        print('Time correction to the Sun = '+str(tcorr))
-
-    # Calculating the HJD:
-    hjd = mjd_tt + tcorr/86400.0 + 2400000.5
-    if debug:
-        print('HJD = '+str(hjd))
-
-    iy, im, id, fd, stat = S.sla_djcl(mjd_tt)
-    print(iy, im, id, fd, stat)
-
-    return hjd
-
-def sexig2dec(coord):
+def test_sexig2dec():
     """Function to convert a sexigesimal coordinate string into a decimal float,
     returning a value in the same units as the string passed to it."""
 
-    # Ensure that the string is separated by ':':
-    coord = coord.lstrip().rstrip().replace(' ',':')
+    test_cases = get_test_cases()
 
-    # Strip the sign, if any, from the first character, making a note if its negative:
-    if coord[0:1] == '-':
-      	sign = -1.0
-      	coord = coord[1:]
-    else:
-      	sign = 1.0
+    for usecase in test_cases:
 
-    # Split the CoordStr on the ':':
-    coord_list = coord.split(':')
+        # Function returns a decimal float in units of hour angle and degrees
+        # respectively for RA and Dec, so standardize these to degrees for testing
+        dRA = slalib_time_utils.sexig2dec(usecase['RA']) * 15.0
+        dDec = slalib_time_utils.sexig2dec(usecase['Dec'])
 
-    # Assuming this presents us with a 3-item list, the last two items of which will
-    # be handled as minutes and seconds:
-    try:
-        decimal = float(coord_list[0]) + (float(coord_list[1])/60.0) + \
-                            (float(coord_list[2])/3600.0)
-        decimal = sign*decimal
+        assert(abs(dRA - usecase['RA_deg']) < 1.0/3600.0)
+        assert(abs(dDec - usecase['Dec_deg']) < 1.0/3600.0)
 
-    except:
-        decimal = 0
+def test_datetime2mjd_utc():
+    """Function to test the conversion between a datetime object and MJD (UTC)"""
 
-    # Return with the decimal float:
-    return decimal
+    test_cases = get_test_cases()
 
-def datetime2mjd_utc(d):
+    for usecase in test_cases:
+        d = datetime.strptime(usecase['dateobs'],"%Y-%m-%dT%H:%M:%S.%f")
+        mjd_utc = slalib_time_utils.datetime2mjd_utc(d)
 
-# Compute MJD for UTC
-    (mjd, status) = S.sla_cldj(d.year, d.month, d.day)
-    if status != 0:
-        return None
-    (fday, status ) = S.sla_dtf2d(d.hour, d.minute, d.second+(d.microsecond/1e6))
-    if status != 0:
-        return None
-    mjd_utc = mjd + fday
+        assert(abs(mjd_utc - usecase['MJD_UTC']) < 1e-7)
 
-    return mjd_utc
-
-def mjd_utc2mjd_tt(mjd_utc, dbg=False):
+def test_mjd_utc2mjd_tt():
     '''Converts a MJD in UTC (MJD_UTC) to a MJD in TT (Terrestial Time) which is
     needed for any position/ephemeris-based calculations.
     UTC->TT consists of: UTC->TAI = 10s offset + 24 leapseconds (last one 2009 Jan 1.)
     	    	    	 TAI->TT  = 32.184s fixed offset'''
-# UTC->TT offset
-    tt_utc = S.sla_dtt(mjd_utc)
-    if dbg:
-        print('TT-UTC(s)='+str(tt_utc))
 
-# Correct MJD to MJD(TT)
-    mjd_tt = mjd_utc + (tt_utc/86400.0)
-    if dbg:
-        print('MJD(TT)  =  '+str(mjd_tt))
+    test_cases = get_test_cases()
 
-    return mjd_tt
+    for usecase in test_cases:
+        mjd_tt = slalib_time_utils.mjd_utc2mjd_tt(usecase['MJD_UTC'])
 
-def datetime2mjd_tdb(date, obsvr_long, obsvr_lat, obsvr_hgt, dbg=False):
+        np.testing.assert_almost_equal(mjd_tt, usecase['MJD_TT'], 1e-7)
 
-    auinkm = 149597870.691
-# Compute MJD_UTC from passed datetime
-    mjd_utc = datetime2mjd_utc(date)
-    if mjd_utc == None: return None
+def test_datetime2mjd_tdb():
+    """Function to test the convertion of a datetime object in UTC to Barycentric Dynamical Time,
+    TDB.  In this case, the Ohio State online calculator was used to test the example case:
+    https://astroutils.astronomy.osu.edu/time/utc2bjd.php
+    """
 
-# Compute MJD_TT
-    mjd_tt = mjd_utc2mjd_tt(mjd_utc, dbg)
+    test_cases = get_test_cases()
 
-# Compute TT->TDB
+    for usecase in test_cases:
+        d = datetime.strptime(usecase['dateobs'],"%Y-%m-%dT%H:%M:%S.%f")
+        mjd_tdb = slalib_time_utils.datetime2mjd_tdb(
+            d,
+            usecase['obs_site']['lon'],
+            usecase['obs_site']['lat'],
+            usecase['obs_site']['height']
+        )
 
-# Convert geodetic position to geocentric distance from spin axis (r) and from
-# equatorial plane (z)
-    (r, z) = S.sla_geoc(obsvr_lat, obsvr_hgt)
-
-    ut1 = compute_ut1(mjd_utc, dbg)
-    if dbg:
-        print("UT1="+str(ut1))
-
-# Compute relativistic clock correction TDB->TT
-    tdb_tt = S.sla_rcc(mjd_tt, ut1, -obsvr_long, r*auinkm, z*auinkm)
-    if dbg: print("(TDB-TT)="+str(tdb_tt))
-    if dbg: print("(CT-UT)="+str(S.sla_dtt(mjd_utc)+tdb_tt))
-
-    mjd_tdb = mjd_tt + (tdb_tt/86400.0)
-
-    return mjd_tdb
+        #print((usecase['BJD_TDB']-mjd_tdb)*24.0*60.0*60.0)
+        # Function not currently in use, skip test as not comparing like with like
+        #np.testing.assert_almost_equal(usecase['BJD_TDB'], mjd_tdb, 7)
 
 def ut1_minus_utc(mjd_utc, dbg=False):
     '''Compute UT1-UTC (in seconds), needed for tasks that require the Earth's orientation.
@@ -271,3 +190,7 @@ def round_datetime(date_to_round, round_mins=10, round_up=False):
 
 
 if __name__ == '__main__':
+    test_slalib_leap_seconds()
+    test_sexig2dec()
+    test_datetime2mjd_utc()
+    test_mjd_utc2mjd_tt()
