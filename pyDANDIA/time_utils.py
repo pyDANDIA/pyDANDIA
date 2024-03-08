@@ -9,9 +9,9 @@ import argparse
 from astropy.time import Time, TimeDelta
 from astropy.coordinates import EarthLocation, SkyCoord
 from astropy import units as u
+from astropy import constants
 
-
-def calc_hjd(dateobs, RA, Dec, tel_code, exp_time):
+def calc_hjd(dateobs, RA, Dec, tel_code, exp_time, debug=False):
     """Function to calculate the Heliocentric Julian Date of the center of a image,
     for the mid-point of an exposure
 
@@ -35,20 +35,38 @@ def calc_hjd(dateobs, RA, Dec, tel_code, exp_time):
 
     # Convert the timestamp string to a time object with this location, then
     # add half the exposure time to arrive at the mid-point of the exposure
-    t = Time("2024-03-05T14:00", format='isot', scale='utc', location=observatory_site)
+    t = Time(dateobs, format='isot', scale='utc', location=observatory_site)
     dt = TimeDelta(exp_time/2.0, format='sec')
     t = t + dt
+    if debug:
+        print('Calculating HJD for ' + tel_code)
+        print('DATE-OBS = ' + str(dateobs))
+        print('Exposure time = ' + str(exp_time))
+        print('Mid-point of exposure (UTC) = ' + str(t.mjd))
+        print('Mid-point of exposure (TT) = ' + str(t.tt.mjd))
 
     # Produce a SkyCoord object for the target coordinates, frame ICRS
-    star = SkyCoord('17:30:00', '-27:00:00', unit=(u.hourangle, u.degree), frame='icrs')
+    star = SkyCoord(RA, Dec, unit=(u.hourangle, u.degree), frame='icrs')
+    if debug: print('Star position: ' + repr(star))
 
     # Calculate the light travel time from the observatory to the Sun heliocenter
     ltt_helio = t.light_travel_time(star, 'heliocentric', ephemeris='jpl')
+    if debug:
+        print('Light travel time correction: ' + str(ltt_helio.to(u.s)))
 
     # Apply the correction to arrive at the HJD
     hjd = t.utc + ltt_helio
+    if debug:
+        print('HJD (astropy) = ' + str(hjd.jd))
 
-    return hjd.jd
+    # Calculate radial velocity, helicentric correction
+    heliocorr = star.radial_velocity_correction(
+        'heliocentric',
+        obstime=t,
+    )
+    if debug: print('Heliocentric RV correction: ' + str(heliocorr.to(u.km / u.s)))
+
+    return hjd.jd, ltt_helio
 
 def fetch_observatory_location(tel_code):
     lco_facilities = {
@@ -77,6 +95,10 @@ def fetch_observatory_location(tel_code):
         'tfn-aqwa-0m4a': EarthLocation(lat='28d18m1.11sN', lon='16d30m42.13sE', height=2390.0 * u.m),
         'tfn-aqwa-0m4a': EarthLocation(lat='28d18m1.11sN', lon='16d30m42.21sE', height=2390.0 * u.m),
     }
+
+    # Center of the Earth
+    if tel_code == 'geocenter':
+        return EarthLocation.from_geocentric(0.0, 0.0, 0.0, unit=u.m)
 
     # Check to see if it is an LCO facility code first, because we have more precise
     # coordinates for each telescope than a generic site location

@@ -11,11 +11,11 @@ from datetime import datetime,timedelta
 import pyslalib.slalib as S
 import math
 from astropy.time import Time, TimeDelta
+import numpy as np
 
-
-def calc_hjd(dateobs,RA,Dec,exptime,debug=False):
+def calc_hjd_slalib(dateobs,RA,Dec,exptime,debug=False):
     """Function to calculate the Heliocentric Julian Date from the parameters
-    in a typical image header:
+    in a typical image header, using SLAlib routines to verify Astropy output
 
     :params string dateobs: DATE-OBS, Exposure start time in UTC,
                             %Y-%m-%dT%H:%M:%S format
@@ -28,7 +28,7 @@ def calc_hjd(dateobs,RA,Dec,exptime,debug=False):
     :params float HJD:      HJD
     """
 
-    # Convert RA, Dec to radians:
+    # Convert input mean RA, Dec to radians:
     dRA = sexig2dec(RA)
     dRA = dRA * 15.0 * math.pi / 180.0
     dDec = sexig2dec(Dec)
@@ -52,7 +52,6 @@ def calc_hjd(dateobs,RA,Dec,exptime,debug=False):
     # Convert the exposure time into a TimeDelta object and add half of it
     # to the time to get the exposure mid-point:
     expt = timedelta(seconds=exptime)
-
     dt = dt + expt/2.0
 
     if debug:
@@ -60,26 +59,15 @@ def calc_hjd(dateobs,RA,Dec,exptime,debug=False):
         print('Exposure time = '+str(expt))
         print('Mid-point of exposure = '+dt.strftime("%Y-%m-%dT%H:%M:%S.%f"))
 
-        at = Time(dateobs,format='isot', scale='utc')
-        aexpt = TimeDelta(exptime,format='sec')
-
-        adt = at + aexpt/2.0
-        print('Astropy: mid-point of exposure = '+adt.value)
-
     # Calculate the MJD (UTC) timestamp:
     mjd_utc = datetime2mjd_utc(dt)
     if debug:
         print('MJD_UTC = '+str(mjd_utc))
-        print('Astropy MJD_UTC = '+str(adt.mjd))
 
     # Correct the MJD to TT:
     mjd_tt = mjd_utc2mjd_tt(mjd_utc)
     if debug:
         print('MJD_TT = '+str(mjd_tt))
-
-        att = adt.tt
-        print('Astropy MJD_TT = '+str(att.mjd))
-
 
     # Convert the mean RA, Dec (presumed to be J2000.0) to the geocentric
     # apparent RA, Dec, accounting for precession, nutation and abberation.
@@ -99,24 +87,7 @@ def calc_hjd(dateobs,RA,Dec,exptime,debug=False):
     if debug:
         print('Converted to geocentric apparent coordinates: ', aRA, aDec)
 
-    # Calculating MJD of 1st January that year: sla_clyd XXXX convert to TT?
-    (mjd_jan1,iexec) = S.sla_cldj(dt.year,1,1)
-    if debug:
-        print('MJD of Jan 1, '+str(dt.year)+' = '+str(mjd_jan1))
-
-        at_jan1 = Time(str(dt.year)+'-01-01T00:00:00.0',format='isot', scale='utc')
-        print('Astropy MJD of Jan 1, '+str(dt.year)+' = '+str(at_jan1.mjd))
-
-    # Calculating the MJD difference between the DateObs and Jan 1 of the same year:
-    tdiff = mjd_tt - mjd_jan1
-    if debug:
-        print('Time difference from Jan 1 - dateobs, '+\
-                str(dt.year)+' = '+str(tdiff))
-
-        atdiff = att.mjd - at_jan1.mjd
-        print('Astropy time difference = '+str(atdiff))
-
-    # Calculating the RV and time corrections to the Sun: XX Year could change
+    # Calculating the RV and time corrections to the Sun:
     # This function requires the following input (from SLAlib documentation):
     # RM,DM = mean [α,δ] of date (radians)
     # IY = year
@@ -126,22 +97,45 @@ def calc_hjd(dateobs,RA,Dec,exptime,debug=False):
     # been aligned to the ordinary Gregorian calendar for the interval 1900 March 1 to
     # 2100 February 28. The year and day can be obtained by calling sla_CALYD or sla_CLYD.
     (iy, im, id, fd, stat) = S.sla_djcl(mjd_tt)
+    print('MJD -> Greg cal: ' + str(iy) + ' ' + str(im)
+          + ' ' + str(id) + ' ' + str(fd) + ' ' + str(stat))
     (ny, nd, stat) = S.sla_clyd(iy, im, id)
-    print(ny, nd)
     (rv,tcorr) = S.sla_ecor(
         aRA,
         aDec,
         ny, nd, fd
     )
     if debug:
-        print('Time correction to the Sun = '+str(tcorr))
+        print('Time correction to the Sun = ' + str(tcorr) + 's')
+        print('RV correction to the Sun = ' + str(rv) + 'km/s')
 
     # Calculating the HJD:
-    hjd = mjd_tt + tcorr/86400.0 + 2400000.5
+    # Note the light travel time from the heliocenter to the observatory
+    # is traditionally added to the UTC timestamps rather than the
+    # TT, according to the Astropy documentation:
+    # https://docs.astropy.org/en/stable/time/index.html
+    hjd = mjd_utc + tcorr/86400.0 + 2400000.5
     if debug:
         print('HJD = '+str(hjd))
 
-    return hjd
+    # Try EPV for comparison
+    (helio_position, helio_velocity, bary_position, bary_velocity) = S.sla_epv(mjd_tt)
+    print('From EPV Helio positions: ', helio_position, 'AU')
+    print('From EPV Helio velocities: ', helio_velocity, 'AU/d')
+
+    # Star vector at time of observation:
+    star_vector = S.sla_cs2c(aRA,aDec)
+
+    #c = 299792458.0 / 1e3 # km/s
+    #AU = 149597870700.0 / 1e3 # km
+    AUSEC = 499.0047837 #
+    r_earth = helio_position[0] # Based on code of ECOR
+
+    tcorr_epv = AUSEC * S.sla_vdv(helio_position[0:3], star_vector)
+
+    print('From EPV tcorr = ' + str(tcorr_epv) + 's')
+
+    return hjd, tcorr
 
 def sexig2dec(coord):
     """Function to convert a sexigesimal coordinate string into a decimal float,
