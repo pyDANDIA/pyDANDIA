@@ -333,11 +333,17 @@ def harvest_image_params(reduction_metadata, image_path, ref_image_path, **kwarg
     idx = np.where(reduction_metadata.images_stats[1]['IM_NAME'] == image_params['filename'])
     image_stats = reduction_metadata.images_stats[1][idx]
 
-    image_params['diameter_m'] = float(image_header['TELID'].replace('a','').replace('m','.'))
-    image_params['altitude_m'] = image_header['HEIGHT']
+    try:
+        image_params['diameter_m'] = float(image_header['TELID'].replace('a','').replace('m','.'))
+    except ValueError:
+        image_params['diameter_m'] = 0.0
+    image_params['altitude_m'] = set_if_present(image_header,'HEIGHT')
     image_params['gain_eadu'] = image_header['GAIN']
     image_params['readnoise_e'] = image_header['RDNOISE'] * image_params['gain_eadu']
-    image_params['saturation_e'] = image_header['SATURATE'] * image_params['gain_eadu']
+    try:
+        image_params['saturation_e'] = image_header['SATURATE'] * image_params['gain_eadu']
+    except KeyError:
+        image_params['saturation_e'] = 0.0
 
     image_params['field_id'] = hdr_meta['OBJKEY'][0]
     image_params['date_obs_utc'] = hdr_meta['DATEKEY'][0]
@@ -346,7 +352,7 @@ def harvest_image_params(reduction_metadata, image_path, ref_image_path, **kwarg
     image_params['exposure_time'] = float(hdr_meta['EXPKEY'][0])
     image_params['RA'] = image_header['RA']
     image_params['Dec'] = image_header['DEC']
-    image_params['filter_name'] = image_header['FILTER']
+    image_params['filter_name'] = hdr_meta['FILTKEY'][0]
     image_params['fwhm'] = image_stats['FWHM'][0]
     image_params['fwhm_err'] = None
     image_params['ellipticity'] = None
@@ -392,9 +398,12 @@ def harvest_image_params(reduction_metadata, image_path, ref_image_path, **kwarg
     image_params['delta_x'] = None
     image_params['delta_y'] = None
 
-    image_params['hjd'] = time_utils.calc_hjd(image_params['date_obs_utc'],
-                                  image_params['RA'],image_params['Dec'],
-                                  image_params['exposure_time'])
+    image_params['hjd'] = time_utils.calc_hjd(
+        image_params['date_obs_utc'],
+        image_params['RA'],image_params['Dec'],
+        '-'.join(image_params['facility_code'].split('-')[0:3]),
+        image_params['exposure_time']
+    )
 
     return image_params
 
