@@ -11,7 +11,6 @@ astroquery==0.4
 scikit-image==0.18
 ccdproc
 setuptools
-pyslalib
 uncertainties
 pystackreg
 astroalign
@@ -19,3 +18,4 @@ psutil
 seaborn
 pillow>=8.1.1
 boto3
+jplephem==2.21
