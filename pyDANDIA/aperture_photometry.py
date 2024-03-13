@@ -14,7 +14,7 @@ VERSION = 'pyDANDIA_ap_phot_v0.0.1'
 
 def run_aperture_photometry(setup, **kwargs):
     """
-    Driver function for aperture photometry
+    Driver function for aperture photometry, following on from stages 0-3.
 
     Args:
         setup: pipeline Setup object
@@ -51,17 +51,28 @@ def run_aperture_photometry(setup, **kwargs):
         reduction_metadata.star_catalog[1]['y'].data,
         reduction_metadata.star_catalog[1]['ref_flux'].data
     ]
-    refcat = refcat[refcat['ref_flux'].argsort()[::-1]]
+    idx = refcat[:,2].argsort()[::-1]
+    refcat = refcat[idx]
 
     # Loop over all selected images
     logs.ifverbose(log, setup, 'Performing aperture photometry for each image:')
+    times = []
+    fluxes = []
+    efluxes = []
+    fluxes2 = []
+    efluxes2 = []
+    exptime = []
+    fwhms = []
     for image in new_images:
         logs.ifverbose(log, setup,
                        ' -> ' + os.path.basename(image))
-        # Retrieve image pixel data
+        # Retrieve image pixel data and image parameters
         image_path = os.path.join(setup.red_dir, 'data', image)
         image_structure = image_handling.determine_image_struture(image_path, log=log)
         data_image = image_handling.get_science_image(image_path, image_structure=image_structure)
+
+        i = np.where(reduction_metadata.images_stats[1]['IM_NAME'] == os.path.basename(image))[0]
+        data_fwhm = reduction_metadata.images_stats[1]['FWHM'][i][0]
 
         # Perform object detection on the image
         detected_objects = starfind.detect_sources(setup, reduction_metadata,
@@ -76,33 +87,38 @@ def run_aperture_photometry(setup, **kwargs):
             detected_objects['y'].data,
             detected_objects['ref_flux'].data
         ]
-        datacat = datacat[datacat['ref_flux'].argsort()[::-1]]
+
+        idx = datacat[:, 2].argsort()[::-1]
+        datacat = datacat[idx]
 
         # Calculate the x, y offsets between the reference star_catalog and the objects in this frame
         align = stage4.find_init_transform(ref_image, data_image, refcat[:250], datacat[:250])
         logs.ifverbose(log, setup,
-                       ' -> alignment: ' + repr(align))
+                       ' -> alignment: ' + repr(align[0]))
 
         # Transform the positions of objects in the reference star_catalog to their corresponding positions in
         # the current image
-        skip = True
+        skip = False
         if not skip:
-            xx, yy, zz = np.dot(np.linalg.pinv(align[0]),
-                                np.r_[[ref_cat['xcentroid'], ref_cat['ycentroid'], [1] * len(ref_cat['flux'])]])
-
+            xx, yy, zz = np.dot(np.linalg.pinv(align[0].params),
+                                np.r_[[refcat[:,0], refcat[:,1], [1] * len(refcat[:,2])]])
 
             # Perform aperture photometry at the transformed positions - for two apertures?
-            phot_table = ap_phot_image(data[1].data, np.c_[xx, yy], radius=data_fwhm)
-            phot_table2 = ap_phot_image(data[1].data, np.c_[xx, yy], radius=3)
+            phot_table = ap_phot_image(data_image, np.c_[xx, yy], radius=data_fwhm)
+            phot_table2 = ap_phot_image(data_image, np.c_[xx, yy], radius=3)
+            print(phot_table)
 
             fluxes.append(phot_table['aperture_sum'].value)
             efluxes.append(phot_table['aperture_sum_err'].value)
+            print(fluxes)
 
             fluxes2.append(phot_table2['aperture_sum'].value)
             efluxes2.append(phot_table2['aperture_sum_err'].value)
 
-            times.append(data[1].header['MJD-OBS'])
-            exptime.append(data[1].header['EXPTIME'])
+            # NEED HJDS BY THIS POINT
+            i = np.where(reduction_metadata.headers_summary[1]['IMAGES'] == os.path.basename(image))[0]
+            times.append(reduction_metadata.headers_summary[1]['HJD'][i][0])
+            exptime.append(reduction_metadata.headers_summary[1]['EXPKEY'][i][0])
             fwhms.append(data_fwhm)
 
     # Scale the photometry by the image exposure time

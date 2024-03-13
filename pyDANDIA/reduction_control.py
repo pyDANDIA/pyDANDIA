@@ -32,6 +32,7 @@ from pyDANDIA import image_handling
 from pyDANDIA import lightcurves
 from pyDANDIA import aws_utils
 from pyDANDIA import upload_lc_to_tom
+from pyDANDIA import aperture_photometry
 
 def reduction_control():
     """Main driver function for the pyDANDIA pipelined reduction of an
@@ -81,6 +82,10 @@ def reduction_control():
     elif setup.red_mode == 'auto':
 
         run_automatic_reduction(setup,red_log,params)
+
+    elif setup.red_mode == 'aperture':
+
+        run_ap_phot_reduction(setup, red_log, params)
 
     else:
         red_log.info('ERROR: unrecognised reduction mode ('+setup.red_mode+') selected')
@@ -362,7 +367,7 @@ def run_new_reduction(setup, config, red_log):
 
     return status
 
-def run_ap_phot_reduction(setup, config, red_log):
+def run_ap_phot_reduction(setup, red_log, params):
     """
     Backbone pipeline function controlling the workflow to perform aperture photometry
 
@@ -371,14 +376,14 @@ def run_ap_phot_reduction(setup, config, red_log):
 
     Args:
         setup: pipeline Setup object
-        config: configuration JSON dictionary for the current code
         red_log: open logfile instance
+        params: configuration dictionary for the current code
 
     Returns:
         status: string Status report on completion of pipeline
     """
 
-
+    run_aperture_photometry(setup, **kwargs)
 
 def check_for_assigned_ref_image(setup, log):
     """Function to check whether a reduction has been assigned a reference
@@ -720,7 +725,8 @@ def get_args():
                        'image_analysis',
                        'stage3_db_ingest',
                        'stage6',
-                       'auto']
+                       'auto',
+                       'aperture']
 
     params = {}
 

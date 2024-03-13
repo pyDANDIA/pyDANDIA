@@ -27,6 +27,7 @@ from pyDANDIA import logs
 from pyDANDIA import quality_control
 from pyDANDIA import bad_pixel_mask
 from pyDANDIA import image_handling
+from pyDANDIA import  time_utils
 
 def run_stage0(setup):
     """Main driver function to run stage 0: data preparation.
@@ -549,6 +550,7 @@ def parse_the_image_header(reduction_metadata, open_image):
     except AttributeError:
         reduction_parameter_keys = reduction_parameters_table.keys()
 
+        image_params = {}
         for key in reduction_parameter_keys:
             image_header_key = reduction_parameters_table[key][0]
 
@@ -556,8 +558,19 @@ def parse_the_image_header(reduction_metadata, open_image):
                 info = [key, image_header[image_header_key],
                         reduction_parameters_table[key].dtype]
                 header_infos.append(info)
+                if key in ['DATEKEY', 'RAKEY', 'DECKEY', 'EXPKEY']:
+                    image_params[key] = image_header[image_header_key]
+
+        # Get keys for site ID
+        tel_code = image_header['SITEID'] + '-' + image_header['ENCID'] + '-' + image_header['']
 
         for key in ['HJD']:
+            image_params['hjd'] = time_utils.calc_hjd(
+                header_infos['date_obs_utc'],
+                image_params['RA'], image_params['Dec'],
+                '-'.join(image_params['facility_code'].split('-')[0:3]),
+                image_params['exposure_time']
+            )
             info = [key, 0.0, np.float]
             header_infos.append(info)
 

@@ -5,9 +5,9 @@ scipy
 datetime
 matplotlib
 photutils
-opencv-python
+#opencv-python
 Cython
-astroquery==0.4
+astroquery==0.4.6
 scikit-image==0.18
 ccdproc
 setuptools
