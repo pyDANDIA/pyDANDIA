@@ -265,10 +265,20 @@ class MetaData:
         from that data"""
 
         nimages = len(self.headers_summary[1])
-        self.add_column_to_layer('headers_summary', 'HJD', np.zeros(nimages), new_column_format='float',
-                                new_column_unit='days')
-        self.add_column_to_layer('headers_summary', 'AIRMASS', np.zeros(nimages), new_column_format='float',
-                                new_column_unit='')
+        if 'HJD' not in self.headers_summary[1].keys():
+            self.add_column_to_layer(
+                'headers_summary', 'HJD',
+                np.zeros(nimages),
+                new_column_format='float',
+                new_column_unit='days'
+            )
+        if 'AIRMASS' not in self.headers_summary[1].keys():
+            self.add_column_to_layer(
+                'headers_summary', 'AIRMASS',
+                np.zeros(nimages),
+                new_column_format='float',
+                new_column_unit=''
+            )
 
     def create_reduction_status_layer(self):
         '''

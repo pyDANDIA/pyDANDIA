@@ -212,6 +212,13 @@ def run_reference_astrometry(setup, **kwargs):
 
 
         log.info('Numbers of stars kept for WCS: '+str(len(matched_stars.cat1_index)))
+
+        # The rest of the WCS fit depends on having at least a few stars match, so
+        # here we catch the case where insufficient stars are available
+        if len(matched_stars.cat1_index) < 5:
+            log.info('ERROR: Insufficient stars matched for WCS solution')
+            return 'ERROR', 'Insufficient stars matched for WCS solution'
+
         #gaia_sources = update_catalog_image_coordinates(setup, image_wcs, gaia_sources, log, 'catalog_stars_bright_revised_'+str(0)+'.reg',
         #                                            stellar_density, rotate_wcs, kwargs,
         #                                            stellar_density_threshold,

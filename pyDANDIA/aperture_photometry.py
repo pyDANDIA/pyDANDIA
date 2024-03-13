@@ -115,7 +115,6 @@ def run_aperture_photometry(setup, **kwargs):
             fluxes2.append(phot_table2['aperture_sum'].value)
             efluxes2.append(phot_table2['aperture_sum_err'].value)
 
-            # NEED HJDS BY THIS POINT
             i = np.where(reduction_metadata.headers_summary[1]['IMAGES'] == os.path.basename(image))[0]
             times.append(reduction_metadata.headers_summary[1]['HJD'][i][0])
             exptime.append(reduction_metadata.headers_summary[1]['EXPKEY'][i][0])

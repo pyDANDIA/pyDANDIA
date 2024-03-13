@@ -126,7 +126,7 @@ def fetch_catalog_sources_for_field(setup,field,header,image_wcs,log,
 
     catalog_sources = catalog_utils.read_vizier_catalog(catalog_file,catalog_name)
 
-    if catalog_sources != None:
+    if catalog_sources:
 
         log.info('Read data for '+str(len(catalog_sources))+\
                  ' '+catalog_name+' stars from stored catalog for field '+field+', '+\

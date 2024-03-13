@@ -111,7 +111,6 @@ def fetch_observatory_location(tel_code):
     else:
         return EarthLocation.of_site(tel_code)
 
-
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()

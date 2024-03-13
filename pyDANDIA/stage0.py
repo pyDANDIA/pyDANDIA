@@ -525,6 +525,17 @@ def parse_the_image_header(reduction_metadata, open_image):
     image_header = open_image.header
     reduction_parameters_table = reduction_metadata.reduction_parameters[1]
 
+    # Image FITS header key name mapping
+    key_map = { }
+    for key in ['DATEKEY', 'RAKEY', 'DECKEY', 'EXPKEY' ]:
+        key_map[key] = reduction_parameters_table[key][0]
+    if 'SITEID' in image_header.keys():
+        key_map['SITEID'] = 'SITEID'
+        key_map['ENCID'] = 'ENCID'
+        key_map['TELID'] = 'TELID'
+    else:
+        key_map['TELCODE'] = 'TELCODE'
+
     # If the reduction_metadata has a headers_summary table already, use it
     # to get the list of header keywords to extract.  From a previously-existing
     # reduction, this will include HJD, which is calculated later on.  This
@@ -533,7 +544,7 @@ def parse_the_image_header(reduction_metadata, open_image):
         headers_summary_table = reduction_metadata.headers_summary[1]
 
         for key, col in headers_summary_table.items():
-            if 'IMAGES' not in key:
+            if 'IMAGES' not in key and 'HJD' not in key:
                 if key in reduction_parameters_table.keys():
                     image_header_key = reduction_parameters_table[key][0]
 
@@ -543,6 +554,11 @@ def parse_the_image_header(reduction_metadata, open_image):
 
                 header_infos.append(info)
 
+        # Calculate the HJD for the image:
+        hjd = calc_hjd_from_image_header(image_header, key_map)
+        info = ['HJD', hjd, float]
+        header_infos.append(info)
+
     # New reductions will not yet have a headers_summary table, so instead we
     # extract the parameters from the reduction_parameters table and include
     # all of the parameters for which entries exist in the image header.  HJD
@@ -550,32 +566,49 @@ def parse_the_image_header(reduction_metadata, open_image):
     except AttributeError:
         reduction_parameter_keys = reduction_parameters_table.keys()
 
-        image_params = {}
         for key in reduction_parameter_keys:
             image_header_key = reduction_parameters_table[key][0]
-
             if image_header_key in image_header.keys():
                 info = [key, image_header[image_header_key],
                         reduction_parameters_table[key].dtype]
                 header_infos.append(info)
-                if key in ['DATEKEY', 'RAKEY', 'DECKEY', 'EXPKEY']:
-                    image_params[key] = image_header[image_header_key]
 
-        # Get keys for site ID
-        tel_code = image_header['SITEID'] + '-' + image_header['ENCID'] + '-' + image_header['']
-
-        for key in ['HJD']:
-            image_params['hjd'] = time_utils.calc_hjd(
-                header_infos['date_obs_utc'],
-                image_params['RA'], image_params['Dec'],
-                '-'.join(image_params['facility_code'].split('-')[0:3]),
-                image_params['exposure_time']
-            )
-            info = [key, 0.0, np.float]
-            header_infos.append(info)
+        # Calculate the HJD for the image:
+        hjd = calc_hjd_from_image_header(image_header, key_map)
+        info = ['HJD', hjd, float]
+        header_infos.append(info)
 
     return np.array(header_infos)
+def calc_hjd_from_image_header(image_header, header_keys):
+    """
+    Function to retrieve the information necessary to calculate an HJD from the header of a
+    FITS image.
 
+    The header_keys dictionary describes which keywords from the header should be used, and takes
+    the following form:
+    header_keys = { 'DATEKEY': 'DATE-OBS', 'RAKEY': 'RA', 'DECKEY': 'DEC', 'EXPKEY': 'EXPTIME' }
+    This dictionary should also contain either keywords for SITEID, ENCID and TELID
+    OR
+    TELCODE.  If the latter is used, then the codes should be the same as those used in Astropy.coordinates
+    EarthLocation class.
+    """
+
+    if 'SITEID' in header_keys.keys():
+        tel_code = image_header[header_keys['SITEID']] \
+                   + '-' + image_header[header_keys['ENCID']] \
+                   + '-' + image_header[header_keys['TELID']]
+    else:
+        tel_code = image_header[header_keys['TELCODE']]
+
+    hjd, ltt_helio = time_utils.calc_hjd(
+        image_header[header_keys['DATEKEY']],
+        image_header[header_keys['RAKEY']],
+        image_header[header_keys['DECKEY']],
+        tel_code,
+        image_header[header_keys['EXPKEY']]
+    )
+
+    return hjd
 
 def update_reduction_metadata_headers_summary_with_new_images(setup,
                                                               reduction_metadata,
