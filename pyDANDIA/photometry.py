@@ -884,6 +884,7 @@ def convert_flux_to_mag(flux, flux_err, exp_time=None):
 
     :param float flux: Total star flux
     :param float flux_err: Uncertainty in star flux
+    :param float exp_time: [optional] Exposure time in s
 run
     Returns:
 
