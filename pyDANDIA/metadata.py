@@ -903,8 +903,11 @@ class MetaData:
 
         '''
 
-        layer = getattr(self, key_layer)
-        layer[1][column_name][row_index] = new_value
+        try:
+            layer = getattr(self, key_layer)
+            layer[1][column_name][row_index] = new_value
+        except KeyError:
+            pass
 
     def update_reduction_metadata_reduction_status(self, new_images, stage_number=0,
         status = '0', log = None):
