@@ -8,6 +8,7 @@ from pyDANDIA import starfind
 from pyDANDIA import image_handling
 from pyDANDIA import stage4
 from pyDANDIA import stage6
+from pyDANDIA import hd5_utils
 import photutils
 from astropy.stats import SigmaClip
 import numpy as np
@@ -62,7 +63,7 @@ def run_aperture_photometry(setup, **kwargs):
     ref_image = image_handling.get_science_image(ref_image_path, image_structure=ref_structure)
 
     i = np.where(reduction_metadata.images_stats[1]['IM_NAME'] == os.path.basename(ref_image_path))[0]
-    ref_exptime = reduction_metadata.headers_summary[1]['EXPKEY'][i][0]
+    ref_exptime = float(reduction_metadata.headers_summary[1]['EXPKEY'][i][0])
 
     # Retrieve the photometric calibration parameters
     fit_params = [reduction_metadata.phot_calib[1]['a0'][0],
@@ -95,7 +96,7 @@ def run_aperture_photometry(setup, **kwargs):
 
         i = np.where(reduction_metadata.images_stats[1]['IM_NAME'] == os.path.basename(image))[0]
         aperture_radius = reduction_metadata.images_stats[1]['FWHM'][i][0]
-        exptime = reduction_metadata.headers_summary[1]['EXPKEY'][i][0]
+        exptime = float(reduction_metadata.headers_summary[1]['EXPKEY'][i][0])
 
         # Perform object detection on the image
         detected_objects = starfind.detect_sources(setup, reduction_metadata,
@@ -153,14 +154,14 @@ def run_aperture_photometry(setup, **kwargs):
             exp_time=exptime
         )
         (_, _, bkgd_flux, bkgd_flux_err) = photometry.convert_flux_to_mag(
-            local_bkgd[:,0],
-            local_bkgd[:,1],
+            local_bkgd['aperture_sum'].value,
+            local_bkgd['aperture_sum_err'].value,
             exp_time=exptime
         )
 
         (cal_mag, cal_mag_err, _, _) = photometry.convert_flux_to_mag(
             cal_flux[:,0],
-            cal_flux_err[:,1],
+            cal_flux[:,1],
             exp_time=None
         )
 
@@ -176,15 +177,23 @@ def run_aperture_photometry(setup, **kwargs):
             mag, mag_err,                     # Exposure-scaled raw flux measurements in mag
             cal_mag, cal_mag_err,             # PS-scaled fluxes in mag
             aperture_radius,                  # Aperture radius used for photometry
-            new_image,                        # Image identifier
+            image,                            # Image identifier
             log,
         )
 
-        print(photometry_data)
-        breakpoint()
-        exit()
+    # Update the metadata reduction status
+    reduction_metadata.update_reduction_metadata_reduction_status(new_images, stage_number=4, status=1, log=log)
+    reduction_metadata.update_reduction_metadata_reduction_status(new_images, stage_number=5, status=1, log=log)
+    reduction_metadata.update_reduction_metadata_reduction_status(new_images, stage_number=6, status=1, log=log)
+    reduction_metadata.software[1]['stage6_version'] = VERSION
+    reduction_metadata.save_updated_metadata(
+        reduction_metadata.data_architecture[1]['OUTPUT_DIRECTORY'][0],
+        reduction_metadata.data_architecture[1]['METADATA_NAME'][0],
+        log=log)
 
     # Store timeseries photometry
+    hd5_utils.write_phot_hd5(setup, photometry_data, log=log)
+
     status = 'OK'
     report = 'OK'
     log.info('Aperture photometry: ' + report)
@@ -259,6 +268,8 @@ def calc_phot_scale_factor(flux, ref_flux, exptime, ref_exptime):
     sig_a = np.nanmedian(np.abs(ref_flux[mask] / flux[mask] * exptime / ref_exptime - a))
     photscales.append([a, sig_a])
 
+    print('Photometric scale factor: ' + repr(photscales))
+
     return np.array(photscales)
 
 def scale_photometry(flux, eflux, pscal, exptime):
@@ -280,6 +291,8 @@ def scale_photometry(flux, eflux, pscal, exptime):
 
     cal_flux[:,0] = pscal[:,0] * flux / exptime
     cal_flux[:,1] = np.sqrt(eflux**2 * pscal[:,0]**2 + flux**2 * pscal[:,1]**2) / exptime
+
+    print('Calculated calibrated flux: ', cal_flux)
 
     return cal_flux
 
@@ -316,7 +329,7 @@ def store_stamp_photometry_to_array(
     # Note that this format contains residual indices of the photometry database - these are no longer used
     # Removing them is a task for v2.
     log.info('Starting to array data transfer')
-    photometry_data[star_dataset_index,image_dataset_index,0] = star_field_ids
+    photometry_data[star_dataset_index,image_dataset_index,0] = star_dataset_ids
     photometry_data[star_dataset_index,image_dataset_index,1] = 0   # DB pk for reference image
     photometry_data[star_dataset_index,image_dataset_index,2] = 0   # DB pk for image
     photometry_data[star_dataset_index,image_dataset_index,3] = 0   # DB pk for stamp
@@ -333,10 +346,10 @@ def store_stamp_photometry_to_array(
     photometry_data[star_dataset_index,image_dataset_index,14] = cal_mag_err
     photometry_data[star_dataset_index,image_dataset_index,15] = flux
     photometry_data[star_dataset_index,image_dataset_index,16] = flux_err
-    photometry_data[star_dataset_index,image_dataset_index,17] = cal_flux
-    photometry_data[star_dataset_index,image_dataset_index,18] = cal_flux_err
-    photometry_data[star_dataset_index,image_dataset_index,19] = photscales[0]
-    photometry_data[star_dataset_index,image_dataset_index,20] = photscales[1]
+    photometry_data[star_dataset_index,image_dataset_index,17] = cal_flux[:,0]
+    photometry_data[star_dataset_index,image_dataset_index,18] = cal_flux[:,1]
+    photometry_data[star_dataset_index,image_dataset_index,19] = photscales[:,0]
+    photometry_data[star_dataset_index,image_dataset_index,20] = photscales[:,1]
     photometry_data[star_dataset_index,image_dataset_index,21] = bkgd_flux
     photometry_data[star_dataset_index,image_dataset_index,22] = bkgd_flux_err
 

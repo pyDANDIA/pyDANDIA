@@ -899,28 +899,40 @@ run
 
         return ZP - 2.5 * np.log10(flux)
 
+    def fluxerr2magerr(flux, flux_err):
+
+        return (2.5 / np.log(10.0)) * flux_err / flux
+
+    ZP = 25.0
 
     if exp_time != None:
 
         frac_err = flux_err / flux
-
         flux = flux / exp_time
-
         flux_err = flux * frac_err
 
-    if flux < 0.0 or flux_err < 0.0:
+    # Case if input is a scaler value
+    if type(flux) == float:
+        if flux < 0.0 or flux_err < 0.0:
 
-        mag = 0.0
-        mag_err = 0.0
+            mag = 0.0
+            mag_err = 0.0
 
+        else:
+
+            mag = flux2mag(ZP, flux)
+            mag_err = fluxerr2magerr(flux, flux_err)
+
+    # Case if input is an array (which we assume is a numpy array rather than
+    # a list etc), which may have some zero entries
     else:
+        mag = np.zeros(len(flux))
+        mag_err = np.zeros(len(flux_err))
 
-        ZP = 25.0
+        mask = (flux > 0.0) & (flux_err > 0.0)
 
-        mag = flux2mag(ZP, flux)
-
-
-        mag_err = (2.5 / np.log(10.0)) * flux_err / flux
+        mag[mask] = flux2mag(ZP, flux[mask])
+        mag_err[mask] = fluxerr2magerr(flux[mask], flux_err[mask])
 
     return mag, mag_err, flux, flux_err
 
