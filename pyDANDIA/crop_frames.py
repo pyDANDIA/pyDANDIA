@@ -94,7 +94,7 @@ def calc_crop_limits(params):
 
 def crop_images(params):
 
-    crop_types [ fits.hdu.image.PrimaryHDU, fits.hdu.image.ImageHDU ]
+    crop_types = [ fits.hdu.image.PrimaryHDU, fits.hdu.image.ImageHDU ]
 
     for image in params['image_list']:
 
