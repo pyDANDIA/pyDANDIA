@@ -109,6 +109,7 @@ def crop_images(params):
                     new_header = update_wcs(extn.header, data.shape[0], data.shape[1])
                     hdu_out.append(fits.PrimaryHDU(data=data, header=new_header))
                 else:
+                    new_header = extn.header
                     hdu_out.append(fits.ImageHDU(data=data, header=new_header))
 
         bkup_file = path.join(params['bkup_dir'], path.basename(image))
