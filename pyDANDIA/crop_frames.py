@@ -94,21 +94,23 @@ def calc_crop_limits(params):
 
 def crop_images(params):
 
+    crop_types [ fits.hdu.image.PrimaryHDU, fits.hdu.image.ImageHDU ]
+
     for image in params['image_list']:
 
         hdu = fits.open(image)
         hdu_out = []
         for i,extn in enumerate(hdu):
-            breakpoint()
-            print(extn)
-            data = extn.data[params['ymin']:params['ymax'], params['xmin']:params['xmax']]
 
-            new_header = update_wcs(extn.header, data.shape[0], data.shape[1])
+            if type(extn) in crop_types:
+                data = extn.data[params['ymin']:params['ymax'], params['xmin']:params['xmax']]
 
-            if i == 0:
-                hdu_out.append(fits.PrimaryHDU(data=data, header=new_header))
-            else:
-                hdu_out.append(fits.ImageHDU(data=data, header=new_header))
+                new_header = update_wcs(extn.header, data.shape[0], data.shape[1])
+
+                if i == 0:
+                    hdu_out.append(fits.PrimaryHDU(data=data, header=new_header))
+                else:
+                    hdu_out.append(fits.ImageHDU(data=data, header=new_header))
 
         bkup_file = path.join(params['bkup_dir'], path.basename(image))
         shutil.move(image, bkup_file)
