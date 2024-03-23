@@ -99,6 +99,7 @@ def crop_images(params):
         hdu = fits.open(image)
         hdu_out = []
         for i,extn in enumerate(hdu):
+            breakpoint()
             print(extn)
             data = extn.data[params['ymin']:params['ymax'], params['xmin']:params['xmax']]
 
