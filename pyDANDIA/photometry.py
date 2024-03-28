@@ -885,7 +885,10 @@ def convert_flux_to_mag(flux, flux_err, exp_time=None):
     :param float flux: Total star flux
     :param float flux_err: Uncertainty in star flux
     :param float exp_time: [optional] Exposure time in s
-run
+
+    Input flux, flux_err can be scalar values or arrays.  If an exposure time is given,
+    the fluxes and uncertainties will be scaled by the exposure time.
+
     Returns:
 
     :param float mag: Measured star magnitude
@@ -905,12 +908,6 @@ run
 
     ZP = 25.0
 
-    if exp_time != None:
-
-        frac_err = flux_err / flux
-        flux = flux / exp_time
-        flux_err = flux * frac_err
-
     # Case if input is a scaler value
     if type(flux) == float:
         if flux < 0.0 or flux_err < 0.0:
@@ -919,6 +916,11 @@ run
             mag_err = 0.0
 
         else:
+
+            if exp_time:
+                frac_err = flux_err / flux
+                flux = flux / exp_time
+                flux_err = flux * frac_err
 
             mag = flux2mag(ZP, flux)
             mag_err = fluxerr2magerr(flux, flux_err)
@@ -930,6 +932,13 @@ run
         mag_err = np.zeros(len(flux_err))
 
         mask = (flux > 0.0) & (flux_err > 0.0)
+
+        if exp_time:
+            frac_err = np.zeros(len(flux))
+
+            frac_err[mask] = flux_err[mask] / flux[mask]
+            flux[mask] = flux[mask] / exp_time
+            flux_err[mask] = flux[mask] * frac_err[mask]
 
         mag[mask] = flux2mag(ZP, flux[mask])
         mag_err[mask] = fluxerr2magerr(flux[mask], flux_err[mask])

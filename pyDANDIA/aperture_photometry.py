@@ -1,3 +1,4 @@
+import copy
 import os
 from astropy.io import fits
 from pyDANDIA import logs
@@ -12,6 +13,7 @@ from pyDANDIA import hd5_utils
 import photutils
 from astropy.stats import SigmaClip
 import numpy as np
+import matplotlib.pyplot as plt
 
 VERSION = 'pyDANDIA_ap_phot_v0.0.1'
 
@@ -75,20 +77,30 @@ def run_aperture_photometry(setup, **kwargs):
     log.info('and covarience matrix: ' + repr(covar_fit))
 
     # Extract the reference image detected sources catalog, and sort it to produce a list of
-    # objects in order of flux:
+    # objects in order of flux.  There are two copies of this array so that one can be
+    # concenated into a single row for the dot operation later
     refcat = np.c_[
         reduction_metadata.star_catalog[1]['x'].data,
         reduction_metadata.star_catalog[1]['y'].data,
         reduction_metadata.star_catalog[1]['ref_flux'].data
     ]
-    idx = refcat[:,2].argsort()[::-1]
-    refcat = refcat[idx]
+    ref_objects = np.r_[[
+        reduction_metadata.star_catalog[1]['x'].data,
+        reduction_metadata.star_catalog[1]['y'].data,
+        [1] * len(reduction_metadata.star_catalog[1])
+    ]]
+    star_order = refcat[:,2].argsort()[::-1]
+    refcat = refcat[star_order]
+
+    # DEBUG
+    star_idx = 10700
 
     # Loop over all selected images
     logs.ifverbose(log, setup, 'Performing aperture photometry for each image:')
-    for image in new_images:
+    for k,image in enumerate(new_images):
         logs.ifverbose(log, setup,
-                       ' -> ' + os.path.basename(image))
+                       ' -> ' + os.path.basename(image) + ', ' + str(k) + ' of ' + str(len(new_images)))
+
         # Retrieve image pixel data and image parameters
         image_path = os.path.join(setup.red_dir, 'data', image)
         image_structure = image_handling.determine_image_struture(image_path, log=log)
@@ -104,6 +116,7 @@ def run_aperture_photometry(setup, **kwargs):
                                                    data_image,
                                                    log,
                                                    diagnostics=False)
+        log.info(' --> Detected ' + str(len(detected_objects)) + ' stars in frame')
 
         # Sort the detected source catalogs from the working image
         datacat = np.c_[
@@ -118,33 +131,20 @@ def run_aperture_photometry(setup, **kwargs):
         # Calculate the x, y offsets between the reference star_catalog and the objects in this frame
         align = stage4.find_init_transform(ref_image, data_image, refcat[:250], datacat[:250])
         logs.ifverbose(log, setup,
-                       ' -> alignment: ' + repr(align[0]))
+                       ' --> alignment: ' + repr(align[0]))
 
         # Transform the positions of objects in the reference star_catalog to their corresponding positions in
-        # the current image
-        xx, yy, zz = np.dot(np.linalg.pinv(align[0].params),
-                            np.r_[[refcat[:,0], refcat[:,1], [1] * len(refcat[:,2])]])
+        # the current image.  Note that we cannot use the refcat here because it requires a 1D array in the
+        # order of the reference image star catalog.
+        xx, yy, zz = np.dot(np.linalg.pinv(align[0].params),ref_objects)
         transformed_star_positions = np.c_[xx, yy]
 
         # Perform aperture photometry at the transformed positions - for two apertures?
         residuals_xy = refcat[:,[0,1]] - transformed_star_positions
-        phot_table, local_bkgd = ap_phot_image(data_image, transformed_star_positions, radius=aperture_radius)
+        phot_table, local_bkgd = ap_phot_image(data_image, transformed_star_positions,
+                                               radius=aperture_radius, log=log)
 
-        # Calculate the photometric scale factors for all stars in this image
-        photscales = calc_phot_scale_factor(
-            phot_table['aperture_sum'].value,
-            refcat[:,2],
-            exptime, ref_exptime
-        )
-
-        # Calculate fluxes normalized by the photometric scale factors:
-        cal_flux = scale_photometry(
-            phot_table['aperture_sum'].value,
-            phot_table['aperture_sum_err'].value,
-            photscales,
-            exptime
-        )
-
+        print(phot_table[star_idx])
         # Convert the measured instrumental fluxes to magnitudes, scaled by the exposure time.
         # Note this applies to the instrumental measured fluxes,
         # but the calibrated fluxes have already been scaled
@@ -157,6 +157,23 @@ def run_aperture_photometry(setup, **kwargs):
             local_bkgd['aperture_sum'].value,
             local_bkgd['aperture_sum_err'].value,
             exp_time=exptime
+        )
+
+        # Calculate the photometric scale factors for all stars in this image
+        photscales = calc_phot_scale_factor(
+            setup,
+            image,
+            flux,
+            reduction_metadata.star_catalog[1]['ref_flux'].data,    # Already scaled by exposure time
+            exptime, ref_exptime, log=log, diagnostics=True
+        )
+
+        # Calculate fluxes normalized by the photometric scale factors:
+        cal_flux = scale_photometry(
+            flux,
+            flux_err,
+            photscales,
+            log=log
         )
 
         (cal_mag, cal_mag_err, _, _) = photometry.convert_flux_to_mag(
@@ -181,6 +198,8 @@ def run_aperture_photometry(setup, **kwargs):
             log,
         )
 
+    print('Photometry: ',photometry_data[star_idx,:])
+
     # Update the metadata reduction status
     reduction_metadata.update_reduction_metadata_reduction_status(new_images, stage_number=4, status=1, log=log)
     reduction_metadata.update_reduction_metadata_reduction_status(new_images, stage_number=5, status=1, log=log)
@@ -201,7 +220,7 @@ def run_aperture_photometry(setup, **kwargs):
 
     return status, report
 
-def ap_phot_image(data, pos, radius=3.0):
+def ap_phot_image(data, pos, radius=3.0, log=None):
     """
     Function to perform aperture photometry on a single image, given an input source catalog.
     Based on a function by Etienne Bachelet
@@ -238,15 +257,20 @@ def ap_phot_image(data, pos, radius=3.0):
     error = (bkg_error**2+ron**2/gain**2)**0.5
     local_bkgd = photutils.aperture_photometry(bkg.background, apertures, method='subpixel', error=error)
 
+    if log:
+        log.info(' --> Completed aperture photometry')
+
     return phot_table, local_bkgd
 
 
-def calc_phot_scale_factor(flux, ref_flux, exptime, ref_exptime):
+def calc_phot_scale_factor(setup, image, flux, ref_flux, exptime, ref_exptime, log=None, diagnostics=False):
     """
     Function to calculate the photometric scale factor for all stars in
     a single image.
 
     Parameters:
+        setup   Setup obj for the reduction
+        imaeg string  Filename of the working image
         flux    array   Stellar fluxes in the working image
         ref_flux array  Stellar fluxes in the reference image
         exptime  float      Exposure time of the working image [s]
@@ -256,31 +280,51 @@ def calc_phot_scale_factor(flux, ref_flux, exptime, ref_exptime):
         photscales 2D array Photometric scale factors and uncertainties
     """
 
-    photscales = []
-
     # Mask requires that stars have valid measurements in both the
     # working image and the reference image
-    mask = (~np.isnan(flux)) & (~np.isnan(ref_flux))
+    mask = (~np.isnan(flux)) & (~np.isnan(ref_flux)) & (flux > 0.0) & (ref_flux > 0.0)
 
     # Photometric scale factor is calculated from the ratio of a star's flux in the
     # reference/working image, factored by the ratio of the exposure times.
-    a = np.nanmedian(ref_flux[mask] / flux[mask] * exptime / ref_exptime)
-    sig_a = np.nanmedian(np.abs(ref_flux[mask] / flux[mask] * exptime / ref_exptime - a))
-    photscales.append([a, sig_a])
+    # There is typically a long tail to this distribution, caused by variables
+    # in the field of view, so we exclude the extreme tail.
+    ratios = (ref_flux[mask] / flux[mask] * exptime / ref_exptime)
+    rmax = np.percentile(ratios, 75.0)
+    selection = (ratios <= rmax)
+    a = np.nanmedian(ratios[selection])
+    sig_a = np.nanmedian(np.abs(ratios[selection] - a))
+    
+    photscales = [a, sig_a]
 
-    print('Photometric scale factor: ' + repr(photscales))
+    if log:
+        log.info(' --> Photometric scale factor: ' + repr(photscales))
+    print(' --> Photometric scale factor: ' + repr(photscales))
+
+    if diagnostics:
+        if not os.path.isdir(os.path.join(setup.red_dir, 'apphot')):
+            os.mkdir(os.path.join(setup.red_dir, 'apphot'))
+        fig = plt.figure(1, (10, 10))
+        plt.hist(ratios, bins=int(ratios.max()))
+        plt.xlabel('PS ratios per star')
+        plt.ylabel('Count')
+        (xmin, xmax, ymin, ymax) = plt.axis()
+        plt.axis([0, 20, ymin, ymax])
+        plt.plot([a,a], [ymin,ymax], 'k-')
+        plt.plot([a-sig_a]*2, [ymin,ymax], 'k-.')
+        plt.plot([a+sig_a]*2, [ymin,ymax], 'k-.')
+        plt.savefig(os.path.join(setup.red_dir, 'apphot', 'ps_ratios_hist_'+image.replace('.fits','')+'.png'))
+        plt.close(1)
 
     return np.array(photscales)
 
-def scale_photometry(flux, eflux, pscal, exptime):
+def scale_photometry(flux, eflux, pscal, log=None):
     """
     Function to scale the measured star fluxes by the photometric scale factor.
 
     Parameters:
-        flux    array   Stellar fluxes in the working image
+        flux    array   Stellar fluxes in the working image, scaled by exposure time
         eflux   array   Uncertainties on stellar fluxes
         pscal   array   Photometric scale factor and uncertainty
-        exptime float   Exposure time of working image [s]
 
     Returns:
         cal_flux    array   Calibrated fluxes
@@ -289,10 +333,11 @@ def scale_photometry(flux, eflux, pscal, exptime):
 
     cal_flux = np.zeros((len(flux),2))
 
-    cal_flux[:,0] = pscal[:,0] * flux / exptime
-    cal_flux[:,1] = np.sqrt(eflux**2 * pscal[:,0]**2 + flux**2 * pscal[:,1]**2) / exptime
+    cal_flux[:,0] = pscal[0] * flux
+    cal_flux[:,1] = np.sqrt(eflux**2 * pscal[0]**2 + flux**2 * pscal[1]**2)
 
-    print('Calculated calibrated flux: ', cal_flux)
+    if log:
+        log.info(' --> normalized measured star fluxes by the photometric scale factor')
 
     return cal_flux
 
@@ -348,8 +393,8 @@ def store_stamp_photometry_to_array(
     photometry_data[star_dataset_index,image_dataset_index,16] = flux_err
     photometry_data[star_dataset_index,image_dataset_index,17] = cal_flux[:,0]
     photometry_data[star_dataset_index,image_dataset_index,18] = cal_flux[:,1]
-    photometry_data[star_dataset_index,image_dataset_index,19] = photscales[:,0]
-    photometry_data[star_dataset_index,image_dataset_index,20] = photscales[:,1]
+    photometry_data[star_dataset_index,image_dataset_index,19] = [photscales[0]] * len(star_dataset_index)
+    photometry_data[star_dataset_index,image_dataset_index,20] = [photscales[1]] * len(star_dataset_index)
     photometry_data[star_dataset_index,image_dataset_index,21] = bkgd_flux
     photometry_data[star_dataset_index,image_dataset_index,22] = bkgd_flux_err
 
