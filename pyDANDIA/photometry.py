@@ -932,8 +932,9 @@ def convert_flux_to_mag(flux, flux_err, exp_time=None):
         mag_err = np.zeros(len(flux_err))
 
         mask = (flux > 0.0) & (flux_err > 0.0)
-
+        print('GOT here: ', mask)
         if exp_time:
+            print('EXPTIME: ', exp_time)
             frac_err = np.zeros(len(flux))
 
             frac_err[mask] = flux_err[mask] / flux[mask]
