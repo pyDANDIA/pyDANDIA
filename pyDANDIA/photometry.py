@@ -909,7 +909,7 @@ def convert_flux_to_mag(flux, flux_err, exp_time=None):
     ZP = 25.0
 
     # Case if input is a scaler value
-    if type(flux) == float:
+    if type(flux) == float or type(flux) == np.float64:
         if flux < 0.0 or flux_err < 0.0:
 
             mag = 0.0

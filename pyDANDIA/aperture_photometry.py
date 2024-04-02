@@ -95,9 +95,6 @@ def run_aperture_photometry(setup, **kwargs):
     # To set the radius for aperture photometry, we use the PSF radius determined in stage 3:
     aperture_radius = reduction_metadata.psf_dimensions[1]['psf_radius'][0]
 
-    # DEBUG
-    star_idx = 10700
-
     # Loop over all selected images
     logs.ifverbose(log, setup, 'Performing aperture photometry for each image:')
     for k,image in enumerate(new_images):
@@ -150,7 +147,6 @@ def run_aperture_photometry(setup, **kwargs):
         phot_table, local_bkgd = ap_phot_image(data_image, transformed_star_positions,
                                                radius=aperture_radius, log=log)
 
-        print('RAW: ', phot_table[star_idx])
         # Convert the measured instrumental fluxes to magnitudes, scaled by the exposure time.
         # Note this applies to the instrumental measured fluxes,
         # but the calibrated fluxes have already been scaled
@@ -164,7 +160,6 @@ def run_aperture_photometry(setup, **kwargs):
             local_bkgd['aperture_sum_err'].value,
             exp_time=exptime
         )
-        print('INST: ',flux[star_idx], flux_err[star_idx], mag[star_idx], mag_err[star_idx])
 
         # Calculate the photometric scale factors for all stars in this image
         photscales = calc_phot_scale_factor(
@@ -188,7 +183,6 @@ def run_aperture_photometry(setup, **kwargs):
             cal_flux[:,1],
             exp_time=None
         )
-        print('CAL: ',cal_flux[star_idx,0], cal_flux[star_idx,1], cal_mag[star_idx], cal_mag_err[star_idx])
 
         # Store the photometry from this image to the main array
         photometry_data = store_stamp_photometry_to_array(
@@ -205,7 +199,6 @@ def run_aperture_photometry(setup, **kwargs):
             image,                            # Image identifier
             log,
         )
-        print('PHOTO: ', photometry_data[star_idx, image_idx, :])
 
     # Update the metadata reduction status
     reduction_metadata.update_reduction_metadata_reduction_status(new_images, stage_number=4, status=1, log=log)
@@ -289,7 +282,7 @@ def calc_phot_scale_factor(setup, image, flux, ref_flux, exptime, ref_exptime, l
 
     # Mask requires that stars have valid measurements in both the
     # working image and the reference image
-    mask = (~np.isnan(flux)) & (~np.isnan(ref_flux)) & (flux > 0.0) & (ref_flux > 0.0)
+    mask = (~np.isnan(flux)) & (~np.isnan(ref_flux)) & (flux > 100.0) & (ref_flux > 100.0)
 
     # Photometric scale factor is calculated from the ratio of a star's flux in the
     # reference/working image, NOT factored by the ratio of the exposure times
@@ -323,21 +316,15 @@ def calc_phot_scale_factor(setup, image, flux, ref_flux, exptime, ref_exptime, l
             os.mkdir(os.path.join(setup.red_dir, 'apphot'))
         fig = plt.figure(1, (10, 10))
         plt.hist(ratios, bins=100, range=(0,rmax*1.01))
-        print('HERE 1')
         plt.xlabel('PS ratios per star')
         plt.ylabel('Count')
         (xmin, xmax, ymin, ymax) = plt.axis()
         plt.axis([0, rmax*1.01, ymin, ymax])
         plt.plot([a,a], [ymin,ymax], 'k-')
-        print('HERE 2')
         plt.plot([a-sig_a]*2, [ymin,ymax], 'k-.')
         plt.plot([a+sig_a]*2, [ymin,ymax], 'k-.')
-        print('HERE 3')
-        plt.plot([rmin,rmin], [ymin,ymax], 'r-')
         plt.plot([rmax,rmax], [ymin,ymax], 'r-')
-        print('HERE 4')
         plt.savefig(os.path.join(setup.red_dir, 'apphot', 'ps_ratios_hist_'+image.replace('.fits','')+'.png'))
-        print('HERE 5')
         plt.close(1)
 
     return np.array(photscales)
