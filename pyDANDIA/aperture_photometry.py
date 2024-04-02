@@ -290,16 +290,12 @@ def calc_phot_scale_factor(setup, image, flux, ref_flux, exptime, ref_exptime, l
     # There is typically a long tail to this distribution, caused by variables
     # in the field of view, so we exclude the extreme tail.
     #ratios = (ref_flux[mask] / flux[mask] * exptime / ref_exptime)
-    for j in range(10700,10701,1):
-        if mask[j]:
-            print(flux[j], ref_flux[j])
 
     ratios = (ref_flux[mask] / flux[mask])
     rmin = np.percentile(ratios, 25.0)
     rmax = np.percentile(ratios, 50.0)
     rmin = 0.6
     rmax = 1.5
-    print('R Range = ', rmin, rmax)
     selection = (ratios <= rmax) & (ratios >= rmin)
     a = np.nanmedian(ratios[selection])
     sig_a = np.nanmedian(np.abs(ratios[selection] - a))
@@ -308,9 +304,7 @@ def calc_phot_scale_factor(setup, image, flux, ref_flux, exptime, ref_exptime, l
 
     if log:
         log.info(' --> Photometric scale factor: ' + repr(photscales))
-    print(' --> Photometric scale factor: ' + repr(photscales))
-    print(ratios)
-    print(rmax)
+
     if diagnostics:
         if not os.path.isdir(os.path.join(setup.red_dir, 'apphot')):
             os.mkdir(os.path.join(setup.red_dir, 'apphot'))
