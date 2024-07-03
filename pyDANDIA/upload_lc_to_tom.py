@@ -87,7 +87,8 @@ def get_args():
     payload = {'file_path': file_path, 'search_string': search_string}
     setup = pipeline_setup.pipeline_setup({'red_dir': red_dir})
     log = logs.start_pipeline_log(red_dir, 'tom_upload')
-
+    print(setup.red_dir, setup.pipeline_config_dir)
+    
     return setup, payload, log
 
 if __name__ == '__main__':

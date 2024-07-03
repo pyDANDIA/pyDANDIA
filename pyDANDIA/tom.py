@@ -26,7 +26,7 @@ def get_target_id(config, login, payload, log=None):
     ur = {'name': payload['name']}
     response = requests.get(targetid_url, auth=login, params=ur).json()
     print(response)
-    
+
     if 'results' in response.keys() and len(response['results']) == 1:
         target_pk = response['results'][0]['id']
         for group in response['results'][0]['groups']:
