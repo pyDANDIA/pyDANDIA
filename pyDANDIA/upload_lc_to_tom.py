@@ -31,7 +31,9 @@ def upload_lightcurve(setup, payload, log=None):
             log = logs.start_stage_log( setup.red_dir, 'mop_upload' )
             close_log_file = True
 
+        print(config, login, payload)
         (target_pk, target_groups) = tom.get_target_id(config, login, payload, log=log)
+        print(target_pk, target_groups)
 
         if target_pk:
             existing_datafiles = tom.list_dataproducts(config, login, payload, target_pk, log=log)
