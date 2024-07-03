@@ -31,9 +31,7 @@ def upload_lightcurve(setup, payload, log=None):
             log = logs.start_stage_log( setup.red_dir, 'mop_upload' )
             close_log_file = True
 
-        print(config, login, payload)
         (target_pk, target_groups) = tom.get_target_id(config, login, payload, log=log)
-        print(target_pk, target_groups)
 
         if target_pk:
             existing_datafiles = tom.list_dataproducts(config, login, payload, target_pk, log=log)
@@ -87,8 +85,7 @@ def get_args():
     payload = {'file_path': file_path, 'search_string': search_string}
     setup = pipeline_setup.pipeline_setup({'red_dir': red_dir})
     log = logs.start_pipeline_log(red_dir, 'tom_upload')
-    print(setup.red_dir, setup.pipeline_config_dir)
-    
+
     return setup, payload, log
 
 if __name__ == '__main__':

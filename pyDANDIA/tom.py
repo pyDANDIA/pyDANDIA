@@ -25,27 +25,34 @@ def get_target_id(config, login, payload, log=None):
     target_groups = []
     ur = {'name': payload['name']}
     response = requests.get(targetid_url, auth=login, params=ur).json()
-    print(response)
 
-    if 'results' in response.keys() and len(response['results']) == 1:
-        target_pk = response['results'][0]['id']
-        for group in response['results'][0]['groups']:
-            target_groups.append(group['id'])
+    if response.status_code == 200:
+        response = response.json()
 
-        if log!=None:
-            log.info('TOM identified target '+payload['name']+' as target ID='+str(target_pk))
+        if 'results' in response.keys() and len(response['results']) == 1:
+            target_pk = response['results'][0]['id']
+            for group in response['results'][0]['groups']:
+                target_groups.append(group['id'])
 
-    elif 'results' in response.keys() and len(response['results']) == 0:
-        if log!=None:
-            log.info('Targetname '+payload['name']+' unknown to TOM')
+            if log!=None:
+                log.info('TOM identified target '+payload['name']+' as target ID='+str(target_pk))
 
-    elif 'results' in response.keys() and len(response['results']) > 1:
-        if log!=None:
-            log.info('Ambiguous targetname '+payload['name']+' multiple entries in TOM')
+        elif 'results' in response.keys() and len(response['results']) == 0:
+            if log!=None:
+                log.info('Targetname '+payload['name']+' unknown to TOM')
+
+        elif 'results' in response.keys() and len(response['results']) > 1:
+            if log!=None:
+                log.info('Ambiguous targetname '+payload['name']+' multiple entries in TOM')
+
+        else:
+            if log!=None:
+                log.info('No response from TOM.  Check login details and URL?')
 
     else:
-        if log!=None:
-            log.info('No response from TOM.  Check login details and URL?')
+        if log:
+            log.info('TOM UPLOAD ERROR: TOM responded with status '
+                     + str(response.status_code) + ': ' + repr(response.reason))
 
     return target_pk, target_groups
 
