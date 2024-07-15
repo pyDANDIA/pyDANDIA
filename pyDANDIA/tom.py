@@ -25,7 +25,8 @@ def get_target_id(config, login, payload, log=None):
     target_groups = []
     ur = {'name': payload['name']}
     response = requests.get(targetid_url, auth=login, params=ur).json()
-
+    print(response)
+    
     if response.status_code == 200:
         response = response.json()
 
