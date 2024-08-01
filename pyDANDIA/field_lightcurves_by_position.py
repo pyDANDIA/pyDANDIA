@@ -27,7 +27,7 @@ def fetch_lc_by_position(args):
         return
 
     # Identify the closest object in the field index
-    field_idx = results['field_id'][0]
+    field_idx = results['field_id'][0] - 1
     quad_idx = results['quadrant_id'][0] - 1
     qid = results['quadrant'][0]
     log.info('Nearest matching star is ' + str(field_idx+1) + ' in quadrant ' + str(qid)
