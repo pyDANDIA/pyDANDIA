@@ -67,7 +67,7 @@ def get_args():
     parser.add_argument('output_dir', help='Path to output directory')
     parser.add_argument('combine_data', help='Boolean, combine data from all cameras')
     parser.add_argument('phot_type',
-        'Please enter the columns of photometry to plot {instrumental,calibrated,corrected,normalized}')
+        help='Columns of photometry to plot {instrumental,calibrated,corrected,normalized}')
 
     args = parser.parse_args()
 
