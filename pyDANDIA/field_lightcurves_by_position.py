@@ -37,7 +37,7 @@ def fetch_lc_by_position(args):
     phot_hdf_file = path.join(args.data_dir, args.field_name + '_quad'+str(qid)+'_photometry.hdf5')
     star_phot = hd5_utils.read_star_from_hd5_file(phot_hdf_file, quad_idx)
 
-    params = {'phot_type': args.phot_type, 'output_dir': args.output_dir, 'field_id': args.field_name}
+    params = {'phot_type': args.phot_type, 'output_dir': args.output_dir, 'field_id': field_idx+1}
     lc = field_lightcurves.fetch_field_photometry_for_star_idx(params, field_idx, xmatch,
                                              star_phot, log)
     if 'True' in args.combine_data:
