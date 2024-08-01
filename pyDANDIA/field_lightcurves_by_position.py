@@ -46,6 +46,8 @@ def fetch_lc_by_position(args):
     # Output to plot and datafiles:
     filters = ['gp', 'rp', 'ip']
     title = 'Lightcurves of star field ID=' + str(field_idx+1)
+    plot_file = path.join(args.output_dir,
+                          'star_' + str(field_idx+1) + '_lightcurve_' + args.phot_type + '.html')
     plotly_lightcurves.plot_interactive_lightcurve(lc, filters, plot_file,
                                                    title=title)
 
