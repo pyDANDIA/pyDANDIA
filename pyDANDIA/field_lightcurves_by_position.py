@@ -9,7 +9,7 @@ from astropy import units as u
 from os import path
 
 def fetch_lc_by_position(args):
-    log = logs.start_stage_log(params['output_dir'], 'field_lightcurves')
+    log = logs.start_stage_log(args.output_dir, 'field_lightcurves')
 
     # Load field crossmatch file
     xmatch = crossmatch.CrossMatchTable()
@@ -40,7 +40,7 @@ def fetch_lc_by_position(args):
     params = {'phot_type': args.phot_type, 'output_dir': args.output_dir, 'field_id': args.field_name}
     lc = field_lightcurves.fetch_field_photometry_for_star_idx(params, field_idx, xmatch,
                                              star_phot, log)
-    if args.combine_data:
+    if 'True' in args.combine_data:
         lc = field_lightcurves.combine_datasets_by_filter(lc, log)
 
     # Output to plot and datafiles:
@@ -65,7 +65,7 @@ def get_args():
     parser.add_argument('Dec', help='Central Dec to search for [sexigesimal]')
     parser.add_argument('radius', help='Search radius in arcsec')
     parser.add_argument('output_dir', help='Path to output directory')
-    parser.add_argument('combine_data', help='Boolean, combine data from all cameras')
+    parser.add_argument('combine_data', help='Combine data from all cameras? {True, False}')
     parser.add_argument('phot_type',
         help='Columns of photometry to plot {instrumental,calibrated,corrected,normalized}')
 
