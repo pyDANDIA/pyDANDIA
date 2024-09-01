@@ -219,6 +219,7 @@ def calc_ps_qc_factor(reduction_metadata,photometry_data,log):
 	iref = np.where(reduction_metadata.headers_summary[1]['IMAGES'] == reference_image_name)
 
 	ps_data = photometry_data['pscale'].data
+	print(len(ps_data))
 	log.info('Lightcurve debugging info:')
 	log.info('Shape of pscale data array: '+repr(ps_data.shape))
 	log.info('Reference image exposure time: '+str(exptimes[iref]))
