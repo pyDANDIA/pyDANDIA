@@ -83,7 +83,7 @@ def assess_image(reduction_metadata,image_params,image_header,log):
     sky_max = reduction_metadata.reduction_parameters[1]['MAX_SKY'][0]
     sky_max_sigma = reduction_metadata.reduction_parameters[1]['MAX_SKY_STD'][0]
     sky_ref_max = reduction_metadata.reduction_parameters[1]['MAX_SKY_REF'][0]
-    min_ell = reduction_metadata.reduction_parameters[1]['MIN_ELL'][0]
+    max_ell = reduction_metadata.reduction_parameters[1]['MAX_ELL'][0]
 
     # Note that this stage analyzes only the central 500 pixels of the frame, so the
     # Nstars reported here is much lower than that for the whole frame.  Hence the
@@ -113,12 +113,12 @@ def assess_image(reduction_metadata,image_params,image_header,log):
                                + str(image_params['sigma_x']) + ', ' + str(image_params['sigma_y'])
                                + ') negative')
 
-    if image_params['ellipticity'] < min_ell:
+    if image_params['ellipticity'] > max_ell:
         use_phot = 0
         use_ref = 0
         use_image = 0
-        report = append_errors(report, 'Ellipticity too low: '
-                               + str(image_params['ellipticity']) + ', threshold >'+str(min_ell))
+        report = append_errors(report, 'Ellipticity too high: '
+                               + str(image_params['ellipticity']) + ', threshold >'+str(max_ell))
 
     if image_params['sky'] > sky_max:
         use_phot = 0
