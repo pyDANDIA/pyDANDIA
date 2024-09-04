@@ -85,7 +85,16 @@ def starfind(setup, path_to_image, reduction_metadata, plot_it=False,
         log.info('Starting starfind for image '+imname)
 
 
-    params = { 'sky': 0.0, 'sigma_y': 0.0, 'sigma_x': 0.0, 'corr_xy':0.0, 'nstars':0, 'sat_frac':0.0, 'symmetry' : 1. }
+    params = {
+        'sky': 0.0,
+        'sky_sigma': 0.0,
+        'sigma_y': 0.0,
+        'sigma_x': 0.0,
+        'corr_xy':0.0,
+        'nstars':0,
+        'sat_frac':0.0,
+        'symmetry' : 1.
+    }
 
     image_structure = image_handling.determine_image_struture(path_to_image, log=log)
 
@@ -319,6 +328,7 @@ def starfind(setup, path_to_image, reduction_metadata, plot_it=False,
     # Estimate the median values for the parameters over the stars identified
     if len(sigma_x_arr) > 0:
         params['sky'] = np.median(sky_arr)
+        params['sky_sigma'] = np.std(sky_arr)
         params['sigma_y'] = np.median(sigma_y_arr)
         params['sigma_x'] = np.median(sigma_x_arr)
         params['corr_xy'] = np.median(corr_xy_arr)
@@ -344,6 +354,7 @@ def starfind(setup, path_to_image, reduction_metadata, plot_it=False,
     if log != None:
         log.info('Measured median values:')
         log.info('Sky background = '+str(params['sky']))
+        log.info('Sky sigma = '+str(params['sky_sigma']))
         log.info('FWHM X = '+str(params['sigma_x']))
         log.info('FWHM Y = '+str(params['sigma_y']))
         log.info('Corr XY = '+str(params['corr_xy']))
@@ -373,7 +384,6 @@ def starfind(setup, path_to_image, reduction_metadata, plot_it=False,
     status = 'OK'
     report = 'Completed successfully'
     return status, report, params
-
 
 ###############################################################################
 def build_star_finder(reduction_metadata, image_path, log):

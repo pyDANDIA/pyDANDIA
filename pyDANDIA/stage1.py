@@ -112,9 +112,10 @@ def run_stage1(setup, **kwargs):
 
         params['fwhm'] = psf.calc_fwhm_from_psf_sigma(params['sigma_x'],
                                                       params['sigma_y'])
+        params['ellipticity'] = psf.calc_ellipticity_from_psf_sigma(params['sigma_x'],
+                                                                    params['sigma_y'])
 
         # The name of the image
-
         imname = im.split('/')[-1]
 
 
@@ -132,7 +133,8 @@ def run_stage1(setup, **kwargs):
         # Add a new row to the images_stats layer
         # (if it doesn't already exist)
 
-        entry = [ imname, params['sigma_x'], params['sigma_y'], params['fwhm'], params['sky'], params['corr_xy'], params['nstars'],
+        entry = [ imname, params['sigma_x'], params['sigma_y'], params['fwhm'], params['ellipticity'],
+                  params['sky'], params['sky_sigma'], params['corr_xy'], params['nstars'],
                   params['sat_frac'], params['symmetry'], use_phot, use_ref, ]
 
         # filling missing values

@@ -125,6 +125,12 @@
 	"format":"float",
 	"unit":"adu"
     },
+    "max_sky_std": {
+        "comment": "max_sky_std - DOUBLE - Largest acceptable value of standard deviation in sky background for image quality control purposes (ADU : Default value = 100.0).",
+        "value": 100.0,
+	"format":"float",
+	"unit":"adu"
+    },
     "max_sigma_pixels": {
         "comment": "max_sigma_pixels - DOUBLE - Largest acceptable value of the stellar sigma (pixels : Default value = 2.0).",
         "value": 2.0,

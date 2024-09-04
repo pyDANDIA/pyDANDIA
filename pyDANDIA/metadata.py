@@ -300,6 +300,7 @@ class MetaData:
                        Column(name='SIGMA_X', data=np.array([]), unit=u.pix, dtype='float'),
                        Column(name='SIGMA_Y', data=np.array([]), unit=u.pix, dtype='float'),
                        Column(name='FWHM', data=np.array([]), unit=u.pix, dtype='float'),
+                       Column(name='ELLIPTICITY', data=np.array([]), unit=u.pix, dtype='float'),
                        Column(name='SKY', data=np.array([]), unit=u.adu, dtype='float'),
                        Column(name='CORR_XY', data=np.array([]), unit=None, dtype='float'),
                        Column(name='NSTARS', data=np.array([]), unit=None, dtype='int'),

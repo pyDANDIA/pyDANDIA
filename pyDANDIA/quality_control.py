@@ -81,9 +81,11 @@ def assess_image(reduction_metadata,image_params,image_header,log):
 
     sigma_max = reduction_metadata.reduction_parameters[1]['MAX_SIGMA_PIXELS'][0]
     sky_max = reduction_metadata.reduction_parameters[1]['MAX_SKY'][0]
+    sky_max_sigma = reduction_metadata.reduction_parameters[1]['MAX_SKY_STD'][0]
     sky_ref_max = reduction_metadata.reduction_parameters[1]['MAX_SKY_REF'][0]
+    min_ell = reduction_metadata.reduction_parameters[1]['MIN_ELL'][0]
 
-    if image_params['nstars'] == 0:
+    if image_params['nstars'] < 20:
         use_phot = 0
         use_ref = 0
         use_image = 0
@@ -100,9 +102,21 @@ def assess_image(reduction_metadata,image_params,image_header,log):
         use_image = 0
         report = append_errors(report, 'FWHM negative')
 
+    if image_params['ellipticity'] < min_ell:
+        use_phot = 0
+        use_ref = 0
+        use_image = 0
+        report = append_errors(report, 'Ellipticity too low')
+
     if image_params['sky'] > sky_max:
         use_phot = 0
         report = append_errors(report, 'Sky background exceeds threshold for photometry')
+
+    if image_params['sky_sigma'] > sky_max_sigma:
+        use_image = 0
+        use_phot = 0
+        use_ref = 0
+        report append_errors(report, 'Structure suspected in sky background')
 
     if image_params['sky'] > sky_ref_max:
         use_ref = 0

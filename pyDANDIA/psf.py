@@ -937,6 +937,20 @@ def calc_fwhm_from_psf_sigma(sigma_x,sigma_y):
     fwhm = bivariate.get_FWHM(sigma_x,sigma_y)
     return fwhm
 
+def calc_ellipticity_from_psf_sigma(sigma_x,sigma_y):
+
+    # Determine major and minor axes:
+    if sigma_x > sigma_y:
+        a = sigma_x
+        b = sigma_y
+    else:
+        a = sigma_y
+        b = sigma_x
+
+    ellip = (a - b)/ a
+
+    return ellip
+
 def fit_background(data, Y_data, X_data, mask, background_model='Constant'):
     if background_model == 'Constant':
         back_model = ConstantBackground()
