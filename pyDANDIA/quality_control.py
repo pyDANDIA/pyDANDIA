@@ -116,7 +116,7 @@ def assess_image(reduction_metadata,image_params,image_header,log):
         use_image = 0
         use_phot = 0
         use_ref = 0
-        report append_errors(report, 'Structure suspected in sky background')
+        report = append_errors(report, 'Structure suspected in sky background')
 
     if image_params['sky'] > sky_ref_max:
         use_ref = 0
