@@ -126,7 +126,8 @@ def assess_image(reduction_metadata,image_params,image_header,log):
                                 + str(image_params['sky']) + ' exceeds threshold ('
                                 + str(sky_max) + ') for photometry')
 
-    if image_params['sky_sigma'] > sky_max_nsigma*np.sqrt(image_params['sky']):
+    sky_max_sigma = sky_max_nsigma*np.sqrt(image_params['sky'])
+    if image_params['sky_sigma'] > sky_max_sigma:
         use_image = 0
         use_phot = 0
         use_ref = 0
