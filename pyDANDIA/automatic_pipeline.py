@@ -303,7 +303,8 @@ def parse_configured_datasets(config,log):
         entries = glob.glob(path.join(config['data_red_dir'],'*'))
 
         for dataset_path in entries:
-            if path.isdir(dataset_path) and path.isdir(path.join(dataset_path,'data')):
+            if path.isdir(dataset_path) and path.isdir(path.join(dataset_path,'data')) \
+                    and not check_dataset_spectra(dataset_path):
                 datasets.append( dataset_path )
 
         log.info('Found '+str(len(datasets))+' datasets to be reduced in '+config['data_red_dir']+':')
@@ -316,6 +317,7 @@ def parse_configured_datasets(config,log):
 
     elif str(config['reduce_datasets']).upper() == 'RECENT':
 
+        # This function also checks to make sure that the datasets don't contain spectra
         datasets = identify_recent_data(config, log)
 
         log.info('Found '+str(len(datasets))+' datasets to be reduced in '+config['data_red_dir']+':')
@@ -327,6 +329,22 @@ def parse_configured_datasets(config,log):
         np.random.shuffle(datasets)
 
     return datasets
+
+def check_dataset_spectra(dir_path):
+    """
+    Function checks the directory name for the instrument IDs of spectroscopic instruments.
+    Returns True if the dataset contains spectra and False otherwise
+    """
+    # Instrument IDs of spectroscopy datasets to be ignored since this is an imaging
+    # pipeline
+    spectroscopes = ['en06', 'en12']
+
+    check = ['_'+inst_id+'_' in path.basename(dir_path) for inst_id in spectroscopes]
+
+    if any(check):
+        return True
+    else:
+        return False
 
 def identify_recent_data(config, log):
     """Function to review the image data acquired for all datasets and create
@@ -348,7 +366,7 @@ def identify_recent_data(config, log):
         if path.isdir(dataset_path) and path.isdir(path.join(dataset_path,'data')):
 
             recent_data = check_dataset_for_recent_data(date_threshold,dataset_path,log)
-            if recent_data:
+            if recent_data and not check_dataset_spectra(dataset_path):
                 datasets.append( dataset_path )
 
     return datasets
