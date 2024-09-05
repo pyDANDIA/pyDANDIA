@@ -81,7 +81,7 @@ def assess_image(reduction_metadata,image_params,image_header,log):
 
     sigma_max = reduction_metadata.reduction_parameters[1]['MAX_SIGMA_PIXELS'][0]
     sky_max = reduction_metadata.reduction_parameters[1]['MAX_SKY'][0]
-    sky_max_sigma = reduction_metadata.reduction_parameters[1]['MAX_SKY_STD'][0]
+    sky_max_nsigma = reduction_metadata.reduction_parameters[1]['MAX_SKY_NSTD'][0]
     sky_ref_max = reduction_metadata.reduction_parameters[1]['MAX_SKY_REF'][0]
     max_ell = reduction_metadata.reduction_parameters[1]['MAX_ELL'][0]
 
@@ -126,7 +126,7 @@ def assess_image(reduction_metadata,image_params,image_header,log):
                                 + str(image_params['sky']) + ' exceeds threshold ('
                                 + str(sky_max) + ') for photometry')
 
-    if image_params['sky_sigma'] > sky_max_sigma:
+    if image_params['sky_sigma'] > sky_max_nsigma*np.sqrt(image_params['sky']):
         use_image = 0
         use_phot = 0
         use_ref = 0
