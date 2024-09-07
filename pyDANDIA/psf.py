@@ -939,16 +939,19 @@ def calc_fwhm_from_psf_sigma(sigma_x,sigma_y):
 
 def calc_ellipticity_from_psf_sigma(sigma_x,sigma_y):
 
-    # Determine major and minor axes:
-    if sigma_x > sigma_y:
-        a = sigma_x
-        b = sigma_y
+    if sigma_x > 0.0 and sigma_y > 0.0:
+        # Determine major and minor axes:
+        if sigma_x > sigma_y:
+            a = sigma_x
+            b = sigma_y
+        else:
+            a = sigma_y
+            b = sigma_x
+
+        ellip = (a - b)/ a
     else:
-        a = sigma_y
-        b = sigma_x
-
-    ellip = (a - b)/ a
-
+        ellip = 1.0
+        
     return ellip
 
 def fit_background(data, Y_data, X_data, mask, background_model='Constant'):
