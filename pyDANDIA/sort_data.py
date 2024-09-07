@@ -68,6 +68,7 @@ class Dataset():
             else:
                 self.id_code = str(self.target)+ '_' + str(self.instrument).lower() + '_' + self.filter
 
+
 def get_image_parameters(hdr):
 
     ds = Dataset()
@@ -128,14 +129,15 @@ def get_image_dataset(image, option, log=None):
 def make_image_list(data_dir):
     """Function to check to see if the data directory contains FITS files"""
 
+    frame_list = []
     if path.isdir(data_dir):
 
-        frame_list = glob.glob(path.join(data_dir,'*.fits'))
+        full_list = glob.glob(path.join(data_dir,'*.fits'))
+        frame_list = [x for x in full_list if 'wecfzst' not in x]
 
         if len(frame_list) == 0:
 
             print('Cannot find any FITS images in the input directory')
-            exit()
 
     else:
 

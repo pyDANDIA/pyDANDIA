@@ -931,7 +931,6 @@ class Image(object):
 
 def calc_fwhm_from_psf_sigma(sigma_x,sigma_y):
 
-
     #fwhm = np.sqrt(sigma_x*sigma_x + sigma_y*sigma_y) * 2.355
     bivariate = BivariateNormal()
     fwhm = bivariate.get_FWHM(sigma_x,sigma_y)
@@ -951,7 +950,7 @@ def calc_ellipticity_from_psf_sigma(sigma_x,sigma_y):
         ellip = (a - b)/ a
     else:
         ellip = 1.0
-        
+
     return ellip
 
 def fit_background(data, Y_data, X_data, mask, background_model='Constant'):
