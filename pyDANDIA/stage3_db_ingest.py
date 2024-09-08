@@ -324,6 +324,7 @@ def harvest_image_params(reduction_metadata, image_path, ref_image_path, **kwarg
         image_params['facility_code'] = phot_db.get_facility_code(image_params)
     else:
         image_params['facility_code'] = 0
+    tel_code = image_header['SITEID'] + '-' + image_header['ENCID'] + '-' + image_header['TELID']
 
     # Image parameters for single-frame reference image
     # NOTE: Stacked reference images not yet supported
@@ -399,8 +400,7 @@ def harvest_image_params(reduction_metadata, image_path, ref_image_path, **kwarg
     image_params['delta_x'] = None
     image_params['delta_y'] = None
 
-    print(tel_code)
-    image_params['hjd'] = time_utils.calc_hjd(
+    (image_params['hjd'], ltt) = time_utils.calc_hjd(
         image_params['date_obs_utc'],
         image_params['RA'],image_params['Dec'],
         tel_code,

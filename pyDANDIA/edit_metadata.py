@@ -120,11 +120,14 @@ def edit_image_reduction_status(red_dir):
         image_name = sys.argv[3]
         status = sys.argv[4]
     else:
-        image_name = input('Please enter the name of the image whose status you want to edit or give the path to a file listing images, prefixed with @: ')
+        image_name = input('Please enter the name of the image whose status you want to edit or give the path to a file listing images, prefixed with @, or ALL: ')
         status = input('Please enter, in list format, the updated status of this image in all stages (e.g. [0,0,0,0,0,0,0,0]): ')
 
     image_list = []
-    if image_name[0:1] == '@':
+    if image_name == 'ALL':
+        image_list = reduction_metadata.reduction_status[1]['IMAGES']
+
+    elif image_name[0:1] == '@':
         file_path = image_name[1:]
         if not os.path.isfile(image_name[1:]):
             raise IOError('Cannot find input list of images '+image_name)

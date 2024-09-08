@@ -143,3 +143,13 @@ def test_identify_recent_data():
     assert type(datasets) == type(['foo'])
 
     logs.close_log(log)
+
+def test_check_dataset_spectra():
+    dir_list = {
+        '/data/messier/omega/data/data_reduction/ASASSN-24fs_gp': False,
+        '/data/messier/omega/data/data_reduction/ASASSN-24fs_en06_air': True,
+    }
+
+    for dir_path, test_status in dir_list.items():
+        status = automatic_pipeline.check_dataset_spectra(dataset_path)
+        assert(status == test_status)

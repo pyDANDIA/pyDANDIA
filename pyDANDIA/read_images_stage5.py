@@ -36,14 +36,15 @@ def background_fit(image1, master_mask = []):
     #background = np.median(image1[master_mask])
     return background
 
-def background_mesh_perc(image1,perc=30,box_guess=300, master_mask = []):
+def background_mesh_perc(image1,perc=30,box_guess=300, master_mask = [],
+                         nboxx=10, nboxy=10):
 
     image = np.copy(image1)
 
-    if (box_guess>image1.shape[0]/10) | (box_guess>image1.shape[1]/10):
+    if (box_guess>image1.shape[0]/nboxy) | (box_guess>image1.shape[1]/nboxx):
 
-        boxx = int(np.min(image1.shape[1])/10)
-        boxy = int(np.min(image1.shape[0])/10)
+        boxx = int(np.min(image1.shape[1])/nboxx)
+        boxy = int(np.min(image1.shape[0])/nboxy)
 
 
     else:

@@ -81,32 +81,64 @@ def assess_image(reduction_metadata,image_params,image_header,log):
 
     sigma_max = reduction_metadata.reduction_parameters[1]['MAX_SIGMA_PIXELS'][0]
     sky_max = reduction_metadata.reduction_parameters[1]['MAX_SKY'][0]
+    sky_max_nsigma = reduction_metadata.reduction_parameters[1]['MAX_SKY_NSTD'][0]
     sky_ref_max = reduction_metadata.reduction_parameters[1]['MAX_SKY_REF'][0]
+    max_ell = reduction_metadata.reduction_parameters[1]['MAX_ELL'][0]
 
-    if image_params['nstars'] == 0:
+    # Note that this stage analyzes only the central 500 pixels of the frame, so the
+    # Nstars reported here is much lower than that for the whole frame.  Hence the
+    # lower threshold.
+    min_nstars_center = 5
+    if image_params['nstars'] < min_nstars_center:
         use_phot = 0
         use_ref = 0
         use_image = 0
-        report = append_errors(report, 'No stars detected in frame')
+        report = append_errors(report, 'Insufficient ('
+                               + str(image_params['nstars'])
+                               + ') stars detected in center of frame, require >= '
+                               + str(min_nstars_center))
 
     if image_params['sigma_x'] > sigma_max or image_params['sigma_y'] > sigma_max:
         use_phot = 0
         use_ref = 0
-        report = append_errors(report, 'FWHM exceeds threshold')
+        report = append_errors(report, 'FWHM (x,y='
+                               + str(image_params['sigma_x']) + ', ' + str(image_params['sigma_y'])
+                               + ') exceeds threshold ' + str(sigma_max))
 
     if image_params['sigma_x'] < 0.0 or image_params['sigma_y'] < 0.0:
         use_phot = 0
         use_ref = 0
         use_image = 0
-        report = append_errors(report, 'FWHM negative')
+        report = append_errors(report, 'FWHM  (x,y='
+                               + str(image_params['sigma_x']) + ', ' + str(image_params['sigma_y'])
+                               + ') negative')
+
+    if image_params['ellipticity'] > max_ell:
+        use_phot = 0
+        use_ref = 0
+        use_image = 0
+        report = append_errors(report, 'Ellipticity too high: '
+                               + str(image_params['ellipticity']) + ', threshold >'+str(max_ell))
 
     if image_params['sky'] > sky_max:
         use_phot = 0
-        report = append_errors(report, 'Sky background exceeds threshold for photometry')
+        report = append_errors(report, 'Sky background '
+                                + str(image_params['sky']) + ' exceeds threshold ('
+                                + str(sky_max) + ') for photometry')
+
+    sky_max_sigma = sky_max_nsigma*np.sqrt(image_params['sky'])
+    if image_params['sky_sigma'] > sky_max_sigma:
+        use_image = 0
+        use_phot = 0
+        use_ref = 0
+        report = append_errors(report, 'Structure suspected in sky background.  Sky sigma= '
+                               + str(image_params['sky_sigma']) + ', threshold ' + str(sky_max_sigma))
 
     if image_params['sky'] > sky_ref_max:
         use_ref = 0
-        report = append_errors(report, 'Sky background exceeds threshold for reference')
+        report = append_errors(report, 'Sky background '
+                                + str(image_params['sky']) + ' exceeds threshold for reference '
+                               + str(sky_ref_max))
 
     if not verify_telescope_pointing(image_header):
         use_image = 0
