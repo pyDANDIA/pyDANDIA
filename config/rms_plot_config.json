@@ -1,0 +1,79 @@
+{  "red_dir": {
+        "value": "/Users/rstreet1/ROMEREA/test_data/",
+        "comment": "Path to field top-level data directory",
+        "format": "string",
+        "unit": ""
+    },
+    "output_dir": {
+        "value": "/Users/rstreet1/ROMEREA/test_data/",
+        "comment": "Directory path for output",
+        "format": "string",
+        "unit": ""
+    },
+    "field_name": {
+        "value": "ROME-FIELD-01",
+        "comment": "Name of the field to plot",
+        "format": "string",
+        "unit": ""
+    },
+    "quadrant": {
+        "value": "1,
+        "comment": "Index of quadrant of data to plot",
+        "format": "integer",
+        "unit": ""
+    },
+    "interactive": {
+        "value": "False",
+        "comment": "Switch to display interactive plots",
+        "format": "string",
+        "unit": ""
+    },
+    "reference_dataset_code": {
+        "value": "lsc_doma",
+        "comment": "Identifier for the site/enclosure to be used as the photometry reference dataset, cannot be None [e.g. lsc_doma]",
+        "format": "string",
+        "unit": ""
+    },
+    "plot_i_range": {
+        "value": [12.0, 20.0],
+        "comment": "Minimum and maximum SDSS-i magnitudes to use for plots",
+        "format": "float",
+        "unit": "mag"
+    },
+    "i_sigma_max": {
+        "value": 0.5,
+        "comment": "Maximum SDSS-i magnitude uncertainty to use for plots",
+        "format": "float",
+        "unit": "mag"
+    },
+    "plot_r_range": {
+        "value": [13.0, 21.0],
+        "comment": "Minimum and maximum SDSS-r magnitudes to use for plots",
+        "format": "float",
+        "unit": "mag"
+    },
+    "r_sigma_max": {
+        "value": 0.5,
+        "comment": "Maximum SDSS-r magnitude uncertainty to use for plots",
+        "format": "float",
+        "unit": "mag"
+    },
+    "plot_g_range": {
+        "value": [13.0, 22.5],
+        "comment": "Minimum and maximum SDSS-g magnitudes to use for plots",
+        "format": "float",
+        "unit": "mag"
+    },
+    "g_sigma_max": {
+        "value": 0.5,
+        "comment": "Maximum SDSS-g magnitude uncertainty to use for plots",
+        "format": "float",
+        "unit": "mag"
+    },
+    "plot_rms_range": {
+        "value": [8e-3, 1.0],
+        "comment": "Minimum and maximum RMS in magnitude",
+        "format": "float",
+        "unit": "mag"
+    }
+}

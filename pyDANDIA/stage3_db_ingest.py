@@ -402,9 +402,8 @@ def harvest_image_params(reduction_metadata, image_path, ref_image_path, **kwarg
     (image_params['hjd'], ltt) = time_utils.calc_hjd(
         image_params['date_obs_utc'],
         image_params['RA'],image_params['Dec'],
-        tel_code,
-        image_params['exposure_time']
-    )
+        '-'.join(image_params['facility_code'].split('-')[0:3]),
+        image_params['exposure_time'])
 
     return image_params
 

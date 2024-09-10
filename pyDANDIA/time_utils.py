@@ -130,4 +130,8 @@ if __name__ == '__main__':
         args.tel_code,
         float(args.exp_time)
     )
+<<<<<<< HEAD
     print('Calculated HJD=' + str(hjd))
+=======
+    print('Calculated HJD=' + str(hjd))
+>>>>>>> 8589c2a12e7f7a785134ab1d583900c7785b6aeb

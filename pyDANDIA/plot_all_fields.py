@@ -1,7 +1,9 @@
 from os import path
-from sys import argv
+import argparse
 import matplotlib.pyplot as plt
 import numpy as np
+from PIL import Image
+from skimage.color import rgb2gray
 
 ROME_FIELDS={'ROME-FIELD-01':[ 267.835895375 , -30.0608178195 , '17:51:20.6149','-30:03:38.9442' ],
             'ROME-FIELD-02':[ 269.636745458 , -27.9782661111 , '17:58:32.8189','-27:58:41.758' ],
@@ -31,18 +33,27 @@ naxis2 = 4096
 FIELD_HALF_WIDTH = (( naxis2 * pixel_scale ) / 3600.0) / 2.0 # Deg
 FIELD_HALF_HEIGHT = (( naxis1 * pixel_scale ) / 3600.0) / 2.0 # Deg
 
-def plot_all_fields(data_dir):
+BACKGROUND = {'DECam':[ 271.014958, -28.75124167,'18:04:03.59', '-28:45:04.47', 'decam_bulge_image.tiff', 0.263],
+              'DSS': [269.335, -29.178, '17:57:20.4', '-29:10:40.8', 'DSS_ROME_footprint_car.png', 6.95]}
+
+
+def plot_all_fields(args):
 
     fig = plt.figure(1,(39,27))
-    fig.patch.set_facecolor('black')
+    if args.mode == 'poster':
+        fig.patch.set_facecolor('black')
+        fontsize = 30
+    else:
+        fontsize = 50
 
     ax = plt.subplot(111)
     plt.subplots_adjust(left=0.075, right=0.95, top=0.85, bottom=0.15)
-    ax.set_facecolor('black')
-    ax.spines["top"].set_visible(False)
-    ax.spines["right"].set_visible(False)
-    ax.spines["bottom"].set_visible(False)
-    plot_ranges = calc_survey_boundaries()
+    if args.mode == 'poster':
+        ax.set_facecolor('black')
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+        ax.spines["bottom"].set_visible(False)
+    plot_ranges = calc_survey_boundaries(args)
 
     ax.set_autoscaley_on(False)
     ax.set_autoscalex_on(False)
@@ -50,57 +61,84 @@ def plot_all_fields(data_dir):
     ax.set_xlim([plot_ranges[1], plot_ranges[0]])
     ax.set_ylim([plot_ranges[2], plot_ranges[3]])
 
-    for field_id,field_data in ROME_FIELDS.items():
+    plot_bkgd = False
+    if plot_bkgd:
+        bkgd_data = BACKGROUND['DSS']
+        file_name = path.join(args.data_dir, bkgd_data[4])
+        bkgd_image = np.array(Image.open(file_name))
+        bkgd_desat = rgb2gray(bkgd_image)
+        (bkgd_naxis1, bkgd_naxis2) = bkgd_desat.shape
+        BKGD_HALF_WIDTH = (( bkgd_naxis2 * bkgd_data[5] ) / 3600.0) / 2.0 # Deg
+        BKGD_HALF_HEIGHT = (( bkgd_naxis1 * bkgd_data[5] ) / 3600.0) / 2.0 # Deg
+        extent = [bkgd_data[0] - BKGD_HALF_WIDTH,
+                  bkgd_data[0] + BKGD_HALF_WIDTH,
+                  bkgd_data[1] - BKGD_HALF_HEIGHT,
+                  bkgd_data[1] + BKGD_HALF_HEIGHT]
+        bkgd_desat = np.fliplr(bkgd_desat)
+        #bkgd_desat = np.flipud(bkgd_desat)
+        plt.imshow(bkgd_desat, extent=extent)
 
-        file_name = path.join(data_dir, field_id+'_colour.png')
+    plot_rome_fields = True
+    if plot_rome_fields:
+        for field_id,field_data in ROME_FIELDS.items():
 
-        if path.isfile(file_name):
+            file_name = path.join(args.data_dir, field_id+'_colour.png')
 
-            image = plt.imread(file_name)
-            image = np.fliplr(image)
-            image = np.flipud(image)
+            if path.isfile(file_name):
 
-            extent = [ field_data[0] - FIELD_HALF_WIDTH,
-                        field_data[0] + FIELD_HALF_WIDTH,
-                        field_data[1] - FIELD_HALF_HEIGHT,
-                        field_data[1] + FIELD_HALF_HEIGHT ]
+                image = plt.imread(file_name)
+                image = np.fliplr(image)
+                image = np.flipud(image)
 
-            plt.imshow(image, extent=extent)
+                extent = [ field_data[0] - FIELD_HALF_WIDTH,
+                field_data[0] + FIELD_HALF_WIDTH,
+                field_data[1] - FIELD_HALF_HEIGHT,
+                field_data[1] + FIELD_HALF_HEIGHT ]
+
+                plt.imshow(image, extent=extent)
+
+                # Annotate each field with its index for identification
+                if args.mode == 'paper':
+                    field_idx = field_id.split('-')[-1]
+                if field_idx[0:1] == '0': field_idx = field_idx[1:]
+                plt.annotate(field_idx, (field_data[0] - FIELD_HALF_WIDTH, field_data[1] - FIELD_HALF_HEIGHT),
+                                **{'fontsize': fontsize})
 
     plt.grid(linestyle='--',c='gray', linewidth=0.5)
     ax.tick_params(axis='x', colors='gray')
     ax.tick_params(axis='y', colors='gray')
     ax.yaxis.label.set_color('gray')
     ax.xaxis.label.set_color('gray')
-    plt.xlabel('RA [deg]', fontsize=30)
-    plt.ylabel('Dec [deg]', fontsize=30)
+    plt.xlabel('RA [deg]', fontsize=fontsize)
+    plt.ylabel('Dec [deg]', fontsize=fontsize)
     for tick in ax.xaxis.get_major_ticks():
-        tick.label.set_fontsize(30)
+        tick.label.set_fontsize(fontsize)
     for tick in ax.yaxis.get_major_ticks():
-        tick.label.set_fontsize(30)
+        tick.label.set_fontsize(fontsize)
 
-    ax.title.set_color('white')
-    figure_title = 'ROME Survey of the Galactic Bulge'
-    plt.text(0.5, 1.08, figure_title,
-        horizontalalignment='center',
-        fontsize=100, c='gray',
-        transform = ax.transAxes)
+    if args.mode == 'poster':
+        ax.title.set_color('white')
+        figure_title = 'ROME Survey of the Galactic Bulge'
+        plt.text(0.5, 1.08, figure_title,
+            horizontalalignment='center',
+            fontsize=100, c='gray',
+            transform = ax.transAxes)
 
-    plt.text(0.5, -0.16, '5 million stars  $\\bullet$  3 filters  $\\bullet$  3 years',
-        horizontalalignment='center',
-        fontsize=80, c='gray',
-        transform = ax.transAxes)
+        plt.text(0.5, -0.16, '5 million stars  $\\bullet$  3 filters  $\\bullet$  3 years',
+            horizontalalignment='center',
+            fontsize=80, c='gray',
+            transform = ax.transAxes)
 
-    image = plt.imread(path.join(data_dir,'LCO_new_logo_lightgrey.png'))
-    ax2 = fig.add_axes([0.875, -0.01, 0.1, 0.1], anchor='NE')
-    ax2.imshow(image)
-    ax2.axis('off')
+        image = plt.imread(path.join(args.data_dir,'LCO_new_logo_lightgrey.png'))
+        ax2 = fig.add_axes([0.875, -0.01, 0.1, 0.1], anchor='NE')
+        ax2.imshow(image)
+        ax2.axis('off')
 
     plt.draw()
-    plt.savefig(path.join(data_dir, 'ROME_survey_colour.png'), dpi=300,
-                        facecolor=fig.get_facecolor(), edgecolor='none')
+    plt.savefig(path.join(args.data_dir, 'ROME_survey_colour.png'), dpi=300,
+                        facecolor=fig.get_facecolor(), edgecolor='none', bbox_inches='tight')
 
-def calc_survey_boundaries():
+def calc_survey_boundaries(args):
 
     ra_min = 1000.0
     ra_max = -1000.0
@@ -113,10 +151,16 @@ def calc_survey_boundaries():
         if field_data[1] < dec_min: dec_min = field_data[1]
         if field_data[1] > dec_max: dec_max = field_data[1]
 
-    ra_min = ra_min * 0.99
-    ra_max = ra_max * 1.01
-    dec_min = dec_min * 1.01
-    dec_max = dec_max * 0.99
+    if args.mode == 'poster':
+        ra_min = ra_min * 0.99
+        ra_max = ra_max * 1.01
+        dec_min = dec_min * 1.01
+        dec_max = dec_max * 0.99
+    else:
+        ra_min = ra_min * 1.0
+        ra_max = ra_max * 1.0
+        dec_min = dec_min * 1.01
+        dec_max = dec_max * 0.99
 
     print('Survey boundaries RA='+str(ra_min)+' - '+str(ra_max)+\
             ', Dec='+str(dec_min)+' - '+str(dec_max))
@@ -124,10 +168,9 @@ def calc_survey_boundaries():
     return [ra_min, ra_max, dec_min, dec_max]
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('data_dir', help="Please enter the path to the data directory")
+    parser.add_argument('mode', help="Option from {poster, paper} to toggle different layouts")
+    args = parser.parse_args()
 
-    if len(argv) > 1:
-        data_dir = argv[1]
-    else:
-        data_dir = input('Please enter the path to the data directory: ')
-
-    plot_all_fields(data_dir)
+    plot_all_fields(args)

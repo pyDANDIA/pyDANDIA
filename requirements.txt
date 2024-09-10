@@ -18,5 +18,8 @@ psutil
 seaborn
 pillow>=9.0.1
 boto3
+<<<<<<< HEAD
 h5py
+=======
+>>>>>>> 8589c2a12e7f7a785134ab1d583900c7785b6aeb
 jplephem==2.21

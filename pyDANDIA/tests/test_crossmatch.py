@@ -12,10 +12,10 @@ import numpy as np
 
 def test_params():
     params = {'primary_ref': 'primary_ref_dataset',
-              'datasets': { 'primary_ref_dataset': ['primary_ref', '/Users/rstreet1/OMEGA/test_data/non_ref_dataset_p/', 'none'],
-                            'dataset0' : [ 'non_ref', '/Users/rstreet1/OMEGA/test_data/non_ref_dataset0/', 'none' ],
-                            'dataset1' : [ 'non_ref', '/Users/rstreet1/OMEGA/test_data/non_ref_dataset1/', 'none' ],
-                            'dataset2' : [ 'non_ref', '/Users/rstreet1/OMEGA/test_data/non_ref_dataset1/', 'none' ]},
+              'datasets': { 'primary_ref_dataset': ['primary_ref', '/Users/rstreet1/OMEGA/test_data/non_ref_dataset_p/', 'ip'],
+                            'dataset0' : [ 'non_ref', '/Users/rstreet1/OMEGA/test_data/non_ref_dataset0/', 'ip' ],
+                            'dataset1' : [ 'non_ref', '/Users/rstreet1/OMEGA/test_data/non_ref_dataset1/', 'rp' ],
+                            'dataset2' : [ 'non_ref', '/Users/rstreet1/OMEGA/test_data/non_ref_dataset1/', 'gp' ]},
               'file_path': 'crossmatch_table.fits',
               'log_dir': '.',
               'gaia_dr': 'Gaia_DR2',
@@ -358,6 +358,40 @@ def test_record_dataset_stamps():
         assert(column in xmatch.stamps.colnames)
     assert(len(xmatch.stamps) == len(meta.images_stats[1])*len(meta.stamps[1]))
 
+def test_get_imagesets():
+
+    params = test_params()
+    xmatch = crossmatch.CrossMatchTable()
+    xmatch.create(params)
+
+    imagesets = xmatch.get_imagesets()
+    print(imagesets)
+
+def test_create_normalizations_tables():
+
+    params = {'primary_ref': 'ROME-FIELD-01_lsc-doma-1m0-05-fa15_ip',
+              'datasets': { 'ROME-FIELD-01_lsc-doma-1m0-05-fa15_ip': ['primary_ref', '/Users/rstreet1/OMEGA/test_data/non_ref_dataset_p/', 'ip'],
+                            'ROME-FIELD-01_coj-doma-1m0-11-fa12_ip' : [ 'non_ref', '/Users/rstreet1/OMEGA/test_data/non_ref_dataset0/', 'ip' ]},
+              'file_path': 'crossmatch_table.fits',
+              'log_dir': '.',
+              'gaia_dr': 'Gaia_DR2',
+              'separation_threshold': (2.0/3600.0)*u.deg}
+    xmatch = crossmatch.CrossMatchTable()
+    xmatch.create(params)
+    xmatch.field_index.add_row([1,267.61861696019145, -29.829605383706895, 4, 1, '4056436121079692032', 1, 0])
+    xmatch.field_index.add_row([2,267.70228408545813, -29.83032824102953, 4, 2, '4056436121079692033', 2, 0])
+    xmatch.field_index.add_row([3,267.9873108673885, -29.829734325692858, 3, 1, '4056436121079692034', 3, 0])
+    xmatch.field_index.add_row([4,267.9585073984874, -29.83002538112054, 3, 2, '4056436121079692035', 4, 0])
+
+    xmatch.create_normalizations_tables()
+    
+    # Test default creation of a set of empty tables:
+    assert(hasattr(xmatch, 'normalizations'))
+    assert(type(xmatch.normalizations) == type({}))
+    for priref, data_table in xmatch.normalizations.items():
+        assert(type(data_table) == type(Table([])))
+
+
 if __name__ == '__main__':
     #test_create()
 #    test_add_dataset()
@@ -371,4 +405,6 @@ if __name__ == '__main__':
     #test_init_stars_table()
     #test_match_field_index_with_gaia_catalog()
     #test_load_gaia_catalog_file()
-    test_record_dataset_stamps()
+    #test_record_dataset_stamps()
+    #test_get_imagesets()
+    test_create_normalizations_tables()

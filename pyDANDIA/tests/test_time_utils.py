@@ -6,8 +6,9 @@ Created on Fri Feb 15 20:46:21 2019
 """
 import os
 import sys
+
 cwd = os.getcwd()
-sys.path.append(os.path.join(cwd,'../'))
+sys.path.append(os.path.join(cwd, '../'))
 import time_utils
 import slalib_time_utils
 from astropy import units as u
@@ -58,7 +59,7 @@ def test_calc_hjd():
     tel_code = 'geocenter'
 
     print('\nUsing Astropy routines:')
-    hjd,ltt_helio = time_utils.calc_hjd(
+    hjd, ltt_helio = time_utils.calc_hjd(
         dateobs,
         RA, Dec,
         tel_code,
@@ -68,7 +69,8 @@ def test_calc_hjd():
     print('Calculated HJD=' + str(hjd) + ' helio time correction=' + str(ltt_helio.to(u.s)))
 
     print('\nUsing SLAlib routines:')
-    shjd,stcorr = slalib_time_utils.calc_hjd_slalib(
+
+    shjd, stcorr = slalib_time_utils.calc_hjd_slalib(
         dateobs,
         RA, Dec,
         exp_time,
@@ -84,7 +86,6 @@ def test_calc_hjd():
     # is "~0.02"
     np.testing.assert_almost_equal(hjd, shjd, 3.5e-7)
 
+
 if __name__ == '__main__':
-    
     test_calc_hjd()
-    

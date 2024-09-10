@@ -31,6 +31,8 @@ def field_colour_analysis():
     plot_field_colour_mag_diagram(config, xmatch, valid_stars, selected_stars, '(g-r)', 'g', log)
     plot_field_colour_mag_diagram(config, xmatch, valid_stars, selected_stars, '(g-i)', 'i', log)
 
+    plot_field_colour_colour_diagram(config, xmatch, valid_stars, selected_stars, log)
+
     output_photometry(config, xmatch, selected_stars, log)
 
     logs.close_log(log)
@@ -59,7 +61,7 @@ def plot_field_colour_mag_diagram(config, xmatch, valid_stars, selected_stars,
                  label='Stars within field of view')
 
     plt.scatter(xmatch.stars[colour][selected_stars],xmatch.stars[mag_column][selected_stars],
-              c=default_marker_colour, marker='*', s=5,
+              c=default_marker_colour, marker='*', s=1,
               label='Stars meeting selection criteria')
 
 
@@ -93,17 +95,18 @@ def plot_field_colour_mag_diagram(config, xmatch, valid_stars, selected_stars,
                                             +'.pdf')
     plt.grid()
 
-    box = ax.get_position()
-    ax.set_position([box.x0, box.y0 + box.height * -0.025,
-             box.width, box.height * 0.95])
+    if config['legend']:
+        box = ax.get_position()
+        ax.set_position([box.x0, box.y0 + box.height * -0.025,
+                 box.width, box.height * 0.95])
 
-    l = ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.3), ncol=2)
+        l = ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.3), ncol=2)
 
-    l.legendHandles[0]._sizes = [50]
-    if len(l.legendHandles) > 1:
-        l.legendHandles[1]._sizes = [50]
+        l.legendHandles[0]._sizes = [50]
+        if len(l.legendHandles) > 1:
+            l.legendHandles[1]._sizes = [50]
 
-    plt.rcParams.update({'legend.fontsize':25})
+        plt.rcParams.update({'legend.fontsize':25})
     plt.rcParams.update({'font.size':25})
     plt.rcParams.update({'axes.titlesize': 25})
     plt.rcParams.update({'font.size': 25})
@@ -117,8 +120,94 @@ def plot_field_colour_mag_diagram(config, xmatch, valid_stars, selected_stars,
 
     log.info('Colour-magnitude diagram output to '+plot_file)
 
+def plot_field_colour_colour_diagram(config, xmatch, valid_stars, selected_stars, log):
+    """Function to plot a colour-colour diagram from the field cross-match
+    table, for colour indices (g-r) .vs. (r-i)"""
+
+    fig = plt.figure(1,(10,10))
+
+    ax = plt.subplot(111)
+
+    plt.rcParams.update({'font.size': 25})
+
+    colour1 = '(g-r)'
+    colour2 = '(r-i)'
+    (default_marker_colour, field_marker_colour, marker_colour) = plot_data_colours()
+    if len(selected_stars) < len(valid_stars):
+        marker_colour = field_marker_colour
+
+    # Plot selected field stars
+    if not config['plot_selected_stars_only']:
+        plt.scatter(xmatch.stars[colour1][valid_stars],xmatch.stars[colour2][valid_stars],
+                 c=marker_colour, marker='.', s=1,
+                 label='Stars within field of view')
+
+    plt.scatter(xmatch.stars[colour1][selected_stars],xmatch.stars[colour2][selected_stars],
+              c=default_marker_colour, marker='*', s=1,
+              label='Stars meeting selection criteria')
+
+
+    plt.xlabel('SDSS '+colour1+' [mag]')
+
+    plt.ylabel('SDSS-'+colour2+' [mag]')
+
+    [xmin,xmax,ymin,ymax] = plt.axis()
+    col_key1 = colour1.replace('(','').replace(')','').replace('-','')
+    col_key2 = colour2.replace('(','').replace(')','').replace('-','')
+    xmin = config['plot_'+col_key1+'_range'][0]
+    xmax = config['plot_'+col_key1+'_range'][1]
+    ymin = config['plot_'+col_key2+'_range'][0]
+    ymax = config['plot_'+col_key2+'_range'][1]
+    plt.axis([xmin,xmax,ymin,ymax])
+
+    xticks = np.arange(xmin,xmax,0.1)
+    yticks = np.arange(ymin,ymax,0.2)
+
+    #ax.set_xticks(xticks,minor=True)
+    ax.set_xticklabels(xticks,minor=True, fontdict={'size': 25})
+    #ax.set_yticks(yticks,minor=True)
+    ax.set_yticklabels(yticks,minor=True,fontdict={'size': 25})
+    ax.title.set_size(25)
+    ax.xaxis.label.set_fontsize(25)
+    ax.yaxis.label.set_fontsize(25)
+    ax.tick_params(axis="x", labelsize=25)
+    ax.tick_params(axis="y", labelsize=25)
+
+    plot_file = path.join(config['output_dir'],'colour_colour_diagram_'\
+                                            +colour1.replace('(','').replace(')','')\
+                                            +'_vs_'+colour2.replace('(','').replace(')','')\
+                                            +'.pdf')
+    plt.grid()
+
+    if config['legend']:
+        box = ax.get_position()
+        ax.set_position([box.x0, box.y0 + box.height * -0.025,
+                 box.width, box.height * 0.95])
+
+        l = ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.3), ncol=2)
+
+        l.legendHandles[0]._sizes = [50]
+        if len(l.legendHandles) > 1:
+            l.legendHandles[1]._sizes = [50]
+
+        plt.rcParams.update({'legend.fontsize':25})
+    plt.rcParams.update({'font.size':25})
+    plt.rcParams.update({'axes.titlesize': 25})
+    plt.rcParams.update({'font.size': 25})
+
+    if config['interactive']:
+        plt.show()
+    else:
+        plt.savefig(plot_file,bbox_inches='tight')
+
+    plt.close(1)
+
+    log.info('Colour-colour diagram output to '+plot_file)
+
 def plot_data_colours():
-    default_marker_colour = '#8c6931'
+    #default_marker_colour = '#8c6931'
+    #field_marker_colour = '#E1AE13'
+    default_marker_colour = '#000000'
     field_marker_colour = '#E1AE13'
     marker_colour = default_marker_colour
     return default_marker_colour, field_marker_colour, marker_colour
@@ -192,7 +281,7 @@ def output_photometry(config, xmatch, selected_stars, log):
                         str(star['(r-i)'])+' '+str(star['(r-i)_error'])+' '+\
                         str(selected)+' '+str(star['gaia_source_id'])+' '+\
                         str(star['parallax'])+' '+str(star['parallax_error'])+' '+\
-                        str(star['proper_motion'])+'\n' )
+                        str(star['pm'])+'\n' )
 
         f.close()
 
@@ -228,6 +317,13 @@ def apply_star_selection(config, xmatch, log):
         pm_idx = select_by_parallax(xmatch, config, log)
         idx = list(set(idx).intersection(set(pm_idx)))
 
+    # Apply any downselection of points if configured.
+    # This option is available to reduce the size of the resulting plots if necessary
+    if config['downsample_factor'] > 1:
+        random_idx = np.random.choice(np.arange(0,len(xmatch.stars),1), size=int(len(xmatch.stars)/config['downsample_factor']))
+        idx = list(set(idx).intersection(set(random_idx)))
+        log.info('WARNING: downsampling factor set to ' + str(config['downsample_factor']))
+
     if len(idx) == 0:
         raise ValueError('All stars excluded by combined selection criteria')
 
@@ -238,14 +334,21 @@ def apply_star_selection(config, xmatch, log):
     return qc_idx, selected_stars
 
 def select_by_photometry_quality(xmatch, config, log):
-    qc_idx1 = np.where( np.logical_and( np.less_equal(xmatch.stars['cal_g_magerr_'+config['reference_dataset_code']], config['g_sigma_max']),
-                        np.less_equal(xmatch.stars['cal_r_magerr_'+config['reference_dataset_code']], config['r_sigma_max']) ) )[0]
-    qc_idx2 = np.where( np.logical_and( np.less_equal(xmatch.stars['cal_i_magerr_'+config['reference_dataset_code']], config['i_sigma_max']),
-                        np.less_equal(xmatch.stars['(g-i)_error'], config['gi_sigma_max']) ) )[0]
-    qc_idx3 = np.where( np.logical_and( np.less_equal(xmatch.stars['(r-i)_error'], config['ri_sigma_max']),
-                        np.less_equal(xmatch.stars['(g-r)_error'], config['gr_sigma_max']) ) )[0]
-    qc_idx = set(qc_idx2).intersection(set(qc_idx2))
-    qc_idx = np.array(list(qc_idx.intersection(set(qc_idx3))))
+    gcol = 'cal_g_mag_'+config['reference_dataset_code']
+    gerrcol = 'cal_g_magerr_'+config['reference_dataset_code']
+    rcol = 'cal_r_mag_'+config['reference_dataset_code']
+    rerrcol = 'cal_r_magerr_'+config['reference_dataset_code']
+    icol = 'cal_i_mag_'+config['reference_dataset_code']
+    ierrcol = 'cal_i_magerr_'+config['reference_dataset_code']
+
+    qc_idx = np.logical_and(xmatch.stars[gcol] > 0.0, xmatch.stars[gerrcol] <= config['g_sigma_max'])
+    qc_idx = np.logical_and(qc_idx, xmatch.stars[rcol] > 0.0)
+    qc_idx = np.logical_and(qc_idx, xmatch.stars[rerrcol] <= config['r_sigma_max'])
+    qc_idx = np.logical_and(qc_idx, xmatch.stars[icol] >  0.0)
+    qc_idx = np.logical_and(qc_idx, xmatch.stars[ierrcol] <= config['i_sigma_max'])
+
+    qc_idx = np.where(qc_idx)[0]
+
     log.info(' -> '+str(len(qc_idx))+' stars meet the quality selection criteria:')
     log.info('    Max phot uncertainty, g = '+str(config['g_sigma_max']))
     log.info('    Max phot uncertainty, r = '+str(config['r_sigma_max']))
@@ -317,7 +420,7 @@ def get_args():
 
     config = config_utils.build_config_from_json(config_file)
 
-    for key in ['plot_selected_stars_only', 'interactive']:
+    for key in ['plot_selected_stars_only', 'interactive', 'legend']:
         if 'false' in str(config[key]).lower():
             config[key] = False
         else:

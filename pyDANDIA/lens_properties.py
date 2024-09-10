@@ -5,7 +5,7 @@
 import math
 import numpy as np
 from astropy import constants
-import pyslalib
+#import pyslalib
 
 class Lens:
     """Class describing the properties of a lensing body"""
@@ -104,7 +104,7 @@ class Lens:
 
     def calc_helio_veliocity():
 
-        earth_position = pyslalib.slalib.sla_epv(self.t0par-2400000.0)
+        #earth_position = pyslalib.slalib.sla_epv(self.t0par-2400000.0)
 
         v_earth = earth_position[1]     # Earth's heliocentric velocity vector
 

@@ -25,6 +25,7 @@ from pyDANDIA import  config_utils
 from pyDANDIA import  lightcurves
 from pyDANDIA import  metadata
 from pyDANDIA import  crossmatch
+from pyDANDIA import field_cmd
 
 def run_field_colour_analysis():
     """Function to analyse the colour information for a given field pointing"""
@@ -33,37 +34,42 @@ def run_field_colour_analysis():
 
     log = logs.start_stage_log( config['output_dir'], 'analyse_cmd' )
 
+    xmatch = crossmatch.CrossMatchTable()
+    xmatch.load(config['xmatch_file_path'], log=log)
+
     event_model = config_utils.load_event_model(config['event_model_parameters_file'], log)
 
     (source, blend) = calc_source_blend_params(config,event_model,log)
 
-    (photometry, stars) = extract_reference_instrument_calibrated_photometry(config,log)
+    xmatch = field_cmd.calc_colour_photometry(config, xmatch, log)
 
-    target = load_target_timeseries_photometry(config,photometry,log)
+    (valid_stars, selected_stars) = field_cmd.apply_star_selection(config, xmatch, log)
 
-    selected_stars = find_stars_close_to_target(config,stars,target,log)
+    #(photometry, stars) = extract_reference_instrument_calibrated_photometry(config,log)
 
-    photometry = calculate_colours(photometry,stars,log)
+    target = load_target_timeseries_photometry(config,xmatch,log)
+
+    #photometry = calculate_colours(photometry,stars,log)
 
     source = calc_source_lightcurve(source, target, log)
 
     # Add QC?
-    selected_phot = extract_local_star_photometry(photometry,selected_stars,log)
+    #selected_phot = extract_local_star_photometry(photometry,selected_stars,log)
 
-    RC = localize_red_clump_db(config,photometry,stars,selected_phot,log)
+    RC = localize_red_clump_db(config,xmatch,selected_stars,log)
 
     RC = event_colour_analysis.measure_RC_offset(config,RC,log)
     photometry_classes.output_red_clump_data_latex(config, RC, log)
 
-    plot_colour_mag_diagram(config, photometry, stars, selected_stars, selected_phot, RC, source, blend, 'r', 'i', 'i', log)
-    plot_colour_mag_diagram(config, photometry, stars, selected_stars, selected_phot, RC, source, blend, 'r', 'i', 'r', log)
-    plot_colour_mag_diagram(config, photometry, stars, selected_stars, selected_phot, RC, source, blend, 'g', 'r', 'g', log)
-    plot_colour_mag_diagram(config, photometry, stars, selected_stars, selected_phot, RC, source, blend, 'g', 'i', 'g', log)
-    plot_colour_mag_diagram(config, photometry, stars, selected_stars, selected_phot, RC, source, blend, 'g', 'i', 'i', log)
+    plot_colour_mag_diagram(config, xmatch, valid_stars, selected_stars, RC, source, blend, 'r', 'i', 'i', log)
+    plot_colour_mag_diagram(config, xmatch, valid_stars, selected_stars, RC, source, blend, 'r', 'i', 'r', log)
+    plot_colour_mag_diagram(config, xmatch, valid_stars, selected_stars, RC, source, blend, 'g', 'r', 'g', log)
+    plot_colour_mag_diagram(config, xmatch, valid_stars, selected_stars, RC, source, blend, 'g', 'i', 'g', log)
+    plot_colour_mag_diagram(config, xmatch, valid_stars, selected_stars, RC, source, blend, 'g', 'i', 'i', log)
 
-    plot_colour_colour_diagram(config, photometry, selected_phot, RC, source, blend, log)
+    plot_colour_colour_diagram(config, xmatch, valid_stars, selected_stars, RC, source, blend, log)
 
-    output_photometry(config, stars, photometry, selected_stars, log)
+    output_photometry(config, xmatch, valid_stars, selected_stars, log)
 
     source.output_json(path.join(config['output_dir'],'source_parameters.json'))
     blend.output_json(path.join(config['output_dir'],'blend_parameters.json'))
@@ -94,13 +100,13 @@ def get_args():
             config[key] = False
 
     # Handle those keywords which may have None values:
-    none_allowed_keys = ['target_field_id','db_file_path','xmatch_file_path']
+    none_allowed_keys = ['target_field_id','xmatch_file_path']
     for key in none_allowed_keys:
         if 'none' in str(config[key]).lower():
             config[key] = None
 
     # Handle dictionary keywords which may have None entries
-    none_allowed_keys = ['target_lightcurve_files', 'red_dirs']
+    none_allowed_keys = ['target_lightcurve_files']
     for main_key in none_allowed_keys:
         orig_dict = config[main_key]
         new_dict = {}
@@ -112,18 +118,8 @@ def get_args():
         config[main_key] = new_dict
 
     # Sanity check configuration:
-    if not config['db_file_path'] and not config['xmatch_file_path']:
+    if not config['xmatch_file_path']:
         raise IOError('Error in configuration: need to specify either a photometry database or a cross-match table')
-    if config['db_file_path'] and config['xmatch_file_path']:
-        raise IOError('Error in configuration: need to specify either a photometry database OR a cross-match table, not both')
-
-    if config['xmatch_file_path']:
-        n = 0
-        for key in ['g', 'r', 'i']:
-            if config['red_dirs'][key] == None:
-                n+=1
-        if n > 1:
-            raise IOError('Insufficient reduction directories specified for colour analysis')
 
     return config
 
@@ -140,17 +136,17 @@ def calc_source_blend_params(config,event_model,log):
         log.info('Using the following datasets as the flux references for the source and blend fluxes:')
         for f in filterset:
 
-            ref_dataset = config['flux_reference_datasets'][f]
+            ref_dataset = config['reference_dataset_code'] + '_' + f
             log.info(ref_dataset)
 
-            if event_model['source_fluxes'][ref_dataset] != None and event_model['source_flux_errors'][ref_dataset] != None:
+            if event_model['source_fluxes'][ref_dataset] and event_model['source_flux_errors'][ref_dataset]:
                 setattr(source, 'fs_'+f, event_model['source_fluxes'][ref_dataset])
                 setattr(source, 'sig_fs_'+f, event_model['source_flux_errors'][ref_dataset])
                 source.convert_fluxes_pylima(f)
 
             log.info('Source: '+repr(event_model['source_fluxes'][ref_dataset])+' +/- '+repr(event_model['source_flux_errors'][ref_dataset]))
 
-            if event_model['blend_fluxes'][ref_dataset] != None and event_model['blend_flux_errors'][ref_dataset] != None:
+            if event_model['blend_fluxes'][ref_dataset] and event_model['blend_flux_errors'][ref_dataset]:
                 setattr(blend, 'fs_'+f, event_model['blend_fluxes'][ref_dataset])
                 setattr(blend, 'sig_fs_'+f, event_model['blend_flux_errors'][ref_dataset])
                 blend.convert_fluxes_pylima(f)
@@ -188,89 +184,18 @@ def fetch_star_phot(star_id,phot_table):
         else:
             return phot_table['calibrated_mag'][jdx],phot_table['calibrated_mag_err'][jdx]
 
-def extract_reference_instrument_calibrated_photometry(config,log):
+def extract_reference_instrument_calibrated_photometry(config,xmatch, log):
     """Function to extract from the calibrated photometry for stars
     in the field from the data from the photometric reference instrument.
     """
 
-    if config['db_file_path']:
-        (photometry, stars) = get_reference_photometry_from_db(config, log)
-    else:
-        (photometry, stars) = get_reference_photometry_from_metadata(config, log)
-
-    return photometry, stars
-
-def get_reference_photometry_from_db(config, log):
-    """Function to extract the calibrated photometry from the
-    photometric database for the primary reference instrument, which is
-    defined to be lsc.doma.1m0a.fa15 by default.
-    """
-
-    log.info('Extracting the calibrated reference instrument photometry from the photometric database')
-
-    conn = phot_db.get_connection(dsn=config['db_file_path'])
-
-    facility_code = phot_db.get_facility_code({'site': 'lsc',
-                                               'enclosure': 'doma',
-                                               'telescope': '1m0a',
-                                               'instrument': 'fa15'})
-
-    query = 'SELECT facility_id, facility_code FROM facilities WHERE facility_code="'+facility_code+'"'
-    t = phot_db.query_to_astropy_table(conn, query, args=())
-    if len(t) == 0:
-        raise IOError('No photometry for primary reference facility '+facility_code+' found in phot_db')
-
-    facility_id = t['facility_id'][0]
-
-    stars = phot_db.fetch_stars_table(conn)
-
-    filters = {'g': None, 'r': None, 'i': None}
-    refimgs = {'g': None, 'r': None, 'i': None}
-    for f in filters.keys():
-
-        filter_name = f+'p'
-
-        query = 'SELECT filter_id, filter_name FROM filters WHERE filter_name="'+filter_name+'"'
-        t = phot_db.query_to_astropy_table(conn, query, args=())
-        filters[f] = t['filter_id'][0]
-
-        query = 'SELECT refimg_id FROM reference_images WHERE facility="'+str(facility_id)+'" AND filter="'+str(filters[f])+'"'
-        t = phot_db.query_to_astropy_table(conn, query, args=())
-        if len(t) > 0:
-            refimgs[f] = t['refimg_id'][0]
-        else:
-            raise IOError('No reference image data in DB for facility '+str(facility_code)+'.')
-
-    photometry = {'phot_table_g': [], 'phot_table_r': [], 'phot_table_i': []}
-
-    log.info('-> Extracting photometry for stars')
-
-    for j,star in enumerate(stars):
-        for f,fid in filters.items():
-            query = 'SELECT star_id, calibrated_mag, calibrated_mag_err FROM phot WHERE star_id="'+str(star['star_id'])+\
-                            '" AND facility="'+str(facility_id)+\
-                            '" AND filter="'+str(fid)+\
-                            '" AND software="1'+\
-                            '" AND reference_image="'+str(refimgs[f])+\
-                            '" AND phot_type="PSF_FITTING"'
-
-            data = phot_db.query_to_astropy_table(conn, query, args=())
-
-            if len(data) > 0:
-                photometry['phot_table_'+f].append([data['star_id'][0], 0.0,0.0, 0.0, 0.0, data['calibrated_mag'][0], data['calibrated_mag_err'][0], 0.0])
-            else:
-                photometry['phot_table_'+f].append([star['star_id'],0.0,0.0,0.0,0.0, 0.0, 0.0, 0.0])
-
-        if j%1000.0 == 0.0:
-            print('--> Completed '+str(j)+' stars out of '+str(len(stars)))
-
-    conn.close()
-
-    (photometry, stars) = repack_photometry(photometry, stars, log)
+    xmatch = field_cmd.calc_colour_photometry(config, xmatch, log)
+    (valid_stars, selected_stars) = field_cmd.apply_star_selection(config, xmatch, log)
 
     return photometry, stars
 
 def repack_photometry(photometry, stars, log):
+
     for f in ['g', 'r', 'i']:
         table_data = np.array(photometry['phot_table_'+f])
         if len(table_data) > 0:
@@ -436,33 +361,6 @@ def convert_star_catalog_to_stars_table(reduction_metadata):
 
     return table.Table(data=table_data)
 
-def find_stars_close_to_target(config,stars,target,log):
-    """Function to identify those stars which are within the search radius of
-    the target_ra, dec given"""
-
-    if config['selection_radius'] > 0.0:
-        tol = config['selection_radius'] / 60.0
-
-        det_stars = SkyCoord(stars['ra'], stars['dec'], unit="deg")
-
-        t = SkyCoord(target.ra, target.dec, unit="deg")
-        seps = det_stars.separation(t)
-
-        jdx = np.where(seps.deg < tol)[0]
-
-        log.info('Identified '+str(len(jdx))+' stars within '+str(round(tol*60.0,1))+\
-                'arcmin of the target')
-
-        if len(jdx) == 0:
-            raise ValueError('No stars identified within the given selection radius')
-
-    else:
-        jdx = np.arange(0,len(stars),1)
-
-        log.info('No selection radius given, so using all stars within field of view')
-
-    return jdx
-
 def extract_local_star_photometry(photometry,selected_stars,log,extract_errors=True):
     """Function to extract the photometry for stars local to the given
     target coordinates"""
@@ -545,7 +443,7 @@ def calculate_colours(photometry,stars,log):
 
     return photometry
 
-def load_target_timeseries_photometry(config,photometry,log):
+def load_target_timeseries_photometry(config,xmatch,log):
     """Function to read in timeseries photometry extracted for a single star"""
 
     target = photometry_classes.Star()
@@ -558,11 +456,18 @@ def load_target_timeseries_photometry(config,photometry,log):
 
     if config['target_field_id'] != None:
 
-        target.star_index = config['target_field_id']
+        target.star_id = config['target_field_id']
+        target.star_index = config['target_field_id'] - 1
 
-        (target.g,target.sig_g) = fetch_star_phot(target.star_index,photometry['phot_table_g'])
-        (target.r,target.sig_r) = fetch_star_phot(target.star_index,photometry['phot_table_r'])
-        (target.i,target.sig_i) = fetch_star_phot(target.star_index,photometry['phot_table_i'])
+        col_suffix = '_mag_'+config['reference_dataset_code']
+        err_suffix = '_magerr_'+config['reference_dataset_code']
+
+        target.g = xmatch.stars['cal_g'+col_suffix][target.star_index]
+        target.sig_g = xmatch.stars['cal_g'+err_suffix][target.star_index]
+        target.r = xmatch.stars['cal_r'+col_suffix][target.star_index]
+        target.sig_r = xmatch.stars['cal_r'+err_suffix][target.star_index]
+        target.i = xmatch.stars['cal_i'+col_suffix][target.star_index]
+        target.sig_i = xmatch.stars['cal_i'+err_suffix][target.star_index]
 
         log.info('\n')
         log.info('Target identified as star '+str(target.star_index)+\
@@ -573,7 +478,12 @@ def load_target_timeseries_photometry(config,photometry,log):
 
         if target.i != None and target.r != None:
 
-            target.compute_colours(use_inst=True)
+            target.gr = xmatch.stars['(g-r)'][target.star_index]
+            target.sig_gr = xmatch.stars['(g-r)_error'][target.star_index]
+            target.gi = xmatch.stars['(g-i)'][target.star_index]
+            target.sig_gi = xmatch.stars['(g-i)_error'][target.star_index]
+            target.ri = xmatch.stars['(r-i)'][target.star_index]
+            target.sig_ri = xmatch.stars['(r-i)_error'][target.star_index]
 
             log.info(target.summary(show_mags=False,show_colours=True))
 
@@ -586,12 +496,12 @@ def load_target_timeseries_photometry(config,photometry,log):
 
         if file_path != None:
 
-            data = lightcurves.read_pydandia_lightcurve(file_path, skip_zero_entries=True)
+            data = lightcurves.read_cleaned_pydandia_lightcurve(file_path, skip_zero_entries=True)
 
             lc = table.Table()
             lc['hjd'] = data['hjd']
-            lc['mag'] = data['calibrated_mag']
-            lc['mag_err'] = data['calibrated_mag_err']
+            lc['mag'] = data['mag']
+            lc['mag_err'] = data['mag_err']
             (fluxes,fluxerrs) = photometry_classes.mag_to_flux_pylima(lc['mag'],lc['mag_err'])
             lc['flux'] = fluxes
             lc['flux_err'] = fluxerrs
@@ -614,7 +524,7 @@ def calc_source_lightcurve(source, target, log):
     log.info('\n')
 
     for f in ['i', 'r', 'g']:
-        if target.lightcurves[f] != None:
+        if target.lightcurves[f]:
             idx = np.where(target.lightcurves[f]['mag_err'] > 0)[0]
 
             dmag = np.zeros(len(target.lightcurves[f]['mag']))
@@ -651,7 +561,7 @@ def plot_data_colours():
     marker_colour = default_marker_colour
     return default_marker_colour, field_marker_colour, marker_colour
 
-def plot_colour_mag_diagram(params, photometry, stars, selected_stars, selected_phot,
+def plot_colour_mag_diagram(config, xmatch, valid_stars, selected_stars,
                             RC, source, blend, blue_filter, red_filter,
                             yaxis_filter, log):
     """Function to plot a colour-magnitude diagram, highlighting the data for
@@ -674,22 +584,11 @@ def plot_colour_mag_diagram(params, photometry, stars, selected_stars, selected_
 
         return mags, magerr, cols, colerr
 
-    def select_valid_data(phot_array, params, col_key, col_err_key, yaxis_filter, y_err_key):
-        cdx = np.where(phot_array[col_key] != -99.999)[0]
-        cdx2 = np.where(phot_array[col_err_key] <= params[col_key+'_sigma_max'])[0]
-        #cdx2 = np.where(phot_array[col_err_key] < phot_array[col_key])[0]
-        mdx = np.where(phot_array[yaxis_filter] != 0.0)[0]
-        mdx2 = np.where(phot_array[y_err_key] <= params[yaxis_filter+'_sigma_max'])[0]
-        #mdx2 = np.where(phot_array[y_err_key] < phot_array[yaxis_filter])[0]
-        jdx = list(set(cdx).intersection(set(cdx2)))
-        jdx = list(set(jdx).intersection(set(mdx)))
-        jdx = list(set(jdx).intersection(set(mdx2)))
-
-        return jdx
-
-    col_key = blue_filter+red_filter
-    col_err_key = blue_filter+red_filter+'_err'
-    y_err_key = yaxis_filter+'err'
+    col_key = '(' + blue_filter + '-' + red_filter + ')'
+    col_attr = blue_filter + red_filter
+    col_err_key = blue_filter+red_filter+'_error'
+    y_key = 'cal_' + yaxis_filter + '_mag_' + config['reference_dataset_code']
+    y_err_key = yaxis_filter+'_error'
 
     fig = plt.figure(1,(10,10))
 
@@ -697,60 +596,65 @@ def plot_colour_mag_diagram(params, photometry, stars, selected_stars, selected_
 
     plt.rcParams.update({'font.size': 25})
 
-    # Selection for full starlist
-    jdx = select_valid_data(photometry, params, col_key, col_err_key, yaxis_filter, y_err_key)
-
-    # Selection for sub-region only
-    if params['selection_radius'] > 0.0:
-        jdx_region = select_valid_data(selected_phot, params, col_key, col_err_key, yaxis_filter, y_err_key)
-
     (default_marker_colour, field_marker_colour, marker_colour) = plot_data_colours()
-    if len(selected_stars) < len(photometry['i']):
+    if len(selected_stars) < len(xmatch.stars[y_key]):
         marker_colour = field_marker_colour
 
-    if not params['plot_selected_radius_only']:
-        plt.scatter(photometry[col_key][jdx],photometry[yaxis_filter][jdx],
+    if not config['plot_selected_radius_only']:
+
+        if config['downsample_factor'] > 1:
+            idx = random_idx = np.random.choice(np.arange(0,len(xmatch.stars),1),
+                                                size=int(len(xmatch.stars)/config['downsample_factor']))
+            plot_idx = list(set(valid_stars).intersection(set(random_idx)))
+        else:
+            plot_idx = valid_stars
+
+        plt.scatter(xmatch.stars[col_key][plot_idx],xmatch.stars[y_key][plot_idx],
                  c=marker_colour, marker='.', s=1,
                  label='Stars within field of view')
 
-    if params['selection_radius'] > 0.0:
-        plt.scatter(selected_phot[col_key][jdx_region],selected_phot[yaxis_filter][jdx_region],
+    if config['selection_radius'] > 0.0:
+        plt.scatter(xmatch.stars[col_key][selected_stars],xmatch.stars[y_key][selected_stars],
                   c=default_marker_colour, marker='*', s=5,
-                  label='Stars < '+str(round(params['selection_radius'],1))+'arcmin of target')
+                  label='Stars < '+str(round(config['selection_radius'],1))+'arcmin of target')
 
-    if params['plot_selected_radius_only'] and params['selection_radius'] <= 0.0:
+    if config['plot_selected_radius_only'] and config['selection_radius'] <= 0.0:
         raise IOError('Configuration indicates only stars within a selected radius should be plotted but selection radius <= 0.0arcmin')
 
-    if params['add_rc_centroid']:
-        plt.errorbar(getattr(RC,col_key), getattr(RC,yaxis_filter),
+    if config['add_rc_centroid']:
+        plt.errorbar(getattr(RC,col_attr), getattr(RC,yaxis_filter),
                  yerr=getattr(RC,'sig_'+yaxis_filter),
-                 xerr=getattr(RC,'sig_'+col_key),
+                 xerr=getattr(RC,'sig_'+col_attr),
                  color='g', marker='s',markersize=10, label='Red Clump centroid')
 
     if getattr(blend,blue_filter) != None and getattr(blend,red_filter) != None \
-        and params['add_blend']:
+        and config['add_blend']:
 
-        plt.errorbar(getattr(blend,col_key), getattr(blend,yaxis_filter),
+        plt.errorbar(getattr(blend,col_attr), getattr(blend,yaxis_filter),
                  yerr = getattr(blend,'sig_'+yaxis_filter),
-                 xerr = getattr(blend,'sig_'+col_key), color='b',
+                 xerr = getattr(blend,'sig_'+col_attr), color='b',
                  marker='v',markersize=10, label='Blend')
 
     if getattr(source,blue_filter) != None and getattr(source,red_filter) != None\
-        and params['add_source']:
+        and config['add_source']:
 
-        plt.errorbar(getattr(source,col_key), getattr(source,yaxis_filter),
+        if config['add_crosshairs']:
+            label = 'Source crosshairs'
+        else:
+            label = 'Source'
+
+        plt.errorbar(getattr(source,col_attr), getattr(source,yaxis_filter),
                  yerr = getattr(source,'sig_'+yaxis_filter),
-                 xerr = getattr(source,'sig_'+col_key), color='m',
-                 marker='d',markersize=10, label='Source crosshairs')
+                 xerr = getattr(source,'sig_'+col_attr), color='m',
+                 marker='d',markersize=10, label=label)
 
-        if params['add_crosshairs']:
-            plot_crosshairs(fig,getattr(source,col_key),getattr(source,yaxis_filter),'m')
+        if config['add_crosshairs']:
+            plot_crosshairs(fig,getattr(source,col_attr),getattr(source,yaxis_filter),'m', config, col_attr, yaxis_filter)
 
-        if params['add_source_trail']:
+        if config['add_source_trail']:
             red_lc = source.lightcurves[red_filter]
             blue_lc = source.lightcurves[blue_filter]
             y_lc = source.lightcurves[yaxis_filter]
-
             (smags, smagerr, scols, scolerr) = calc_colour_lightcurve(blue_lc, red_lc, y_lc)
 
             plt.errorbar(scols, smags, yerr = smagerr, xerr = scolerr,
@@ -761,10 +665,10 @@ def plot_colour_mag_diagram(params, photometry, stars, selected_stars, selected_
     plt.ylabel('SDSS-'+yaxis_filter+' [mag]')
 
     [xmin,xmax,ymin,ymax] = plt.axis()
-    xmin = params['plot_'+col_key+'_range'][0]
-    xmax = params['plot_'+col_key+'_range'][1]
-    ymin = params['plot_'+yaxis_filter+'_range'][0]
-    ymax = params['plot_'+yaxis_filter+'_range'][1]
+    xmin = config['plot_'+col_attr+'_range'][0]
+    xmax = config['plot_'+col_attr+'_range'][1]
+    ymin = config['plot_'+yaxis_filter+'_range'][0]
+    ymax = config['plot_'+yaxis_filter+'_range'][1]
     plt.axis([xmin,xmax,ymax,ymin])
 
     xticks = np.arange(xmin,xmax,0.1)
@@ -780,7 +684,7 @@ def plot_colour_mag_diagram(params, photometry, stars, selected_stars, selected_
     ax.tick_params(axis="x", labelsize=25)
     ax.tick_params(axis="y", labelsize=25)
 
-    plot_file = path.join(params['output_dir'],'colour_magnitude_diagram_'+\
+    plot_file = path.join(config['output_dir'],'colour_magnitude_diagram_'+\
                                             yaxis_filter+'_vs_'+blue_filter+red_filter\
                                             +'.pdf')
 
@@ -801,7 +705,7 @@ def plot_colour_mag_diagram(params, photometry, stars, selected_stars, selected_
     plt.rcParams.update({'axes.titlesize': 25})
     plt.rcParams.update({'font.size': 25})
 
-    if params['interactive']:
+    if config['interactive']:
         plt.show()
 
     plt.savefig(plot_file,bbox_inches='tight')
@@ -810,50 +714,45 @@ def plot_colour_mag_diagram(params, photometry, stars, selected_stars, selected_
 
     log.info('Colour-magnitude diagram output to '+plot_file)
 
-def plot_colour_colour_diagram(params,photometry,selected_phot,RC,source,blend,log):
+def plot_colour_colour_diagram(config, xmatch, valid_stars, selected_stars, RC, source, blend, log):
     """Function to plot a colour-colour diagram, if sufficient data are
     available within the given star catalog"""
 
     filters = { 'i': 'SDSS-i', 'r': 'SDSS-r', 'g': 'SDSS-g' }
 
     (default_marker_colour, field_marker_colour, marker_colour) = plot_data_colours()
-    if len(selected_phot) < len(photometry['i']):
+    if len(selected_stars) < len(xmatch.stars):
         marker_colour = field_marker_colour
 
     fig = plt.figure(1,(10,10))
 
     ax = plt.axes()
 
-    def select_plot_data(params,photometry):
-        grx = np.where(photometry['gr'] != -99.999)[0]
-        grx2 = np.where(photometry['gr_err'] <= params['gr_sigma_max'])[0]
-        rix = np.where(photometry['ri'] != -99.999)[0]
-        rix2 = np.where(photometry['ri_err'] <= params['ri_sigma_max'])[0]
-        jdx = list(set(grx).intersection(set(grx2)))
-        jdx = list(set(jdx).intersection(set(rix)))
-        jdx = list(set(jdx).intersection(set(rix2)))
-        return jdx
+    inst_gr = xmatch.stars['(g-r)'][valid_stars] - RC.Egr
+    inst_ri = xmatch.stars['(r-i)'][valid_stars] - RC.Eri
 
-    jdx = select_plot_data(params,photometry)
-    inst_gr = photometry['gr'][jdx] - RC.Egr
-    inst_ri = photometry['ri'][jdx] - RC.Eri
+    if config['selection_radius'] > 0.0:
+        region_inst_gr = xmatch.stars['(g-r)'][selected_stars] - RC.Egr
+        region_inst_ri = xmatch.stars['(r-i)'][selected_stars] - RC.Eri
 
-    if params['selection_radius'] > 0.0:
-        jdx_region = select_plot_data(params, selected_phot)
-        region_inst_gr = selected_phot['gr'][jdx_region] - RC.Egr
-        region_inst_ri = selected_phot['ri'][jdx_region] - RC.Eri
+    if not config['plot_selected_radius_only']:
 
-    if not params['plot_selected_radius_only']:
-        ax.scatter(inst_gr, inst_ri,
+        if config['downsample_factor'] > 1:
+            idx = list(np.random.choice(np.arange(0, len(inst_gr), 1),
+                                                size=int(len(inst_gr) / config['downsample_factor'])))
+        else:
+            idx = list(np.arange(0, len(inst_gr),1))
+
+        ax.scatter(inst_gr[idx], inst_ri[idx],
                    c=marker_colour, marker='.', s=1,
                  label='Stars within field of view')
 
-    if params['selection_radius'] > 0.0:
+    if config['selection_radius'] > 0.0:
         plt.scatter(region_inst_gr,region_inst_ri,
                   c=default_marker_colour, marker='*', s=5,
-                  label='Stars < '+str(round(params['selection_radius'],1))+'arcmin of target')
+                  label='Stars < '+str(round(config['selection_radius'],1))+'arcmin of target')
 
-    if params['plot_selected_radius_only'] and params['selection_radius'] <= 0.0:
+    if config['plot_selected_radius_only'] and config['selection_radius'] <= 0.0:
         raise IOError('Configuration indicates only stars within a selected radius should be plotted but selection radius <= 0.0arcmin')
 
     (spectral_type, luminosity_class, gr_colour, ri_colour) = spectral_type_data.get_spectral_class_data()
@@ -887,23 +786,24 @@ def plot_colour_colour_diagram(params,photometry,selected_phot,RC,source,blend,l
                              color='k', size=18,
                              rotation=-30.0, alpha=1.0)
 
-    if params['add_source']:
+    if config['add_source']:
         plt.errorbar(source.gr-RC.Egr, source.ri-RC.Eri,
              yerr = source.sig_ri,
              xerr = source.sig_gr, color='m',
              marker='d',markersize=10, label='Source')
 
-    if params['add_blend']:
+    if config['add_blend'] and blend.gr and RC.Egr and blend.ri \
+                and RC.Eri and blend.sig_ri and blend.sig_gr:
         plt.errorbar(blend.gr-RC.Egr, blend.ri-RC.Eri,
              yerr = blend.sig_ri,
              xerr = blend.sig_gr, color='b',
              marker='v',markersize=10, label='Blend')
 
-    plt.xlabel('SDSS (g-r) [mag]')
+    plt.xlabel('SDSS $(g-r)_{0}$ [mag]')
 
-    plt.ylabel('SDSS (r-i) [mag]')
+    plt.ylabel('SDSS $(r-i)_{0}$ [mag]')
 
-    plot_file = path.join(params['output_dir'],'colour_colour_diagram.pdf')
+    plot_file = path.join(config['output_dir'],'colour_colour_diagram.pdf')
 
     scale_axes = False
     if scale_axes:
@@ -917,10 +817,10 @@ def plot_colour_colour_diagram(params,photometry,selected_phot,RC,source,blend,l
 
     else:
         [xmin,xmax,ymin,ymax] = plt.axis()
-        xmin = params['plot_gr_range'][0]-RC.Egr
-        xmax = params['plot_gr_range'][1]-RC.Egr
-        ymin = params['plot_ri_range'][0]-RC.Eri
-        ymax = params['plot_ri_range'][1]-RC.Eri
+        xmin = config['plot_gr_range'][0]-RC.Egr
+        xmax = config['plot_gr_range'][1]-RC.Egr
+        ymin = config['plot_ri_range'][0]-RC.Eri
+        ymax = config['plot_ri_range'][1]-RC.Eri
         plt.axis([xmin,xmax,ymin,ymax])
 
         xticks = np.arange(xmin,xmax,0.1)
@@ -955,7 +855,7 @@ def plot_colour_colour_diagram(params,photometry,selected_phot,RC,source,blend,l
     ax.tick_params(axis="x", labelsize=25)
     ax.tick_params(axis="y", labelsize=25)
 
-    if params['interactive']:
+    if config['interactive']:
         plt.show()
 
     plt.savefig(plot_file,bbox_inches='tight')
@@ -964,23 +864,26 @@ def plot_colour_colour_diagram(params,photometry,selected_phot,RC,source,blend,l
 
     log.info('Colour-colour diagram output to '+plot_file)
 
-def plot_crosshairs(fig,xvalue,yvalue,linecolour):
+def plot_crosshairs(fig,xvalue,yvalue,linecolour, config, col_attr, yaxis_filter):
 
     ([xmin,xmax,ymin,ymax]) = plt.axis()
-
-    xdata = np.linspace(int(xmin),int(xmax),10.0)
+    xmin = config['plot_'+col_attr+'_range'][0]
+    xmax = config['plot_'+col_attr+'_range'][1]
+    ymin = config['plot_'+yaxis_filter+'_range'][0]
+    ymax = config['plot_'+yaxis_filter+'_range'][1]
+    xdata = np.linspace(xmin,xmax,10)
     ydata = np.zeros(len(xdata))
     ydata.fill(yvalue)
 
     plt.plot(xdata, ydata, linecolour+'-', alpha=0.5)
 
-    ydata = np.linspace(int(ymin),int(ymax),10.0)
+    ydata = np.linspace(ymin,ymax,10)
     xdata = np.zeros(len(ydata))
     xdata.fill(xvalue)
 
     plt.plot(xdata, ydata, linecolour+'-', alpha=0.5)
 
-def localize_red_clump_db(config,photometry,stars,selected_phot,log):
+def localize_red_clump_db(config,xmatch,selected_stars,log):
     """Function to calculate the centroid of the Red Clump stars in a
     colour-magnitude diagram"""
 
@@ -1010,32 +913,39 @@ def localize_red_clump_db(config,photometry,stars,selected_phot,log):
     log.info('(g-r) = '+str(config['RC_gr_range'][0])+' to '+str(config['RC_gr_range'][1]))
     log.info('(g-i) = '+str(config['RC_gi_range'][0])+' to '+str(config['RC_gi_range'][1]))
 
-    idx = select_within_range(selected_phot['i'], selected_phot['ri'],
+    mag_column = 'cal_i_mag_' + config['reference_dataset_code']
+    idx = select_within_range(xmatch.stars[mag_column][selected_stars], xmatch.stars['(r-i)'][selected_stars],
                               config['RC_i_range'][0], config['RC_i_range'][1],
                               config['RC_ri_range'][0], config['RC_ri_range'][1])
+    jdx = selected_stars[idx]
 
-    (RC.ri, RC.sig_ri, RC.i, RC.sig_i) = event_colour_analysis.calc_distribution_centroid_and_spread_2d(selected_phot['ri'][idx],
-                                                                                        selected_phot['i'][idx], use_iqr=True)
+    (RC.ri, RC.sig_ri, RC.i, RC.sig_i) = event_colour_analysis.calc_distribution_centroid_and_spread_2d(xmatch.stars['(r-i)'][jdx],
+                                                                                        xmatch.stars[mag_column][jdx], use_iqr=True)
 
-    idx = select_within_range(selected_phot['r'], selected_phot['ri'],
+    mag_column = 'cal_r_mag_' + config['reference_dataset_code']
+    idx = select_within_range(xmatch.stars[mag_column][selected_stars], xmatch.stars['(r-i)'][selected_stars],
                               config['RC_r_range'][0], config['RC_r_range'][1],
                               config['RC_ri_range'][0], config['RC_ri_range'][1])
+    jdx = selected_stars[idx]
 
-    (RC.r, RC.sig_r) = event_colour_analysis.calc_distribution_centre_and_spread(selected_phot['r'][idx], use_iqr=True)
+    (RC.r, RC.sig_r) = event_colour_analysis.calc_distribution_centre_and_spread(xmatch.stars[mag_column][jdx], use_iqr=True)
 
-    idx = select_within_range(selected_phot['g'], selected_phot['gr'],
+    mag_column = 'cal_g_mag_' + config['reference_dataset_code']
+    idx = select_within_range(xmatch.stars[mag_column][selected_stars], xmatch.stars['(g-r)'][selected_stars],
                               config['RC_g_range'][0], config['RC_g_range'][1],
                               config['RC_gr_range'][0], config['RC_gr_range'][1])
+    jdx = selected_stars[idx]
 
-    (RC.gr, RC.sig_gr, RC.g, RC.sig_g) = event_colour_analysis.calc_distribution_centroid_and_spread_2d(selected_phot['gr'][idx],
-                                                                                        selected_phot['g'][idx], use_iqr=True)
+    (RC.gr, RC.sig_gr, RC.g, RC.sig_g) = event_colour_analysis.calc_distribution_centroid_and_spread_2d(xmatch.stars['(g-r)'][jdx],
+                                                                                        xmatch.stars[mag_column][jdx], use_iqr=True)
 
-    idx = select_within_range(selected_phot['g'], selected_phot['gi'],
+    idx = select_within_range(xmatch.stars[mag_column][selected_stars], xmatch.stars['(g-i)'][selected_stars],
                               config['RC_g_range'][0], config['RC_g_range'][1],
                               config['RC_gi_range'][0], config['RC_gi_range'][1])
+    jdx = selected_stars[idx]
 
-    (RC.gi, RC.sig_gi, RC.g, RC.sig_g) = event_colour_analysis.calc_distribution_centroid_and_spread_2d(selected_phot['gi'][idx],
-                                                                                        selected_phot['g'][idx], use_iqr=True)
+    (RC.gi, RC.sig_gi, RC.g, RC.sig_g) = event_colour_analysis.calc_distribution_centroid_and_spread_2d(xmatch.stars['(g-i)'][jdx],
+                                                                                        xmatch.stars[mag_column][jdx], use_iqr=True)
 
     log.info('\n')
     log.info('Centroid of Red Clump Stars at:')
@@ -1048,7 +958,10 @@ def localize_red_clump_db(config,photometry,stars,selected_phot,log):
 
     return RC
 
-def output_photometry(config, stars, photometry, selected_stars, log):
+def output_photometry(config, xmatch, valid_stars, selected_stars, log):
+
+    mcol = '_mag_' + config['reference_dataset_code']
+    ecol = '_magerr_' + config['reference_dataset_code']
 
     if str(config['photometry_data_file']).lower() != 'none':
 
@@ -1057,24 +970,23 @@ def output_photometry(config, stars, photometry, selected_stars, log):
         f = open(path.join(config['output_dir'],config['photometry_data_file']), 'w')
         f.write('# All measured floating point quantities in units of magnitude\n')
         f.write('# Selected indicates whether a star lies within the selection radius of a given location, if any.  1=true, 0=false\n')
-        f.write('# Star   x_pix    y_pix   ra_deg   dec_deg   g  sigma_g    r  sigma_r    i  sigma_i   (g-i)  sigma(g-i) (g-r)  sigma(g-r)  (r-i) sigma(r-i)  Selected  Gaia_ID\n')
+        f.write('# Star  ra_deg   dec_deg   g  sigma_g    r  sigma_r    i  sigma_i   (g-i)  sigma(g-i) (g-r)  sigma(g-r)  (r-i) sigma(r-i)  Selected  Gaia_ID\n')
 
-        for j in range(0,len(photometry['i']),1):
-            sid = stars['star_id'][j]
+        for j in range(0,len(valid_stars),1):
+            sid = xmatch.stars['field_id'][j]
             if j in selected_stars:
                 selected = 1
             else:
                 selected = 0
             f.write( str(sid)+' '+\
-                        str(photometry['x'][j])+' '+str(photometry['y'][j])+' '+\
-                        str(photometry['ra'][j])+' '+str(photometry['dec'][j])+' '+\
-                        str(photometry['g'][j])+' '+str(photometry['gerr'][j])+' '+\
-                        str(photometry['r'][j])+' '+str(photometry['rerr'][j])+' '+\
-                        str(photometry['i'][j])+' '+str(photometry['ierr'][j])+' '+\
-                        str(photometry['gi'][j])+' '+str(photometry['gi_err'][j])+' '+\
-                        str(photometry['gr'][j])+' '+str(photometry['gr_err'][j])+' '+\
-                        str(photometry['ri'][j])+' '+str(photometry['ri_err'][j])+' '+\
-                        str(selected)+' '+str(int(photometry['gaia_source_id'][j]))+'\n' )
+                        str(xmatch.stars['ra'][j])+' '+str(xmatch.stars['dec'][j])+' '+\
+                        str(xmatch.stars['cal_g'+mcol][j])+' '+str(xmatch.stars['cal_g'+ecol][j])+' '+\
+                        str(xmatch.stars['cal_r'+mcol][j])+' '+str(xmatch.stars['cal_r'+ecol][j])+' '+\
+                        str(xmatch.stars['cal_i'+mcol][j])+' '+str(xmatch.stars['cal_i'+ecol][j])+' '+\
+                        str(xmatch.stars['(g-i)'][j])+' '+str(xmatch.stars['(g-i)_error'][j])+' '+\
+                        str(xmatch.stars['(g-r)'][j])+' '+str(xmatch.stars['(g-r)_error'][j])+' '+\
+                        str(xmatch.stars['(r-i)'][j])+' '+str(xmatch.stars['(r-i)_error'][j])+' '+\
+                        str(selected)+' '+str(xmatch.stars['gaia_source_id'][j])+'\n' )
 
         f.close()
 

@@ -35,43 +35,43 @@ def combine_photometry_from_all_datasets():
 
     # These loops are deliberately separated because it makes it easier to
     # initialize the photometry array for the whole field to the correct size
-    photometry = init_field_data_table(xmatch,log)
-    for dataset in xmatch.datasets:
-        log.info('Populating timeseries photometry with data from '+dataset['dataset_code'])
-        setup = pipeline_setup.PipelineSetup()
-        setup.red_dir = dataset['dataset_red_dir']
-        dataset_metadata = metadata.MetaData()
-        dataset_metadata.load_all_metadata(setup.red_dir, 'pyDANDIA_metadata.fits')
-        phot_data = hd5_utils.read_phot_hd5(setup, log=log, return_type='array')
-        if len(phot_data) > 0:
-            (field_star_index, dataset_stars_index) = get_dataset_star_indices(dataset, xmatch)
-            dataset_image_index = get_dataset_image_index(dataset, xmatch)
-            (xmatch,photometry) = populate_photometry_array(field_star_index, dataset_stars_index,
-                                            dataset_image_index, photometry, phot_data, xmatch, log,
-                                            dataset_metadata)
+    for q in range(1,5,1):
+        log.info('Populating timeseries photometry for quadrant '+str(q))
+        quad_photometry = init_quad_field_data_table(xmatch,q,log)
+        for dataset in xmatch.datasets:
+            log.info('-> Including data timeseries photometry with data from '+dataset['dataset_code'])
+            setup = pipeline_setup.PipelineSetup()
+            setup.red_dir = dataset['dataset_red_dir']
+            dataset_metadata = metadata.MetaData()
+            dataset_metadata.load_all_metadata(setup.red_dir, 'pyDANDIA_metadata.fits')
+            phot_data = hd5_utils.read_phot_hd5(setup, log=log, return_type='array')
+            if len(phot_data) > 0:
+                (quad_star_index, dataset_stars_index) = get_dataset_quad_star_indices(dataset, xmatch, q)
+                dataset_image_index = get_dataset_image_index(dataset, xmatch)
+                (xmatch,quad_photometry) = populate_quad_photometry_array(quad_star_index, dataset_stars_index,
+                                                dataset_image_index, quad_photometry, phot_data, xmatch, log,
+                                                dataset_metadata)
 
-    # Output tables to field HDF5 files in quadrants and update the xmatch table
+        # Output tables to quadrant HDF5 file
+        output_quad_photometry(params, xmatch, quad_photometry, q, log)
+
+    # Update the xmatch table
     xmatch.save(params['crossmatch_file'])
-    output_field_photometry(params, xmatch, photometry, log)
 
     log.info('Field photometry: complete')
 
     logs.close_log(log)
 
-def output_field_photometry(params, xmatch, photometry, log):
+def output_quad_photometry(params, xmatch, quad_photometry, q, log):
 
-    log.info('Outputting field photometry, array shape: '+repr(photometry.shape))
+    log.info('Outputting quadrant '+str(q)+' photometry, array shape: '
+                +repr(quad_photometry.shape))
 
-    for q in range(1,5,1):
-        setup = pipeline_setup.PipelineSetup()
-        setup.red_dir = path.join(path.dirname(params['crossmatch_file']))
-        filename = params['field_name']+'_quad'+str(q)+'_photometry.hdf5'
-
-        idx = np.where(xmatch.field_index['quadrant'] == q)[0]
-        quad_phot_data = photometry[idx,:,:]
-
-        hd5_utils.write_phot_hd5(setup, quad_phot_data, log=log,
-                                    filename=filename)
+    setup = pipeline_setup.PipelineSetup()
+    setup.red_dir = path.join(path.dirname(params['crossmatch_file']))
+    filename = params['field_name']+'_quad'+str(q)+'_photometry.hdf5'
+    hd5_utils.write_phot_hd5(setup, quad_photometry, log=log,
+                                filename=filename)
 
 def parse_sloan_filter_ids(filter_name):
     """Function to parse LCO-centric filter names where necessary"""
@@ -139,8 +139,31 @@ def update_array_col_index(index3d, new_col):
 
     return new_tuple
 
-def populate_photometry_array(field_star_index, dataset_star_index,
-                                dataset_image_index, photometry, dataset_photometry,
+def get_field_photometry_columns(phot_columns='instrumental'):
+    """Function to return the column indices of the magnitude and magnitude uncertainties
+    in the photometry array for a single dataset.  Options are:
+    instrumental
+    calibrated
+    corrected
+    """
+
+    if phot_columns == 'instrumental':
+        mag_col = 1
+        merr_col = 2
+    elif phot_columns == 'calibrated':
+        mag_col = 3
+        merr_col = 4
+    elif phot_columns == 'corrected':
+        mag_col = 5
+        merr_col = 6
+    elif phot_columns == 'normalized':
+        mag_col = 7
+        merr_col = 8
+
+    return mag_col, merr_col
+
+def populate_quad_photometry_array(quad_star_index, dataset_star_index,
+                                dataset_image_index, quad_photometry, dataset_photometry,
                                 xmatch, log, dataset_metadata):
 
     # Columns: hjd, instrumental_mag, instrumental_mag_err,
@@ -153,17 +176,18 @@ def populate_photometry_array(field_star_index, dataset_star_index,
     # Build corresponding 3D array index locators for the whole field photometry
     # array and the dataset photometry array, and use them to transfer the
     # timestamp data
-    log.info('Dimensions of field photometry array: '+repr(photometry.shape))
+    log.info('Dimensions of field quadrant photometry array: '+repr(quad_photometry.shape))
 
     ndata = len(dataset_photometry[0,:,0])
     log.info('N datapoints in image data: '+str(ndata)+', len dataset_image_index: '+str(len(dataset_image_index)))
-    log.info('Len field_star_index: '+str(len(field_star_index))+' len dataset_star_index: '+str(len(dataset_star_index)))
+    log.info('Len quad_star_index: '+str(len(quad_star_index))+' len dataset_star_index: '+str(len(dataset_star_index)))
 
     # Transfering the HJD information for all images in this dataset to the
-    # combined photometry array:
-    phot_index = build_array_index([field_star_index, dataset_image_index,[0]])
+    # combined photometry array. Note that the phot_index and data_index
+    # contain the full frame field index,
+    phot_index = build_array_index([quad_star_index, dataset_image_index,[0]])
     data_index = build_array_index([dataset_star_index, np.arange(0,ndata,1), [9]])
-    photometry[phot_index] = dataset_photometry[data_index]
+    quad_photometry[phot_index] = dataset_photometry[data_index]
 
     # Update the array indices to refer to the photometry columns, and
     # transfer those data as well.  Tuples listed below give the array indices
@@ -175,7 +199,7 @@ def populate_photometry_array(field_star_index, dataset_star_index,
     for column in column_index:
         phot_index = update_array_col_index(phot_index, column[0])
         data_index = update_array_col_index(data_index, column[1])
-        photometry[phot_index] = dataset_photometry[data_index]
+        quad_photometry[phot_index] = dataset_photometry[data_index]
 
     # Populate the stamp index:
     list_of_stamps = dataset_metadata.stamps[1]['PIXEL_INDEX'].tolist()
@@ -191,16 +215,16 @@ def populate_photometry_array(field_star_index, dataset_star_index,
 
         stamp_star_idx = dataset_metadata.star_catalog[1]['index'][stamp_stars] - 1
 
-        field_stamp_star_idx = []
+        quad_stamp_star_idx = []
         for dataset_idx in stamp_star_idx:
             idx = np.where(dataset_star_index == dataset_idx)[0]
             if len(idx) > 0:
-                field_stamp_star_idx.append(field_star_index[idx[0]])
+                quad_stamp_star_idx.append(quad_star_index[idx[0]])
 
-        phot_index = build_array_index([field_stamp_star_idx, dataset_image_index,[0]])
+        phot_index = build_array_index([quad_stamp_star_idx, dataset_image_index,[0]])
         phot_index = update_array_col_index(phot_index, 11)
 
-        photometry[phot_index] = stamp
+        quad_photometry[phot_index] = stamp
 
     # Also update the images table with the timestamp data:
     for i in range(0,ndata,1):
@@ -209,7 +233,7 @@ def populate_photometry_array(field_star_index, dataset_star_index,
             xmatch.images['hjd'][dataset_image_index[i]] = dataset_photometry[jdx[0],i,9]
 
     log.info('-> Populated photometry array with dataset timeseries photometry')
-    return xmatch, photometry
+    return xmatch, quad_photometry
 
 def get_dataset_star_indices(dataset, xmatch):
 
@@ -217,6 +241,28 @@ def get_dataset_star_indices(dataset, xmatch):
     dataset_array_idx = xmatch.field_index[dataset['dataset_code']+'_index'][field_array_idx] - 1
 
     return field_array_idx, dataset_array_idx
+
+def get_dataset_quad_star_indices(dataset, xmatch, qid):
+
+    # Identify the field indices for all stars with measurements from this dataset
+    field_array_idx = np.where(xmatch.field_index[dataset['dataset_code']+'_index'] > 0)[0]
+
+    # Identify the field indices for all stars in this quadrant
+    quad_stars = np.where(xmatch.field_index['quadrant'] == qid)[0]
+
+    # The intersection of these indices gives the field indices for all
+    # quadrant stars with valid measurements for this dataset
+    idx = list(set(field_array_idx).intersection(set(quad_stars)))
+
+    # We want the quadrant array indices for all the selected stars, so we
+    # convert the field index to the quadrant index
+    quad_array_idx = xmatch.field_index['quadrant_id'][idx] - 1
+
+    # Now extract the corresponding entries for the same stars in the
+    # dataset's array
+    dataset_array_idx = xmatch.field_index[dataset['dataset_code']+'_index'][idx] - 1
+
+    return quad_array_idx, dataset_array_idx
 
 def get_dataset_image_index(dataset, xmatch):
 
@@ -236,19 +282,15 @@ def populate_stars_table(dataset,xmatch,dataset_metadata,log):
     dataset_id = '_'.join(dataset['dataset_code'].split('_')[1].split('-')[0:2])
     filter_name = parse_sloan_filter_ids(dataset['dataset_filter'])
 
-    if check_for_reference_dataset(dataset['dataset_code']):
-        mag_column = 'cal_'+filter_name+'_mag_'+dataset_id
-        mag_error_column = 'cal_'+filter_name+'_magerr_'+dataset_id
+    mag_column = 'cal_'+filter_name+'_mag_'+dataset_id
+    mag_error_column = 'cal_'+filter_name+'_magerr_'+dataset_id
 
-        (field_array_idx,dataset_array_idx) = get_dataset_star_indices(dataset,xmatch)
+    (field_array_idx,dataset_array_idx) = get_dataset_star_indices(dataset,xmatch)
 
-        xmatch.stars[mag_column][field_array_idx] = dataset_metadata.star_catalog[1]['cal_ref_mag'][dataset_array_idx]
-        xmatch.stars[mag_error_column][field_array_idx] = dataset_metadata.star_catalog[1]['cal_ref_mag_error'][dataset_array_idx]
+    xmatch.stars[mag_column][field_array_idx] = dataset_metadata.star_catalog[1]['cal_ref_mag'][dataset_array_idx]
+    xmatch.stars[mag_error_column][field_array_idx] = dataset_metadata.star_catalog[1]['cal_ref_mag_error'][dataset_array_idx]
 
-        log.info('-> Populated stars table with '+dataset_id+' reference image photometry for filter '+filter_name)
-    else:
-        log.info('-> Dataset not used as a reference dataset')
-        (field_array_idx,dataset_array_idx) = get_dataset_star_indices(dataset,xmatch)
+    log.info('-> Populated stars table with '+dataset_id+' reference image photometry for filter '+filter_name)
 
     return xmatch, field_array_idx, dataset_array_idx
 
@@ -333,7 +375,7 @@ def populate_stamps_table(xmatch, dataset_code, dataset_metadata, log):
 
     return xmatch
 
-def init_field_data_table(xmatch,log):
+def init_quad_field_data_table(xmatch,q,log):
     # Photometry data array is initialized as a list because this is a
     # faster way to add rows.  Structure is:
     # [Nstars, Nimages, Ncolumns]
@@ -344,10 +386,9 @@ def init_field_data_table(xmatch,log):
     # sub_image_sky_bkgd, sub_image_sky_bkgd_err,
     # residual_x, residual_y
     # qc_flag
-    # Note: corrected_mag columns included to allow for likely future expansion;
-    # not yet populated
-    photometry = np.zeros( (len(xmatch.stars), len(xmatch.images), 17) )
-    log.info('Initialized timeseries photometry array')
+    quad_stars = np.where(xmatch.field_index['quadrant'] == q)[0]
+    photometry = np.zeros( (len(quad_stars), len(xmatch.images), 17) )
+    log.info('Initialized timeseries photometry array for quadrant '+str(q))
 
     return photometry
 

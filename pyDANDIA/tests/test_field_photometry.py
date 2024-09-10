@@ -21,24 +21,25 @@ def test_params():
 
 def test_field_index(xmatch):
 
-    xmatch.field_index.add_row([1, 267.61861696019145, -29.829605383706895, 4, 1, None, 1, 0, 0])
-    xmatch.field_index.add_row([2, 267.70228408545813, -29.83032824102953, 4, 2, None, 2, 0, 0])
-    xmatch.field_index.add_row([3, 267.9873108673885, -29.829734325692858, 3, 1, None, 3, 0, 0])
-    xmatch.field_index.add_row([4, 267.9585073984874, -29.83002538112054, 3, 2, None, 4, 0, 0])
-    xmatch.field_index.add_row([5, 267.9623466389135, -29.82994179424344, 3, 3, None, 5, 0, 0])
-    xmatch.field_index.add_row([6, 267.9315803167322, -29.830983939264463, 3, 35, None, 6, 105, 13])
-    xmatch.field_index.add_row([7, 267.94313361856774, -29.830855906070912, 3, 36, None, 7, 66, 0])
-    xmatch.field_index.add_row([8, 267.9641908032068, -29.83105008127081, 3, 67, None, 8, 138, 27])
-    xmatch.field_index.add_row([9, 267.96937719314764, -29.831020635327544, 3, 68, None, 9, 139, 28])
-    xmatch.field_index.add_row([10, 267.97122056100426, -29.83096064913158, 3, 69, None, 10, 108, 15])
-    xmatch.field_index.add_row([11, 267.9934578741869, -29.83090679218163, 3, 70, None, 11, 143, 0])
+    xmatch.field_index.add_row([1, 267.61861696019145, -29.829605383706895, 4, 1, '4062461715333869824', 1, 0, 0])
+    xmatch.field_index.add_row([2, 267.70228408545813, -29.83032824102953, 4, 2, '4062461891502822400', 2, 0, 0])
+    xmatch.field_index.add_row([3, 267.9873108673885, -29.829734325692858, 3, 1, '4062464086155803648', 3, 0, 0])
+    xmatch.field_index.add_row([4, 267.9585073984874, -29.83002538112054, 3, 2, '4062463162757839232', 4, 0, 0])
+    xmatch.field_index.add_row([5, 267.9623466389135, -29.82994179424344, 3, 3, '406246636019666432', 5, 0, 0])
+    xmatch.field_index.add_row([6, 267.9315803167322, -29.830983939264463, 3, 4, '4062461891502904320', 6, 105, 13])
+    xmatch.field_index.add_row([7, 267.94313361856774, -29.830855906070912, 3, 5, '4062619865180894336', 7, 66, 0])
+    xmatch.field_index.add_row([8, 267.9641908032068, -29.83105008127081, 3, 6, '4062463708198679552', 8, 138, 27])
+    xmatch.field_index.add_row([9, 267.96937719314764, -29.831020635327544, 3, 7, '4062466839308868736', 9, 139, 28])
+    xmatch.field_index.add_row([10, 267.97122056100426, -29.83096064913158, 3, 8, '4062382035380698112', 10, 108, 15])
+    xmatch.field_index.add_row([11, 267.9934578741869, -29.83090679218163, 3, 9, '4062475566686672640', 11, 143, 0])
 
     return xmatch
 
 def test_stars_table(xmatch):
 
     for star in xmatch.field_index:
-        xmatch.stars.add_row([star['field_id'], star['ra'], star['dec']] + [0.0]*36)
+        xmatch.stars.add_row([star['field_id'], star['ra'], star['dec']]
+                                + [0.0]*108 + [star['gaia_source_id']] + [0.0]*17)
 
     return xmatch
 
@@ -407,30 +408,32 @@ def test_populate_photometry_array():
     for j in range(0,len(field_array_idx),1):
         print('Dataset star '+str(dataset_array_idx[j])+' corresponds to field star '+str(field_array_idx[j]))
 
-    # Can be initialized only after the images and stars tables have been
-    # populated with all datasets
-    photometry = field_photometry.init_field_data_table(xmatch,log)
+    for q in range(1,5,1):
+        # Can be initialized only after the images and stars tables have been
+        # populated with all datasets
+        quad_photometry = field_photometry.init_quad_field_data_table(xmatch,q,log)
 
-    (xmatch, photometry) = field_photometry.populate_photometry_array(field_array_idx, dataset_array_idx,
-                                    dataset_image_idx, photometry, dataset_photometry, xmatch, log, meta)
+        (quad_array_idx, dataset_array_idx) = field_photometry.get_dataset_quad_star_indices(xmatch.datasets[0], xmatch, q)
+        (xmatch, quad_photometry) = field_photometry.populate_quad_photometry_array(quad_array_idx, dataset_array_idx,
+                                    dataset_image_idx, quad_photometry, dataset_photometry, xmatch, log, meta)
 
-    for i,iimage in enumerate(dataset_image_idx):
-        assert(xmatch.images['hjd'][iimage] == dataset_photometry[0,i,9])
-
-    for j in field_array_idx:
-        star_x = meta.star_catalog[1]['x'][dataset_array_idx[j]]
-        star_y = meta.star_catalog[1]['y'][dataset_array_idx[j]]
-        stamp_id = calc_star_stamp(star_x, star_y, meta)
-        print('Star in stamp '+str(stamp_id),dataset_array_idx[j],star_x, star_y)
         for i,iimage in enumerate(dataset_image_idx):
-            print('Phot array: ',photometry[j,iimage,0])
-            print('Dataset: ',dataset_photometry[dataset_array_idx[j],i,9])
-            assert( photometry[j,iimage,0] == dataset_photometry[dataset_array_idx[j],i,9])
-            assert( photometry[j,iimage,3] == dataset_photometry[dataset_array_idx[j],i,13])
-            assert( photometry[j,iimage,4] == dataset_photometry[dataset_array_idx[j],i,14])
+            assert(xmatch.images['hjd'][iimage] == dataset_photometry[0,i,9])
 
-            print(photometry[j,iimage,11], stamp_id)
-            assert( photometry[j,iimage,11] == float(stamp_id) )
+        for j in quad_array_idx:
+            star_x = meta.star_catalog[1]['x'][dataset_array_idx[j]]
+            star_y = meta.star_catalog[1]['y'][dataset_array_idx[j]]
+            stamp_id = calc_star_stamp(star_x, star_y, meta)
+            print('Star in stamp '+str(stamp_id),dataset_array_idx[j],star_x, star_y)
+            for i,iimage in enumerate(dataset_image_idx):
+                print('Phot array: ',quad_photometry[j,iimage,0])
+                print('Dataset: ',dataset_photometry[dataset_array_idx[j],i,9])
+                assert( quad_photometry[j,iimage,0] == dataset_photometry[dataset_array_idx[j],i,9])
+                assert( quad_photometry[j,iimage,3] == dataset_photometry[dataset_array_idx[j],i,13])
+                assert( quad_photometry[j,iimage,4] == dataset_photometry[dataset_array_idx[j],i,14])
+
+                print(quad_photometry[j,iimage,11], stamp_id)
+                assert( quad_photometry[j,iimage,11] == float(stamp_id) )
 
     logs.close_log(log)
 
@@ -509,11 +512,37 @@ def test_populate_stamps_table():
 
     logs.close_log(log)
 
+def test_get_dataset_quad_star_indices():
+
+    params = test_params()
+    log = logs.start_stage_log( params['log_dir'], 'test_crossmatch' )
+
+    xmatch = crossmatch.CrossMatchTable()
+    xmatch.create(params)
+    xmatch = test_field_index(xmatch)
+    xmatch = test_stars_table(xmatch)
+    xmatch.create_images_table()
+    print(xmatch.field_index)
+    print(xmatch.field_index[xmatch.datasets[0]['dataset_code']+'_index'],
+            xmatch.field_index['quadrant_id'])
+    # Test dataset includes stars in quadrants 3 and 4:
+    for q in range(1,5,1):
+        # Since we are testing for only one dataset, we can directly
+        # extract these indices for testing
+        idx = np.where(xmatch.field_index['quadrant'] == q)[0]
+        test_quad_idx = xmatch.field_index['quadrant_id'][idx] - 1
+        test_dataset_idx = xmatch.field_index[xmatch.datasets[0]['dataset_code']+'_index'][idx] - 1
+        (quad_star_idx, dataset_stars_idx) = field_photometry.get_dataset_quad_star_indices(xmatch.datasets[0],
+                                                                    xmatch, q)
+        assert(test_quad_idx == quad_star_idx).all()
+        assert(test_dataset_idx == dataset_stars_idx).all()
+
 if __name__ == '__main__':
-    test_init_field_data_table()
-    test_populate_images_table()
-    test_populate_stars_table()
+    #test_init_field_data_table()
+    #test_populate_images_table()
+    #test_populate_stars_table()
     test_populate_photometry_array()
-    test_build_array_index_3D()
-    test_update_array_col_index()
-    test_populate_stamps_table()
+    #test_build_array_index_3D()
+    #test_update_array_col_index()
+    #test_populate_stamps_table()
+    #test_get_dataset_quad_star_indices()
