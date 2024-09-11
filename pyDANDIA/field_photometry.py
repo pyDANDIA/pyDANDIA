@@ -11,6 +11,7 @@ from astropy.table import Table, Column
 import pdb
 
 def combine_photometry_from_all_datasets():
+    TIMESERIES_PHOT = False
 
     params = get_args()
 
@@ -35,25 +36,26 @@ def combine_photometry_from_all_datasets():
 
     # These loops are deliberately separated because it makes it easier to
     # initialize the photometry array for the whole field to the correct size
-    for q in range(1,5,1):
-        log.info('Populating timeseries photometry for quadrant '+str(q))
-        quad_photometry = init_quad_field_data_table(xmatch,q,log)
-        for dataset in xmatch.datasets:
-            log.info('-> Including data timeseries photometry with data from '+dataset['dataset_code'])
-            setup = pipeline_setup.PipelineSetup()
-            setup.red_dir = dataset['dataset_red_dir']
-            dataset_metadata = metadata.MetaData()
-            dataset_metadata.load_all_metadata(setup.red_dir, 'pyDANDIA_metadata.fits')
-            phot_data = hd5_utils.read_phot_hd5(setup, log=log, return_type='array')
-            if len(phot_data) > 0:
-                (quad_star_index, dataset_stars_index) = get_dataset_quad_star_indices(dataset, xmatch, q)
-                dataset_image_index = get_dataset_image_index(dataset, xmatch)
-                (xmatch,quad_photometry) = populate_quad_photometry_array(quad_star_index, dataset_stars_index,
-                                                dataset_image_index, quad_photometry, phot_data, xmatch, log,
-                                                dataset_metadata)
+    if TIMESERIES_PHOT:
+        for q in range(1,5,1):
+            log.info('Populating timeseries photometry for quadrant '+str(q))
+            quad_photometry = init_quad_field_data_table(xmatch,q,log)
+            for dataset in xmatch.datasets:
+                log.info('-> Including data timeseries photometry with data from '+dataset['dataset_code'])
+                setup = pipeline_setup.PipelineSetup()
+                setup.red_dir = dataset['dataset_red_dir']
+                dataset_metadata = metadata.MetaData()
+                dataset_metadata.load_all_metadata(setup.red_dir, 'pyDANDIA_metadata.fits')
+                phot_data = hd5_utils.read_phot_hd5(setup, log=log, return_type='array')
+                if len(phot_data) > 0:
+                    (quad_star_index, dataset_stars_index) = get_dataset_quad_star_indices(dataset, xmatch, q)
+                    dataset_image_index = get_dataset_image_index(dataset, xmatch)
+                    (xmatch,quad_photometry) = populate_quad_photometry_array(quad_star_index, dataset_stars_index,
+                                                    dataset_image_index, quad_photometry, phot_data, xmatch, log,
+                                                    dataset_metadata)
 
-        # Output tables to quadrant HDF5 file
-        output_quad_photometry(params, xmatch, quad_photometry, q, log)
+            # Output tables to quadrant HDF5 file
+            output_quad_photometry(params, xmatch, quad_photometry, q, log)
 
     # Update the xmatch table
     xmatch.save(params['crossmatch_file'])
@@ -279,6 +281,9 @@ def check_for_reference_dataset(dataset_code):
 
 def populate_stars_table(dataset,xmatch,dataset_metadata,log):
 
+    # Extract the dataset ID from the dataset code.
+    # For datasets that have been reduced separately for each instrument, we
+    # can extract a unique identifier from the dataset_code.
     dataset_id = '_'.join(dataset['dataset_code'].split('_')[1].split('-')[0:2])
     filter_name = parse_sloan_filter_ids(dataset['dataset_filter'])
 
@@ -305,7 +310,15 @@ def populate_images_table(dataset, dataset_metadata, xmatch, log):
     iimage = len(xmatch.images)
     image_index = []
     for i,image in enumerate(dataset_metadata.headers_summary[1]):
-        row = [iimage+i, image['IMAGES'], dataset['dataset_code'], image['FILTKEY'], 0.0, \
+        # Workaround for the older version of the pipeline which doesn't include airmass
+        # in the metadata
+        if 'AIRMASS' not in image.keys():
+            row = [iimage + i, image['IMAGES'], dataset['dataset_code'], image['FILTKEY'], 0.0, \
+                   image['DATEKEY'], image['EXPKEY'], image['RAKEY'], image['DECKEY'], \
+                   image['MOONDKEY'], image['MOONFKEY']] + \
+                  [0.0] * 7 + [0] + [0.0] * 2 + [0, 0] + [0.0] * 24 + [0]
+        else:
+            row = [iimage+i, image['IMAGES'], dataset['dataset_code'], image['FILTKEY'], 0.0, \
                                 image['DATEKEY'], image['EXPKEY'], image['RAKEY'], image['DECKEY'], \
                                 image['MOONDKEY'], image['MOONFKEY'], image['AIRMASS'] ] + \
                                 [0.0]*6 + [0] +[0.0]*2 + [0,0] + [0.0]*24 + [0]
@@ -326,7 +339,7 @@ def populate_images_table(dataset, dataset_metadata, xmatch, log):
         log.info('--> xmatch.images qc flag entry: '+str(xmatch.images['qc_flag'][i]))
     log.info('-> Populated images table with reduction status QC data')
 
-    images_stats_keys = ['sigma_x', 'sigma_y', 'sky', 'median_sky', 'fwhm', \
+    images_stats_keys = ['sigma_x', 'sigma_y', 'sky', 'sky_sigma', 'fwhm', 'ellipticity', \
                          'corr_xy', 'nstars', 'frac_sat_pix', 'symmetry',  \
                          'use_phot', 'use_ref', 'shift_x', 'shift_y', \
                          'pscale', 'pscale_err', 'var_per_pix_diff', 'n_unmasked',\
@@ -336,7 +349,12 @@ def populate_images_table(dataset, dataset_metadata, xmatch, log):
         log.info('-> Populating image statistics and warp matrix for '+image['IM_NAME'])
         i = np.where(xmatch.images['filename'] == image['IM_NAME'])
         for key in images_stats_keys:
-            xmatch.images[key][i] = image[key.upper()]
+            # Workaorund to catch old-format image quality column keywords
+            if key in xmatch.images.colnames:
+                try:
+                    xmatch.images[key][i] = image[key.upper()]
+                except KeyError:
+                    xmatch.images[key][i] = 0.0
 
         matrix_file = path.join(red_dir, 'resampled', image['IM_NAME'], 'warp_matrice_image.npy')
         if path.isfile(matrix_file):

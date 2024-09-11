@@ -154,8 +154,8 @@ def plot_interactive(data, plot_file, axis_labels, target_params,
                     x=np.array([target_params[1]]),
                     y=np.array([target_params[2]]),
                     marker=dict(
-                        color='LightSkyBlue',
-                        size=5
+                        color='#f7a203',
+                        size=7
                     ),
                     marker_symbol='diamond',
                     name='Target',
