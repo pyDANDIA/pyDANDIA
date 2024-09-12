@@ -46,8 +46,8 @@ def calc_field_cmds():
         merr_col_red = 'cal_'+f2+'_magerr_'+params['primary_ref']
 
         jdx = np.logical_and(xmatch.stars[mag_col_blue] > 0.0, xmatch.stars[mag_col_red] > 0.0)
-        jdx = np.logical_and(jdx, xmatch.stars[merr_col_blue] <= 0.5)
-        jdx = np.logical_and(jdx, xmatch.stars[merr_col_red] <= 0.5)
+        jdx = np.logical_and(jdx, xmatch.stars[merr_col_blue] <= 0.2)
+        jdx = np.logical_and(jdx, xmatch.stars[merr_col_red] <= 0.2)
         select_stars = np.where(jdx)[0]
         data = np.zeros((len(select_stars),3))
         cmd_data = np.zeros((len(select_stars),7))
