@@ -100,8 +100,8 @@ def plot_all_fields(args):
                 # Annotate each field with its index for identification
                 if args.mode == 'paper':
                     field_idx = field_id.split('-')[-1]
-                if field_idx[0:1] == '0': field_idx = field_idx[1:]
-                plt.annotate(field_idx, (field_data[0] - FIELD_HALF_WIDTH, field_data[1] - FIELD_HALF_HEIGHT),
+                    if field_idx[0:1] == '0': field_idx = field_idx[1:]
+                    plt.annotate(field_idx, (field_data[0] - FIELD_HALF_WIDTH, field_data[1] - FIELD_HALF_HEIGHT),
                                 **{'fontsize': fontsize})
 
     plt.grid(linestyle='--',c='gray', linewidth=0.5)
@@ -111,10 +111,7 @@ def plot_all_fields(args):
     ax.xaxis.label.set_color('gray')
     plt.xlabel('RA [deg]', fontsize=fontsize)
     plt.ylabel('Dec [deg]', fontsize=fontsize)
-    for tick in ax.xaxis.get_major_ticks():
-        tick.label.set_fontsize(fontsize)
-    for tick in ax.yaxis.get_major_ticks():
-        tick.label.set_fontsize(fontsize)
+    ax.tick_params(axis='both', which='major', labelsize=fontsize)
 
     if args.mode == 'poster':
         ax.title.set_color('white')
