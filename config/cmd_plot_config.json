@@ -1,5 +1,5 @@
 {  "field_xmatch_file": {
-        "value": "/Users/rstreet1/ROMEREA/test_data/ROME-FIELD-01_field_xmatch.fits",
+        "value": "/data02/rstreet/data_reduction/ROME-FIELD-01/ROME-FIELD-01_field_crossmatch.fits",
         "comment": "Path to field cross-matched reference file",
         "format": "string",
         "unit": ""
@@ -11,7 +11,7 @@
         "unit": ""
     },
     "output_dir": {
-        "value": "/Users/rstreet1/ROMEREA/test_data/",
+        "value": "/data02/rstreet/data_reduction/ROME-FIELD-01/cmd/",
         "comment": "Directory path for output",
         "format": "string",
         "unit": ""
@@ -29,19 +29,19 @@
         "unit": ""
     },
     "target_ra": {
-        "value": "17:50:41.0",
+        "value": "17:51:20.6",
         "comment": "Right ascension of field centre or target in sexigesimal format, cannot be None",
         "format": "string",
         "unit": ""
     },
     "target_dec": {
-        "value": "-30:12:36",
+        "value": "-30:03:38.94",
         "comment": "Declination of field centre or target in sexigesimal format, cannot be None",
         "format": "string",
         "unit": ""
     },
     "selection_radius": {
-        "value": 10.0,
+        "value": 0.0,
         "comment": "Maximum radius used to select stars close to the target location. Set to zero for no selection.",
         "format": "float",
         "unit": "arcmin"
@@ -56,25 +56,25 @@
         "value": -99.0,
         "comment": "Maximum Gaia parallax used to select stars. Set to -99.0 for no selection.",
         "format": "float",
-        "unit": "mas"
+        "unit": "arcmin"
     },
     "parallax_max": {
         "value": 99.0,
         "comment": "Maximum Gaia parallax used to select stars. Set to +99.0 for no selection.",
         "format": "float",
-        "unit": "mas"
+        "unit": "arcmin"
     },
     "pm_min": {
         "value": -99.0,
         "comment": "Maximum Gaia parallax used to select stars. Set to -99.0 for no selection.",
         "format": "float",
-        "unit": ""
+        "unit": "arcmin"
     },
     "pm_max": {
         "value": 99.0,
         "comment": "Maximum Gaia parallax used to select stars. Set to +99.0 for no selection.",
         "format": "float",
-        "unit": ""
+        "unit": "arcmin"
     },
     "interactive": {
         "value": "False",
@@ -84,8 +84,26 @@
     },
     "downsample_factor": {
         "value": 5,
-        "comment": "Select every N points from the dataset to reduced overall plot size.  Set to 1 for normal operation",
+        "comment": "Select every N points to reduce excessive plot size.  Set to 1 for normal operation",
         "format": "int",
+        "unit": ""
+    },
+    "cmd_plot_list": {
+        "value": {
+            "(g-i)": "g",
+            "(r-i)", "i",
+            "(r-i)", "r",
+            "(g-r)", "g",
+            "(g-i)", "i"
+        },
+        "comment": "Set of color-magnitude diagrams to plot, x-data : y-data pairs",
+        "format": "string",
+        "unit": ""
+    },
+    "ccd_plot": {
+        "value": "false",
+        "comment": "Plot color-color diagram?  true or false",
+        "format": "string",
         "unit": ""
     },
     "plot_i_range": {
@@ -95,7 +113,7 @@
         "unit": "mag"
     },
     "i_sigma_max": {
-        "value": 0.5,
+        "value": 0.1,
         "comment": "Maximum SDSS-i magnitude uncertainty to use for plots",
         "format": "float",
         "unit": "mag"
@@ -107,19 +125,19 @@
         "unit": "mag"
     },
     "r_sigma_max": {
-        "value": 0.5,
+        "value": 0.1,
         "comment": "Maximum SDSS-r magnitude uncertainty to use for plots",
         "format": "float",
         "unit": "mag"
     },
     "plot_g_range": {
-        "value": [13.0, 22.5],
+        "value": [13.0, 21.0],
         "comment": "Minimum and maximum SDSS-g magnitudes to use for plots",
         "format": "float",
         "unit": "mag"
     },
     "g_sigma_max": {
-        "value": 0.5,
+        "value": 0.1,
         "comment": "Maximum SDSS-g magnitude uncertainty to use for plots",
         "format": "float",
         "unit": "mag"
@@ -137,7 +155,7 @@
         "unit": "mag"
     },
     "plot_gr_range": {
-        "value": [0.0, 5.0],
+        "value": [0.0, 3.5],
         "comment": "Minimum and maximum SDSS-r magnitudes to use for plots",
         "format": "float",
         "unit": "mag"
@@ -161,7 +179,7 @@
         "unit": "mag"
     },
     "legend": {
-        "value": "True",
+        "value": "False",
         "comment": "Switch for banner-style plot legend",
         "format": "string",
         "unit": "None"
