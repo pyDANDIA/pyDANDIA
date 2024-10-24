@@ -106,6 +106,24 @@
         "format": "string",
         "unit": ""
     },
+    "use_g_selection": {
+        "value": "true",
+        "comment": "Plot color-color diagram?  true or false",
+        "format": "string",
+        "unit": ""
+    },
+    "use_r_selection": {
+        "value": "true",
+        "comment": "Plot color-color diagram?  true or false",
+        "format": "string",
+        "unit": ""
+    },
+    "use_i_selection": {
+        "value": "true",
+        "comment": "Plot color-color diagram?  true or false",
+        "format": "string",
+        "unit": ""
+    },
     "plot_i_range": {
         "value": [12.0, 20.0],
         "comment": "Minimum and maximum SDSS-i magnitudes to use for plots",

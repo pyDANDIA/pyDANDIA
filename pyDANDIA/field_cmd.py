@@ -339,11 +339,18 @@ def select_by_photometry_quality(xmatch, config, log):
     icol = 'cal_i_mag_'+config['reference_dataset_code']
     ierrcol = 'cal_i_magerr_'+config['reference_dataset_code']
 
-    qc_idx = np.logical_and(xmatch.stars[gcol] > 0.0, xmatch.stars[gerrcol] <= config['g_sigma_max'])
-    qc_idx = np.logical_and(qc_idx, xmatch.stars[rcol] > 0.0)
-    qc_idx = np.logical_and(qc_idx, xmatch.stars[rerrcol] <= config['r_sigma_max'])
-    qc_idx = np.logical_and(qc_idx, xmatch.stars[icol] >  0.0)
-    qc_idx = np.logical_and(qc_idx, xmatch.stars[ierrcol] <= config['i_sigma_max'])
+    qc_idx = np.array([True]*len(xmatch.stars))
+    if 'true' in str(config['use_g_selection']).lower():
+        g_idx = np.logical_and(xmatch.stars[gcol] > 0.0, xmatch.stars[gerrcol] <= config['g_sigma_max'])
+        qc_idx = np.logical_and(qc_idx, g_idx)
+
+    if 'true' in str(config['use_r_selection']).lower():
+        r_idx = np.logical_and(xmatch.stars[rcol] > 0.0, xmatch.stars[rerrcol] <= config['r_sigma_max'])
+        qc_idx = np.logical_and(qc_idx, r_idx)
+
+    if 'true' in str(config['use_i_selection']).lower():
+        i_idx = np.logical_and(xmatch.stars[icol] > 0.0, xmatch.stars[ierrcol] <= config['i_sigma_max'])
+        qc_idx = np.logical_and(qc_idx, i_idx)
 
     qc_idx = np.where(qc_idx)[0]
 
