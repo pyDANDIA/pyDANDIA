@@ -216,3 +216,6 @@ if __name__ == '__main__':
     #qs = search_vizier_for_gaia_sources(ra, dec, radius)
     print(repr(qs))
     print(qs.colnames)
+    import pdb;
+
+    pdb.set_trace()
