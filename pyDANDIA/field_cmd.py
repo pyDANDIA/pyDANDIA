@@ -25,13 +25,11 @@ def field_colour_analysis():
 
     (valid_stars, selected_stars) = apply_star_selection(config, xmatch, log)
 
-    plot_field_colour_mag_diagram(config, xmatch, valid_stars, selected_stars, '(g-i)', 'g', log)
-    plot_field_colour_mag_diagram(config, xmatch, valid_stars, selected_stars, '(r-i)', 'i', log)
-    plot_field_colour_mag_diagram(config, xmatch, valid_stars, selected_stars, '(r-i)', 'r', log)
-    plot_field_colour_mag_diagram(config, xmatch, valid_stars, selected_stars, '(g-r)', 'g', log)
-    plot_field_colour_mag_diagram(config, xmatch, valid_stars, selected_stars, '(g-i)', 'i', log)
+    for xdata, ydata in config['cmd_plot_list'].items():
+        plot_field_colour_mag_diagram(config, xmatch, valid_stars, selected_stars, xdata, ydata, log)
 
-    plot_field_colour_colour_diagram(config, xmatch, valid_stars, selected_stars, log)
+    if config['ccd_plot']:
+        plot_field_colour_colour_diagram(config, xmatch, valid_stars, selected_stars, log)
 
     output_photometry(config, xmatch, selected_stars, log)
 
