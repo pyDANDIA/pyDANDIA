@@ -22,10 +22,10 @@
     "cmd_plot_list": {
         "value": {
             "(g-i)": "g",
-            "(r-i)", "i",
-            "(r-i)", "r",
-            "(g-r)", "g",
-            "(g-i)", "i"
+            "(r-i)": "i",
+            "(r-i)": "r",
+            "(g-r)": "g",
+            "(g-i)": "i"
         },
         "comment": "Set of color-magnitude diagrams to plot, x-data : y-data pairs",
         "format": "string",
