@@ -332,7 +332,7 @@ def run_stage6(setup, **kwargs):
 
 def get_default_config(kwargs,log):
 
-    default_config = {'per_star_logging': False, 'build_phot_db': True}
+    default_config = {'per_star_logging': False, 'build_phot_db': False}
 
     kwargs = config_utils.set_default_config(default_config, kwargs, log)
 
