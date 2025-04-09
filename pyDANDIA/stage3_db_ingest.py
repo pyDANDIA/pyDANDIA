@@ -321,7 +321,7 @@ def harvest_image_params(reduction_metadata, image_path, ref_image_path, **kwarg
         image_params['instrument'] = image_params['instrument'].replace('fl','fa')
     print(kwargs)
     print(image_params)
-    print(type(kwargs['build_phot_db']))
+    print(type(kwargs['build_phot_db']), kwargs['build_phot_db'])
     if kwargs['build_phot_db']:
         image_params['facility_code'] = phot_db.get_facility_code(image_params)
     else:
