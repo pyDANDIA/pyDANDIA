@@ -325,7 +325,8 @@ def harvest_image_params(reduction_metadata, image_path, ref_image_path, **kwarg
         image_params['facility_code'] = phot_db.get_facility_code(image_params)
     else:
         image_params['facility_code'] = 0
-
+    print('FACILITY CODE: ' + str(image_params['facility_code']))
+    
     # Image parameters for single-frame reference image
     # NOTE: Stacked reference images not yet supported
     image_params['filename'] = path.basename(image_path)
