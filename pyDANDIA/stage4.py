@@ -924,10 +924,13 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
 
                 except:
 
-                   model_stamp = tf.SimilarityTransform(translation=(-shifts[1],-shifts[0]))
-                   np.save(os.path.join(resample_directory, 'warp_matrice_stamp_' + str(stamp) + '.npy'), model_stamp.params)
-
-
+                    try:
+                        model_stamp = tf.SimilarityTransform(translation=(-shifts[1],-shifts[0]))
+                        np.save(os.path.join(resample_directory, 'warp_matrice_stamp_' + str(stamp) + '.npy'), model_stamp.params)
+                    except UnboundLocalError:
+                        # Handle case where no valid shifts are available
+                        log.info('WARNING -> No valid shifts available for stamp')
+                        image_red_status[new_image] = -1
 
 
             #save the warp matrices instead of images
