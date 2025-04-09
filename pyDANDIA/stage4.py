@@ -937,7 +937,8 @@ def resample_image_stamps(new_images, reference_image_name, reference_image_dire
             np.save(os.path.join(resample_directory, 'warp_matrice_image.npy'), model_final.params)
             data_image_hdu.close()
 
-            image_red_status[new_image] = 1
+            if image_red_status[new_image] != -1:
+                image_red_status[new_image] = 1
 
     if type(master_mask) == int:
         raise ValueError('No valid mask data found in dataset')
