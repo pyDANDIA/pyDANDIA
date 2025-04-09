@@ -223,6 +223,7 @@ def run_stage6(setup, **kwargs):
             image_params['version'] = stage6_version
             image_params['facility'] = dataset_params['facility']
             image_params['filter'] = dataset_params['filter']
+            print(new_image, index_image, image_params['hjd'])
             reduction_metadata.headers_summary[1]['HJD'][index_image] = image_params['hjd']
             reduction_metadata.headers_summary[1]['AIRMASS'][index_image] = image_params['airmass']
 
