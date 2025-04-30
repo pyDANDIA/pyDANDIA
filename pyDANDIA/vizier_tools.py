@@ -148,6 +148,16 @@ def query_vizier_servers(query_service, coord, search_radius, catalog_id, log=No
 
                 return status, result
 
+        # Handle preferred-server max-retries limit
+        except requests.exceptions.MaxRetryError:
+            iserver += 1
+            if iserver >= len(vizier_servers_list):
+                continue_query = False
+                result = []
+                status = False
+
+                return status, result
+            
         if result == None or len(result) > 0:
             continue_query = False
         elif len(result) == 0:
