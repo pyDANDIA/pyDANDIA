@@ -74,7 +74,10 @@ def search_vizier_for_sources(ra, dec, radius, catalog, row_limit=-1,
 
     catalog_list = Vizier.find_catalogs(cat_id)
 
-    (status, result) = query_vizier_servers(v, c, r, [cat_id], debug=debug)
+    # Default to simple Vizier query since multi-server approach producing
+    # max-retry errors
+    result = v.query_region(c, radius=r, catalog=cat_id)
+    #(status, result) = query_vizier_servers(v, c, r, [cat_id], debug=debug)
 
     if result != None and len(result) == 1:
 
@@ -100,9 +103,9 @@ def query_vizier_servers(query_service, coord, search_radius, catalog_id, log=No
     catalog_id  str      Name of catalog to be searched in ViZier's notation
     """
 
-    vizier_servers_list = ['vizier.cfa.harvard.edu', 'vizier.hia.nrc.ca', 'vizier.u-strasbg.fr']
+    #vizier_servers_list = ['vizier.cfa.harvard.edu', 'vizier.hia.nrc.ca', 'vizier.u-strasbg.fr']
 
-    query_service.VIZIER_SERVER = vizier_servers_list[0]
+    #query_service.VIZIER_SERVER = vizier_servers_list[0]
 
     query_service.TIMEOUT = 60
 
@@ -157,7 +160,7 @@ def query_vizier_servers(query_service, coord, search_radius, catalog_id, log=No
                 status = False
 
                 return status, result
-            
+
         if result == None or len(result) > 0:
             continue_query = False
         elif len(result) == 0:
@@ -227,5 +230,4 @@ if __name__ == '__main__':
     print(repr(qs))
     print(qs.colnames)
     import pdb;
-
     pdb.set_trace()
