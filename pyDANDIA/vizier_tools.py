@@ -76,8 +76,8 @@ def search_vizier_for_sources(ra, dec, radius, catalog, row_limit=-1,
 
     # Default to simple Vizier query since multi-server approach producing
     # max-retry errors
-    result = v.query_region(c, radius=r, catalog=cat_id)
-    #(status, result) = query_vizier_servers(v, c, r, [cat_id], debug=debug)
+    #result = v.query_region(c, radius=r, catalog=cat_id)
+    (status, result) = query_vizier_servers(v, c, r, [cat_id], debug=debug)
 
     if result != None and len(result) == 1:
 

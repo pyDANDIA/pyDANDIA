@@ -42,12 +42,12 @@ def plot_all_fields(args):
     fig = plt.figure(1,(39,27))
     if args.mode == 'poster':
         fig.patch.set_facecolor('black')
-        fontsize = 30
+        fontsize = 40
     else:
         fontsize = 50
 
     ax = plt.subplot(111)
-    plt.subplots_adjust(left=0.075, right=0.95, top=0.85, bottom=0.15)
+    plt.subplots_adjust(left=0.075, right=0.99, top=0.95, bottom=0.05)
     if args.mode == 'poster':
         ax.set_facecolor('black')
         ax.spines["top"].set_visible(False)
@@ -104,30 +104,46 @@ def plot_all_fields(args):
                     plt.annotate(field_idx, (field_data[0] - FIELD_HALF_WIDTH, field_data[1] - FIELD_HALF_HEIGHT),
                                 **{'fontsize': fontsize})
 
-    plt.grid(linestyle='--',c='gray', linewidth=0.5)
-    ax.tick_params(axis='x', colors='gray')
-    ax.tick_params(axis='y', colors='gray')
-    ax.yaxis.label.set_color('gray')
-    ax.xaxis.label.set_color('gray')
-    plt.xlabel('RA [deg]', fontsize=fontsize)
-    plt.ylabel('Dec [deg]', fontsize=fontsize)
-    ax.tick_params(axis='both', which='major', labelsize=fontsize)
+
+    plot_axes = True
+    if plot_axes:
+        plt.grid(linestyle='--',c='gray', linewidth=0.5)
+        ax.tick_params(axis='x', colors='gray')
+        ax.tick_params(axis='y', colors='gray')
+        ax.yaxis.label.set_color('gray')
+        ax.xaxis.label.set_color('gray')
+        plt.xlabel('RA [deg]', fontsize=fontsize)
+        plt.ylabel('Dec [deg]', fontsize=fontsize)
+        ax.tick_params(axis='both', which='major', labelsize=fontsize)
+    else:
+        ax.axis('off')
+    ax.set_xlim([plot_ranges[1], plot_ranges[0]])
+    ax.set_ylim([plot_ranges[2], plot_ranges[3]])
 
     if args.mode == 'poster':
         ax.title.set_color('white')
-        figure_title = 'ROME Survey of the Galactic Bulge'
-        plt.text(0.5, 1.08, figure_title,
+        figure_title = 'ROME/REA Survey of the Galactic Bulge'
+        subtitle = '~8 million stars  $\\bullet$  3 filters  $\\bullet$  3 years'
+        plt.text(0.5, 1.06, figure_title,
             horizontalalignment='center',
             fontsize=100, c='gray',
             transform = ax.transAxes)
 
-        plt.text(0.5, -0.16, '5 million stars  $\\bullet$  3 filters  $\\bullet$  3 years',
+        # Bottom location: 0.5, -0.16
+        plt.text(0.5, 1.00, subtitle,
             horizontalalignment='center',
-            fontsize=80, c='gray',
+            fontsize=70, c='gray',
             transform = ax.transAxes)
 
+        # Annotation
+        anno_text = 'Full timeseries photometry available through the NASA Exoplanet Archive'
+        plt.text(0.5, -0.10, anno_text,
+                 horizontalalignment='center',
+                 fontsize=40, c='gray',
+                 transform=ax.transAxes)
+
         image = plt.imread(path.join(args.data_dir,'LCO_new_logo_lightgrey.png'))
-        ax2 = fig.add_axes([0.875, -0.01, 0.1, 0.1], anchor='NE')
+        ax2 = fig.add_axes([0.875, -0.10, 0.1, 0.1], anchor='NE')
         ax2.imshow(image)
         ax2.axis('off')
 
@@ -149,8 +165,10 @@ def calc_survey_boundaries(args):
         if field_data[1] > dec_max: dec_max = field_data[1]
 
     if args.mode == 'poster':
-        ra_min = ra_min * 0.99
-        ra_max = ra_max * 1.01
+        ra_min = ra_min * 1.0
+        ra_min = 267.5
+        ra_max = ra_max * 1.0
+        ra_max = 271.08
         dec_min = dec_min * 1.01
         dec_max = dec_max * 0.99
     else:
