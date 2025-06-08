@@ -1,7 +1,7 @@
 {
     "instrid": {
         "comment": "instrid - STRING  - The instrument name.",
-        "value": "sq34",
+        "value": "sq35",
 	"format":"S200",
 	"unit":""
     },
