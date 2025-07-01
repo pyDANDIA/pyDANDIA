@@ -70,7 +70,7 @@ def calc_field_rms():
             plot_file = path.join(config['output_dir'],
                                   config['field_name']+'_quad'+config['quadrant']+'_rms_postnorm'+'_'+filter+'.html')
             plotly_lightcurves.plot_interactive(phot_statistics, plot_file, axis_labels,
-                    target_params, title=plot_title, logy=True, xreverse=True)
+                    target_params, title=plot_title, logy=True, xreverse=False)
         else:
             plot_file = path.join(config['output_dir'],
                                   config['field_name']+'_quad'+config['quadrant']+'_rms_postnorm'+'_'+filter+'.png')
