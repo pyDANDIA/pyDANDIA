@@ -71,6 +71,9 @@ def list_dataproducts(config, login, payload, target_pk, log=None):
 
     # List endpoint does not currently support queries specific to target ID
     #response = requests.get(dataupload_url, params=ur, auth=login).json()
+    print(dataupload_url)
+    print(ur)
+    print(login)
     response = requests.get(dataupload_url, params=ur, auth=login).json()
 
     existing_datafiles = {}
